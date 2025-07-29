@@ -1,0 +1,2 @@
+ALTER TABLE bets
+ADD COLUMN status VARCHAR default 'ACTIVE';

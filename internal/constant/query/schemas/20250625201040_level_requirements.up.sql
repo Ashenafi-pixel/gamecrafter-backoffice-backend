@@ -1,0 +1,18 @@
+create table level_requirements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    level_id UUID NOT NULL,
+    type VARCHAR NOT NULL,
+    value VARCHAR NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    created_by UUID NOT NULL,
+    CONSTRAINT fk_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_level_id FOREIGN KEY (level_id) REFERENCES levels(id) ON DELETE CASCADE);
+
+    CREATE UNIQUE INDEX uniq_levels_requirements_active
+    ON levels(level)
+    WHERE deleted_at IS NULL;
+
+    CREATE UNIQUE INDEX uniq_levels_requirements_deleted
+    ON levels(level, deleted_at)

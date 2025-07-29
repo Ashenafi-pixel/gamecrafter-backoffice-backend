@@ -1,0 +1,1 @@
+drop table if exists loot_box_place_bets cascade;

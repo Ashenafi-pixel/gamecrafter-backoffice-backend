@@ -1,0 +1,1 @@
+drop table waiting_squad_members;

@@ -1,0 +1,1 @@
+drop table lottery_winners_logs;

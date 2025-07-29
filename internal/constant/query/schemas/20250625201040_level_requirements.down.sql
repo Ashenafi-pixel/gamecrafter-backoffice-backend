@@ -1,0 +1,1 @@
+drop table level_requirements 
