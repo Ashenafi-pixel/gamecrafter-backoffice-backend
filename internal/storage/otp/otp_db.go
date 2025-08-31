@@ -8,18 +8,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
-	"github.com/tucanbit/platform/redis"
+	"github.com/tucanbit/internal/contracts"
 	"go.uber.org/zap"
 )
 
 // OTPDatabase implements the Database interface using Redis
 type OTPDatabase struct {
-	redis *redis.RedisOTP
+	redis contracts.Redis
 	log   *zap.Logger
 }
 
 // NewOTPDatabase creates a new OTP database instance
-func NewOTPDatabase(redis *redis.RedisOTP, log *zap.Logger) Database {
+func NewOTPDatabase(redis contracts.Redis, log *zap.Logger) Database {
 	return &OTPDatabase{
 		redis: redis,
 		log:   log,
@@ -41,8 +41,8 @@ func (db *OTPDatabase) CreateOTP(ctx context.Context, email, otpCode, otpType st
 	}
 
 	// Store in Redis with expiration using email as key
-	// Note: RedisOTP client automatically adds "tucanbit::" prefix via otpKey method
-	key := fmt.Sprintf("otp:%s:%s", email, otpID.String())
+	// Use the correct key format with tucanbit prefix
+	key := fmt.Sprintf("tucanbit::otp:%s:%s", email, otpID.String())
 	data, err := json.Marshal(otpInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal OTP info: %w", err)
@@ -55,8 +55,8 @@ func (db *OTPDatabase) CreateOTP(ctx context.Context, email, otpCode, otpType st
 	}
 
 	// Also store a mapping from OTP ID to email for quick lookup
-	// Note: RedisOTP client automatically adds "tucanbit::" prefix via otpKey method
-	idKey := fmt.Sprintf("otp_id:%s", otpID.String())
+	// Use the correct key format with tucanbit prefix
+	idKey := fmt.Sprintf("tucanbit::otp_id:%s", otpID.String())
 	err = db.redis.Set(ctx, idKey, email, expiration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store OTP ID mapping: %w", err)
@@ -73,16 +73,16 @@ func (db *OTPDatabase) CreateOTP(ctx context.Context, email, otpCode, otpType st
 // GetOTPByID retrieves an OTP by ID from Redis
 func (db *OTPDatabase) GetOTPByID(ctx context.Context, otpID uuid.UUID) (*dto.OTPInfo, error) {
 	// First get the email from the ID mapping
-	// Note: RedisOTP client automatically adds "tucanbit::" prefix via otpKey method
-	idKey := fmt.Sprintf("otp_id:%s", otpID.String())
+	// Use the correct key format with tucanbit prefix
+	idKey := fmt.Sprintf("tucanbit::otp_id:%s", otpID.String())
 	email, err := db.redis.Get(ctx, idKey)
 	if err != nil {
 		return nil, fmt.Errorf("OTP not found")
 	}
 
 	// Now get the OTP directly using the constructed key
-	// Note: RedisOTP client automatically adds "tucanbit::" prefix via otpKey method
-	otpKey := fmt.Sprintf("otp:%s:%s", email, otpID.String())
+	// Use the correct key format with tucanbit prefix
+	otpKey := fmt.Sprintf("tucanbit::otp:%s:%s", email, otpID.String())
 	data, err := db.redis.Get(ctx, otpKey)
 	if err != nil {
 		return nil, fmt.Errorf("OTP data not found")
@@ -101,8 +101,8 @@ func (db *OTPDatabase) GetOTPByID(ctx context.Context, otpID uuid.UUID) (*dto.OT
 func (db *OTPDatabase) GetRecentOTPByEmail(ctx context.Context, email, otpType string) (*dto.OTPInfo, error) {
 	// For simplicity, we'll use a fixed key pattern
 	// In production, you might want to implement a more sophisticated approach
-	// Note: RedisOTP client automatically adds "tucanbit::" prefix via otpKey method
-	key := fmt.Sprintf("otp:%s:latest", email)
+	// Use the correct key format with tucanbit prefix
+	key := fmt.Sprintf("tucanbit::otp:%s:latest", email)
 	data, err := db.redis.Get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("no OTPs found for email")
@@ -133,8 +133,8 @@ func (db *OTPDatabase) UpdateOTPStatus(ctx context.Context, otpID uuid.UUID, sta
 	otpInfo.UpdatedAt = time.Now().UTC()
 
 	// Update in Redis
-	// Note: RedisOTP client automatically adds "tucanbit::" prefix via otpKey method
-	key := fmt.Sprintf("otp:%s:%s", otpInfo.Email, otpID.String())
+	// Use the correct key format with tucanbit prefix
+	key := fmt.Sprintf("tucanbit::otp:%s:%s", otpInfo.Email, otpID.String())
 	data, err := json.Marshal(otpInfo)
 	if err != nil {
 		return fmt.Errorf("failed to marshal OTP info: %w", err)

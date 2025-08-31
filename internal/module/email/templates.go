@@ -903,7 +903,7 @@ func GetModernVerificationEmailTemplate() *template.Template {
             </div>
         </div>
         
-                <h1 class="main-heading">Verify Your TucanBIT Account</h1>
+        <h1 class="main-heading">Verify Your TucanBIT Account</h1>
         
         <div class="verification-info">
             <div class="info-item">When: {{.OTPExpiresAt.Format "Jan 2, 2006, 3:04 PM UTC"}}</div>
@@ -923,7 +923,7 @@ func GetModernVerificationEmailTemplate() *template.Template {
             To verify your account, enter the code below in the app or site:
         </p>
         
-        		        <div class="verification-code-container">
+        		<div class="verification-code-container">
             <div class="verification-code">{{.OTPCode}}</div>
             <a href="http://localhost:8080/verify?otp_code={{.OTPCode}}&otp_id={{.OTPId}}&user_id={{.UserID}}" class="verification-button">Verify My Account</a>
         </div>

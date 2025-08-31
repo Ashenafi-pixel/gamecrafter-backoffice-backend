@@ -261,6 +261,8 @@ func (u *user) UpdatePassword(ctx context.Context, UserID uuid.UUID, newPassword
 func (u *user) GetUserByEmail(ctx context.Context, email string) (dto.User, bool, error) {
 	// World-class implementation: Get full user data by email for login authentication
 	// This method now returns complete user information including password for secure login
+
+	// Use the new PersistenceDB method to get full user data
 	usr, err := u.db.GetUserByEmailFull(ctx, email)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
