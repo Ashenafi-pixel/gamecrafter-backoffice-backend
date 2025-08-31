@@ -13,7 +13,17 @@ import (
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		key := viper.GetString("auth.jwt_secret")
+		key := viper.GetString("app.jwt_secret")
+		if key == "" {
+			key = viper.GetString("auth.jwt_secret") // Fallback for backward compatibility
+		}
+		if key == "" {
+			err := fmt.Errorf("JWT secret not configured")
+			err = errors.ErrInvalidAccessToken.Wrap(err, err.Error())
+			_ = c.Error(err)
+			c.Abort()
+			return
+		}
 		jwtKey := []byte(key)
 		//check if authorization header is exist or not
 		tokenString := c.GetHeader("Authorization")

@@ -6,8 +6,8 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
-	"github.com/tucanbit/internal/constant/dto"
 	"github.com/spf13/viper"
+	"github.com/tucanbit/internal/constant/dto"
 )
 
 func GenerateProviderToken(providerID uuid.UUID) (string, error) {
