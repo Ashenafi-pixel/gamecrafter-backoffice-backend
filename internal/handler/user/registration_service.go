@@ -130,6 +130,7 @@ func (rs *RegistrationService) handleDetailedRegistration(c *gin.Context, req *d
 		ReferalType:     req.ReferalType,
 		ReferedByCode:   req.ReferedByCode,
 		ReferralCode:    req.ReferralCode,
+		Username:        req.Username,
 		City:            req.City,
 		Country:         req.Country,
 		State:           req.State,
@@ -250,6 +251,7 @@ func (rs *RegistrationService) handleSimpleRegistration(c *gin.Context, req *dto
 		ReferalType:     string(req.ReferalType),
 		ReferedByCode:   req.ReferedByCode,
 		ReferralCode:    req.ReferralCode,
+		Username:        req.Username,
 		City:            req.City,
 		Country:         req.Country,
 		State:           req.State,
@@ -416,6 +418,7 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 		ReferalType:     dto.Type(registrationData.ReferalType),
 		ReferedByCode:   registrationData.ReferedByCode,
 		ReferralCode:    registrationData.ReferralCode,
+		Username:        registrationData.Username,
 		City:            registrationData.City,
 		Country:         registrationData.Country,
 		State:           registrationData.State,
@@ -576,18 +579,20 @@ func (rs *RegistrationService) validateDetailedRegistrationRequest(req *dto.Deta
 	return nil
 }
 
-// validateUniqueConstraints checks for unique constraints (e.g., email, phone number)
+// validateUniqueConstraints checks for unique constraints (e.g., email, phone number, username)
 func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, req interface{}) error {
-	var email, phone string
+	var email, phone, username string
 
-	// Extract email and phone based on the request type
+	// Extract email, phone, and username based on the request type
 	switch r := req.(type) {
 	case *dto.DetailedUserRegistration:
 		email = r.Email
 		phone = r.PhoneNumber
+		username = r.Username
 	case *dto.User:
 		email = r.Email
 		phone = r.PhoneNumber
+		username = r.Username
 	default:
 		return fmt.Errorf("unsupported request type for validation")
 	}
@@ -614,6 +619,20 @@ func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, re
 	}
 	if exists {
 		return fmt.Errorf("phone number '%s' is already in use", phone)
+	}
+
+	// Check if username is already in use (if provided)
+	if username != "" {
+		exists, err = rs.userModule.CheckUserExistsByUsername(ctx, username)
+		if err != nil {
+			rs.logger.Error("Failed to check username uniqueness",
+				zap.Error(err),
+				zap.String("username", username))
+			return fmt.Errorf("failed to check username uniqueness: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("username '%s' is already in use", username)
+		}
 	}
 
 	return nil

@@ -45,6 +45,7 @@ type RegistrationData struct {
 	ReferalType     string    `json:"referal_type"`
 	ReferedByCode   string    `json:"refered_by_code"`
 	ReferralCode    string    `json:"referral_code"`
+	Username        string    `json:"username"`
 	City            string    `json:"city"`
 	Country         string    `json:"country"`
 	State           string    `json:"state"`

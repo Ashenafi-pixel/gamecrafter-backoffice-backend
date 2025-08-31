@@ -440,6 +440,7 @@ type DetailedUserRegistration struct {
 	State           string            `json:"state"`
 	StreetAddress   string            `json:"street_address"`
 	Type            string            `json:"type"`
+	Username        string            `json:"username"`
 }
 
 // DetailedAccount represents the account structure in detailed registration

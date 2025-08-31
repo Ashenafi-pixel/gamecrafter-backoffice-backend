@@ -316,6 +316,21 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 		err = errors.ErrDataAlredyExist.Wrap(err, err.Error())
 		return dto.UserRegisterResponse{}, "", err
 	}
+
+	//check if user is exist with requested username (if provided)
+	if userRequest.Username != "" {
+		_, exist, err = u.userStorage.GetUserByUserName(ctx, userRequest.Username)
+		if err != nil {
+			return dto.UserRegisterResponse{}, "", err
+		}
+
+		if exist {
+			err = fmt.Errorf("user already exist with this username")
+			u.log.Warn("user already exist ", zap.Any("username", userRequest.Username))
+			err = errors.ErrDataAlredyExist.Wrap(err, err.Error())
+			return dto.UserRegisterResponse{}, "", err
+		}
+	}
 	hashPassword, err := utils.HashPassword(userRequest.Password)
 	if err != nil {
 		u.log.Error("unable to hash password", zap.Error(err), zap.Any("user", userRequest))
@@ -348,8 +363,10 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 		u.log.Debug("Referral code already exists, generating new one", zap.String("referral_code", userRequest.ReferralCode))
 	}
 
-	// Set the username to the same value as the referral code
-	userRequest.Username = userRequest.ReferralCode
+	// Set the username to the same value as the referral code only if username is not provided
+	if userRequest.Username == "" {
+		userRequest.Username = userRequest.ReferralCode
+	}
 
 	// check the referal user is exist
 	_, err = u.userStorage.GetUserByReferalCode(ctx, userRequest.ReferedByCode)
