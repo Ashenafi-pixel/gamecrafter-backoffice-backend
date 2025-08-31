@@ -3,7 +3,7 @@ package initiator
 import (
 	"log"
 
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
+	"github.com/tucanbit/platform/logger"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

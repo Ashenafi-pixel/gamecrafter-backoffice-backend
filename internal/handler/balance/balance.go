@@ -6,12 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -28,17 +28,17 @@ func Init(balanceModule module.Balance, log *zap.Logger) handler.Balance {
 	}
 }
 
-//	Get User Balance.
+// Get User Balance.
 //
-//	@Summary		GetUserBalances
-//	@Description	get user balance
-//	@Tags			Balance
-//	@Param			Authorization	header	string	true	"Bearer <token> "
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	[]dto.Balance
-//	@Failure		401	{object}	response.ErrorResponse
-//	@Router			/api/balance [get]
+// @Summary		GetUserBalances
+// @Description	get user balance
+// @Tags			Balance
+// @Param			Authorization	header	string	true	"Bearer <token> "
+// @Accept			json
+// @Produce		json
+// @Success		200	{object}	[]dto.Balance
+// @Failure		401	{object}	response.ErrorResponse
+// @Router			/api/balance [get]
 func (b *balance) GetUserBalances(c *gin.Context) {
 	userID := c.GetString("user-id")
 	userIDParsed, err := uuid.Parse(userID)

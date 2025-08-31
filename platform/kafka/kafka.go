@@ -7,18 +7,20 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/types"
+	"github.com/tucanbit/platform/logger"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/platform"
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
 	"go.uber.org/zap"
 )
 
 type KafkaClient interface {
-	RegisterKafkaEventHandler(EventType string, handler platform.EventHandler)
+	RegisterKafkaEventHandler(EventType string, handler types.EventHandler)
+	Route(ctx context.Context, message kafka.Message)
+	StartConsumer(ctx context.Context)
+	WriteMessage(ctx context.Context, topic, key string, value interface{}) error
 	Close() error
-	WriteMessage(ctx context.Context, value interface{}) error
 }
 
 type kafkaController struct {
@@ -30,7 +32,7 @@ type kafkaController struct {
 	Acks             string
 	Logger           logger.Logger
 	topics           []string
-	eventHandlers    map[string]platform.EventHandler
+	eventHandlers    map[string]types.EventHandler
 	kafkaProducer    *kafka.Producer
 }
 
@@ -42,7 +44,7 @@ func NewKafkaClient(bootStrapServer,
 	acks string,
 	logger *logger.Logger,
 	topics []string,
-) platform.Kafka {
+) KafkaClient {
 	var err error
 	kf := &kafkaController{
 		BootstrapServer:  bootStrapServer,
@@ -53,7 +55,7 @@ func NewKafkaClient(bootStrapServer,
 		Acks:             acks,
 		Logger:           *logger,
 		topics:           topics,
-		eventHandlers:    make(map[string]platform.EventHandler),
+		eventHandlers:    make(map[string]types.EventHandler),
 	}
 
 	kf.kafkaProducer, err = kafka.NewProducer(&kafka.ConfigMap{
@@ -64,7 +66,7 @@ func NewKafkaClient(bootStrapServer,
 		"sasl.mechanisms":   kf.Mechanisms,
 		"acks":              kf.Acks,
 	})
-	
+
 	if err != nil {
 		kf.Logger.Fatal(context.Background(), "Failed to create Kafka producer", zap.Error(err))
 	}
@@ -73,7 +75,19 @@ func NewKafkaClient(bootStrapServer,
 	return kf
 }
 
-func (k *kafkaController) RegisterKafkaEventHandler(topic string, handler platform.EventHandler) {
+func (k *kafkaController) Close() error {
+	var err error
+	if k.kafkaProducer != nil {
+		k.kafkaProducer.Flush(15 * 1000)
+		k.kafkaProducer.Close()
+		if events := k.kafkaProducer.Events(); len(events) > 0 {
+			err = errors.ErrKafkaEventNotSupported.New("kafka producer had pending events during close")
+		}
+	}
+	return err
+}
+
+func (k *kafkaController) RegisterKafkaEventHandler(topic string, handler types.EventHandler) {
 	if _, exists := k.eventHandlers[topic]; exists {
 		k.Logger.Warn(context.Background(), "Event handler already registered for event type", zap.String("event_type", topic))
 		return

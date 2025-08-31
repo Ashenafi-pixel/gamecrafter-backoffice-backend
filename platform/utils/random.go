@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/shopspring/decimal"
 )
 

@@ -8,9 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -20,8 +19,9 @@ func SystemLogs(module string, log *zap.Logger, sysLogger module.SystemLogs) gin
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			log.Error("Failed to read request body", zap.Error(err))
-			err = errors.ErrInternalServerError.Wrap(err, "failed to read request body")
-			_ = c.Error(err)
+			// Don't send error response here, just log and continue
+			// This prevents duplicate JSON responses
+			c.Next()
 			return
 		}
 
@@ -34,8 +34,9 @@ func SystemLogs(module string, log *zap.Logger, sysLogger module.SystemLogs) gin
 		if len(bodyBytes) > 0 && !isMultipartRequest(contentType) {
 			if err := json.Unmarshal(bodyBytes, &systemLogCopy); err != nil {
 				log.Error("Failed to decode request body", zap.String("body", string(bodyBytes)), zap.Error(err))
-				err = errors.ErrInternalServerError.Wrap(err, "failed to decode request body")
-				_ = c.Error(err)
+				// Don't send error response here, just log and continue
+				// This prevents duplicate JSON responses
+				c.Next()
 				return
 			}
 		} else {
@@ -45,11 +46,26 @@ func SystemLogs(module string, log *zap.Logger, sysLogger module.SystemLogs) gin
 
 		userID := c.GetString("user-id")
 		remoteIP := c.GetString("ip")
+
+		// Handle missing user ID gracefully for unauthenticated endpoints
+		if userID == "" {
+			// For unauthenticated requests (like login), skip system logging
+			// but still log the request for audit purposes
+			log.Info("System log skipped - no user ID",
+				zap.String("module", module),
+				zap.String("path", c.Request.URL.Path),
+				zap.String("method", c.Request.Method),
+				zap.String("ip", remoteIP))
+			c.Next()
+			return
+		}
+
 		userIDParsed, err := uuid.Parse(userID)
 		if err != nil {
 			log.Error("Failed to parse userID", zap.String("userID", userID), zap.Error(err))
-			err = errors.ErrInternalServerError.Wrap(err, "failed to parse userID")
-			_ = c.Error(err)
+			// Don't send error response here, just log and continue
+			// This prevents duplicate JSON responses
+			c.Next()
 			return
 		}
 
@@ -65,9 +81,8 @@ func SystemLogs(module string, log *zap.Logger, sysLogger module.SystemLogs) gin
 		_, err = sysLogger.CreateSystemLogs(c, systemLog)
 		if err != nil {
 			log.Error("Failed to create system log", zap.Any("systemLog", systemLog), zap.Error(err))
-			err = errors.ErrInternalServerError.Wrap(err, "failed to create system log")
-			_ = c.Error(err)
-			return
+			// Don't send error response here, just log and continue
+			// This prevents duplicate JSON responses
 		}
 		c.Next()
 

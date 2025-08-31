@@ -12,15 +12,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/contracts"
+	"github.com/tucanbit/platform/logger"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
-// NewRedisOTP creates a new RedisOTP client
-func NewRedisOTP(redisAddr, redisPassword string, db int, keyPrefix string, otpTTL time.Duration, attemptLimit int, logger logger.Logger) (*RedisOTP, error) {
+func NewRedisOTP(redisAddr, redisPassword string, db int, keyPrefix string, otpTTL time.Duration, attemptLimit int, logger logger.Logger) (contracts.Redis, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,
@@ -69,67 +69,140 @@ func NewRedisOTP(redisAddr, redisPassword string, db int, keyPrefix string, otpT
 	}, nil
 }
 
-// NewRedisOTPFromConfig creates a new RedisOTP client using viper config
-func NewRedisOTPFromConfig(logger logger.Logger) (*RedisOTP, error) {
+func NewRedisOTPFromConfig(logger logger.Logger) (contracts.Redis, error) {
 	redisAddr := viper.GetString("redis.addr")
 	redisPassword := viper.GetString("redis.password")
 	db := viper.GetInt("redis.db")
 	keyPrefix := viper.GetString("redis.key_prefix")
 	otpTTL := viper.GetDuration("redis.ttl")
 	if otpTTL == 0 {
-		otpTTL = 5 * time.Second // default if not set
+		otpTTL = 5 * time.Second
 	}
 	attemptLimit := viper.GetInt("auth.otp_attempt_limit")
 	if attemptLimit == 0 {
-		attemptLimit = 4 // default fallback
+		attemptLimit = 4
 	}
 	return NewRedisOTP(redisAddr, redisPassword, db, keyPrefix, otpTTL, attemptLimit, logger)
 }
 
-// SaveOTP encrypts and saves the OTP in Redis, mapped by phone number
+func (r *RedisOTP) Get(ctx context.Context, key string) (string, error) {
+	fullKey := r.otpKey(key)
+	val, err := r.redisClient.Get(ctx, fullKey).Result()
+	if err == redis.Nil {
+		return "", errors.ErrRedisClientError.New("key not found")
+	}
+	if err != nil {
+		r.logger.Error(ctx, "Redis GET failed",
+			zap.String("key", fullKey),
+			zap.Error(err))
+		return "", errors.ErrRedisClientError.Wrap(err, "failed to get key")
+	}
+	return val, nil
+}
+
+func (r *RedisOTP) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	fullKey := r.otpKey(key)
+	err := r.redisClient.Set(ctx, fullKey, value, expiration).Err()
+	if err != nil {
+		r.logger.Error(ctx, "Redis SET failed",
+			zap.String("key", fullKey),
+			zap.Error(err))
+		return errors.ErrRedisClientError.Wrap(err, "failed to set key")
+	}
+	return nil
+}
+
+func (r *RedisOTP) Delete(ctx context.Context, key string) error {
+	fullKey := r.otpKey(key)
+	err := r.redisClient.Del(ctx, fullKey).Err()
+	if err != nil {
+		r.logger.Error(ctx, "Redis DEL failed",
+			zap.String("key", fullKey),
+			zap.Error(err))
+		return errors.ErrRedisClientError.Wrap(err, "failed to delete key")
+	}
+	return nil
+}
+
 func (r *RedisOTP) SaveOTP(ctx context.Context, phone, otp string) error {
 	redisKey := r.otpKey(phone)
-	r.logger.Info(ctx, "Saving OTP", zap.String("phone", phone), zap.String("otp", otp), zap.String("ttl", r.otpTTL.String()), zap.String("redis_key", redisKey))
 	encryptedOTP, err := r.encryptOTP(otp)
 	if err != nil {
 		r.logger.Error(ctx, "encryptOTP failed", zap.Error(err))
 		return err
 	}
+
 	mapping := OTPMapping{
 		EncryptedOTP: encryptedOTP,
 		CreatedAt:    time.Now(),
 		ExpiresAt:    time.Now().Add(r.otpTTL),
 	}
+
 	mappingJSON, err := json.Marshal(mapping)
 	if err != nil {
 		r.logger.Error(ctx, "marshal OTPMapping failed", zap.Error(err))
 		return err
 	}
-	r.logger.Info(ctx, "About to SET in Redis", zap.String("redis_key", redisKey), zap.String("mapping_json", string(mappingJSON)), zap.Duration("ttl", r.otpTTL))
-	err = r.redisClient.Set(ctx, redisKey, mappingJSON, r.otpTTL).Err()
-	if err != nil {
-		r.logger.Error(ctx, "Redis SET failed", zap.Error(err))
+
+	if err := r.Set(ctx, phone, string(mappingJSON), r.otpTTL); err != nil {
 		return err
 	}
-	// Reset attempt count when new OTP is set
+
 	attemptKey := redisKey + ":attempts"
-	err = r.redisClient.Set(ctx, attemptKey, 0, r.otpTTL).Err()
-	if err != nil {
-		r.logger.Error(ctx, "Redis SET attempt count failed", zap.Error(err))
+	if err := r.Set(ctx, attemptKey, 0, r.otpTTL); err != nil {
 		return err
 	}
-	// Confirm value is in Redis
-	val, getErr := r.redisClient.Get(ctx, redisKey).Result()
-	if getErr != nil {
-		getErr = errors.ErrRedisClientError.Wrap(getErr, "failed to get OTP from Redis")
-		r.logger.Error(ctx, "Redis GET after SET failed", zap.Error(getErr))
-		return getErr
-	}
-	r.logger.Info(ctx, "Redis GET after SET succeeded", zap.String("value", val))
+
 	return nil
 }
 
-// IncrementOTPAttempt increments the OTP attempt count and returns the new value
+func (r *RedisOTP) VerifyAndRemoveOTP(ctx context.Context, phone, otp string) (bool, error) {
+	redisKey := r.otpKey(phone)
+	attempts, err := r.GetOTPAttemptCount(ctx, phone)
+	if err != nil {
+		return false, err
+	}
+	if attempts >= r.AttemptLimit {
+		err = errors.ErrAcessError.New("Too many invalid attempts. Please request a new OTP.")
+		r.logger.Warn(ctx, "OTP attempts exceeded", zap.String("phone", phone))
+		_ = r.Delete(ctx, redisKey)
+		_ = r.Delete(ctx, redisKey+":attempts")
+		return false, err
+	}
+
+	mappingJSON, err := r.Get(ctx, phone)
+	if err != nil {
+		_, _ = r.IncrementOTPAttempt(ctx, phone)
+		return false, errors.ErrAcessError.New("otp expired or invalid")
+	}
+
+	var mapping OTPMapping
+	if err := json.Unmarshal([]byte(mappingJSON), &mapping); err != nil {
+		_, _ = r.IncrementOTPAttempt(ctx, phone)
+		return false, errors.ErrAcessError.Wrap(err, "invalid OTP format")
+	}
+
+	if time.Now().After(mapping.ExpiresAt) {
+		_ = r.Delete(ctx, redisKey)
+		_, _ = r.IncrementOTPAttempt(ctx, phone)
+		return false, nil
+	}
+
+	decryptedOTP, err := r.decryptOTP(mapping.EncryptedOTP)
+	if err != nil {
+		_, _ = r.IncrementOTPAttempt(ctx, phone)
+		return false, errors.ErrAcessError.Wrap(err, "failed to decrypt OTP")
+	}
+
+	if decryptedOTP != otp {
+		_, _ = r.IncrementOTPAttempt(ctx, phone)
+		return false, errors.ErrAcessError.New("invalid OTP")
+	}
+
+	_ = r.Delete(ctx, redisKey)
+	return true, nil
+}
+
 func (r *RedisOTP) IncrementOTPAttempt(ctx context.Context, phone string) (int, error) {
 	redisKey := r.otpKey(phone) + ":attempts"
 	count, err := r.redisClient.Incr(ctx, redisKey).Result()
@@ -137,15 +210,12 @@ func (r *RedisOTP) IncrementOTPAttempt(ctx context.Context, phone string) (int, 
 		r.logger.Error(ctx, "Redis INCR attempt count failed", zap.Error(err))
 		return 0, err
 	}
-	// Set expiry to match OTP expiry if not already set
 	if ttl, _ := r.redisClient.TTL(ctx, redisKey).Result(); ttl < 0 {
-		// fallback to 5 minutes if OTP key is missing
 		r.redisClient.Expire(ctx, redisKey, 5*time.Minute)
 	}
 	return int(count), nil
 }
 
-// GetOTPAttemptCount returns the current OTP attempt count
 func (r *RedisOTP) GetOTPAttemptCount(ctx context.Context, phone string) (int, error) {
 	redisKey := r.otpKey(phone) + ":attempts"
 	count, err := r.redisClient.Get(ctx, redisKey).Int()
@@ -159,106 +229,59 @@ func (r *RedisOTP) GetOTPAttemptCount(ctx context.Context, phone string) (int, e
 	return count, nil
 }
 
-// ResetOTPAttempts resets the OTP attempt count (used when new OTP is sent)
 func (r *RedisOTP) ResetOTPAttempts(ctx context.Context, phone string) error {
 	redisKey := r.otpKey(phone) + ":attempts"
-	return r.redisClient.Set(ctx, redisKey, 0, r.otpTTL).Err()
+	return r.Set(ctx, redisKey, 0, r.otpTTL)
 }
 
-// VerifyAndRemoveOTP checks the OTP for a phone, removes it if valid, and returns true if valid
-func (r *RedisOTP) VerifyAndRemoveOTP(ctx context.Context, phone, otp string) (bool, error) {
-	redisKey := r.otpKey(phone)
-	// Check attempt count first
-	attempts, err := r.GetOTPAttemptCount(ctx, phone)
-	if err != nil {
-		return false, err
-	}
-	if attempts >= r.AttemptLimit {
-		err = errors.ErrAcessError.New("Too many invalid attempts. Please request a new OTP.")
-		r.logger.Warn(ctx, "OTP attempts exceeded, blocking further attempts", zap.String("phone", phone))
-		// Return error first, then clear OTP and attempts asynchronously
-		r.redisClient.Del(ctx, redisKey)
-		r.redisClient.Del(ctx, redisKey+":attempts")
-		return false, err
-	}
-
-	mappingJSON, err := r.redisClient.Get(ctx, redisKey).Result()
-	if err != nil {
-		r.logger.Error(ctx, "Redis GET failed", zap.Error(err))
-		_, err = r.IncrementOTPAttempt(ctx, phone)
-		if err != nil {
-			err = errors.ErrAcessError.New("unable to count login attempt")
-		}
-		err = errors.ErrAcessError.New("otp expired or invalid")
-		return false, err
-	}
-	r.logger.Info(ctx, "Redis GET succeeded", zap.String("mapping_json", mappingJSON))
-	var mapping OTPMapping
-	if err := json.Unmarshal([]byte(mappingJSON), &mapping); err != nil {
-		r.logger.Error(ctx, "Unmarshal OTPMapping failed", zap.Error(err))
-		_, err = r.IncrementOTPAttempt(ctx, phone)
-		if err != nil {
-			err = errors.ErrAcessError.New("unable to count login attempt")
-		}
-		return false, err
-	}
-	if time.Now().After(mapping.ExpiresAt) {
-		r.logger.Warn(ctx, "OTP expired", zap.Time("expires_at", mapping.ExpiresAt))
-		r.redisClient.Del(ctx, redisKey)
-		_, err = r.IncrementOTPAttempt(ctx, phone)
-		if err != nil {
-			err = errors.ErrAcessError.New("unable to count login attempt")
-		}
-		return false, nil // Expired
-	}
-	decryptedOTP, err := r.decryptOTP(mapping.EncryptedOTP)
-	if err != nil {
-		r.logger.Error(ctx, "decryptOTP failed", zap.Error(err))
-		_, err = r.IncrementOTPAttempt(ctx, phone)
-		if err != nil {
-			err = errors.ErrAcessError.New("unable to count login attempt")
-		}
-		return false, err
-	}
-	if decryptedOTP != otp {
-		_, err = r.IncrementOTPAttempt(ctx, phone)
-		if err != nil {
-			err = errors.ErrRedisClientError.New("unable to count login attempt")
-		}
-		err = errors.ErrAcessError.New("otp expired or invalid")
-		r.logger.Warn(ctx, "OTP does not match", zap.String("expected", decryptedOTP), zap.String("got", otp))
-		return false, err
-	}
-	// Remove OTP after successful verification
-	r.logger.Info(ctx, "OTP verified, deleting from Redis", zap.String("redis_key", redisKey))
-	r.redisClient.Del(ctx, redisKey)
-	return true, nil
-}
-
-// encryptOTP encrypts the OTP using RSA public key
 func (r *RedisOTP) encryptOTP(otp string) (string, error) {
 	otpBytes := []byte(otp)
 	encryptedBytes, err := rsa.EncryptPKCS1v15(rand.Reader, r.publicKey, otpBytes)
 	if err != nil {
-		return "", errors.ErrRedisClientError.Wrap(err, "failed to encrypt OTP using RSA")
+		return "", errors.ErrRedisClientError.Wrap(err, "failed to encrypt OTP")
 	}
 	return base64.StdEncoding.EncodeToString(encryptedBytes), nil
 }
 
-// decryptOTP decrypts the OTP using RSA private key
 func (r *RedisOTP) decryptOTP(encryptedOTP string) (string, error) {
 	encryptedBytes, err := base64.StdEncoding.DecodeString(encryptedOTP)
 	if err != nil {
-		return "", errors.ErrRedisClientError.Wrap(err, "failed to decode encrypted OTP from base64")
+		return "", errors.ErrRedisClientError.Wrap(err, "failed to decode OTP")
 	}
 	decryptedBytes, err := rsa.DecryptPKCS1v15(rand.Reader, r.privateKey, encryptedBytes)
 	if err != nil {
-		return "", errors.ErrRedisClientError.Wrap(err, "failed to decrypt OTP using RSA")
+		return "", errors.ErrRedisClientError.Wrap(err, "failed to decrypt OTP")
 	}
 	return string(decryptedBytes), nil
 }
 
-// loadRSAKeysFromFiles loads RSA keys from project files
+func (r *RedisOTP) otpKey(phone string) string {
+	return fmt.Sprintf("%s:%s", r.keyPrefix, phone)
+}
+
+// GetKeyPrefix returns the key prefix used by this Redis client
+func (r *RedisOTP) GetKeyPrefix() string {
+	return r.keyPrefix
+}
+
+func (r *RedisOTP) GetOTP(ctx context.Context, phone string) (string, error) {
+	mappingJSON, err := r.Get(ctx, phone)
+	if err != nil {
+		return "", err
+	}
+
+	var mapping OTPMapping
+	if err := json.Unmarshal([]byte(mappingJSON), &mapping); err != nil {
+		return "", errors.ErrRedisClientError.Wrap(err, "invalid OTP format")
+	}
+
+	if time.Now().After(mapping.ExpiresAt) {
+		return "", errors.ErrRedisClientError.New("OTP expired")
+	}
+
+	return r.decryptOTP(mapping.EncryptedOTP)
+}
+
 func loadRSAKeysFromFiles(logger logger.Logger) (*rsa.PrivateKey, error) {
 	privateKeyPath := "config/rsa_private_key.pem"
 	privateKeyPEM, err := os.ReadFile(privateKeyPath)
@@ -268,76 +291,54 @@ func loadRSAKeysFromFiles(logger logger.Logger) (*rsa.PrivateKey, error) {
 		}
 		return nil, errors.ErrRedisClientError.Wrap(err, "failed to read RSA private key file")
 	}
+
 	block, _ := pem.Decode(privateKeyPEM)
 	if block == nil {
-		return nil, errors.ErrRedisClientError.New("failed to decode private key PEM from file")
+		return nil, errors.ErrRedisClientError.New("failed to decode private key PEM")
 	}
+
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		return nil, errors.ErrRedisClientError.Wrap(err, "failed to parse private key from file")
+		return nil, errors.ErrRedisClientError.Wrap(err, "failed to parse private key")
 	}
-	logger.Debug(context.Background(), "Successfully loaded RSA private key from file", zap.String("path", privateKeyPath))
+
+	logger.Debug(context.Background(), "Loaded RSA private key from file", zap.String("path", privateKeyPath))
 	return privateKey, nil
 }
 
-// storeRSAKeysToFiles stores RSA keys to project files
 func storeRSAKeysToFiles(privateKey *rsa.PrivateKey, logger logger.Logger) error {
 	privateKeyPath := "config/rsa_private_key.pem"
 	publicKeyPath := "config/rsa_public_key.pem"
+
 	if err := os.MkdirAll("config", 0755); err != nil {
 		return errors.ErrRedisClientError.Wrap(err, "failed to create config directory")
 	}
+
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
+
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return errors.ErrRedisClientError.Wrap(err, "failed to marshal public key")
 	}
+
 	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
 		Bytes: publicKeyBytes,
 	})
-	err = os.WriteFile(privateKeyPath, privateKeyPEM, 0600)
-	if err != nil {
-		return errors.ErrRedisClientError.Wrap(err, "failed to write private key to file")
+
+	if err := os.WriteFile(privateKeyPath, privateKeyPEM, 0600); err != nil {
+		return errors.ErrRedisClientError.Wrap(err, "failed to write private key")
 	}
-	err = os.WriteFile(publicKeyPath, publicKeyPEM, 0644)
-	if err != nil {
-		return errors.ErrRedisClientError.Wrap(err, "failed to write public key to file")
+
+	if err := os.WriteFile(publicKeyPath, publicKeyPEM, 0644); err != nil {
+		return errors.ErrRedisClientError.Wrap(err, "failed to write public key")
 	}
-	logger.Info(context.Background(), "Successfully stored RSA keys to project files",
-		zap.String("private_key_path", privateKeyPath),
-		zap.String("public_key_path", publicKeyPath),
-	)
+
+	logger.Info(context.Background(), "Stored RSA keys to files",
+		zap.String("private_key", privateKeyPath),
+		zap.String("public_key", publicKeyPath))
 	return nil
-}
-
-// otpKey returns the Redis key for a given phone number
-func (r *RedisOTP) otpKey(phone string) string {
-	return fmt.Sprintf("%s:%s", r.keyPrefix, phone)
-}
-
-func (r *RedisOTP) GetOTP(ctx context.Context, phone string) (string, error) {
-	redisKey := r.otpKey(phone)
-	mappingJSON, err := r.redisClient.Get(ctx, redisKey).Result()
-	if err != nil {
-		if err == redis.Nil {
-			return "", errors.ErrRedisClientError.New("OTP not found")
-		}
-		return "", errors.ErrRedisClientError.Wrap(err, "failed to get OTP from Redis")
-	}
-	var mapping OTPMapping
-	if err := json.Unmarshal([]byte(mappingJSON), &mapping); err != nil {
-		return "", errors.ErrRedisClientError.Wrap(err, "failed to unmarshal OTP mapping")
-	}
-	if time.Now().After(mapping.ExpiresAt) {
-		return "", errors.ErrRedisClientError.New("OTP expired")
-	}
-	decryptedOTP, err := r.decryptOTP(mapping.EncryptedOTP)
-	if err != nil {
-		return "", errors.ErrRedisClientError.Wrap(err, "failed to decrypt OTP")
-	}
-	return decryptedOTP, nil
 }

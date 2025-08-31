@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 

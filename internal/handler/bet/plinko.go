@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // GetPlinkoGameConfig Get plinko game configs
+//
 //	@Summary		GetPlinkoGameConfig
 //	@Description	Retrieve plinko game configs
 //	@Tags			Bet
@@ -30,6 +31,7 @@ func (b *bet) GetPlinkoGameConfig(c *gin.Context) {
 }
 
 // PlacePlinkoBe allow user to bet plinko game
+//
 //	@Summary		PlacePlinkoBe
 //	@Description	PlacePlinkoBe allow players to bet to plinko game
 //	@Tags			Bet
@@ -67,6 +69,7 @@ func (b *bet) PlacePlinkoBet(c *gin.Context) {
 }
 
 // GetUserPlinkoBetHistory allow user to get plinko game history
+//
 //	@Summary		GetUserPlinkoBetHistory
 //	@Description	GetUserPlinkoBetHistory allow players to get plinko bet history
 //	@Tags			Bet
@@ -108,6 +111,7 @@ func (b *bet) GetUserPlinkoBetHistory(c *gin.Context) {
 }
 
 // GetPlinkoGameStats allow user to get plinko game stats
+//
 //	@Summary		GetPlinkoGameStats
 //	@Description	GetPlinkoGameStats allow players to get plinko bet stats
 //	@Tags			Bet

@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/db"
 	"go.uber.org/zap"
 )
 

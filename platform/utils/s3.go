@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/errors"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -49,13 +49,13 @@ func (c *S3) UploadToS3Bucket(bucketName string, file multipart.File, filename, 
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return "", err
 	}
-   tag:="public"
+	tag := "public"
 	input := &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
 		Key:         aws.String(sanitizedFileName),
 		Body:        file,
 		ContentType: aws.String(contentType),
-		Tagging: &tag,
+		Tagging:     &tag,
 	}
 	_, err := c.S3Client.PutObject(input)
 	if err != nil {
@@ -77,7 +77,7 @@ func (c *S3) isValidFile(extention string) bool {
 	}
 	return false
 }
-func  GetFromS3Bucket(bucketName, filename string) string {
+func GetFromS3Bucket(bucketName, filename string) string {
 	sanitizedFileName := sanitizeFileName(filename)
 	return fmt.Sprintf("https://%s.s3.amazonaws.com/%s", bucketName, sanitizedFileName)
 }

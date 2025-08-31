@@ -5,11 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +26,7 @@ func Init(log *zap.Logger, airtimeModule module.AirtimeProvider) handler.Airtime
 }
 
 // RefereshAirtimeUtilities get manual funds logs.
+//
 //	@Summary		RefereshAirtimeUtilities
 //	@Description	Refresh available airtime utilities from airtime providers (fetch latest utilities)
 //	@Tags			Admin
@@ -46,6 +47,7 @@ func (a *airtime) RefereshAirtimeUtilities(c *gin.Context) {
 }
 
 // RefereshAirtimeUtilities get manual funds logs.
+//
 //	@Summary		RefereshAirtimeUtilities
 //	@Description	Fetch available airtime utilities from local database
 //	@Tags			Admin
@@ -76,6 +78,7 @@ func (a *airtime) GetAvailableAirtime(c *gin.Context) {
 }
 
 // UpdateAirtimeStatus .
+//
 //	@Summary		UpdateAirtimeStatus
 //	@Description	UpdateAirtimeStatus update availabilities of airtime
 //	@Tags			Admin
@@ -104,6 +107,7 @@ func (a *airtime) UpdateAirtimeStatus(c *gin.Context) {
 }
 
 // UpdateAirtimeUtilityPrice .
+//
 //	@Summary		UpdateAirtimeUtilityPrice
 //	@Description	UpdateAirtimeUtilityPrice update price of airtime
 //	@Tags			Admin
@@ -132,6 +136,7 @@ func (a *airtime) UpdateAirtimeUtilityPrice(c *gin.Context) {
 }
 
 // ClaimPoints .
+//
 //	@Summary		ClaimPoints
 //	@Description	ClaimPoints points to airtime
 //	@Tags			Airtime
@@ -171,6 +176,7 @@ func (a *airtime) ClaimPoints(c *gin.Context) {
 }
 
 // GetActiveAvailableAirtime get available airtime utilities.
+//
 //	@Summary		GetActiveAvailableAirtime
 //	@Description	Retrieve active airtime utilities.
 //	@Tags			Airtime
@@ -200,6 +206,7 @@ func (a *airtime) GetActiveAvailableAirtime(c *gin.Context) {
 }
 
 // RefereshAirtimeUtilities airtime transactions
+//
 //	@Summary		RefereshAirtimeUtilities
 //	@Description	Fetch  airtime transactions
 //	@Tags			Airtime
@@ -238,6 +245,7 @@ func (a *airtime) GetUserAirtimeTransactions(c *gin.Context) {
 }
 
 // GetAllAirtimeUtilitiesTransactions get manual funds logs.
+//
 //	@Summary		GetAllAirtimeUtilitiesTransactions
 //	@Description	Fetch airtime transactions
 //	@Tags			Admin
@@ -276,6 +284,7 @@ func (a *airtime) GetAllAirtimeUtilitiesTransactions(c *gin.Context) {
 }
 
 // UpdateAirtimeAmount .
+//
 //	@Summary		UpdateAirtimeAmount
 //	@Description	UpdateAirtimeAmount update airtime amount
 //	@Tags			Admin
@@ -304,6 +313,7 @@ func (a *airtime) UpdateAirtimeAmount(c *gin.Context) {
 }
 
 // GetAirtimeUtilitiesStats get airtime utilities stats.
+//
 //	@Summary		GetAirtimeUtilitiesStats
 //	@Description	Fetch airtime utilities stats
 //	@Tags			Admin

@@ -5,18 +5,73 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/glue/routing"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/middleware"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/glue/routing"
+	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/internal/module"
 
 	"go.uber.org/zap"
 )
 
+// UserHandler defines the interface for user HTTP handlers
+type UserHandler interface {
+	RegisterUser(c *gin.Context)
+	Login(c *gin.Context)
+	GetProfile(c *gin.Context)
+	UpdateProfilePicture(c *gin.Context)
+	ChangePassword(c *gin.Context)
+	ForgetPassword(c *gin.Context)
+	VerifyResetPassword(c *gin.Context)
+	ResetPassword(c *gin.Context)
+	UpdateProfile(c *gin.Context)
+	ConfirmUpdateProfile(c *gin.Context)
+	HandleGoogleOauthReq(c *gin.Context)
+	HandleGoogleOauthRes(c *gin.Context)
+	FacebookLoginReq(c *gin.Context)
+	HandleFacebookOauthRes(c *gin.Context)
+	BlockAccount(c *gin.Context)
+	GetBlockedAccount(c *gin.Context)
+	AddIpFilter(c *gin.Context)
+	GetIpFilter(c *gin.Context)
+	AdminUpdateProfile(c *gin.Context)
+	AdminResetUsersPassword(c *gin.Context)
+	GetUsers(c *gin.Context)
+	RemoveIPFilter(c *gin.Context)
+	GetMyReferalCodes(c *gin.Context)
+	GetMyRefferedUsersAndPoints(c *gin.Context)
+	GetCurrentReferralMultiplier(c *gin.Context)
+	UpdateReferralMultiplier(c *gin.Context)
+	UpdateUsersPointsForReferrances(c *gin.Context)
+	GetAdminAssignedPoints(c *gin.Context)
+	GetUserPoints(c *gin.Context)
+	AdminRegisterPlayer(c *gin.Context)
+	AdminLogin(c *gin.Context)
+	UpdateSignupBonus(c *gin.Context)
+	GetSignupBonus(c *gin.Context)
+	UpdateReferralBonus(c *gin.Context)
+	GetReferralBonus(c *gin.Context)
+	RefreshToken(c *gin.Context)
+	VerifyUser(c *gin.Context)
+	ReSendVerificationOTP(c *gin.Context)
+	GetOtp(c *gin.Context)
+	GetAdmins(c *gin.Context)
+	// Enterprise Registration Methods
+	InitiateEnterpriseRegistration(c *gin.Context)
+	CompleteEnterpriseRegistration(c *gin.Context)
+	GetEnterpriseRegistrationStatus(c *gin.Context)
+	ResendEnterpriseVerificationEmail(c *gin.Context)
+	// Regular Registration with Email Verification Methods
+	InitiateUserRegistration(c *gin.Context)
+	CompleteUserRegistration(c *gin.Context)
+	ResendVerificationEmail(c *gin.Context)
+	ServeVerificationPage(c *gin.Context)
+	// Service Management
+	SetRegistrationService(service interface{})
+}
+
 func Init(
 	group *gin.RouterGroup,
 	log zap.Logger,
-	user handler.User,
+	user UserHandler,
 	userModule module.User,
 	authModule module.Authz,
 	enforcer *casbin.Enforcer,
@@ -28,7 +83,31 @@ func Init(
 		{
 			Method:  http.MethodPost,
 			Path:    "/register",
-			Handler: user.RegisterUser,
+			Handler: user.InitiateUserRegistration, // Use new email verification registration
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.IpFilter(userModule),
+			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/verify",
+			Handler: user.ServeVerificationPage, // Add verification page endpoint
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.IpFilter(userModule),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/register/complete",
+			Handler: user.CompleteUserRegistration, // Add completion endpoint
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.IpFilter(userModule),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/register/resend-verification",
+			Handler: user.ResendVerificationEmail, // Add resend verification endpoint
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.IpFilter(userModule),
@@ -385,4 +464,7 @@ func Init(
 	}
 
 	routing.RegisterRoute(group, authRoutes, log)
+
+	// Initialize enterprise registration routes
+	InitEnterpriseRegistration(group, log, user)
 }

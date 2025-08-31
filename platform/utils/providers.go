@@ -6,7 +6,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/spf13/viper"
 )
 

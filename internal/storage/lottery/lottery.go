@@ -5,10 +5,10 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/db"
+	"github.com/tucanbit/internal/constant/persistencedb"
 	"go.uber.org/zap"
 )
 

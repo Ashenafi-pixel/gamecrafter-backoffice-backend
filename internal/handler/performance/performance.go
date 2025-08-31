@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +23,7 @@ func Init(performanceModule module.Performance, log *zap.Logger) handler.Perform
 }
 
 // GetFinancialMetrics Admin Get Financial Metrics.
+//
 //	@Summary		GetFinancialMetrics
 //	@Description	Retrieve Financial Metrics.
 //	@Tags			Admin
@@ -44,6 +45,7 @@ func (p *performance) GetFinancialMetrics(c *gin.Context) {
 }
 
 // GameMatrics Admin Get Game Metrics.
+//
 //	@Summary		GameMatrics
 //	@Description	Retrieve Game Metrics.
 //	@Tags			Admin

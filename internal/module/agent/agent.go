@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/storage"
 	"github.com/robfig/cron/v3"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -305,7 +305,7 @@ func (a *agent) SendCallback(ctx context.Context, referral dto.AgentReferral) er
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "EgyptKingCrash-Agent-Referral/1.0")
+	req.Header.Set("User-Agent", "TucanBIT-Agent-Referral/1.0")
 
 	// Send request
 	resp, err := httpClient.Do(req)

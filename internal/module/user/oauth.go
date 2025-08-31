@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 	oauth "golang.org/x/oauth2"
 	"google.golang.org/api/oauth2/v2"
@@ -140,7 +140,7 @@ func (u *User) OuathRegister(ctx context.Context, userRequest dto.User) (dto.Use
 	}
 
 	// generate refresh token
-	refreshToken, err := utils.GenerateUniqueToken(64)
+	refreshToken, err := utils.GenerateRefreshJWT(usrRes.ID)
 	if err != nil {
 		u.log.Error("unable to generate refresh token", zap.Error(err))
 		err = errors.ErrInternalServerError.Wrap(err, err.Error())
@@ -180,7 +180,7 @@ func (u *User) OuathSignIn(ctx context.Context, usr dto.User, loginLogs dto.Logi
 	u.logsStorage.CreateLoginAttempts(ctx, loginLogs)
 
 	// generate refresh token
-	refreshToken, err := utils.GenerateUniqueToken(64)
+	refreshToken, err := utils.GenerateRefreshJWT(usr.ID)
 	if err != nil {
 		u.log.Error("unable to generate refresh token", zap.Error(err))
 		err = errors.ErrInternalServerError.Wrap(err, err.Error())

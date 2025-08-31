@@ -18,7 +18,13 @@ UPDATE users set profile = $1  where id = $2 RETURNING *;
 Update users set password = $1 where id = $2 RETURNING *;
 
 -- name: GetUserByEmail :one 
-SELECT id,phone_number,email,first_name,last_name,date_of_birth,profile,default_currency,source,referal_code,street_address,country,state,city,postal_code,kyc_status,created_by,is_admin,status,password,referal_code,user_type,refered_by_code,referal_type FROM users where email = $1 or phone_number = $1;
+SELECT id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, is_email_verified, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, primary_wallet_address, wallet_verification_status FROM users where email = $1;
+
+-- name: GetUserByEmailFull :one 
+SELECT id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, is_email_verified, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, primary_wallet_address, wallet_verification_status FROM users where email = $1;
+
+-- name: CheckEmailExists :one
+SELECT EXISTS(SELECT 1 FROM users WHERE email = $1);
 
 -- name: SaveOTP :exec 
 INSERT INTO users_otp (user_id,otp,created_at)
@@ -98,6 +104,12 @@ timestamp,
 	balance_after_update,
     transaction_id
     limit $1 offset $2;
+
+-- name: UpdateUserStatus :one 
+UPDATE users SET status = $1 WHERE id = $2 RETURNING *;
+
+-- name: UpdateUserVerificationStatus :one 
+UPDATE users SET is_email_verified = $1 WHERE id = $2 RETURNING *;
 
 -- name: GetAdmins :many  
 WITH UserData AS (

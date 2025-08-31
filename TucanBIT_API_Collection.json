@@ -1,0 +1,800 @@
+{
+	"info": {
+		"_postman_id": "tucanbit-api-collection",
+		"name": "TucanBIT Online Casino API",
+		"description": "This is API documentation for TucanBIT online casino. Complete API collection with all endpoints, request bodies, and response examples.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "tucanbit-api"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"accounts\": [\n    {\n      \"bonus_money\": 100.00,\n      \"currency\": \"USD\",\n      \"id\": \"acc_001\",\n      \"real_money\": 500.00,\n      \"updated_at\": \"2025-08-11T15:30:00Z\",\n      \"user_id\": \"user_123\"\n    }\n  ],\n  \"agent_request_id\": \"agent_req_456\",\n  \"city\": \"Las Vegas\",\n  \"country\": \"USA\",\n  \"date_of_birth\": \"1990-05-15\",\n  \"default_currency\": \"USD\",\n  \"email\": \"john.doe@example.com\",\n  \"first_name\": \"John\",\n  \"kyc_status\": \"PENDING\",\n  \"last_name\": \"Doe\",\n  \"password\": \"SecurePass123!\",\n  \"phone_number\": \"+1234567890\",\n  \"postal_code\": \"89101\",\n  \"profile_picture\": \"https://example.com/profile.jpg\",\n  \"referal_type\": \"PLAYER\",\n  \"refered_by_code\": \"REF789\",\n  \"referral_code\": \"REF123\",\n  \"state\": \"Nevada\",\n  \"street_address\": \"123 Casino Street\",\n  \"type\": \"PLAYER\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"register"
+							]
+						},
+						"description": "Register a new user with complete profile information"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"phone_number\": \"+1234567890\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"register"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"success\",\n  \"message\": \"User registered successfully\",\n  \"data\": {\n    \"user_id\": \"user_1754914910\",\n    \"phone_number\": \"+1234567890\",\n    \"status\": \"active\",\n    \"created_at\": \"2025-08-11T15:21:50+03:00\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login_id\": \"+1234567890\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"login"
+							]
+						},
+						"description": "Authenticate user with phone number and password"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"login_id\": \"+1234567890\",\n  \"password\": \"SecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"login"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"success\",\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"access_token\": \"token_1754914904\",\n    \"token_type\": \"Bearer\",\n    \"expires_in\": 3600,\n    \"refresh_token\": \"refresh_1754914904\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"refresh"
+							]
+						},
+						"description": "Refresh access token using refresh token"
+					}
+				}
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/user/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"profile"
+							]
+						},
+						"description": "Get current user profile information"
+					}
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"John Updated\",\n  \"last_name\": \"Doe Updated\",\n  \"email\": \"john.updated@example.com\",\n  \"city\": \"New York\",\n  \"country\": \"USA\",\n  \"state\": \"New York\",\n  \"postal_code\": \"10001\",\n  \"street_address\": \"456 Updated Street\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"profile"
+							]
+						},
+						"description": "Update user profile information"
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"current_password\": \"SecurePass123!\",\n  \"new_password\": \"NewSecurePass456!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"password"
+							]
+						},
+						"description": "Change user password"
+					}
+				},
+				{
+					"name": "Forget Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/password/forget",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"password",
+								"forget"
+							]
+						},
+						"description": "Request password reset"
+					}
+				}
+			]
+		},
+		{
+			"name": "Balance Management",
+			"item": [
+				{
+					"name": "Get User Balances",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/balance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"balance"
+							]
+						},
+						"description": "Get user balance information"
+					}
+				},
+				{
+					"name": "Update Balance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"type\": \"CREDIT\",\n  \"description\": \"Manual funding\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/balance/update",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"balance",
+								"update"
+							]
+						},
+						"description": "Update user balance (Admin only)"
+					}
+				},
+				{
+					"name": "Get Balance Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/balance/logs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"balance",
+								"logs"
+							]
+						},
+						"description": "Get user balance transaction history"
+					}
+				}
+			]
+		},
+		{
+			"name": "Betting & Games",
+			"item": [
+				{
+					"name": "Get Open Round",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/bet/open-round",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"bet",
+								"open-round"
+							]
+						},
+						"description": "Get current open betting round"
+					}
+				},
+				{
+					"name": "Place Bet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 50.00,\n  \"currency\": \"USD\",\n  \"round_id\": \"round_123\",\n  \"game_type\": \"crash\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bet/place",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"bet",
+								"place"
+							]
+						},
+						"description": "Place a bet on current round"
+					}
+				},
+				{
+					"name": "Cash Out",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bet_id\": \"bet_123\",\n  \"round_id\": \"round_123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bet/cashout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"bet",
+								"cashout"
+							]
+						},
+						"description": "Cash out from current bet"
+					}
+				},
+				{
+					"name": "Get Bet History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/bet/history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"bet",
+								"history"
+							]
+						},
+						"description": "Get user betting history"
+					}
+				}
+			]
+		},
+		{
+			"name": "Lottery",
+			"item": [
+				{
+					"name": "Create Lottery Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"user_123\",\n  \"amount\": 25.00,\n  \"currency\": \"USD\",\n  \"lottery_type\": \"daily\",\n  \"ticket_numbers\": [1, 15, 23, 45, 67]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/lottery/request",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"lottery",
+								"request"
+							]
+						},
+						"description": "Create a new lottery request (Admin only)"
+					}
+				},
+				{
+					"name": "Create Lottery Service",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service_name\": \"Daily Lottery\",\n  \"description\": \"Daily lottery service\",\n  \"price\": 25.00,\n  \"currency\": \"USD\",\n  \"max_tickets\": 1000,\n  \"draw_time\": \"2025-08-11T20:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/lottery/service",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"lottery",
+								"service"
+							]
+						},
+						"description": "Create a new lottery service (Admin only)"
+					}
+				},
+				{
+					"name": "Verify and Deduct Balance for Lottery",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-user-token",
+								"value": "{{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"user_123\",\n  \"amount\": 25.00,\n  \"currency\": \"USD\",\n  \"lottery_id\": \"lottery_456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/lottery/verify/deduct/balance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"lottery",
+								"verify",
+								"deduct",
+								"balance"
+							]
+						},
+						"description": "Verify user balance and deduct for lottery participation"
+					}
+				}
+			]
+		},
+		{
+			"name": "Admin Management",
+			"item": [
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"login"
+							]
+						},
+						"description": "Admin login endpoint"
+					}
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users"
+							]
+						},
+						"description": "Get all users (Admin only)"
+					}
+				},
+				{
+					"name": "Block User Account",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"user_123\",\n  \"reason\": \"Violation of terms of service\",\n  \"block_duration\": \"permanent\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/users/block",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"block"
+							]
+						},
+						"description": "Block user account (Admin only)"
+					}
+				}
+			]
+		},
+		{
+			"name": "System & Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check API health status"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/health",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"success\",\n  \"message\": \"TucanBIT Online Casino API is running\",\n  \"data\": {\n    \"version\": \"1.0.0\",\n    \"status\": \"healthy\",\n    \"description\": \"This is API documentation for TucanBIT online casino\"\n  }\n}"
+						}
+					]
+				},
+				{
+					"name": "Get System Logs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/logs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"logs"
+							]
+						},
+						"description": "Get system logs (Admin only)"
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			        "value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+} 

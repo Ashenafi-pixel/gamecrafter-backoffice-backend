@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // CreateStreetKingsGame place streetkings bet.
+//
 //	@Summary		CreateStreetKingsGame
 //	@Description	CreateStreetKingsGame allow player  to place streetkings bet
 //	@Tags			Bet
@@ -49,6 +50,7 @@ func (b *bet) CreateStreetKingsGame(c *gin.Context) {
 }
 
 // CashOutStreetKingsBet cashout streetkings bet.
+//
 //	@Summary		CashOutStreetKingsBet
 //	@Description	CashOutStreetKingsBet allow user  cashout streetkings bet
 //	@Tags			Bet
@@ -87,6 +89,7 @@ func (b *bet) CashOutStreetKingsBet(c *gin.Context) {
 }
 
 // GetStreetkingHistory  get streetking bets.
+//
 //	@Summary		GetStreetkingHistory
 //	@Description	GetStreetkingHistory allow user  to get streetking bets
 //	@Tags			Bet

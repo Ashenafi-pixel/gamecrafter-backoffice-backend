@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +23,7 @@ func Init(operationsDefinitionsModule module.OperationsDefinitions, log *zap.Log
 }
 
 // GetOperationsDefinitions Get Operation Definitions  requests.
+//
 //	@Summary		GetOperationsDefinitions
 //	@Description	Get  Operations Definitions
 //	@Tags			User

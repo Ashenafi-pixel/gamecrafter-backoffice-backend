@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/model/db"
 )
 
 type User interface {
@@ -22,6 +22,8 @@ type User interface {
 	GetUserOTP(ctx context.Context, userID uuid.UUID) (dto.OTPHolder, bool, error)
 	DeleteOTP(ctx context.Context, userID uuid.UUID) error
 	UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileReq) (dto.User, error)
+	UpdateUserStatus(ctx context.Context, userID uuid.UUID, status string) (dto.User, error)
+	UpdateUserVerificationStatus(ctx context.Context, userID uuid.UUID, verified bool) (dto.User, error)
 	BlockAccount(ctx context.Context, account dto.AccountBlockReq) (dto.AccountBlockReq, error)
 	GetBlockedAccountByType(ctx context.Context, userID uuid.UUID, tp, duration string) (dto.AccountBlockReq, bool, error)
 	GetBlockedAccountByUserID(ctx context.Context, userID uuid.UUID) ([]dto.AccountBlockReq, bool, error)
@@ -42,7 +44,7 @@ type User interface {
 	GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error)
 	RemoveIPFilters(ctx context.Context, id uuid.UUID) (dto.RemoveIPBlockRes, error)
 	GetIPFilterByID(ctx context.Context, id uuid.UUID) (dto.IPFilter, bool, error)
-	CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalMultiplierReq) (dto.ReferalMultiplierRes, error)
+	CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalMultiplierReq) (dto.ReferalData, error)
 	GetReferalMultiplier(ctx context.Context) (dto.ReferalData, bool, error)
 	UpdateReferalMultiplier(ctx context.Context, mul decimal.Decimal) (dto.ReferalData, error)
 	GetUserPointsByReferalPoint(ctx context.Context, referal string) (dto.UserPoint, bool, error)
@@ -51,7 +53,7 @@ type User interface {
 	AddReferalCode(ctx context.Context, userID uuid.UUID, referalCode string) error
 	GetUserReferalUsersByUserID(ctx context.Context, userID uuid.UUID) (dto.MyRefferedUsers, bool, error)
 	GetCurrentReferralMultiplier(ctx context.Context) (int, error)
-	UpdateReferralMultiplier(ctx context.Context, newValue int) (dto.ReferalUpdateResp, error)
+	UpdateReferralMultiplier(ctx context.Context, newValue int) (dto.ReferalData, error)
 	GetAdminAssignedPoints(ctx context.Context, limit, offset int) (dto.GetAdminAssignedResp, bool, error)
 	GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Decimal, bool, error)
 	UpdateUserPoints(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (decimal.Decimal, error)
@@ -66,6 +68,11 @@ type User interface {
 	DeleteTempData(ctx context.Context, ID uuid.UUID) error
 	GetTempData(ctx context.Context, userID uuid.UUID) (dto.GetUserReferals, error)
 	SaveToTemp(ctx context.Context, req dto.UserReferals) error
+	// Unique constraint validation methods
+	CheckEmailExists(ctx context.Context, email string) (bool, error)
+	CheckPhoneExists(ctx context.Context, phone string) (bool, error)
+	CheckUsernameExists(ctx context.Context, username string) (bool, error)
+	ValidateUniqueConstraints(ctx context.Context, userRequest dto.User) error
 }
 
 type Balance interface {

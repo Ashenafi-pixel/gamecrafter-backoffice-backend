@@ -3,40 +3,45 @@ package initiator
 import (
 	"sync"
 
-	"github.com/joshjones612/egyptkingcrash/platform/pisi"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/module/adds"
+	"github.com/tucanbit/internal/module/agent"
+	"github.com/tucanbit/internal/module/airtime"
+	"github.com/tucanbit/internal/module/authz"
+	"github.com/tucanbit/internal/module/balance"
+	"github.com/tucanbit/internal/module/balancelogs"
+	"github.com/tucanbit/internal/module/banner"
+	"github.com/tucanbit/internal/module/bet"
+	"github.com/tucanbit/internal/module/company"
+	"github.com/tucanbit/internal/module/crypto_wallet"
+
+	"github.com/tucanbit/internal/module/department"
+	moduleExchange "github.com/tucanbit/internal/module/exchange"
+	"github.com/tucanbit/internal/module/logs"
+	"github.com/tucanbit/internal/module/lottery"
+	"github.com/tucanbit/internal/module/notification"
+	operationdefinition "github.com/tucanbit/internal/module/operationDefinition"
+	"github.com/tucanbit/internal/module/operationalgroup"
+	"github.com/tucanbit/internal/module/operationalgrouptype"
+	"github.com/tucanbit/internal/module/otp"
+	"github.com/tucanbit/internal/module/performance"
+	"github.com/tucanbit/internal/module/report"
+	"github.com/tucanbit/internal/module/risksettings"
+	"github.com/tucanbit/internal/module/sportsservice"
+	"github.com/tucanbit/internal/module/squads"
+	userModule "github.com/tucanbit/internal/module/user"
+	"github.com/tucanbit/platform"
+	"github.com/tucanbit/platform/pisi"
+	"github.com/tucanbit/platform/redis"
+	"github.com/tucanbit/platform/utils"
 
 	"github.com/casbin/casbin/v2"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
-	"github.com/joshjones612/egyptkingcrash/internal/module/adds"
-	"github.com/joshjones612/egyptkingcrash/internal/module/agent"
-	"github.com/joshjones612/egyptkingcrash/internal/module/airtime"
-	"github.com/joshjones612/egyptkingcrash/internal/module/authz"
-	"github.com/joshjones612/egyptkingcrash/internal/module/balance"
-	"github.com/joshjones612/egyptkingcrash/internal/module/balancelogs"
-	"github.com/joshjones612/egyptkingcrash/internal/module/banner"
-	"github.com/joshjones612/egyptkingcrash/internal/module/bet"
-	"github.com/joshjones612/egyptkingcrash/internal/module/company"
-	"github.com/joshjones612/egyptkingcrash/internal/module/department"
-	"github.com/joshjones612/egyptkingcrash/internal/module/exchange"
-	"github.com/joshjones612/egyptkingcrash/internal/module/logs"
-	"github.com/joshjones612/egyptkingcrash/internal/module/lottery"
-	"github.com/joshjones612/egyptkingcrash/internal/module/notification"
-	operationdefinition "github.com/joshjones612/egyptkingcrash/internal/module/operationDefinition"
-	"github.com/joshjones612/egyptkingcrash/internal/module/operationalgroup"
-	"github.com/joshjones612/egyptkingcrash/internal/module/operationalgrouptype"
-	"github.com/joshjones612/egyptkingcrash/internal/module/performance"
-	"github.com/joshjones612/egyptkingcrash/internal/module/report"
-	"github.com/joshjones612/egyptkingcrash/internal/module/risksettings"
-	"github.com/joshjones612/egyptkingcrash/internal/module/sportsservice"
-	"github.com/joshjones612/egyptkingcrash/internal/module/squads"
-	"github.com/joshjones612/egyptkingcrash/internal/module/user"
-	"github.com/joshjones612/egyptkingcrash/platform"
-	"github.com/joshjones612/egyptkingcrash/platform/redis"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+
+	"github.com/tucanbit/internal/module/email"
 )
 
 type Module struct {
@@ -54,6 +59,7 @@ type Module struct {
 	AirtimeProvider       module.AirtimeProvider
 	SystemLogs            module.SystemLogs
 	Company               module.Company
+	CryptoWallet          crypto_wallet.CryptoWalletModule
 	Report                module.Report
 	Squads                module.Squads
 	Notification          module.Notification
@@ -63,9 +69,13 @@ type Module struct {
 	SportsService         module.SportsService
 	RiskSettings          module.RiskSettings
 	Agent                 module.Agent
+	OTP                   otp.OTPModule
+	Email                 email.EmailService
+	Redis                 *redis.RedisOTP
 }
 
 func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, enforcer *casbin.Enforcer, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient) *Module {
+
 	spApiKey := viper.GetString("sportsservice.api_key")
 	apiSecret := viper.GetString("sportsservice.api_secret")
 	if spApiKey == "" || apiSecret == "" {
@@ -75,8 +85,22 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 	// Initialize agent module first
 	agentModule := agent.Init(persistence.Agent, log)
 
+	// Initialize enterprise-grade email service
+	emailService, err := email.NewEmailService(email.SMTPConfig{
+		Host:     viper.GetString("smtp.host"),
+		Port:     viper.GetInt("smtp.port"),
+		Username: viper.GetString("smtp.username"),
+		Password: viper.GetString("smtp.password"),
+		From:     viper.GetString("smtp.from"),
+		FromName: viper.GetString("smtp.from_name"),
+		UseTLS:   viper.GetBool("smtp.use_tls"),
+	}, log)
+	if err != nil {
+		log.Fatal("Failed to initialize email service", zap.Error(err))
+	}
+
 	return &Module{
-		User: user.Init(persistence.User,
+		User: userModule.Init(persistence.User,
 			persistence.Logs,
 			log, viper.GetString("aws.bucket.name"),
 			persistence.Balance,
@@ -94,6 +118,8 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			agentModule,
 			redis,
 			pisiClient,
+			persistence.OTP,
+			emailService,
 		),
 		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
@@ -108,7 +134,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			locker),
 		BalanceLogs: balancelogs.Init(persistence.BalanageLogs, log),
 
-		Exchange: exchange.Init(persistence.Exchange, log),
+		Exchange: moduleExchange.Init(persistence.Exchange, log),
 		Bet: bet.Init(
 			persistence.Bet,
 			persistence.Balance,
@@ -141,8 +167,20 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			persistence.OperationalGroup,
 			persistence.OperationalGroupType,
 		),
-		SystemLogs:   logs.Init(log, persistence.Logs),
-		Company:      company.Init(persistence.Company, log),
+		SystemLogs: logs.Init(log, persistence.Logs),
+		Company:    company.Init(persistence.Company, log),
+		CryptoWallet: crypto_wallet.NewCryptoWalletService(
+			persistence.CryptoWallet,
+			persistence.User,
+			persistence.Balance,
+		),
+		// Crypto: crypto.Init(
+		// 	persistence.Crypto,
+		// 	persistence.Balance,
+		// 	persistence.User,
+		// 	fireblocksClient,
+		// 	exchangeProvider,
+		// ),
 		Report:       report.Init(persistence.Report, log),
 		Squads:       squads.Init(log, persistence.Squad, persistence.User),
 		Notification: notification.Init(persistence.Notification, log),
@@ -162,5 +200,8 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		SportsService: sportsservice.Init(log, spApiKey, apiSecret, persistence.Sports, persistence.BalanageLogs, persistence.OperationalGroup, persistence.OperationalGroupType),
 		RiskSettings:  risksettings.Init(persistence.RiskSettings, log),
 		Agent:         agentModule,
+		OTP:           otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
+		Email:         emailService,
+		Redis:         redis,
 	}
 }

@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // PlaceQuickHustleBet place quick hustle bet.
+//
 //	@Summary		PlaceQuickHustleBet
 //	@Description	PlaceQuickHustleBet allow player  to place quick hustle bet
 //	@Tags			Bet
@@ -50,6 +51,7 @@ func (b *bet) PlaceQuickHustleBet(c *gin.Context) {
 }
 
 // UserSelectCard send user guess for quick hustle.
+//
 //	@Summary		UserSelectCard
 //	@Description	UserSelectCard allow player  to send user guess for quick hustle.
 //	@Tags			Bet
@@ -88,6 +90,7 @@ func (b *bet) UserSelectCard(c *gin.Context) {
 }
 
 // GetQuickHustleBetHistory  get quick hustle bet history.
+//
 //	@Summary		GetQuickHustleBetHistory
 //	@Description	GetQuickHustleBetHistory allow user  to get quick hustle bet history.
 //	@Tags			Bet

@@ -6,11 +6,11 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -27,6 +27,7 @@ func Init(departmentModule module.Departements, log *zap.Logger) handler.Departe
 }
 
 // CreateDepartement Create Department.
+//
 //	@Summary		CreateDepartement
 //	@Description	CreateDepartement Create Department
 //	@Tags			Admin
@@ -54,6 +55,7 @@ func (d *department) CreateDepartement(c *gin.Context) {
 }
 
 // GetDepartement Get Department.
+//
 //	@Summary		GetDepartement
 //	@Description	GetDepartement get Department
 //	@Tags			Admin
@@ -99,6 +101,7 @@ func (d *department) GetDepartement(c *gin.Context) {
 }
 
 // UpdateDepartment Update Department.
+//
 //	@Summary		UpdateDepartment
 //	@Description	UpdateDepartment Update Department
 //	@Tags			Admin
@@ -126,6 +129,7 @@ func (d *department) UpdateDepartment(c *gin.Context) {
 }
 
 // AssignUserToDepartment Update Department.
+//
 //	@Summary		AssignUserToDepartment
 //	@Description	AssignUserToDepartment Update Department
 //	@Tags			Admin

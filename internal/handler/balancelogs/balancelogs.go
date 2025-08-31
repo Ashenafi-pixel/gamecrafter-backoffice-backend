@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -27,6 +27,7 @@ func Init(balanceLogModule module.BalanceLogs, log *zap.Logger) handler.BalanceL
 }
 
 // GetBalanceLogs Getbalance logs.
+//
 //	@Summary		GetBalanceLogs
 //	@Description	Retrieve balance logs based on various query parameters like user ID, start date, etc.
 //	@Tags			BalanceLogs
@@ -90,6 +91,7 @@ func (bl *balance_logs) GetBalanceLogs(c *gin.Context) {
 }
 
 // GetBalanceLogByID Get a balance log by its ID.
+//
 //	@Summary		Get a balance log by ID
 //	@Description	Retrieve a single balance log entry by its unique ID.
 //	@Tags			BalanceLogs
@@ -128,6 +130,7 @@ func (bl *balance_logs) GetBalanceLogByID(c *gin.Context) {
 }
 
 // GetBalanceLogsForAdmin Getbalance logs.
+//
 //	@Summary		GetBalanceLogsForAdmin
 //	@Description	Retrieve balance logs for admin based on various query parameters like username, start date, etc.
 //	@Tags			Admin
@@ -152,7 +155,7 @@ func (bl *balance_logs) GetBalanceLogByID(c *gin.Context) {
 //	@Router			/api/admin/balance/logs [get]
 func (bl *balance_logs) GetBalanceLogsForAdmin(c *gin.Context) {
 	var balanceLogReq dto.AdminGetBalanceLogsReq
-	
+
 	var err error
 
 	if err := c.ShouldBindQuery(&balanceLogReq); err != nil {

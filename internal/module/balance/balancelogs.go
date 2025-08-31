@@ -3,8 +3,8 @@ package balance
 import (
 	"context"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/platform/utils"
 )
 
 func (b *balance) SaveBalanceLogs(ctx context.Context, saveLogsReq dto.SaveBalanceLogsReq) (dto.BalanceLogs, error) {

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -217,7 +217,14 @@ func (u *User) UpdateReferalMultiplier(ctx context.Context, mul dto.UpdateReferr
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.ReferalUpdateResp{}, err
 	}
-	return u.userStorage.UpdateReferralMultiplier(ctx, mul.Multiplier)
+	result, err := u.userStorage.UpdateReferralMultiplier(ctx, mul.Multiplier)
+	if err != nil {
+		return dto.ReferalUpdateResp{}, err
+	}
+	return dto.ReferalUpdateResp{
+		Message:         constant.SUCCESS,
+		PointMultiplier: result.PointMultiplier,
+	}, nil
 
 }
 

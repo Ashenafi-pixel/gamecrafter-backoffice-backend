@@ -1,6 +1,8 @@
-# EgyptKingCrash
+# TucanBIT Online Casino
 
-A dynamic platform for the Egyptian Kings Crash game, offering robust user registration, authentication, and operational group management.
+A dynamic platform for TucanBIT online casino, offering robust user registration, authentication, and operational group management.
+
+**This is API documentation for TucanBIT online casino**
 
 ---
 

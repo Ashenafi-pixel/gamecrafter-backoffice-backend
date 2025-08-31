@@ -6,12 +6,12 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/platform/utils"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )

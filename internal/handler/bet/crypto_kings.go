@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // SetCrytoKingsConfig update crypto kings game config
+//
 //	@Summary		SetCrytoKingsConfig
 //	@Description	SetCrytoKingsConfig allow admin to update crypto kings config
 //	@Tags			bet
@@ -40,6 +41,7 @@ func (b *bet) SetCrytoKingsConfig(c *gin.Context) {
 }
 
 // PlaceCryptoKingsBet place crypto kings bet.
+//
 //	@Summary		PlaceCryptoKingsBet
 //	@Description	PlaceCryptoKingsBet allow player  to place crypto kings bet
 //	@Tags			Bet
@@ -77,6 +79,7 @@ func (b *bet) PlaceCryptoKingsBet(c *gin.Context) {
 }
 
 // GetCryptoKingsBetHistory  get crypto kings bets.
+//
 //	@Summary		GetCryptoKingsBetHistory
 //	@Description	GetCryptoKingsBetHistory allow user  to get crypto kings bets
 //	@Tags			Bet
@@ -114,6 +117,7 @@ func (b *bet) GetCryptoKingsBetHistory(c *gin.Context) {
 }
 
 // GetCryptoKingsCurrentCryptoPrice  get currenc crypto king's crypto price.
+//
 //	@Summary		GetCryptoKingsCurrentCryptoPrice
 //	@Description	GetCryptoKingsCurrentCryptoPrice allow user  to get currenc crypto king's crypto price
 //	@Tags			Bet

@@ -8,8 +8,8 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/module"
 )
 
 func Authz(authzModule module.Authz, enforcer *casbin.Enforcer, name, method string) gin.HandlerFunc {

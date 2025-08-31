@@ -7,11 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +28,7 @@ func Init(betModule module.Bet, log *zap.Logger) handler.Bet {
 }
 
 // GetOpenRound get open round for bet.
+//
 //	@Summary		GetOpenRound
 //	@Description	Get allow users to get open round
 //	@Tags			bet
@@ -45,6 +46,7 @@ func (b *bet) GetOpenRound(c *gin.Context) {
 }
 
 // PlaceBet Place bet for user.
+//
 //	@Summary		PlaceBet
 //	@Description	PlaceBet allow user to bet for open round
 //	@Tags			bet
@@ -81,6 +83,7 @@ func (b *bet) PlaceBet(c *gin.Context) {
 }
 
 // CashOut cashout bet for user.
+//
 //	@Summary		CashOut
 //	@Description	CashOut allow user to cashout in progress bets
 //	@Tags			bet
@@ -117,6 +120,7 @@ func (b *bet) CashOut(c *gin.Context) {
 }
 
 // GetBetHistory Get Bet History.
+//
 //	@Summary		GetBetHistory
 //	@Description	Retrieve user bets based on user_id (opetional).
 //	@Tags			Admin
@@ -177,6 +181,7 @@ func (b *bet) GetBetHistory(c *gin.Context) {
 }
 
 // CashOut CancelBet bet for user.
+//
 //	@Summary		CancelBet
 //	@Description	CancelBet allow user to cancel bet which is not started
 //	@Tags			bet
@@ -212,6 +217,7 @@ func (b *bet) CancelBet(c *gin.Context) {
 }
 
 // GetLeaders Get Bet Leaders.
+//
 //	@Summary		GetLeaders
 //	@Description	Retrieve bet leaders .
 //	@Param			Authorization	header	string	true	"Bearer <token> "
@@ -230,6 +236,7 @@ func (b *bet) GetLeaders(c *gin.Context) {
 }
 
 // GetMyBetHistory Get User Bet History.
+//
 //	@Summary		GetMyBetHistory
 //	@Description	Retrieve users bet history.
 //	@Tags			User
@@ -295,6 +302,7 @@ func (b *bet) GetMyBetHistory(c *gin.Context) {
 }
 
 // GetAllFailedRounds Get failed rounds.
+//
 //	@Summary		GetAllFailedRounds
 //	@Description	Retrieve failed rounds.
 //	@Tags			Admin
@@ -349,6 +357,7 @@ func (b *bet) GetAllFailedRounds(c *gin.Context) {
 }
 
 // ManualRefundFailedRound manual refund failed  bet for user.
+//
 //	@Summary		ManualRefundFailedRound
 //	@Description	ManualRefundFailedRound allow admin  to refund failed rounds if automatic refund is not work
 //	@Tags			Admin
@@ -388,6 +397,7 @@ func (b *bet) ManualRefundFailedRound(c *gin.Context) {
 }
 
 // UpdateBetIcon update bet icon
+//
 //	@Summary		UpdateProfilePicture
 //	@Description	Allows a user to upload and update their profile picture.
 //	@Tags			Admin

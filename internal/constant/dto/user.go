@@ -21,32 +21,34 @@ const (
 
 // User represents the user registration request payload.
 type User struct {
-	ID              uuid.UUID `json:"id,omitempty"  swaggerignore:"true"`
-	PhoneNumber     string    `json:"phone_number" validate:"required,e164,min=8"`
-	FirstName       string    `json:"first_name"`
-	LastName        string    `json:"last_name"`
-	Email           string    `json:"email"`
-	ReferralCode    string    `json:"referral_code,omitempty" `
-	Password        string    `json:"password,omitempty" validate:"passwordvalidation"`
-	DefaultCurrency string    `json:"default_currency"`
-	ProfilePicture  string    `json:"profile_picture"`
-	DateOfBirth     string    `json:"date_of_birth"`
-	Source          string    `json:"source,omitempty"  swaggerignore:"true"`
-	Roles           []Role    `gorm:"many2many:user_roles;" json:"user_roles,omitempty" swaggerignore:"true"`
-	StreetAddress   string    `json:"street_address"`
-	Country         string    `json:"country"`
-	State           string    `json:"state"`
-	City            string    `json:"city"`
-	Status          string    `json:"status,omitempty" swaggerignore:"true"`
-	CreatedBy       uuid.UUID `json:"created_by" swaggerignore:"true"`
-	IsAdmin         bool      `json:"is_admin,omitempty" swaggerignore:"true"`
-	PostalCode      string    `json:"postal_code"`
-	KYCStatus       string    `json:"kyc_status"`
-	Type            Type      `json:"type,omitempty"`
-	ReferalType     Type      `json:"referal_type,omitempty"`
-	ReferedByCode   string    `json:"refered_by_code,omitempty"`
-	AgentRequestID  string    `json:"agent_request_id,omitempty"`
-	Accounts        []Balance `json:"accounts"`
+	ID              uuid.UUID  `json:"id,omitempty"  swaggerignore:"true"`
+	Username        string     `json:"username,omitempty"`
+	PhoneNumber     string     `json:"phone_number" validate:"required,e164,min=8"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
+	Email           string     `json:"email"`
+	ReferralCode    string     `json:"referral_code,omitempty" `
+	Password        string     `json:"password,omitempty" validate:"passwordvalidation"`
+	DefaultCurrency string     `json:"default_currency"`
+	ProfilePicture  string     `json:"profile_picture"`
+	DateOfBirth     string     `json:"date_of_birth"`
+	Source          string     `json:"source,omitempty"  swaggerignore:"true"`
+	Roles           []Role     `gorm:"many2many:user_roles;" json:"user_roles,omitempty" swaggerignore:"true"`
+	StreetAddress   string     `json:"street_address"`
+	Country         string     `json:"country"`
+	State           string     `json:"state"`
+	City            string     `json:"city"`
+	Status          string     `json:"status,omitempty" swaggerignore:"true"`
+	CreatedBy       uuid.UUID  `json:"created_by" swaggerignore:"true"`
+	IsAdmin         bool       `json:"is_admin,omitempty" swaggerignore:"true"`
+	PostalCode      string     `json:"postal_code"`
+	KYCStatus       string     `json:"kyc_status"`
+	Type            Type       `json:"type,omitempty"`
+	ReferalType     Type       `json:"referal_type,omitempty"`
+	ReferedByCode   string     `json:"refered_by_code,omitempty"`
+	AgentRequestID  string     `json:"agent_request_id,omitempty"`
+	Accounts        []Balance  `json:"accounts"`
+	CreatedAt       *time.Time `json:"created_at,omitempty"`
 }
 
 // profileResponse
@@ -414,4 +416,38 @@ type ResendVerificationOTPReq struct {
 
 type TestOtp struct {
 	PhoneNumber string `json:"phone_number" validate:"required,e164,min=8"`
+}
+
+// DetailedUserRegistration represents the comprehensive user registration request payload
+type DetailedUserRegistration struct {
+	Accounts        []DetailedAccount `json:"accounts"`
+	AgentRequestID  string            `json:"agent_request_id"`
+	City            string            `json:"city"`
+	Country         string            `json:"country"`
+	DateOfBirth     string            `json:"date_of_birth"`
+	DefaultCurrency string            `json:"default_currency"`
+	Email           string            `json:"email"`
+	FirstName       string            `json:"first_name"`
+	KYCStatus       string            `json:"kyc_status"`
+	LastName        string            `json:"last_name"`
+	Password        string            `json:"password"`
+	PhoneNumber     string            `json:"phone_number"`
+	PostalCode      string            `json:"postal_code"`
+	ProfilePicture  string            `json:"profile_picture"`
+	ReferalType     string            `json:"referal_type"`
+	ReferedByCode   string            `json:"refered_by_code"`
+	ReferralCode    string            `json:"referral_code"`
+	State           string            `json:"state"`
+	StreetAddress   string            `json:"street_address"`
+	Type            string            `json:"type"`
+}
+
+// DetailedAccount represents the account structure in detailed registration
+type DetailedAccount struct {
+	BonusMoney int    `json:"bonus_money"`
+	Currency   string `json:"currency"`
+	ID         string `json:"id"`
+	RealMoney  int    `json:"real_money"`
+	UpdatedAt  string `json:"updated_at"`
+	UserID     string `json:"user_id"`
 }

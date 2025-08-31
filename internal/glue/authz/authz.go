@@ -5,10 +5,10 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/glue/routing"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/middleware"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/glue/routing"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -110,6 +110,59 @@ func Init(
 				middleware.Auth(),
 				middleware.Authz(authModule, enforcer, "get user roles", http.MethodGet),
 				middleware.SystemLogs("get user roles", &log, systemLog),
+			},
+		},
+		// Crypto Wallet Routes
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/wallet/connect",
+			Handler: authzModule.ConnectWallet,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.SystemLogs("connect wallet", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodDelete,
+			Path:    "/api/wallet/disconnect/:connection_id",
+			Handler: authzModule.DisconnectWallet,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.SystemLogs("disconnect wallet", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/wallet/list",
+			Handler: authzModule.GetUserWallets,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.SystemLogs("get user wallets", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/wallet/challenge",
+			Handler: authzModule.CreateWalletChallenge,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.SystemLogs("create wallet challenge", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/wallet/verify",
+			Handler: authzModule.VerifyWalletChallenge,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.SystemLogs("verify wallet challenge", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/wallet/login",
+			Handler: authzModule.LoginWithWallet,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.SystemLogs("wallet login", &log, systemLog),
 			},
 		},
 	}

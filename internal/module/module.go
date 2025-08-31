@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
 )
 
 type User interface {
@@ -64,6 +64,12 @@ type User interface {
 	VerifyUser(ctx context.Context, req dto.VerifyPhoneNumberReq) (dto.UserRegisterResponse, string, error)
 	ReSendVerificationOTP(ctx context.Context, phoneNumber string) (*dto.ForgetPasswordRes, error)
 	GetOtp(ctx constant.ContextKey, phone string) string
+	// Unique constraint validation methods
+	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
+	CheckUserExistsByPhoneNumber(ctx context.Context, phone string) (bool, error)
+	CheckUserExistsByUsername(ctx context.Context, username string) (bool, error)
+	// User verification methods
+	UpdateUserVerificationStatus(ctx context.Context, userID uuid.UUID, verified bool) (dto.User, error)
 }
 
 type Balance interface {

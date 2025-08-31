@@ -15,9 +15,11 @@ import (
 	gormadapter "github.com/casbin/gorm-adapter/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/persistencedb"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/middleware"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/platform"
+	"github.com/tucanbit/platform/redis"
+	"github.com/tucanbit/platform/utils"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
 	swaggerFiles "github.com/swaggo/files"
@@ -26,7 +28,7 @@ import (
 )
 
 func Initiate() {
-	fmt.Println("⎈ Initializing application components")
+	fmt.Println("Initializing application components")
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -55,9 +57,7 @@ func Initiate() {
 
 	logger.Info("initializing persistence layer ")
 	persistenceDB := persistencedb.New(pgxPool, logger)
-	persistence := initPersistence(&persistenceDB, logger, gormDB)
 	logger.Info("done initializing persistence layer")
-	userBalanceWs := utils.InitUserws(logger, persistence.Balance)
 
 	// initializing module layer
 	// this layer is used to make logical operation of the program
@@ -77,9 +77,15 @@ func Initiate() {
 	lgr := InitLogger()
 	// initializing platform
 	logger.Info("initializing platform layer")
-	platform := InitPlatform(context.Background(), lgr)
+	platformInstance := platform.InitPlatform(context.Background(), lgr)
 	logger.Info("done initializing platform layer")
-	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platform.Kafka, platform.Redis, platform.Pisi)
+	
+	// Now initialize persistence with Redis
+	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP))
+	userBalanceWs := utils.InitUserws(logger, persistence.Balance)
+	
+	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, platformInstance.Redis.(*redis.RedisOTP), platformInstance.Pisi)
+
 	logger.Info("done initializing module layer")
 
 	// initializing handler layer

@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
+	"github.com/tucanbit/platform/logger"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -32,7 +32,7 @@ func TestRedisOTP_SaveOTP(t *testing.T) {
 	ctx := context.Background()
 	phone := "2349067382888"
 	otp := "3456"
-	err = otpClient.SaveOTP(ctx, phone, otp)
+	err = otpClient.(*RedisOTP).SaveOTP(ctx, phone, otp)
 	assert.NoError(t, err)
 }
 func TestRedisOTP_Verify(t *testing.T) {
@@ -50,11 +50,11 @@ func TestRedisOTP_Verify(t *testing.T) {
 	otp := "3456"
 
 	// Save OTP for phone
-	err = otpClient.SaveOTP(ctx, phone, otp)
+	err = otpClient.(*RedisOTP).SaveOTP(ctx, phone, otp)
 	assert.NoError(t, err)
 
 	// Should verify successfully
-	verified, err := otpClient.VerifyAndRemoveOTP(ctx, phone, otp)
+	verified, err := otpClient.(*RedisOTP).VerifyAndRemoveOTP(ctx, phone, otp)
 	assert.NoError(t, err)
 	assert.True(t, verified)
 }

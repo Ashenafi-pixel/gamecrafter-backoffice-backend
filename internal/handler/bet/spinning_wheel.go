@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // GetSpinningWheelPrice  get spinning wheel  price .
+//
 //	@Summary		GetSpinningWheelPrice
 //	@Description	GetSpinningWheelPrice allow user  to get spinning wheel price
 //	@Tags			Bet
@@ -31,6 +32,7 @@ func (b *bet) GetSpinningWheelPrice(c *gin.Context) {
 }
 
 // PlaceSpinningWheelBet  place spinning wheel bet.
+//
 //	@Summary		PlaceSpinningWheelBet
 //	@Description	PlaceSpinningWheelBet allow player to place spinning wheel bet
 //	@Tags			Bet
@@ -61,6 +63,7 @@ func (b *bet) PlaceSpinningWheelBet(c *gin.Context) {
 }
 
 // GetSpinningWheelUserBetHistory  get spinning wheel bets.
+//
 //	@Summary		GetSpinningWheelUserBetHistory
 //	@Description	GetSpinningWheelUserBetHistory allow user  to get spinning wheel bets.
 //	@Tags			Bet
@@ -98,6 +101,7 @@ func (b *bet) GetSpinningWheelUserBetHistory(c *gin.Context) {
 }
 
 // CreateSpinningWheelMysteries  create spinning wheel mysteries.
+//
 //	@Summary		CreateSpinningWheelMysteries
 //	@Description	CreateSpinningWheelMysteries allow admin  to create spinning wheel mysteries.
 //	@Tags			Admin
@@ -134,6 +138,7 @@ func (b *bet) CreateSpinningWheelMysteries(c *gin.Context) {
 }
 
 // GetSpinningWheelMysteries  get spinning wheel mysteries.
+//
 //	@Summary		GetSpinningWheelMysteries
 //	@Description	GetSpinningWheelMysteries allow user  to get spinning wheel mysteries.
 //	@Tags			Admin
@@ -161,6 +166,7 @@ func (b *bet) GetSpinningWheelMysteries(c *gin.Context) {
 }
 
 // UpdateSpinningWheelMystery  update spinning wheel mystery.
+//
 //	@Summary		UpdateSpinningWheelMystery
 //	@Description	UpdateSpinningWheelMystery allow admin  to update spinning wheel mystery.
 //	@Tags			Admin
@@ -188,6 +194,7 @@ func (b *bet) UpdateSpinningWheelMystery(c *gin.Context) {
 }
 
 // DeleteSpinningWheelMystery  delete spinning wheel mystery.
+//
 //	@Summary		DeleteSpinningWheelMystery
 //	@Description	DeleteSpinningWheelMystery allow admin  to delete spinning wheel mystery.
 //	@Tags			Admin
@@ -214,6 +221,7 @@ func (b *bet) DeleteSpinningWheelMystery(c *gin.Context) {
 }
 
 // CreateSpinningWheelConfig  create spinning wheel config.
+//
 //	@Summary		CreateSpinningWheelConfig
 //	@Description	CreateSpinningWheelConfig allow admin  to create spinning wheel config.
 //	@Tags			Admin
@@ -250,6 +258,7 @@ func (b *bet) CreateSpinningWheelConfig(c *gin.Context) {
 }
 
 // GetSpinningWheelConfig  get spinning wheel config.
+//
 //	@Summary		GetSpinningWheelConfig
 //	@Description	GetSpinningWheelConfig allow user  to get spinning wheel config
 //	@Tags			Admin
@@ -277,6 +286,7 @@ func (b *bet) GetSpinningWheelConfigs(c *gin.Context) {
 }
 
 // UpdateSpinningWheelConfig  update spinning wheel config.
+//
 //	@Summary		UpdateSpinningWheelConfig
 //	@Description	UpdateSpinningWheelConfig allow admin  to update spinning wheel config.
 //	@Tags			Admin
@@ -303,6 +313,7 @@ func (b *bet) UpdateSpinningWheelConfig(c *gin.Context) {
 }
 
 // DeleteSpinningWheelConfig  delete spinning wheel config.
+//
 //	@Summary		DeleteSpinningWheelConfig
 //	@Description	DeleteSpinningWheelConfig allow admin  to delete spinning wheel config.
 //	@Tags			Admin

@@ -5,11 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +26,7 @@ func Init(companyModule module.Company, log *zap.Logger) handler.Company {
 }
 
 // CreateCompany Create Company.
+//
 //	@Summary		CreateCompany
 //	@Description	CreateCompany creates a new company
 //	@Tags			Admin
@@ -65,6 +66,7 @@ func (c *company) CreateCompany(ctx *gin.Context) {
 }
 
 // GetCompanyByID Get Company by ID.
+//
 //	@Summary		GetCompanyByID
 //	@Description	GetCompanyByID retrieves a company by its ID
 //	@Tags			Admin
@@ -93,6 +95,7 @@ func (c *company) GetCompanyByID(ctx *gin.Context) {
 }
 
 // GetCompanies Get Companies.
+//
 //	@Summary		GetCompanies
 //	@Description	GetCompanies retrieves a paginated list of companies
 //	@Tags			Admin
@@ -124,6 +127,7 @@ func (c *company) GetCompanies(ctx *gin.Context) {
 }
 
 // UpdateCompany Update Company.
+//
 //	@Summary		UpdateCompany
 //	@Description	UpdateCompany updates an existing company
 //	@Tags			Admin
@@ -160,6 +164,7 @@ func (c *company) UpdateCompany(ctx *gin.Context) {
 }
 
 // DeleteCompany Delete Company.
+//
 //	@Summary		DeleteCompany
 //	@Description	DeleteCompany soft deletes a company by ID
 //	@Tags			Admin
@@ -188,6 +193,7 @@ func (c *company) DeleteCompany(ctx *gin.Context) {
 }
 
 // AddIP Add IP Address to Company.
+//
 //	@Summary		AddIP
 //	@Description	AddIP adds an IP address to a company's allowed list
 //	@Tags			Admin

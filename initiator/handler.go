@@ -1,38 +1,43 @@
 package initiator
 
 import (
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/adds"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/agent"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/airtime"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/authz"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/balance"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/balancelogs"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/banner"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/bet"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/company"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/department"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/exchange"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/logs"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/lottery"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/notification"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/operationalgroup"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/operationalgrouptype"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/operationsdefinitions"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/performance"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/report"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/risksettings"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/sportsservice"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/squads"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/user"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/ws"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"context"
+	"time"
+
 	"github.com/spf13/viper"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/handler/adds"
+	"github.com/tucanbit/internal/handler/agent"
+	"github.com/tucanbit/internal/handler/airtime"
+	"github.com/tucanbit/internal/handler/authz"
+	"github.com/tucanbit/internal/handler/balance"
+	"github.com/tucanbit/internal/handler/balancelogs"
+	"github.com/tucanbit/internal/handler/banner"
+	"github.com/tucanbit/internal/handler/bet"
+	"github.com/tucanbit/internal/handler/company"
+	"github.com/tucanbit/internal/handler/department"
+	"github.com/tucanbit/internal/handler/exchange"
+	"github.com/tucanbit/internal/handler/logs"
+	"github.com/tucanbit/internal/handler/lottery"
+	"github.com/tucanbit/internal/handler/notification"
+	"github.com/tucanbit/internal/handler/operationalgroup"
+	"github.com/tucanbit/internal/handler/operationalgrouptype"
+	"github.com/tucanbit/internal/handler/operationsdefinitions"
+	"github.com/tucanbit/internal/handler/performance"
+	"github.com/tucanbit/internal/handler/report"
+	"github.com/tucanbit/internal/handler/risksettings"
+	"github.com/tucanbit/internal/handler/sportsservice"
+	"github.com/tucanbit/internal/handler/squads"
+	"github.com/tucanbit/internal/handler/user"
+	"github.com/tucanbit/internal/handler/ws"
+	"github.com/tucanbit/internal/handler/otp"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
+	"github.com/tucanbit/platform/redis"
 )
 
 type Handler struct {
-	User                  handler.User
+	User                  user.UserHandler
 	OperationalGroup      handler.OpeartionalGroup
 	OperationalGroupType  handler.OperationalGroupType
 	OperationsDefinitions handler.OperationsDefinition
@@ -56,11 +61,31 @@ type Handler struct {
 	SportsService         handler.SportsService
 	RiskSettings          handler.RiskSettings
 	Agent                 handler.Agent
+	OTP                   handler.OTP
+	RegistrationService   *user.RegistrationService
 }
 
 func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler {
+	// Create Redis adapter for RegistrationService
+	redisAdapter := &redisAdapter{client: module.Redis}
+	
+	// Initialize RegistrationService for email verification
+	registrationService := user.NewRegistrationService(
+		module.User,
+		module.OTP,
+		module.Email,
+		redisAdapter,
+		log,
+	)
+
+	// Initialize user handler
+	userHandler := user.Init(module.User, log, viper.GetString("oauth.frontend_oauth_handler_url"))
+	
+	// Set the registration service in the user handler
+	userHandler.SetRegistrationService(registrationService)
+
 	return &Handler{
-		User:                  user.Init(module.User, log, viper.GetString("oauth.frontend_oauth_handler_url")),
+		User:                  userHandler,
 		OperationalGroup:      operationalgroup.Init(module.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(module.OperationalGroupType, log),
 		OperationsDefinitions: operationsdefinitions.Init(module.OperationsDefinitions, log),
@@ -71,7 +96,7 @@ func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler 
 		Bet:                   bet.Init(module.Bet, log),
 		Departments:           department.Init(module.Departments, log),
 		Performance:           performance.Init(module.Performance, log),
-		Authz:                 authz.Init(log, module.Authz),
+		Authz:                 authz.Init(log, module.Authz, module.CryptoWallet),
 		Airtime:               airtime.Init(log, module.AirtimeProvider),
 		SystemLogs:            logs.Init(log, module.SystemLogs),
 		Company:               company.Init(module.Company, log),
@@ -84,5 +109,34 @@ func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler 
 		SportsService:         sportsservice.Init(module.SportsService, log),
 		RiskSettings:          risksettings.Init(module.RiskSettings, log),
 		Agent:                 agent.Init(module.Agent, log),
+		OTP:                   otp.NewOTPHandler(module.OTP, log),
+		RegistrationService:   registrationService,
 	}
+}
+
+// redisAdapter adapts the platform Redis client to the RegistrationService interface
+type redisAdapter struct {
+	client *redis.RedisOTP
+}
+
+func (r *redisAdapter) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	return r.client.Set(ctx, key, value, expiration)
+}
+
+func (r *redisAdapter) Get(ctx context.Context, key string) (string, error) {
+	return r.client.Get(ctx, key)
+}
+
+func (r *redisAdapter) Delete(ctx context.Context, key string) error {
+	return r.client.Delete(ctx, key)
+}
+
+func (r *redisAdapter) Exists(ctx context.Context, key string) (bool, error) {
+	// Since the platform Redis doesn't have Exists, we'll try to get the key
+	// If it returns an error, the key doesn't exist
+	_, err := r.client.Get(ctx, key)
+	if err != nil {
+		return false, nil // Key doesn't exist
+	}
+	return true, nil // Key exists
 }

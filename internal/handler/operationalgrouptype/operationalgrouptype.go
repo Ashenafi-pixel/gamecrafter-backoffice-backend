@@ -5,11 +5,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +26,7 @@ func Init(operationalGroupTypeModule module.OperationalGroupType, log *zap.Logge
 }
 
 // CreateOperationalGroupType Creating Operational type requests.
+//
 //	@Summary		CreateOperationalType
 //	@Description	Create Operational Type using name and description, only for admins
 //	@Tags			OperationalType
@@ -52,6 +53,7 @@ func (opt *operationalGroupType) CreateOperationalGroupType(c *gin.Context) {
 }
 
 // GetOperationalGroupTypesByGroupID Creating Operational type requests.
+//
 //	@Summary		GetOperationalType
 //	@Description	Get Operational Type, only for admins
 //	@Tags			Admin
@@ -79,6 +81,7 @@ func (opt *operationalGroupType) GetOperationalGroupTypesByGroupID(c *gin.Contex
 }
 
 // GetOperationalGroupTypes Get all operational group types.
+//
 //	@Summary		Get all operational group types
 //	@Description	Retrieve a list of all operational group types.
 //	@Tags			OperationalType

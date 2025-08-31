@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 )
 
 // UpdateGame  allow admin to update games.
+//
 //	@Summary		UpdateGame
 //	@Description	UpdateGame allow admin to update games.
 //	@Tags			Admin
@@ -37,6 +38,7 @@ func (b *bet) UpdateGame(c *gin.Context) {
 }
 
 // GetGames  get games
+//
 //	@Summary		GetGames
 //	@Description	GetGames allow user  to get games active games
 //	@Tags			Admin
@@ -66,6 +68,7 @@ func (b *bet) GetGames(c *gin.Context) {
 }
 
 // DisableAllGames  allow admin to disable all games from RGS.
+//
 //	@Summary		DisableAllGames
 //	@Description	DisableAllGames allow admin to disable all games.
 //	@Tags			Admin
@@ -86,6 +89,7 @@ func (b *bet) DisableAllGames(c *gin.Context) {
 }
 
 // GetAvailableGames  get available games which are not active.
+//
 //	@Summary		GetAvailableGames
 //	@Description	GetAvailableGames allow user to get available games which are not active.
 //	@Tags			Admin
@@ -104,6 +108,7 @@ func (b *bet) GetAvailableGames(c *gin.Context) {
 }
 
 // DeleteGame allow admin to delete game
+//
 //	@Summary		DeleteGame
 //	@Description	DeleteGame allow admin to delete game
 //	@Tags			Admin
@@ -130,6 +135,7 @@ func (b *bet) DeleteGame(c *gin.Context) {
 }
 
 // AddGame allow admin to add game
+//
 //	@Summary		AddGame
 //	@Description	AddGame allow admin to add game
 //	@Tags			Admin
@@ -156,6 +162,7 @@ func (b *bet) AddGame(c *gin.Context) {
 }
 
 // UpdateGameStatus allow admin to update game status
+//
 //	@Summary		UpdateGameStatus
 //	@Description	UpdateGameStatus allow admin to update game status
 //	@Tags			Admin

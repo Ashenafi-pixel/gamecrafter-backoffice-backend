@@ -1,30 +1,88 @@
 package user
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	_ "github.com/joshjones612/egyptkingcrash/docs"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	_ "github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	customErrors "github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/module/email"
+	userModule "github.com/tucanbit/internal/module/user"
 	"go.uber.org/zap"
 )
+
+// UserHandler defines the interface for user HTTP handlers
+type UserHandler interface {
+	RegisterUser(c *gin.Context)
+	Login(c *gin.Context)
+	GetProfile(c *gin.Context)
+	UpdateProfilePicture(c *gin.Context)
+	ChangePassword(c *gin.Context)
+	ForgetPassword(c *gin.Context)
+	VerifyResetPassword(c *gin.Context)
+	ResetPassword(c *gin.Context)
+	UpdateProfile(c *gin.Context)
+	ConfirmUpdateProfile(c *gin.Context)
+	HandleGoogleOauthReq(c *gin.Context)
+	HandleGoogleOauthRes(c *gin.Context)
+	FacebookLoginReq(c *gin.Context)
+	HandleFacebookOauthRes(c *gin.Context)
+	BlockAccount(c *gin.Context)
+	GetBlockedAccount(c *gin.Context)
+	AddIpFilter(c *gin.Context)
+	GetIpFilter(c *gin.Context)
+	AdminUpdateProfile(c *gin.Context)
+	AdminResetUsersPassword(c *gin.Context)
+	GetUsers(c *gin.Context)
+	RemoveIPFilter(c *gin.Context)
+	GetMyReferalCodes(c *gin.Context)
+	GetMyRefferedUsersAndPoints(c *gin.Context)
+	GetCurrentReferralMultiplier(c *gin.Context)
+	UpdateReferralMultiplier(c *gin.Context)
+	UpdateUsersPointsForReferrances(c *gin.Context)
+	GetAdminAssignedPoints(c *gin.Context)
+	GetUserPoints(c *gin.Context)
+	AdminRegisterPlayer(c *gin.Context)
+	AdminLogin(c *gin.Context)
+	UpdateSignupBonus(c *gin.Context)
+	GetSignupBonus(c *gin.Context)
+	UpdateReferralBonus(c *gin.Context)
+	GetReferralBonus(c *gin.Context)
+	RefreshToken(c *gin.Context)
+	VerifyUser(c *gin.Context)
+	ReSendVerificationOTP(c *gin.Context)
+	GetOtp(c *gin.Context)
+	GetAdmins(c *gin.Context)
+	// Enterprise Registration Methods
+	InitiateEnterpriseRegistration(c *gin.Context)
+	CompleteEnterpriseRegistration(c *gin.Context)
+	GetEnterpriseRegistrationStatus(c *gin.Context)
+	ResendEnterpriseVerificationEmail(c *gin.Context)
+	// Regular Registration with Email Verification Methods
+	InitiateUserRegistration(c *gin.Context)
+	CompleteUserRegistration(c *gin.Context)
+	ResendVerificationEmail(c *gin.Context)
+	ServeVerificationPage(c *gin.Context)
+	// Service Management
+	SetRegistrationService(service interface{})
+}
 
 type user struct {
 	userModule              module.User
 	log                     *zap.Logger
 	frontendOAuthHandlerURL string
+	registrationService     interface{}
 }
 
-func Init(userModule module.User, log *zap.Logger, frontendOauthHandlerURL string) handler.User {
+func Init(userModule module.User, log *zap.Logger, frontendOauthHandlerURL string) UserHandler {
 	return &user{
 		userModule:              userModule,
 		log:                     log,
@@ -32,39 +90,13 @@ func Init(userModule module.User, log *zap.Logger, frontendOauthHandlerURL strin
 	}
 }
 
-func (u *user) setSecureRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
-	c.SetCookie("refresh_token", refreshToken, maxAge, "/", "", true, true)
+// SetRegistrationService sets the registration service for email verification
+func (u *user) SetRegistrationService(service interface{}) {
+	u.registrationService = service
 }
 
-// RegisterUser handles user register requests.
-//
-//	@Summary		Register
-//	@Description	Register user using phone, username, and password,
-//	@Tags			User
-//	@Accept			json
-//	@Produce		json
-//	@Param			userRequest	body		dto.User	true	"Register Request"
-//	@Success		200			{object}	dto.UserRegisterResponse
-//	@Failure		400			{object}	response.ErrorResponse
-//	@Failure		409			{object}	response.ErrorResponse
-//	@Router			/register [post]
-func (u *user) RegisterUser(c *gin.Context) {
-	var userRequest dto.User
-	if err := c.ShouldBind(&userRequest); err != nil {
-		u.log.Error(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
-		_ = c.Error(err)
-		return
-	}
-	userRequest.CreatedBy = uuid.Nil
-	userRequest.IsAdmin = false
-	usr, refreshToken, err := u.userModule.RegisterUser(c, userRequest)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-	u.setSecureRefreshTokenCookie(c, refreshToken, 1800)
-	response.SendSuccessResponse(c, http.StatusCreated, usr)
+func (u *user) setSecureRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
+	c.SetCookie("refresh_token", refreshToken, maxAge, "/", "", true, true)
 }
 
 // Login handles user login requests.
@@ -90,7 +122,7 @@ func (u *user) Login(c *gin.Context) {
 	}
 	if err := c.ShouldBind(&loginRequest); err != nil {
 		u.log.Error(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -101,6 +133,24 @@ func (u *user) Login(c *gin.Context) {
 	}
 	u.setSecureRefreshTokenCookie(c, refreshToken, 1800)
 	response.SendSuccessResponse(c, http.StatusOK, loginRes)
+}
+
+// ServeVerificationPage serves the verification page HTML
+func (u *user) ServeVerificationPage(c *gin.Context) {
+	// Get the verification page template
+	tmpl := email.GetVerificationPageTemplate()
+
+	// Execute the template with empty data since the page will get data from URL params
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, nil); err != nil {
+		u.log.Error("Failed to render verification page template", zap.Error(err))
+		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": "Failed to load verification page"})
+		return
+	}
+
+	// Set content type and serve the HTML
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Data(http.StatusOK, "text/html; charset=utf-8", buf.Bytes())
 }
 
 // GetProfile Get User profile information.
@@ -119,7 +169,7 @@ func (u *user) GetProfile(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -151,7 +201,7 @@ func (u *user) UpdateProfilePicture(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -159,7 +209,7 @@ func (u *user) UpdateProfilePicture(c *gin.Context) {
 	file, header, err := c.Request.FormFile("picture")
 	if err != nil {
 		u.log.Error("Failed to retrieve file", zap.Error(err))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -167,7 +217,7 @@ func (u *user) UpdateProfilePicture(c *gin.Context) {
 
 	const maxFileSize = 8 * 1024 * 1024
 	if header.Size > maxFileSize {
-		err := errors.ErrInvalidUserInput.New("File size exceeds the 8 MB limit")
+		err := customErrors.ErrInvalidUserInput.New("File size exceeds the 8 MB limit")
 		u.log.Warn("File too large", zap.Int64("fileSize", header.Size))
 		_ = c.Error(err)
 		return
@@ -200,14 +250,14 @@ func (u *user) ChangePassword(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 
 	var changePAsswordReq dto.ChangePasswordReq
 	if err := c.ShouldBind(&changePAsswordReq); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -235,7 +285,7 @@ func (u *user) ChangePassword(c *gin.Context) {
 func (u *user) ForgetPassword(c *gin.Context) {
 	var changePAsswordReq dto.ForgetPasswordReq
 	if err := c.ShouldBind(&changePAsswordReq); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -262,7 +312,7 @@ func (u *user) ForgetPassword(c *gin.Context) {
 func (u *user) VerifyResetPassword(c *gin.Context) {
 	var verifyResetPasswordReq dto.VerifyResetPasswordReq
 	if err := c.ShouldBind(&verifyResetPasswordReq); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -289,7 +339,7 @@ func (u *user) VerifyResetPassword(c *gin.Context) {
 func (u *user) ResetPassword(c *gin.Context) {
 	var resetPassword dto.ResetPasswordReq
 	if err := c.ShouldBind(&resetPassword); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -319,14 +369,14 @@ func (u *user) UpdateProfile(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 
 	var updateProfileReq dto.UpdateProfileReq
 	if err := c.ShouldBind(&updateProfileReq); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -355,7 +405,7 @@ func (u *user) UpdateProfile(c *gin.Context) {
 func (u *user) ConfirmUpdateProfile(c *gin.Context) {
 	var cofirmUpdateProfileReq dto.ConfirmUpdateProfile
 	if err := c.ShouldBind(&cofirmUpdateProfileReq); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -390,7 +440,7 @@ func (u *user) HandleGoogleOauthRes(c *gin.Context) {
 	state := c.Query("state")
 	if state != "randomstate" {
 		err := fmt.Errorf("invalid state")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -398,7 +448,7 @@ func (u *user) HandleGoogleOauthRes(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
 		err := fmt.Errorf("code not found")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -437,7 +487,7 @@ func (u *user) HandleFacebookOauthRes(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
 		err := fmt.Errorf("code not found")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -469,7 +519,7 @@ func (u *user) BlockAccount(c *gin.Context) {
 	var blockAccountReq dto.AccountBlockReq
 	if err := c.ShouldBind(&blockAccountReq); err != nil {
 		u.log.Warn(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -478,7 +528,7 @@ func (u *user) BlockAccount(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -509,7 +559,7 @@ func (u *user) GetBlockedAccount(c *gin.Context) {
 	var getBlockedAccountLogReq dto.GetBlockedAccountLogReq
 	if err := c.ShouldBind(&getBlockedAccountLogReq); err != nil {
 		u.log.Warn(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -518,7 +568,7 @@ func (u *user) GetBlockedAccount(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -550,7 +600,7 @@ func (u *user) AddIpFilter(c *gin.Context) {
 	var addIpFilterReq dto.IpFilterReq
 	if err := c.ShouldBind(&addIpFilterReq); err != nil {
 		u.log.Warn(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -559,7 +609,7 @@ func (u *user) AddIpFilter(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -595,7 +645,7 @@ func (u *user) GetIpFilter(c *gin.Context) {
 	filterType := c.Query("type")
 	if perpage == "" || page == "" {
 		err := fmt.Errorf("page and per_page query required")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -603,21 +653,21 @@ func (u *user) GetIpFilter(c *gin.Context) {
 	var getIpFilterReq dto.GetIPFilterReq
 	if err := c.ShouldBind(&getIpFilterReq); err != nil {
 		u.log.Warn(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 	pageParsed, err := strconv.Atoi(page)
 	if err != nil {
 		err := fmt.Errorf("unable to convert page to number")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 	perPageParsed, err := strconv.Atoi(perpage)
 	if err != nil {
 		err := fmt.Errorf("unable to convert per_page to number")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -654,13 +704,13 @@ func (u *user) AdminUpdateProfile(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -693,13 +743,13 @@ func (u *user) AdminResetUsersPassword(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -728,7 +778,7 @@ func (u *user) AdminResetUsersPassword(c *gin.Context) {
 func (u *user) GetUsers(c *gin.Context) {
 	var req dto.GetPlayersReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -757,7 +807,7 @@ func (u *user) GetUsers(c *gin.Context) {
 func (u *user) RemoveIPFilter(c *gin.Context) {
 	var req dto.RemoveIPBlockReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -785,7 +835,7 @@ func (u *user) GetMyReferalCodes(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -813,7 +863,7 @@ func (u *user) GetMyRefferedUsersAndPoints(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -860,7 +910,7 @@ func (u *user) GetCurrentReferralMultiplier(c *gin.Context) {
 func (u *user) UpdateReferralMultiplier(c *gin.Context) {
 	var req dto.UpdateReferralPointReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -889,14 +939,14 @@ func (u *user) UpdateUsersPointsForReferrances(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
 
 	var req []dto.MassReferralReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -925,7 +975,7 @@ func (u *user) UpdateUsersPointsForReferrances(c *gin.Context) {
 func (u *user) GetAdminAssignedPoints(c *gin.Context) {
 	var req dto.GetAdminAssignedPointsReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -953,7 +1003,7 @@ func (u *user) GetUserPoints(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Error(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInternalServerError.Wrap(err, err.Error())
+		err = customErrors.ErrInternalServerError.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -982,7 +1032,7 @@ func (u *user) AdminRegisterPlayer(c *gin.Context) {
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		u.log.Warn(err.Error(), zap.Any("userID", userID))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -990,7 +1040,7 @@ func (u *user) AdminRegisterPlayer(c *gin.Context) {
 	var userRequest dto.User
 	if err := c.ShouldBind(&userRequest); err != nil {
 		u.log.Error(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1027,7 +1077,7 @@ func (u *user) AdminLogin(c *gin.Context) {
 	}
 	if err := c.ShouldBind(&loginRequest); err != nil {
 		u.log.Error(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1055,7 +1105,7 @@ func (u *user) AdminLogin(c *gin.Context) {
 func (u *user) GetAdmins(c *gin.Context) {
 	var req dto.GetAdminsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1083,7 +1133,7 @@ func (u *user) GetAdmins(c *gin.Context) {
 func (u *user) UpdateSignupBonus(c *gin.Context) {
 	var req dto.SignUpBonusReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1132,7 +1182,7 @@ func (u *user) GetSignupBonus(c *gin.Context) {
 func (u *user) UpdateReferralBonus(c *gin.Context) {
 	var req dto.ReferralBonusReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1178,7 +1228,7 @@ func (u *user) GetReferralBonus(c *gin.Context) {
 func (u *user) RefreshToken(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil || refreshToken == "" {
-		err = errors.ErrInvalidAccessToken.New("Refresh token missing or invalid")
+		err = customErrors.ErrInvalidAccessToken.New("Refresh token missing or invalid")
 		_ = c.Error(err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Refresh token missing or invalid"})
 		return
@@ -1209,7 +1259,7 @@ func (u *user) RefreshToken(c *gin.Context) {
 func (u *user) VerifyUser(c *gin.Context) {
 	var req dto.VerifyPhoneNumberReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1238,7 +1288,7 @@ func (u *user) VerifyUser(c *gin.Context) {
 func (u *user) ReSendVerificationOTP(c *gin.Context) {
 	var req dto.ResendVerificationOTPReq
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1255,7 +1305,7 @@ func (u *user) ReSendVerificationOTP(c *gin.Context) {
 func (u *user) GetOtp(c *gin.Context) {
 	var req dto.TestOtp
 	if err := c.ShouldBind(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
 	}
@@ -1263,4 +1313,375 @@ func (u *user) GetOtp(c *gin.Context) {
 	resp := u.userModule.GetOtp(c, req.PhoneNumber)
 
 	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// InitiateEnterpriseRegistration starts the enterprise registration process
+func (u *user) InitiateEnterpriseRegistration(c *gin.Context) {
+	var req dto.EnterpriseRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Email == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" || req.UserType == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Email, password, first name, last name, and user type are required",
+		})
+		return
+	}
+
+	u.log.Info("Initiating enterprise registration",
+		zap.String("email", req.Email),
+		zap.String("user_type", req.UserType),
+		zap.String("ip", c.ClientIP()))
+
+	response, err := u.userModule.(*userModule.User).EnterpriseRegistrationService.InitiateRegistration(c.Request.Context(), &req, c.Request.UserAgent(), c.ClientIP())
+	if err != nil {
+		u.log.Error("Failed to initiate enterprise registration",
+			zap.Error(err),
+			zap.String("email", req.Email))
+
+		// Debug: Log the exact error message to see what we're dealing with
+		errStr := err.Error()
+		u.log.Info("Error message for debugging", zap.String("error_message", errStr))
+
+		// Handle specific business logic errors
+		if strings.Contains(errStr, "user with email") && strings.Contains(errStr, "already exists") {
+			c.JSON(http.StatusConflict, dto.ErrorResponse{
+				Code:    http.StatusConflict,
+				Message: "An account with this email address already exists. Please use a different email or try logging in.",
+			})
+			return
+		}
+
+		// Handle specific database constraint violations
+		// Check for wrapped database constraint errors
+		if strings.Contains(errStr, "failed to create user") {
+			// Extract the underlying database error
+			if strings.Contains(errStr, "users_email_key") || strings.Contains(errStr, "duplicate key value violates unique constraint") && strings.Contains(errStr, "email") {
+				c.JSON(http.StatusConflict, dto.ErrorResponse{
+					Code:    http.StatusConflict,
+					Message: "An account with this email address already exists. Please use a different email or try logging in.",
+				})
+				return
+			}
+			if strings.Contains(errStr, "users_phone_number_key") || strings.Contains(errStr, "duplicate key value violates unique constraint") && strings.Contains(errStr, "phone_number") {
+				c.JSON(http.StatusConflict, dto.ErrorResponse{
+					Code:    http.StatusConflict,
+					Message: "An account with this phone number already exists. Please use a different phone number or try logging in.",
+				})
+				return
+			}
+			if strings.Contains(errStr, "users_username_key") || strings.Contains(errStr, "duplicate key value violates unique constraint") && strings.Contains(errStr, "username") {
+				c.JSON(http.StatusConflict, dto.ErrorResponse{
+					Code:    http.StatusConflict,
+					Message: "This username is already taken. Please choose a different username.",
+				})
+				return
+			}
+		}
+
+		// Handle validation errors
+		if strings.Contains(errStr, "validation failed") {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "Please check your input data and try again.",
+			})
+			return
+		}
+
+		// Handle database connection errors
+		if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "timeout") {
+			c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{
+				Code:    http.StatusServiceUnavailable,
+				Message: "Service temporarily unavailable. Please try again later.",
+			})
+			return
+		}
+
+		// Default error for unexpected issues
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration failed due to a system error. Please try again later or contact support.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// CompleteEnterpriseRegistration completes the enterprise registration process
+func (u *user) CompleteEnterpriseRegistration(c *gin.Context) {
+	var req dto.EnterpriseRegistrationCompleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.UserID == uuid.Nil || req.OTPCode == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "User ID and OTP code are required",
+		})
+		return
+	}
+
+	u.log.Info("Completing enterprise registration",
+		zap.String("user_id", req.UserID.String()),
+		zap.String("ip", c.ClientIP()))
+
+	response, err := u.userModule.(*userModule.User).EnterpriseRegistrationService.CompleteRegistration(c.Request.Context(), &req)
+	if err != nil {
+		u.log.Error("Failed to complete enterprise registration",
+			zap.Error(err),
+			zap.String("user_id", req.UserID.String()))
+
+		// Handle specific error cases
+		if err.Error() == "invalid OTP code" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "Invalid OTP code",
+			})
+			return
+		}
+		if err.Error() == "OTP expired" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "OTP code has expired",
+			})
+			return
+		}
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Code:    http.StatusNotFound,
+				Message: "User not found",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to complete registration",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetEnterpriseRegistrationStatus gets the current registration status
+func (u *user) GetEnterpriseRegistrationStatus(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "User ID is required",
+		})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	u.log.Info("Getting enterprise registration status",
+		zap.String("user_id", userID.String()),
+		zap.String("ip", c.ClientIP()))
+
+	response, err := u.userModule.(*userModule.User).EnterpriseRegistrationService.GetRegistrationStatus(c.Request.Context(), userID)
+	if err != nil {
+		u.log.Error("Failed to get enterprise registration status",
+			zap.Error(err),
+			zap.String("user_id", userID.String()))
+
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Code:    http.StatusNotFound,
+				Message: "User not found",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to get registration status",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// ResendEnterpriseVerificationEmail resends the verification email
+func (u *user) ResendEnterpriseVerificationEmail(c *gin.Context) {
+	var req dto.ResendVerificationEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	// Validate required fields
+	if req.Email == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Email is required",
+		})
+		return
+	}
+
+	u.log.Info("Resending enterprise verification email",
+		zap.String("email", req.Email),
+		zap.String("ip", c.ClientIP()))
+
+	response, err := u.userModule.(*userModule.User).EnterpriseRegistrationService.ResendVerificationEmail(c.Request.Context(), req.Email, c.Request.UserAgent(), c.ClientIP())
+	if err != nil {
+		u.log.Error("Failed to resend enterprise verification email",
+			zap.Error(err),
+			zap.String("email", req.Email))
+
+		// Handle specific error cases
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Code:    http.StatusNotFound,
+				Message: "User not found",
+			})
+			return
+		}
+		if err.Error() == "user already verified" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "User is already verified",
+			})
+			return
+		}
+		if err.Error() == "too many resend attempts" {
+			c.JSON(http.StatusTooManyRequests, dto.ErrorResponse{
+				Code:    http.StatusTooManyRequests,
+				Message: "Too many resend attempts. Please try again later.",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to resend verification email",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// InitiateUserRegistration delegates to the registration service
+func (u *user) InitiateUserRegistration(c *gin.Context) {
+	if u.registrationService == nil {
+		u.log.Error("Registration service not initialized")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+		return
+	}
+
+	if service, ok := u.registrationService.(interface {
+		InitiateUserRegistration(c *gin.Context)
+	}); ok {
+		service.InitiateUserRegistration(c)
+	} else {
+		u.log.Error("Registration service does not implement InitiateUserRegistration")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+	}
+}
+
+// CompleteUserRegistration delegates to the registration service
+func (u *user) CompleteUserRegistration(c *gin.Context) {
+	if u.registrationService == nil {
+		u.log.Error("Registration service not initialized")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+		return
+	}
+
+	if service, ok := u.registrationService.(interface {
+		CompleteUserRegistration(c *gin.Context)
+	}); ok {
+		service.CompleteUserRegistration(c)
+	} else {
+		u.log.Error("Registration service does not implement CompleteUserRegistration")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+	}
+}
+
+// ResendVerificationEmail delegates to the registration service
+func (u *user) ResendVerificationEmail(c *gin.Context) {
+	if u.registrationService == nil {
+		u.log.Error("Registration service not initialized")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+		return
+	}
+
+	if service, ok := u.registrationService.(interface {
+		ResendVerificationEmail(c *gin.Context)
+	}); ok {
+		service.ResendVerificationEmail(c)
+	} else {
+		u.log.Error("Registration service does not implement ResendVerificationEmail")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+	}
+}
+
+// RegisterUser handles user register requests.
+func (u *user) RegisterUser(c *gin.Context) {
+	// Delegate to the registration service for email verification flow
+	if u.registrationService == nil {
+		u.log.Error("Registration service not initialized")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+		return
+	}
+
+	if service, ok := u.registrationService.(interface {
+		InitiateUserRegistration(c *gin.Context)
+	}); ok {
+		service.InitiateUserRegistration(c)
+	} else {
+		u.log.Error("Registration service does not implement InitiateUserRegistration")
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Registration service not available",
+		})
+	}
 }

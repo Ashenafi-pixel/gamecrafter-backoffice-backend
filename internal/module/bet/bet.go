@@ -10,14 +10,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
 	"github.com/robfig/cron/v3"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -138,7 +138,8 @@ func Init(betStorage storage.Bet,
 	}
 	err := betPointer.initializeBetEngine()
 	if err != nil {
-		log.Fatal(err.Error())
+		betPointer.log.Error("Failed to initialize bet engine", zap.Error(err))
+		betPointer.log.Error("Continuing without bet engine - this is expected for new installations")
 	}
 	return betPointer
 }
@@ -147,9 +148,9 @@ func (b *bet) initializeBetEngine() error {
 	//check for failed games
 	failedBets, err := b.betStorage.GetFailedRounds(context.Background())
 	if err != nil {
-		log.Fatal(err)
-	}
-	if len(failedBets) > 0 {
+		b.log.Error("Failed to get failed rounds", zap.Error(err))
+		b.log.Error("Continuing without failed rounds check - this is expected for new installations")
+	} else if len(failedBets) > 0 {
 		b.RefundFailedRounds(context.Background(), failedBets)
 	}
 	b.cron = cron.New(cron.WithSeconds())
@@ -159,7 +160,8 @@ func (b *bet) initializeBetEngine() error {
 	}
 	b.cron.Start()
 	if err := b.InitConfig(context.Background()); err != nil {
-		log.Fatal(err)
+		b.log.Error("Failed to initialize bet config", zap.Error(err))
+		b.log.Error("Continuing without bet config - this is expected for new installations")
 	}
 	b.generateQucickHustleCards()
 	return nil
@@ -265,12 +267,12 @@ func (b *bet) InitConfig(context.Context) error {
 	}
 
 	// check game are saved or not
-	//egypt kings
-	_, err = b.betStorage.GetGameByID(context.Background(), constant.GAME_EGYPTKING)
+	//tucanbit
+	_, err = b.betStorage.GetGameByID(context.Background(), constant.GAME_TUCAKBIT)
 	if err != nil {
 		if _, err := b.betStorage.CreateGame(context.Background(), dto.Game{
-			ID:   constant.GAME_EGYPTKING,
-			Name: constant.GAME_EGYPTKING_DEFAULT_NAME,
+			ID:   constant.GAME_TUCAKBIT,
+			Name: constant.GAME_TUCAKBIT_DEFAULT_NAME,
 		}); err != nil {
 			return err
 		}
@@ -748,7 +750,7 @@ func (b *bet) TriggerLevelResponse(ctx context.Context, userID uuid.UUID) {
 		return
 	}
 
-	log.Println("Triggering player level response for user", b.playerLevelSocket[userID])
+	b.log.Info("Triggering player level response for user", zap.Any("userID", userID), zap.Any("sockets", b.playerLevelSocket[userID]))
 
 	if conns, exists := b.playerLevelSocket[userID]; exists {
 

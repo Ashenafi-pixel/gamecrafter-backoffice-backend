@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/joomcode/errorx"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	response2 "github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/errors"
+	response2 "github.com/tucanbit/internal/constant/model/response"
 
 	"github.com/spf13/viper"
 

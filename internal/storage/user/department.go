@@ -3,7 +3,7 @@ package user
 import (
 	"context"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/dto"
 )
 
 func (u *user) GetUsersByDepartmentNotificationTypes(ctx context.Context, notificationTypes []string) ([]dto.GetUsersForNotificationRes, error) {

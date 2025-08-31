@@ -4,7 +4,7 @@ import (
 	"crypto/rsa"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
+	"github.com/tucanbit/platform/logger"
 	"github.com/redis/go-redis/v9"
 )
 

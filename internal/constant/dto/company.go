@@ -3,11 +3,12 @@ package dto
 import (
 	"database/sql"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
-	"net"
-	"time"
 )
 
 var validate *validator.Validate

@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -25,16 +25,16 @@ func Init(riskSettingsModule module.RiskSettings, log *zap.Logger) handler.RiskS
 }
 
 // GetRiskSettings
-// @Summary		GetRiskSettings
-// @Description	GetRiskSettings retrieves the current risk settings
-// @Tags			Admin
-// @Accept			json
-// @Produce		json
-// @Param			Authorization	header		string	true	"Bearer <token>"
-// @Success		200				{object}	dto.RiskSettings
-// @Failure		400				{object}	response.ErrorResponse
-// @Failure		500				{object}	response.ErrorResponse
-// @Router			/api/admin/risksettings [get]
+//	@Summary		GetRiskSettings
+//	@Description	GetRiskSettings retrieves the current risk settings
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string	true	"Bearer <token>"
+//	@Success		200				{object}	dto.RiskSettings
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		500				{object}	response.ErrorResponse
+//	@Router			/api/admin/risksettings [get]
 
 func (r *riskSettings) GetRiskSettings(c *gin.Context) {
 
@@ -49,17 +49,17 @@ func (r *riskSettings) GetRiskSettings(c *gin.Context) {
 }
 
 // SetRiskSettings
-// @Summary		SetRiskSettings
-// @Description	SetRiskSettings updates the risk settings
-// @Tags			Admin
-// @Accept			json
-// @Produce		json
-// @Param			Authorization	header		string	true	"Bearer <token>"
-// @Param			riskSettings	body		dto.RiskSettings	true	"Risk Settings"
-// @Success		200				{object}	dto.RiskSettings
-// @Failure		400				{object}	response.ErrorResponse
-// @Failure		500				{object}	response.ErrorResponse
-// @Router			/api/admin/risksettings [put]
+//	@Summary		SetRiskSettings
+//	@Description	SetRiskSettings updates the risk settings
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string				true	"Bearer <token>"
+//	@Param			riskSettings	body		dto.RiskSettings	true	"Risk Settings"
+//	@Success		200				{object}	dto.RiskSettings
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		500				{object}	response.ErrorResponse
+//	@Router			/api/admin/risksettings [put]
 
 func (r *riskSettings) SetRiskSettings(c *gin.Context) {
 	var riskSettings dto.RiskSettings

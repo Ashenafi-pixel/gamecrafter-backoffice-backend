@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/joomcode/errorx"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/errors"
 	"github.com/spf13/viper"
 )
 

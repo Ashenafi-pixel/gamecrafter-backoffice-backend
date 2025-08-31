@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +25,7 @@ func Init(operationalGroupModule module.OperationalGroup, log *zap.Logger) handl
 }
 
 // CreateOperationalGroup Creating Operational group requests.
+//
 //	@Summary		CreateOperationalGroup
 //	@Description	Create Operational Group using name and description, only for admins
 //	@Tags			OperationalGroup
@@ -52,6 +53,7 @@ func (op *operationalGroup) CreateOperationalGroup(c *gin.Context) {
 }
 
 // GetOperationalGroups Creating Operational group requests.
+//
 //	@Summary		GetOperationalGroup
 //	@Description	Get Operational Groups, only for admins
 //	@Tags			Admin

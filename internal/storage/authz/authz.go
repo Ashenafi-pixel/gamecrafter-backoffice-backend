@@ -5,12 +5,12 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/persistencedb"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/db"
+	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -49,7 +49,7 @@ func (a *authz) InitPermissions() {
 
 			} else {
 				a.log.Error("Error checking permission existence", zap.Error(err))
-				a.log.Fatal(err.Error())
+				a.log.Error("Continuing without permissions table - this is expected for new installations")
 			}
 		}
 	}
@@ -57,19 +57,25 @@ func (a *authz) InitPermissions() {
 	//get supper admin role if not found create one
 	_, err := a.pdb.Queries.GetSupperAdmin(context.Background())
 	if err != nil && err.Error() != dto.ErrNoRows {
-		a.log.Fatal(err.Error())
+		a.log.Error("Error getting super admin role", zap.Error(err))
+		a.log.Error("Continuing without super admin role - this is expected for new installations")
+		return
 	}
 
 	if err != nil {
 		// create super admin role
 		supA, err := a.pdb.Queries.CreateRole(context.Background(), "super")
 		if err != nil {
-			a.log.Fatal(err.Error())
+			a.log.Error("Error creating super admin role", zap.Error(err))
+			a.log.Error("Continuing without super admin role - this is expected for new installations")
+			return
 		}
 		// get super admin permission
 		p, err := a.pdb.GetPermissonByName(context.Background(), "super")
 		if err != nil {
-			a.log.Fatal(err.Error())
+			a.log.Error("Error getting super admin permission", zap.Error(err))
+			a.log.Error("Continuing without super admin permission - this is expected for new installations")
+			return
 		}
 		// add permissions role
 		_, err = a.pdb.Queries.AssignPermissionToRole(context.Background(), db.AssignPermissionToRoleParams{
@@ -77,12 +83,16 @@ func (a *authz) InitPermissions() {
 			PermissionID: p.ID,
 		})
 		if err != nil {
-			a.log.Fatal(err.Error())
+			a.log.Error("Error assigning permission to role", zap.Error(err))
+			a.log.Error("Continuing without role assignment - this is expected for new installations")
+			return
 		}
 		// create casbin rule to casbin_rule table
 		_, err = a.pdb.AddSupperAdminCasbinRule(context.Background(), sql.NullString{String: supA.ID.String(), Valid: true})
 		if err != nil {
-			a.log.Fatal(err.Error())
+			a.log.Error("Error adding super admin casbin rule", zap.Error(err))
+			a.log.Error("Continuing without casbin rule - this is expected for new installations")
+			return
 		}
 	}
 }

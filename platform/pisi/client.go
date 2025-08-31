@@ -9,18 +9,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/platform/logger"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
 type PisiClient interface {
-	Login(ctx context.Context) (*LoginResponse, error)
+	SendSMS(ctx context.Context, phoneNumber, message string) error
 	SendBulkSMS(ctx context.Context, req SendBulkSMSRequest) (string, error)
+	Login(ctx context.Context) (*LoginResponse, error)
 }
 
-// NewPisiClient creates a new client from viper config
 func NewPisiClient(baseURL, password, vaspid string, timeout time.Duration, retryCount int, retryDelay time.Duration, senderID string, logger logger.Logger) PisiClient {
 	return &pisiClient{
 		baseURL:    baseURL,
@@ -29,14 +29,23 @@ func NewPisiClient(baseURL, password, vaspid string, timeout time.Duration, retr
 		timeout:    timeout,
 		retryCount: retryCount,
 		retryDelay: retryDelay,
-		logger:     logger,
 		SenderID:   senderID,
+		logger:     logger,
 	}
+}
+
+func (c *pisiClient) SendSMS(ctx context.Context, phoneNumber, message string) error {
+	req := SendBulkSMSRequest{
+		Recipients: phoneNumber,
+		Message:    message,
+	}
+	_, err := c.SendBulkSMS(ctx, req)
+	return err
 }
 
 // Login authenticates and stores the token
 func (c *pisiClient) Login(ctx context.Context) (*LoginResponse, error) {
-	url := c.baseURL + "Authentication/login"
+	url := c.baseURL + "/Authentication/login"
 	body := LoginRequest{
 		Password: c.password,
 		Vaspid:   c.vaspid,
@@ -61,13 +70,8 @@ func (c *pisiClient) Login(ctx context.Context) (*LoginResponse, error) {
 	return &loginResp, nil
 }
 
-// SendBulkSMS sends an OTP SMS using the token
-type SendBulkSMSResponse struct {
-	Message string `json:"message"`
-}
-
 func (c *pisiClient) SendBulkSMS(ctx context.Context, req SendBulkSMSRequest) (string, error) {
-	url := c.baseURL + "Sms/sendbulksms"
+	url := c.baseURL + "/Sms/sendbulksms"
 
 	// Login with client before sending SMS
 	c.logger.Info(ctx, "logging in before sending SMS")

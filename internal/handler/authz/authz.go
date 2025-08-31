@@ -7,27 +7,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
+	"github.com/tucanbit/internal/module/crypto_wallet"
 )
 
 type authz struct {
 	log         *zap.Logger
 	authzModule module.Authz
+	cryptoWallet crypto_wallet.CryptoWalletModule
 }
 
-func Init(log *zap.Logger, authzModule module.Authz) handler.Authz {
+func Init(log *zap.Logger, authzModule module.Authz, cryptoWallet crypto_wallet.CryptoWalletModule) handler.Authz {
 	return &authz{
 		log:         log,
 		authzModule: authzModule,
+		cryptoWallet: cryptoWallet,
 	}
 }
 
 // GetPermissions Get list of permissions.
+//
 //	@Summary		GetPermissions
 //	@Description	GetPermissions Retrieve list of permissions.
 //	@Tags			Admin
@@ -73,6 +77,7 @@ func (a *authz) GetPermissions(c *gin.Context) {
 }
 
 // CreateRole allow user to create role.
+//
 //	@Summary		CreateRole
 //	@Description	CreateRole allow user to create role
 //	@Tags			Admin
@@ -100,6 +105,7 @@ func (a *authz) CreateRole(c *gin.Context) {
 }
 
 // GetRoles Get list of roles.
+//
 //	@Summary		GetRoles
 //	@Description	GetRoles Retrieve list of roles.
 //	@Tags			Admin
@@ -145,6 +151,7 @@ func (a *authz) GetRoles(c *gin.Context) {
 }
 
 // UpdateRolePermissions allow user to update role permissions.
+//
 //	@Summary		UpdateRolePermissions
 //	@Description	UpdateRolePermissions allow user to update role permissions
 //	@Tags			Admin
@@ -172,6 +179,7 @@ func (a *authz) UpdateRolePermissions(c *gin.Context) {
 }
 
 // RemoveRole allow user to remove role .
+//
 //	@Summary		RemoveRole
 //	@Description	RemoveRole allow user to remove role
 //	@Tags			Admin
@@ -198,6 +206,7 @@ func (a *authz) RemoveRole(c *gin.Context) {
 }
 
 // AssignRoleToUser allow user to assign role to the user.
+//
 //	@Summary		AssignRoleToUser
 //	@Description	AssignRoleToUser allow assign role to user
 //	@Tags			Admin
@@ -225,6 +234,7 @@ func (a *authz) AssignRoleToUser(c *gin.Context) {
 }
 
 // RevokeUserRole allow user to revoke role from the user.
+//
 //	@Summary		RevokeUserRole
 //	@Description	RevokeUserRole allow revoke role from user
 //	@Tags			Admin
@@ -251,6 +261,7 @@ func (a *authz) RevokeUserRole(c *gin.Context) {
 }
 
 // GetRoleUsers Get list of users of role.
+//
 //	@Summary		GetRoleUsers
 //	@Description	GetRoleUsers Retrieve list of users of role.
 //	@Tags			Admin
@@ -279,6 +290,7 @@ func (a *authz) GetRoleUsers(c *gin.Context) {
 }
 
 // GetRoleUsers Get list of user roles.
+//
 //	@Summary		GetRoleUsers
 //	@Description	GetRoleUsers Retrieve list of user roles.
 //	@Tags			Admin

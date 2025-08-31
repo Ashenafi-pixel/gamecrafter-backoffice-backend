@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // GetScratchGamePrice  get scratch cards  price and prize.
+//
 //	@Summary		GetScratchGamePrice
 //	@Description	GetScratchGamePrice allow user  to get scratch cards price and prize
 //	@Tags			Bet
@@ -30,6 +31,7 @@ func (b *bet) GetScratchGamePrice(c *gin.Context) {
 }
 
 // PlaceScratchCardBet  place scratch cards bet.
+//
 //	@Summary		PlaceScratchCardBet
 //	@Description	PlaceScratchCardBet allow player to place scratch cards bet
 //	@Tags			Bet
@@ -58,6 +60,7 @@ func (b *bet) PlaceScratchCardBet(c *gin.Context) {
 }
 
 // GetUserScratchCardBetHistories  get scratch cards bets.
+//
 //	@Summary		GetUserScratchCardBetHistories
 //	@Description	GetUserScratchCardBetHistories allow user  to get scratch cards bets.
 //	@Tags			Bet
@@ -95,6 +98,7 @@ func (b *bet) GetUserScratchCardBetHistories(c *gin.Context) {
 }
 
 // GetScratchCardsConfig  get scratch cards config.
+//
 //	@Summary		GetScratchCardsConfig
 //	@Description	GetScratchCardsConfig allow user  to get scratch cards config
 //	@Tags			Bet
@@ -113,6 +117,7 @@ func (b *bet) GetScratchCardsConfig(c *gin.Context) {
 }
 
 // UpdateScratchGameConfig  update scratch game config.
+//
 //	@Summary		UpdateScratchGameConfig
 //	@Description	UpdateScratchGameConfig allow user  to update scratch game config
 //	@Tags			Bet

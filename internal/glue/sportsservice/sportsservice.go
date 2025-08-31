@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/glue/routing"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/middleware"
+	"github.com/tucanbit/internal/glue/routing"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/handler/middleware"
 	"go.uber.org/zap"
 )
 

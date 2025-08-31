@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
+	"github.com/tucanbit/platform/logger"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"

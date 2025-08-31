@@ -3,12 +3,12 @@ package config
 import (
 	"context"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/persistencedb"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/db"
+	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/storage"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )

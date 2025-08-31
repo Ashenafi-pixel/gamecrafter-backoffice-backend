@@ -5,13 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
 	"go.uber.org/zap"
 )
 
 // CreateLeague  create league.
+//
 //	@Summary		CreateLeague
 //	@Description	CreateLeague allow admin  to create league
 //	@Tags			Admin
@@ -38,6 +39,7 @@ func (b *bet) CreateLeague(c *gin.Context) {
 }
 
 // GetLeagues  get league.
+//
 //	@Summary		GetLeagues
 //	@Description	GetLeagues allow admin  to get leagues
 //	@Tags			Admin
@@ -64,6 +66,7 @@ func (b *bet) GetLeagues(c *gin.Context) {
 }
 
 // CreateClub  create club.
+//
 //	@Summary		CreateClub
 //	@Description	CreateClub allow admin  to create club
 //	@Tags			Admin
@@ -90,6 +93,7 @@ func (b *bet) CreateClub(c *gin.Context) {
 }
 
 // GetClubs  get club.
+//
 //	@Summary		GetClubs
 //	@Description	GetClubs allow admin  to get leagues
 //	@Tags			Admin
@@ -116,6 +120,7 @@ func (b *bet) GetClubs(c *gin.Context) {
 }
 
 // UpdateFootballCardMultiplierValue  get football bet multiplier.
+//
 //	@Summary		UpdateFootballCardMultiplierValue
 //	@Description	UpdateFootballCardMultiplierValue allow admin  to get football bet multiplier
 //	@Tags			Admin
@@ -142,6 +147,7 @@ func (b *bet) UpdateFootballCardMultiplierValue(c *gin.Context) {
 }
 
 // GetFootballCardMultiplier  get football bet multiplier
+//
 //	@Summary		GetFootballCardMultiplier
 //	@Description	GetFootballCardMultiplier allow admin  to get football multiplier
 //	@Tags			Admin
@@ -162,6 +168,7 @@ func (b *bet) GetFootballCardMultiplier(c *gin.Context) {
 }
 
 // CreateFootballMatchRound  football match round.
+//
 //	@Summary		CreateFootballMatchRound
 //	@Description	CreateFootballMatchRound allow admin  to create  football match round
 //	@Tags			Admin
@@ -181,6 +188,7 @@ func (b *bet) CreateFootballMatchRound(c *gin.Context) {
 }
 
 // GetFootballMatchRounds  get football bet multiplier
+//
 //	@Summary		GetFootballCardMultiplier
 //	@Description	GetFootballCardMultiplier allow admin  to get football multiplier
 //	@Tags			Admin
@@ -207,6 +215,7 @@ func (b *bet) GetFootballMatchRounds(c *gin.Context) {
 }
 
 // CreateFootballMatch create football match for round.
+//
 //	@Summary		CreateFootballMatch
 //	@Description	CreateFootballMatch allow admin  to create  football match for  round
 //	@Tags			Admin
@@ -233,6 +242,7 @@ func (b *bet) CreateFootballMatch(c *gin.Context) {
 }
 
 // GetFootballRoundMatchs get football round matches.
+//
 //	@Summary		GetFootballRoundMatchs
 //	@Description	GetFootballRoundMatchs allow admin to  get football round matches.
 //	@Tags			Admin
@@ -259,6 +269,7 @@ func (b *bet) GetFootballRoundMatchs(c *gin.Context) {
 }
 
 // GetCurrentFootballRound  get current active round.
+//
 //	@Summary		GetCurrentFootballRound
 //	@Description	GetCurrentFootballRound allow user to get active round
 //	@Tags			Bet
@@ -277,6 +288,7 @@ func (b *bet) GetCurrentFootballRound(c *gin.Context) {
 }
 
 // CloseFootballMatch allow admin to close match.
+//
 //	@Summary		CloseFootballMatch
 //	@Description	CloseFootballMatch allow admin to  close match.
 //	@Tags			Admin
@@ -305,6 +317,7 @@ func (b *bet) CloseFootballMatch(c *gin.Context) {
 }
 
 // UpdateFootballRoundPrice allow admin to update football round price.
+//
 //	@Summary		UpdateFootballRoundPrice
 //	@Description	UpdateFootballRoundPriceallow admin to update football round price.
 //	@Tags			Admin
@@ -331,6 +344,7 @@ func (b *bet) UpdateFootballRoundPrice(c *gin.Context) {
 }
 
 // GetFootballRoundPrice  get current round price.
+//
 //	@Summary		GetFootballRoundPrice
 //	@Description	GetFootballRoundPrice allow user to get get current round price
 //	@Tags			Bet
@@ -349,6 +363,7 @@ func (b *bet) GetFootballRoundPrice(c *gin.Context) {
 }
 
 // PleceBetOnFootballRound allow user to place football match bet
+//
 //	@Summary		PleceBetOnFootballRound
 //	@Description	PleceBetOnFootballRound allow user to place football match bet.
 //	@Tags			Bet
@@ -387,6 +402,7 @@ func (b *bet) PleceBetOnFootballRound(c *gin.Context) {
 }
 
 // GetUserFootballBets  get football bets.
+//
 //	@Summary		GetUserFootballBets
 //	@Description	GetUserFootballBets allow user to get bet history
 //	@Tags			Bet

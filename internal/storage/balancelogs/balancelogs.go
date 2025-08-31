@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/persistencedb"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/db"
+	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/platform/utils"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
@@ -338,7 +338,7 @@ func (b *balance_logs) GetBalanceLogsForAdmin(ctx context.Context, req dto.Admin
 func (b *balance_logs) GetBalanceLogByTransactionID(ctx context.Context, transactionID string) (dto.BalanceLogsRes, error) {
 	res, err := b.db.Queries.GetBalanceLogByTransactionID(ctx, transactionID)
 	if err != nil {
-			return dto.BalanceLogsRes{}, nil
+		return dto.BalanceLogsRes{}, nil
 	}
 	return dto.BalanceLogsRes{
 		ID:                 res.ID,

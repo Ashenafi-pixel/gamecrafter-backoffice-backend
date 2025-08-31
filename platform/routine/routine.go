@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
-	"github.com/joshjones612/egyptkingcrash/platform/wait"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/platform/logger"
+	"github.com/tucanbit/platform/wait"
 	"go.uber.org/zap"
 )
 

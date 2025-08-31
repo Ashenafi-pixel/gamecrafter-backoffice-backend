@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
-	"github.com/joshjones612/egyptkingcrash/internal/storage"
-	"github.com/joshjones612/egyptkingcrash/platform/utils"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -58,13 +58,13 @@ func (bl *balance_logs) GetBalanceLogs(ctx context.Context, balanceLogsReq dto.G
 	return bl.balanceLogStorage.GetBalanceLog(ctx, balanceLogsReq)
 }
 
-func (bl *balance_logs) GetBalanceLogByID(ctx context.Context, id uuid.UUID ) (dto.BalanceLogsRes, error) {
+func (bl *balance_logs) GetBalanceLogByID(ctx context.Context, id uuid.UUID) (dto.BalanceLogsRes, error) {
 	if id == uuid.Nil {
 		err := errors.ErrInvalidUserInput.New("invalid blance logs UUID")
 		return dto.BalanceLogsRes{}, err
 	}
 
-	balanceLog, err :=  bl.balanceLogStorage.GetBalanceLogByID(ctx, id)
+	balanceLog, err := bl.balanceLogStorage.GetBalanceLogByID(ctx, id)
 	if err != nil {
 		bl.log.Error(err.Error(), zap.Any("balanceLogID", id.String()))
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())

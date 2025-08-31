@@ -5,10 +5,10 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/glue/routing"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/handler/middleware"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/glue/routing"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -30,9 +30,9 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 			},
-		},{
+		}, {
 			Method:  http.MethodGet,
-			Path:   "/api/balance/logs/:id",
+			Path:    "/api/balance/logs/:id",
 			Handler: op.GetBalanceLogByID,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),

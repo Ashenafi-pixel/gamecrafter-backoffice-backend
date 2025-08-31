@@ -1,0 +1,718 @@
+Starting TucanBIT Online Casino application...
+This is API documentation for TucanBIT online casino
+2025/08/31 03:23:51 Initializing application components
+Initializing application components
+2025-08-31T03:23:51.902+0300	INFO	initiator/initiator.go:39	Logger initialized successfully
+2025-08-31T03:23:51.902+0300	INFO	initiator/initiator.go:42	initializing config 
+2025-08-31T03:23:51.905+0300	INFO	initiator/config.go:35	Configuration loaded	{"app.jwt_secret": "tokensecrethere", "auth.jwt_secret": "", "smtp.host": "smtp.gmail.com", "smtp.port": 465, "smtp.username": "ashenafialemu66@gmail.com", "smtp.from": "noreply@tucanbit.com", "smtp.use_tls": true}
+2025-08-31T03:23:51.905+0300	INFO	initiator/initiator.go:48	initializing config completed
+2025-08-31T03:23:51.905+0300	INFO	initiator/initiator.go:51	initializing database connect
+2025-08-31T03:23:51.905+0300	INFO	initiator/db.go:17	Attempting to connect to database	{"connection_string": "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"}
+2025-08-31T03:23:51.924+0300	INFO	initiator/initiator.go:53	database connection initialized
+2025-08-31T03:23:51.924+0300	INFO	initiator/initiator.go:58	initializing persistence layer 
+2025-08-31T03:23:51.924+0300	INFO	initiator/initiator.go:60	done initializing persistence layer
+2025-08-31T03:23:51.924+0300	INFO	initiator/initiator.go:67	initializing module layer
+2025-08-31T03:23:51.991+0300	INFO	initiator/initiator.go:79	initializing platform layer
+%4|1756599832.000|CONFWARN|rdkafka#producer-1| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1756599832.001|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 1ms in state CONNECT)
+%4|1756599832.006|CONFWARN|rdkafka#consumer-2| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1756599832.006|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+{"level":"error","ts":1756599832.0072012,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-08-31T03:23:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+{"level":"error","ts":1756599832.008841,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-08-31T03:23:52+03:00","error":"1/1 brokers are down","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+{"level":"info","ts":1756599832.0107331,"caller":"redis/redis_otp.go:52","msg":"Successfully loaded existing RSA keys from project files","time":"2025-08-31T03:23:52+03:00"}
+{"level":"info","ts":1756599832.0116649,"caller":"redis/redis_otp.go:55","msg":"Redis OTP client initialized successfully","time":"2025-08-31T03:23:52+03:00","redis_addr":"localhost:63790","key_prefix":"tucanbit:","otp_ttl":300}
+2025-08-31T03:23:52.011+0300	INFO	initiator/initiator.go:81	done initializing platform layer
+2025-08-31T03:23:52.036+0300	INFO	agent/agent.go:53	Agent callback cron started
+2025-08-31T03:23:52.041+0300	INFO	user/user.go:144	Session monitoring service started
+2025-08-31T03:23:52.042+0300	INFO	user/user.go:1690	Starting session monitoring service
+2025-08-31T03:23:52.071+0300	ERROR	airtime/airtime.go:95	unexpected status code: 404, body: 404 page not found
+github.com/tucanbit/internal/module/airtime.(*airtime).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/airtime/airtime.go:95
+github.com/tucanbit/internal/module/airtime.Init
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/airtime/airtime.go:68
+github.com/tucanbit/initiator.initModule
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/module.go:157
+github.com/tucanbit/initiator.Initiate
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:87
+main.main
+	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
+runtime.main
+	/snap/go/10938/src/runtime/proc.go:283
+{"level":"info","ts":1756599832.071587,"caller":"kafka/kafka.go:96","msg":"Registered Kafka event handler","time":"2025-08-31T03:23:52+03:00","event_type":"lottery.draw.sync"}
+2025-08-31T03:23:52.071+0300	INFO	initiator/initiator.go:89	done initializing module layer
+2025-08-31T03:23:52.071+0300	INFO	initiator/initiator.go:93	initializing handler layer 
+2025-08-31T03:23:52.071+0300	INFO	initiator/initiator.go:95	done initializing handler layer
+2025-08-31T03:23:52.071+0300	INFO	initiator/initiator.go:97	initializing http server
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /swagger/*any             --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (4 handlers)
+2025-08-31T03:23:52.071+0300	INFO	initiator/initiator.go:105	done initializing server
+2025-08-31T03:23:52.071+0300	INFO	initiator/initiator.go:108	initializing route
+[GIN-debug] POST   /register                 --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateUserRegistration-fm (6 handlers)
+[GIN-debug] GET    /verify                   --> github.com/tucanbit/internal/glue/user.UserHandler.ServeVerificationPage-fm (6 handlers)
+[GIN-debug] POST   /register/complete        --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteUserRegistration-fm (6 handlers)
+[GIN-debug] POST   /register/resend-verification --> github.com/tucanbit/internal/glue/user.UserHandler.ResendVerificationEmail-fm (6 handlers)
+[GIN-debug] POST   /login                    --> github.com/tucanbit/internal/glue/user.UserHandler.Login-fm (6 handlers)
+[GIN-debug] GET    /api/user/profile         --> github.com/tucanbit/internal/glue/user.UserHandler.GetProfile-fm (7 handlers)
+[GIN-debug] POST   /api/user/profile/picture --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateProfilePicture-fm (7 handlers)
+[GIN-debug] PATCH  /api/user/password        --> github.com/tucanbit/internal/glue/user.UserHandler.ChangePassword-fm (7 handlers)
+[GIN-debug] POST   /api/user/password/forget --> github.com/tucanbit/internal/glue/user.UserHandler.ForgetPassword-fm (6 handlers)
+[GIN-debug] POST   /api/user/password/forget/verify --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyResetPassword-fm (6 handlers)
+[GIN-debug] POST   /api/user/password/reset  --> github.com/tucanbit/internal/glue/user.UserHandler.ResetPassword-fm (6 handlers)
+[GIN-debug] POST   /api/user/profile         --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateProfile-fm (7 handlers)
+[GIN-debug] POST   /api/user/profile/confirm --> github.com/tucanbit/internal/glue/user.UserHandler.ConfirmUpdateProfile-fm (7 handlers)
+[GIN-debug] GET    /user/oauth/google        --> github.com/tucanbit/internal/glue/user.UserHandler.HandleGoogleOauthReq-fm (6 handlers)
+[GIN-debug] GET    /user/oauth/google/res    --> github.com/tucanbit/internal/glue/user.UserHandler.HandleGoogleOauthRes-fm (5 handlers)
+[GIN-debug] GET    /user/oauth/facebook      --> github.com/tucanbit/internal/glue/user.UserHandler.FacebookLoginReq-fm (6 handlers)
+[GIN-debug] GET    /user/oauth/facebook/res  --> github.com/tucanbit/internal/glue/user.UserHandler.HandleFacebookOauthRes-fm (5 handlers)
+[GIN-debug] POST   /api/admin/users/block    --> github.com/tucanbit/internal/glue/user.UserHandler.BlockAccount-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users/block/accounts --> github.com/tucanbit/internal/glue/user.UserHandler.GetBlockedAccount-fm (8 handlers)
+[GIN-debug] POST   /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.AddIpFilter-fm (8 handlers)
+[GIN-debug] GET    /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.GetIpFilter-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/users          --> github.com/tucanbit/internal/glue/user.UserHandler.AdminUpdateProfile-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users/password --> github.com/tucanbit/internal/glue/user.UserHandler.AdminResetUsersPassword-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users          --> github.com/tucanbit/internal/glue/user.UserHandler.GetUsers-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.RemoveIPFilter-fm (8 handlers)
+[GIN-debug] GET    /api/user/referral        --> github.com/tucanbit/internal/glue/user.UserHandler.GetMyReferalCodes-fm (6 handlers)
+[GIN-debug] GET    /api/user/referral/users  --> github.com/tucanbit/internal/glue/user.UserHandler.GetMyRefferedUsersAndPoints-fm (6 handlers)
+[GIN-debug] GET    /api/admin/referrals      --> github.com/tucanbit/internal/glue/user.UserHandler.GetCurrentReferralMultiplier-fm (8 handlers)
+[GIN-debug] POST   /api/admin/referrals      --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateReferralMultiplier-fm (8 handlers)
+[GIN-debug] POST   /api/admin/referrals/users --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateUsersPointsForReferrances-fm (8 handlers)
+[GIN-debug] GET    /api/admin/referrals/users --> github.com/tucanbit/internal/glue/user.UserHandler.GetAdminAssignedPoints-fm (8 handlers)
+[GIN-debug] GET    /api/users/points         --> github.com/tucanbit/internal/glue/user.UserHandler.GetUserPoints-fm (6 handlers)
+[GIN-debug] POST   /api/admin/players/register --> github.com/tucanbit/internal/glue/user.UserHandler.AdminRegisterPlayer-fm (7 handlers)
+[GIN-debug] POST   /api/admin/login          --> github.com/tucanbit/internal/glue/user.UserHandler.AdminLogin-fm (6 handlers)
+[GIN-debug] GET    /api/admins               --> github.com/tucanbit/internal/glue/user.UserHandler.GetAdmins-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/signup/bonus   --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateSignupBonus-fm (7 handlers)
+[GIN-debug] GET    /api/admin/signup/bonus   --> github.com/tucanbit/internal/glue/user.UserHandler.GetSignupBonus-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/referral/bonus/config --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateReferralBonus-fm (8 handlers)
+[GIN-debug] GET    /api/admin/referral/bonus/config --> github.com/tucanbit/internal/glue/user.UserHandler.GetReferralBonus-fm (8 handlers)
+[GIN-debug] POST   /refresh                  --> github.com/tucanbit/internal/glue/user.UserHandler.RefreshToken-fm (6 handlers)
+[GIN-debug] POST   /api/user/verify          --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyUser-fm (5 handlers)
+[GIN-debug] POST   /api/user/resend/verification/otp --> github.com/tucanbit/internal/glue/user.UserHandler.ReSendVerificationOTP-fm (5 handlers)
+[GIN-debug] POST   /api/user/otp             --> github.com/tucanbit/internal/glue/user.UserHandler.GetOtp-fm (5 handlers)
+2025-08-31T03:23:52.072+0300	INFO	user/enterprise_registration.go:18	🔧 Initializing enterprise registration routes...
+2025-08-31T03:23:52.072+0300	INFO	user/enterprise_registration.go:54	🔧 Registering enterprise registration routes...	{"route_count": 4}
+[GIN-debug] POST   /api/enterprise/register  --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateEnterpriseRegistration-fm (5 handlers)
+[GIN-debug] POST   /api/enterprise/register/complete --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteEnterpriseRegistration-fm (5 handlers)
+[GIN-debug] GET    /api/enterprise/register/status/:user_id --> github.com/tucanbit/internal/glue/user.UserHandler.GetEnterpriseRegistrationStatus-fm (5 handlers)
+[GIN-debug] POST   /api/enterprise/register/resend --> github.com/tucanbit/internal/glue/user.UserHandler.ResendEnterpriseVerificationEmail-fm (5 handlers)
+2025-08-31T03:23:52.072+0300	INFO	user/enterprise_registration.go:56	✅ Enterprise registration routes initialized successfully
+[GIN-debug] POST   /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.CreateOperationalGroup-fm (8 handlers)
+[GIN-debug] GET    /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.GetOperationalGroups-fm (8 handlers)
+[GIN-debug] POST   /api/admin/operationalgrouptype --> github.com/tucanbit/internal/handler.OperationalGroupType.CreateOperationalGroupType-fm (8 handlers)
+[GIN-debug] GET    /api/operationaltypes     --> github.com/tucanbit/internal/handler.OperationalGroupType.GetOperationalGroupTypes-fm (6 handlers)
+[GIN-debug] GET    /api/admin/operationalgrouptype/:groupID --> github.com/tucanbit/internal/handler.OperationalGroupType.GetOperationalGroupTypesByGroupID-fm (8 handlers)
+[GIN-debug] GET    /api/operations/definitions --> github.com/tucanbit/internal/handler.OperationsDefinition.GetOperationsDefinitions-fm (6 handlers)
+[GIN-debug] GET    /api/balance              --> github.com/tucanbit/internal/handler.Balance.GetUserBalances-fm (7 handlers)
+[GIN-debug] POST   /api/balance/exchange     --> github.com/tucanbit/internal/handler.Balance.ExchangeBalance-fm (7 handlers)
+[GIN-debug] POST   /api/admin/players/funding --> github.com/tucanbit/internal/handler.Balance.ManualFunding-fm (7 handlers)
+[GIN-debug] GET    /api/admin/balance/log/funds --> github.com/tucanbit/internal/handler.Balance.GetManualFundLogs-fm (8 handlers)
+[GIN-debug] PATCH  /api/wallet/credit        --> github.com/tucanbit/internal/handler.Balance.CreditWallet-fm (5 handlers)
+[GIN-debug] GET    /api/balance/logs         --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogs-fm (6 handlers)
+[GIN-debug] GET    /api/balance/logs/:id     --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogByID-fm (6 handlers)
+[GIN-debug] GET    /api/admin/balance/logs   --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogsForAdmin-fm (8 handlers)
+[GIN-debug] POST   /api/conversion/rate      --> github.com/tucanbit/internal/handler.Exchange.GetExcahnge-fm (5 handlers)
+[GIN-debug] GET    /api/currencies           --> github.com/tucanbit/internal/handler.Exchange.GetAvailableCurrencies-fm (5 handlers)
+[GIN-debug] GET    /ws                       --> github.com/tucanbit/internal/handler.WS.HandleWS-fm (5 handlers)
+[GIN-debug] GET    /ws/single/player         --> github.com/tucanbit/internal/handler.WS.SinglePlayerStreamWS-fm (5 handlers)
+[GIN-debug] GET    /ws/level/player          --> github.com/tucanbit/internal/handler.WS.PlayerLevelWS-fm (5 handlers)
+[GIN-debug] GET    /ws/notify                --> github.com/tucanbit/internal/handler.WS.NotificationWS-fm (5 handlers)
+[GIN-debug] GET    /ws/session               --> github.com/tucanbit/internal/handler.WS.SessionWS-fm (5 handlers)
+[GIN-debug] GET    /ws/player/level/progress --> github.com/tucanbit/internal/handler.WS.PlayerProgressBarWS-fm (5 handlers)
+[GIN-debug] GET    /ws/squads/progress       --> github.com/tucanbit/internal/handler.WS.InitiateTriggerSquadsProgressBar-fm (5 handlers)
+[GIN-debug] GET    /ws/balance/player        --> github.com/tucanbit/internal/handler.WS.UserBalanceWS-fm (5 handlers)
+[GIN-debug] GET    /api/game/round           --> github.com/tucanbit/internal/handler.Bet.GetOpenRound-fm (6 handlers)
+[GIN-debug] POST   /api/game/place-bet       --> github.com/tucanbit/internal/handler.Bet.PlaceBet-fm (7 handlers)
+[GIN-debug] POST   /api/game/cash-out        --> github.com/tucanbit/internal/handler.Bet.CashOut-fm (7 handlers)
+[GIN-debug] GET    /api/admin/game/history   --> github.com/tucanbit/internal/handler.Bet.GetBetHistory-fm (8 handlers)
+[GIN-debug] POST   /api/game/cancel          --> github.com/tucanbit/internal/handler.Bet.CancelBet-fm (8 handlers)
+[GIN-debug] GET    /api/game/leaders         --> github.com/tucanbit/internal/handler.Bet.GetLeaders-fm (7 handlers)
+[GIN-debug] GET    /api/user/game/history    --> github.com/tucanbit/internal/handler.Bet.GetMyBetHistory-fm (7 handlers)
+[GIN-debug] GET    /api/admin/failed/rounds  --> github.com/tucanbit/internal/handler.Bet.GetAllFailedRounds-fm (7 handlers)
+[GIN-debug] POST   /api/admin/failed/rounds  --> github.com/tucanbit/internal/handler.Bet.ManualRefundFailedRound-fm (8 handlers)
+[GIN-debug] GET    /api/plinko/config        --> github.com/tucanbit/internal/handler.Bet.GetPlinkoGameConfig-fm (5 handlers)
+[GIN-debug] POST   /api/plinko/drop          --> github.com/tucanbit/internal/handler.Bet.PlacePlinkoBet-fm (6 handlers)
+[GIN-debug] GET    /api/plinko/history       --> github.com/tucanbit/internal/handler.Bet.GetUserPlinkoBetHistory-fm (6 handlers)
+[GIN-debug] GET    /api/plinko/stats         --> github.com/tucanbit/internal/handler.Bet.GetPlinkoGameStats-fm (6 handlers)
+[GIN-debug] POST   /api/admin/football/leagues --> github.com/tucanbit/internal/handler.Bet.CreateLeague-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/leagues --> github.com/tucanbit/internal/handler.Bet.GetLeagues-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/clubs --> github.com/tucanbit/internal/handler.Bet.CreateClub-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/clubs --> github.com/tucanbit/internal/handler.Bet.GetClubs-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/football/configs --> github.com/tucanbit/internal/handler.Bet.UpdateFootballCardMultiplierValue-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/configs --> github.com/tucanbit/internal/handler.Bet.GetFootballCardMultiplier-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/rounds --> github.com/tucanbit/internal/handler.Bet.CreateFootballMatchRound-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/rounds --> github.com/tucanbit/internal/handler.Bet.GetFootballMatchRounds-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/matches --> github.com/tucanbit/internal/handler.Bet.CreateFootballMatch-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/rounds/mathces --> github.com/tucanbit/internal/handler.Bet.GetFootballRoundMatchs-fm (8 handlers)
+[GIN-debug] GET    /api/football/rounds/current --> github.com/tucanbit/internal/handler.Bet.GetCurrentFootballRound-fm (5 handlers)
+[GIN-debug] PATCH  /api/admin/football/rounds/matches --> github.com/tucanbit/internal/handler.Bet.CloseFootballMatch-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/rounds/prices --> github.com/tucanbit/internal/handler.Bet.UpdateFootballRoundPrice-fm (8 handlers)
+[GIN-debug] GET    /api/football/rounds/prices --> github.com/tucanbit/internal/handler.Bet.GetFootballRoundPrice-fm (6 handlers)
+[GIN-debug] POST   /api/football/rounds/bets --> github.com/tucanbit/internal/handler.Bet.PleceBetOnFootballRound-fm (6 handlers)
+[GIN-debug] GET    /api/football/rounds/bets --> github.com/tucanbit/internal/handler.Bet.GetUserFootballBets-fm (6 handlers)
+[GIN-debug] POST   /api/streetkings/bets     --> github.com/tucanbit/internal/handler.Bet.CreateStreetKingsGame-fm (6 handlers)
+[GIN-debug] POST   /api/streetkings/bets/cashout --> github.com/tucanbit/internal/handler.Bet.CashOutStreetKingsBet-fm (6 handlers)
+[GIN-debug] GET    /api/streetkings/bets     --> github.com/tucanbit/internal/handler.Bet.GetStreetkingHistory-fm (6 handlers)
+[GIN-debug] POST   /api/admin/cryptokings/configs --> github.com/tucanbit/internal/handler.Bet.SetCrytoKingsConfig-fm (8 handlers)
+[GIN-debug] POST   /api/cryptokings          --> github.com/tucanbit/internal/handler.Bet.PlaceCryptoKingsBet-fm (6 handlers)
+[GIN-debug] GET    /api/cryptokings          --> github.com/tucanbit/internal/handler.Bet.GetCryptoKingsBetHistory-fm (6 handlers)
+[GIN-debug] GET    /api/cryptokings/price    --> github.com/tucanbit/internal/handler.Bet.GetCryptoKingsCurrentCryptoPrice-fm (6 handlers)
+[GIN-debug] POST   /api/quickhustles         --> github.com/tucanbit/internal/handler.Bet.PlaceQuickHustleBet-fm (6 handlers)
+[GIN-debug] POST   /api/quickhustles/selects --> github.com/tucanbit/internal/handler.Bet.UserSelectCard-fm (6 handlers)
+[GIN-debug] GET    /api/quickhustles         --> github.com/tucanbit/internal/handler.Bet.GetQuickHustleBetHistory-fm (6 handlers)
+[GIN-debug] POST   /api/rolldadices          --> github.com/tucanbit/internal/handler.Bet.CreateRollDaDice-fm (6 handlers)
+[GIN-debug] GET    /api/rolldadices          --> github.com/tucanbit/internal/handler.Bet.GetRollDaDiceHistory-fm (6 handlers)
+[GIN-debug] GET    /api/scratchcards/price   --> github.com/tucanbit/internal/handler.Bet.GetScratchGamePrice-fm (6 handlers)
+[GIN-debug] POST   /api/scratchcards         --> github.com/tucanbit/internal/handler.Bet.PlaceScratchCardBet-fm (6 handlers)
+[GIN-debug] GET    /api/scratchcards         --> github.com/tucanbit/internal/handler.Bet.GetUserScratchCardBetHistories-fm (6 handlers)
+[GIN-debug] GET    /api/spinningwheels/price --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelPrice-fm (6 handlers)
+[GIN-debug] POST   /api/spinningwheels       --> github.com/tucanbit/internal/handler.Bet.PlaceSpinningWheelBet-fm (6 handlers)
+[GIN-debug] GET    /api/spinningwheels       --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelUserBetHistory-fm (6 handlers)
+[GIN-debug] GET    /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.GetGames-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.UpdateGame-fm (7 handlers)
+[GIN-debug] POST   /api/admin/games/disable  --> github.com/tucanbit/internal/handler.Bet.DisableAllGames-fm (7 handlers)
+[GIN-debug] GET    /api/admin/games/available --> github.com/tucanbit/internal/handler.Bet.GetAvailableGames-fm (7 handlers)
+[GIN-debug] DELETE /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.DeleteGame-fm (7 handlers)
+[GIN-debug] POST   /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.AddGame-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/games/status   --> github.com/tucanbit/internal/handler.Bet.UpdateGameStatus-fm (7 handlers)
+[GIN-debug] POST   /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.CreateSpinningWheelMysteries-fm (7 handlers)
+[GIN-debug] GET    /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelMysteries-fm (7 handlers)
+[GIN-debug] DELETE /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.DeleteSpinningWheelMystery-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.UpdateSpinningWheelMystery-fm (7 handlers)
+[GIN-debug] POST   /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.CreateSpinningWheelConfig-fm (7 handlers)
+[GIN-debug] GET    /api/spinningwheels/configs --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelConfigs-fm (6 handlers)
+[GIN-debug] DELETE /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.DeleteSpinningWheelConfig-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.UpdateSpinningWheelConfig-fm (7 handlers)
+[GIN-debug] POST   /api/admin/bets/icons     --> github.com/tucanbit/internal/handler.Bet.UpdateBetIcon-fm (7 handlers)
+[GIN-debug] GET    /api/scratchcard/configs  --> github.com/tucanbit/internal/handler.Bet.GetScratchCardsConfig-fm (7 handlers)
+[GIN-debug] PUT    /api/scratchcard/configs  --> github.com/tucanbit/internal/handler.Bet.UpdateScratchGameConfig-fm (7 handlers)
+[GIN-debug] POST   /api/admin/levels         --> github.com/tucanbit/internal/handler.Bet.CreateLevel-fm (7 handlers)
+[GIN-debug] GET    /api/levels               --> github.com/tucanbit/internal/handler.Bet.GetLevels-fm (7 handlers)
+[GIN-debug] POST   /api/admin/levels/requirements --> github.com/tucanbit/internal/handler.Bet.CreateLevelRequirements-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/levels/requirements --> github.com/tucanbit/internal/handler.Bet.UpdateLevelRequirement-fm (7 handlers)
+[GIN-debug] GET    /api/users/level          --> github.com/tucanbit/internal/handler.Bet.GetUserLevel-fm (6 handlers)
+[GIN-debug] POST   /api/test/fake/transaction --> github.com/tucanbit/internal/handler.Bet.AddFakeBalanceLog-fm (6 handlers)
+[GIN-debug] POST   /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.CreateLootBox-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.UpdateLootBox-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/lootboxes/:id  --> github.com/tucanbit/internal/handler.Bet.DeleteLootBox-fm (8 handlers)
+[GIN-debug] GET    /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.GetLootBox-fm (8 handlers)
+[GIN-debug] GET    /api/bet/lootboxes        --> github.com/tucanbit/internal/handler.Bet.PlaceLootBoxBet-fm (6 handlers)
+[GIN-debug] POST   /api/bet/lootboxes/select --> github.com/tucanbit/internal/handler.Bet.SelectLootBox-fm (6 handlers)
+[GIN-debug] POST   /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.CreateDepartement-fm (8 handlers)
+[GIN-debug] GET    /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.GetDepartement-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.UpdateDepartment-fm (8 handlers)
+[GIN-debug] POST   /api/admin/departments/assign --> github.com/tucanbit/internal/handler.Departements.AssignUserToDepartment-fm (8 handlers)
+[GIN-debug] GET    /api/admin/performance/financial --> github.com/tucanbit/internal/handler.Performance.GetFinancialMetrics-fm (8 handlers)
+[GIN-debug] GET    /api/admin/performance/game --> github.com/tucanbit/internal/handler.Performance.GameMatrics-fm (8 handlers)
+[GIN-debug] GET    /api/admin/permissions    --> github.com/tucanbit/internal/handler.Authz.GetPermissions-fm (7 handlers)
+[GIN-debug] POST   /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.CreateRole-fm (8 handlers)
+[GIN-debug] GET    /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.GetRoles-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.UpdateRolePermissions-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.RemoveRole-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users/roles    --> github.com/tucanbit/internal/handler.Authz.AssignRoleToUser-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/users/roles    --> github.com/tucanbit/internal/handler.Authz.RevokeUserRole-fm (8 handlers)
+[GIN-debug] GET    /api/admin/roles/:id/users --> github.com/tucanbit/internal/handler.Authz.GetRoleUsers-fm (8 handlers)
+[GIN-debug] GET    /api/admin/users/:id/roles --> github.com/tucanbit/internal/handler.Authz.GetUserRoles-fm (8 handlers)
+[GIN-debug] POST   /api/wallet/connect       --> github.com/tucanbit/internal/handler.Authz.ConnectWallet-fm (7 handlers)
+[GIN-debug] DELETE /api/wallet/disconnect/:connection_id --> github.com/tucanbit/internal/handler.Authz.DisconnectWallet-fm (7 handlers)
+[GIN-debug] GET    /api/wallet/list          --> github.com/tucanbit/internal/handler.Authz.GetUserWallets-fm (7 handlers)
+[GIN-debug] POST   /api/wallet/challenge     --> github.com/tucanbit/internal/handler.Authz.CreateWalletChallenge-fm (6 handlers)
+[GIN-debug] POST   /api/wallet/verify        --> github.com/tucanbit/internal/handler.Authz.VerifyWalletChallenge-fm (6 handlers)
+[GIN-debug] POST   /api/wallet/login         --> github.com/tucanbit/internal/handler.Authz.LoginWithWallet-fm (6 handlers)
+[GIN-debug] GET    /api/admin/airtime/refresh --> github.com/tucanbit/internal/handler.AirtimeProvider.RefereshAirtimeUtilities-fm (8 handlers)
+[GIN-debug] GET    /api/admin/airtime/utilities --> github.com/tucanbit/internal/handler.AirtimeProvider.GetAvailableAirtime-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/airtime        --> github.com/tucanbit/internal/handler.AirtimeProvider.UpdateAirtimeStatus-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/airtime/price  --> github.com/tucanbit/internal/handler.AirtimeProvider.UpdateAirtimeUtilityPrice-fm (8 handlers)
+[GIN-debug] POST   /api/airtime/claim        --> github.com/tucanbit/internal/handler.AirtimeProvider.ClaimPoints-fm (6 handlers)
+[GIN-debug] GET    /api/airtime/active/utilities --> github.com/tucanbit/internal/handler.AirtimeProvider.GetActiveAvailableAirtime-fm (6 handlers)
+[GIN-debug] GET    /api/airtime/transactions --> github.com/tucanbit/internal/handler.AirtimeProvider.GetUserAirtimeTransactions-fm (6 handlers)
+[GIN-debug] GET    /api/admin/airtime/transactions --> github.com/tucanbit/internal/handler.AirtimeProvider.GetAllAirtimeUtilitiesTransactions-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/airtime/amount --> github.com/tucanbit/internal/handler.AirtimeProvider.UpdateAirtimeAmount-fm (8 handlers)
+[GIN-debug] GET    /api/admin/airtime/stats  --> github.com/tucanbit/internal/handler.AirtimeProvider.GetAirtimeUtilitiesStats-fm (8 handlers)
+[GIN-debug] POST   /api/admin/logs           --> github.com/tucanbit/internal/handler.SystemLogs.GetSystemLogs-fm (8 handlers)
+[GIN-debug] GET    /api/admin/logs/modules   --> github.com/tucanbit/internal/handler.SystemLogs.GetAvailableLogModules-fm (8 handlers)
+[GIN-debug] POST   /api/admin/companies      --> github.com/tucanbit/internal/handler.Company.CreateCompany-fm (8 handlers)
+[GIN-debug] GET    /api/admin/companies      --> github.com/tucanbit/internal/handler.Company.GetCompanies-fm (8 handlers)
+[GIN-debug] GET    /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.GetCompanyByID-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.UpdateCompany-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.DeleteCompany-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/companies/:id/add-ip --> github.com/tucanbit/internal/handler.Company.AddIP-fm (8 handlers)
+[GIN-debug] GET    /api/admin/report/daily   --> github.com/tucanbit/internal/handler.Report.GetDailyReport-fm (8 handlers)
+[GIN-debug] POST   /api/squads               --> github.com/tucanbit/internal/handler.Squads.CreateSquad-fm (6 handlers)
+[GIN-debug] GET    /api/squads               --> github.com/tucanbit/internal/handler.Squads.GetMySquads-fm (6 handlers)
+[GIN-debug] GET    /api/squads/own           --> github.com/tucanbit/internal/handler.Squads.GetMyOwnSquads-fm (6 handlers)
+[GIN-debug] GET    /api/squads/type          --> github.com/tucanbit/internal/handler.Squads.GetSquadsByType-fm (6 handlers)
+[GIN-debug] GET    /api/squads/name          --> github.com/tucanbit/internal/handler.Squads.GetSquadByName-fm (6 handlers)
+[GIN-debug] PUT    /api/squads/own           --> github.com/tucanbit/internal/handler.Squads.UpdateSquadHandle-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/delete        --> github.com/tucanbit/internal/handler.Squads.DeleteSquad-fm (6 handlers)
+[GIN-debug] POST   /api/squads/members       --> github.com/tucanbit/internal/handler.Squads.CreateSquadMember-fm (6 handlers)
+[GIN-debug] GET    /api/squads/members/bysquadid --> github.com/tucanbit/internal/handler.Squads.GetSquadMembersBySquadID-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/members/:member_id --> github.com/tucanbit/internal/handler.Squads.DeleteSquadMember-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/members/all   --> github.com/tucanbit/internal/handler.Squads.DeleteSquadMembersBySquadID-fm (6 handlers)
+[GIN-debug] GET    /api/squads/earns         --> github.com/tucanbit/internal/handler.Squads.GetSquadEarns-fm (6 handlers)
+[GIN-debug] GET    /api/my/squads/earns      --> github.com/tucanbit/internal/handler.Squads.GetMySquadEarns-fm (6 handlers)
+[GIN-debug] GET    /api/squads/total/earns   --> github.com/tucanbit/internal/handler.Squads.GetSquadTotalEarns-fm (6 handlers)
+[GIN-debug] GET    /api/squads/members/earnings --> github.com/tucanbit/internal/handler.Squads.GetSquadMembersEarnings-fm (6 handlers)
+[GIN-debug] GET    /api/squads/tournament/ranking --> github.com/tucanbit/internal/handler.Squads.GetTornamentStyleRanking-fm (6 handlers)
+[GIN-debug] POST   /api/admins/tournaments   --> github.com/tucanbit/internal/handler.Squads.CreateTournaments-fm (8 handlers)
+[GIN-debug] GET    /api/tournaments          --> github.com/tucanbit/internal/handler.Squads.GetTornamentStyles-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/:squad_id/members/leave --> github.com/tucanbit/internal/handler.Squads.LeaveSquad-fm (6 handlers)
+[GIN-debug] POST   /api/squads/:squad_id/members/join --> github.com/tucanbit/internal/handler.Squads.JoinSquad-fm (6 handlers)
+[GIN-debug] GET    /api/squads/waitlist      --> github.com/tucanbit/internal/handler.Squads.GetSquadWaitlist-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/waitlist/remove --> github.com/tucanbit/internal/handler.Squads.RemoveWaitingSquadWaitingUser-fm (6 handlers)
+[GIN-debug] POST   /api/squads/waitlist/approve --> github.com/tucanbit/internal/handler.Squads.ApproveWaitingSquadMember-fm (6 handlers)
+[GIN-debug] POST   /api/notifications        --> github.com/tucanbit/internal/handler.Notification.CreateNotification-fm (6 handlers)
+[GIN-debug] GET    /api/notifications        --> github.com/tucanbit/internal/handler.Notification.GetUserNotifications-fm (6 handlers)
+[GIN-debug] PATCH  /api/notifications/:id/mark-read --> github.com/tucanbit/internal/handler.Notification.MarkNotificationRead-fm (6 handlers)
+[GIN-debug] PATCH  /api/notifications/mark-all-read --> github.com/tucanbit/internal/handler.Notification.MarkAllNotificationsRead-fm (6 handlers)
+[GIN-debug] DELETE /api/notifications/:id    --> github.com/tucanbit/internal/handler.Notification.DeleteNotification-fm (6 handlers)
+[GIN-debug] GET    /api/admin/adds/services  --> github.com/tucanbit/internal/handler.Adds.GetAddsServices-fm (8 handlers)
+[GIN-debug] POST   /api/admin/adds/services  --> github.com/tucanbit/internal/handler.Adds.SaveAddsService-fm (8 handlers)
+[GIN-debug] POST   /api/adds/signin          --> github.com/tucanbit/internal/handler.Adds.SignIn-fm (5 handlers)
+[GIN-debug] POST   /api/adds/balance/update  --> github.com/tucanbit/internal/handler.Adds.UpdateBalance-fm (6 handlers)
+[GIN-debug] GET    /api/admin/banners        --> github.com/tucanbit/internal/handler.Banner.GetAllBanners-fm (8 handlers)
+[GIN-debug] POST   /api/admin/banners        --> github.com/tucanbit/internal/handler.Banner.CreateBanner-fm (8 handlers)
+[GIN-debug] GET    /api/admin/banners/display --> github.com/tucanbit/internal/handler.Banner.GetBannerByPage-fm (8 handlers)
+[GIN-debug] POST   /api/admin/banners/upload --> github.com/tucanbit/internal/handler.Banner.UploadBannerImage-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/banners/:id    --> github.com/tucanbit/internal/handler.Banner.UpdateBanner-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/banners/:id    --> github.com/tucanbit/internal/handler.Banner.DeleteBanner-fm (8 handlers)
+[GIN-debug] POST   /admin/lottery/service    --> github.com/tucanbit/internal/handler.Lottery.CreateLotteryService-fm (8 handlers)
+[GIN-debug] POST   /admin/lottery/request    --> github.com/tucanbit/internal/handler.Lottery.CreateLotteryRequest-fm (8 handlers)
+[GIN-debug] POST   /lottery/verify/deduct/balance --> github.com/tucanbit/internal/handler.Lottery.CheckUserBalanceAndDeductBalance-fm (6 handlers)
+[GIN-debug] POST   /api/sports/signin        --> github.com/tucanbit/internal/handler.SportsService.SignIn-fm (5 handlers)
+[GIN-debug] POST   /api/sports/placebet      --> github.com/tucanbit/internal/handler.SportsService.PlaceBet-fm (7 handlers)
+[GIN-debug] POST   /api/sports/awardwinnings --> github.com/tucanbit/internal/handler.SportsService.AwardWinnings-fm (7 handlers)
+[GIN-debug] GET    /api/admin/risk/settings  --> github.com/tucanbit/internal/handler.RiskSettings.GetRiskSettings-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/risk/settings  --> github.com/tucanbit/internal/handler.RiskSettings.SetRiskSettings-fm (8 handlers)
+[GIN-debug] POST   /api/agent/links          --> github.com/tucanbit/internal/handler.Agent.CreateAgentReferralLink-fm (5 handlers)
+[GIN-debug] GET    /api/admin/agent/referrals --> github.com/tucanbit/internal/handler.Agent.GetAgentReferrals-fm (8 handlers)
+[GIN-debug] GET    /api/admin/agent/stats    --> github.com/tucanbit/internal/handler.Agent.GetReferralStats-fm (8 handlers)
+[GIN-debug] POST   /api/admin/agent/providers --> github.com/tucanbit/internal/handler.Agent.CreateAgentProvider-fm (8 handlers)
+[GIN-debug] POST   /api/otp/email-verification --> github.com/tucanbit/internal/handler.OTP.CreateEmailVerification-fm (5 handlers)
+[GIN-debug] POST   /api/otp/verify           --> github.com/tucanbit/internal/handler.OTP.VerifyOTP-fm (5 handlers)
+[GIN-debug] POST   /api/otp/resend           --> github.com/tucanbit/internal/handler.OTP.ResendOTP-fm (5 handlers)
+[GIN-debug] GET    /api/otp/:otp_id          --> github.com/tucanbit/internal/handler.OTP.GetOTPInfo-fm (5 handlers)
+[GIN-debug] DELETE /api/otp/:otp_id/invalidate --> github.com/tucanbit/internal/handler.OTP.InvalidateOTP-fm (5 handlers)
+[GIN-debug] POST   /api/otp/cleanup          --> github.com/tucanbit/internal/handler.OTP.CleanupExpiredOTPs-fm (5 handlers)
+[GIN-debug] GET    /api/otp/stats            --> github.com/tucanbit/internal/handler.OTP.GetOTPStats-fm (5 handlers)
+2025-08-31T03:23:52.075+0300	INFO	initiator/initiator.go:110	done initializing route
+2025-08-31T03:23:52.075+0300	INFO	initiator/initiator.go:112	Server configuration	{"host": "0.0.0.0", "port": 8080}
+2025-08-31T03:23:52.075+0300	INFO	initiator/initiator.go:117	initializing server
+2025-08-31T03:23:52.075+0300	INFO	initiator/initiator.go:131	http server listening on port : 8080
+2025-08-31T03:23:52.075+0300	FATAL	initiator/initiator.go:135	Could not start HTTP server: listen tcp 0.0.0.0:8080: bind: address already in use
+github.com/tucanbit/initiator.Initiate
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:135
+main.main
+	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
+runtime.main
+	/snap/go/10938/src/runtime/proc.go:283
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              2025-08-31T03:23:52.066+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "POST", "path": "/v1/Authentication/login", "ip": "127.0.0.1", "query": {}, "user-agent": "Go-http-client/1.1", "latency": 0.00004608641666666667}
+2025-08-31T03:23:52.950+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/verify", "ip": "127.0.0.1", "query": {"otp_code":["264232"],"otp_id":["8404c3b4-2746-4fa6-b8ae-b9c6af9446bd"],"user_id":[""]}, "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0", "latency": 0.00007037506666666667}
+2025-08-31T03:23:53.979+0300	ERROR	user/registration_service.go:346	Failed to bind complete registration request	{"error": "invalid UUID length: 0", "ip": "127.0.0.1"}
+github.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:346
+github.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func6
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func5
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:23:53.983+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 400, "method": "POST", "path": "/register/complete", "ip": "127.0.0.1", "query": {}, "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0", "latency": 0.0000969306}
+2025-08-31T03:24:03.745+0300	INFO	otp/otp.go:61	Creating email verification OTP	{"email": "ashenafialemu27@gmail.com", "ip": "::1"}
+2025-08-31T03:24:03.749+0300	INFO	otp/otp_db.go:65	OTP created successfully	{"email": "ashenafialemu27@gmail.com", "otp_id": "588de3af-2e9c-4d46-b46f-0e7d309fef9a", "type": "email_verification"}
+2025-08-31T03:24:03.753+0300	INFO	email/email.go:100	UserID found in rendered email template	{"user_id": "", "email": "ashenafialemu27@gmail.com", "verification_link": "http://localhost:8080/verify?otp_code=875863&otp_id=588de3af-2e9c-4d46-b46f-0e7d309fef9a&user_id="}
+2025-08-31T03:24:03.753+0300	INFO	email/email.go:107	Attempting to send verification email	{"to": "ashenafialemu27@gmail.com", "subject": "Welcome to TucanBIT - Verify your Account", "user_id": "", "otp_id": "588de3af-2e9c-4d46-b46f-0e7d309fef9a", "device": "Desktop Computer", "location": "Local Development", "smtp_host": "smtp.gmail.com", "smtp_port": 465, "smtp_username": "ashenafialemu66@gmail.com", "smtp_from": "noreply@tucanbit.com", "use_tls": true}
+2025-08-31T03:24:08.152+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "92623c3e-3e02-4cd9-9fde-f73de8669a33"}
+2025-08-31T03:24:09.243+0300	INFO	email/email.go:407	Email sent successfully	{"to": "ashenafialemu27@gmail.com", "subject": "Welcome to TucanBIT - Verify your Account", "smtp_host": "smtp.gmail.com", "smtp_port": 465}
+2025-08-31T03:24:09.243+0300	INFO	otp/otp.go:98	Email verification OTP created	{"email": "ashenafialemu27@gmail.com", "otp_id": "588de3af-2e9c-4d46-b46f-0e7d309fef9a"}
+2025-08-31T03:24:09.243+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/api/otp/email-verification", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.09166057421666667}
+%3|1756599857.117|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:24:21.593+0300	INFO	otp/otp.go:113	Verifying OTP	{"email": "ashenafialemu27@gmail.com", "otp_id": "588de3af-2e9c-4d46-b46f-0e7d309fef9a", "ip": "::1"}
+2025-08-31T03:24:21.594+0300	INFO	otp/otp.go:205	OTP verified successfully	{"email": "ashenafialemu27@gmail.com", "user_id": "00000000-0000-0000-0000-000000000000", "is_new_user": true}
+2025-08-31T03:24:21.595+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/api/otp/verify", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.000023338766666666668}
+2025-08-31T03:24:29.952+0300	INFO	email/email.go:407	Email sent successfully	{"to": "ashenafialemu27@gmail.com", "subject": "Welcome to TucanBIT!", "smtp_host": "smtp.gmail.com", "smtp_port": 465}
+2025-08-31T03:24:45.812+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "POST", "path": "/v1/Authentication/login", "ip": "127.0.0.1", "query": {}, "user-agent": "Go-http-client/1.1", "latency": 0.0000035321166666666667}
+2025-08-31T03:24:46.030+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756599887.119|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756599917.121|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:25:29.761+0300	WARN	user/registration_service.go:105	Unique constraint violation during registration	{"error": "phone number '+251912348971' is already in use", "email": "ashenafialemu9898@gmail.com", "phone": "+251912348971", "ip": "127.0.0.1"}
+github.com/tucanbit/internal/handler/user.(*RegistrationService).handleDetailedRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:105
+github.com/tucanbit/internal/handler/user.(*RegistrationService).InitiateUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:71
+github.com/tucanbit/internal/handler/user.(*user).InitiateUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1606
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:25:29.762+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 409, "method": "POST", "path": "/register", "ip": "127.0.0.1", "query": {}, "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0", "latency": 0.00012340321666666666}
+2025-08-31T03:25:39.208+0300	INFO	otp/otp_db.go:65	OTP created successfully	{"email": "ashenafialemu9898@gmail.com", "otp_id": "38111e44-3f25-4afe-96e7-f1a6fceccd1a", "type": "email_verification"}
+2025-08-31T03:25:39.209+0300	INFO	email/email.go:100	UserID found in rendered email template	{"user_id": "04cb3c03-b667-4d70-86e6-75d0565b52ae", "email": "ashenafialemu9898@gmail.com", "verification_link": "http://localhost:8080/verify?otp_code=525357&otp_id=38111e44-3f25-4afe-96e7-f1a6fceccd1a&user_id=04cb3c03-b667-4d70-86e6-75d0565b52ae"}
+2025-08-31T03:25:39.209+0300	INFO	email/email.go:107	Attempting to send verification email	{"to": "ashenafialemu9898@gmail.com", "subject": "Welcome to TucanBIT - Verify your Account", "user_id": "04cb3c03-b667-4d70-86e6-75d0565b52ae", "otp_id": "38111e44-3f25-4afe-96e7-f1a6fceccd1a", "device": "Linux Computer", "location": "Local Development", "smtp_host": "smtp.gmail.com", "smtp_port": 465, "smtp_username": "ashenafialemu66@gmail.com", "smtp_from": "noreply@tucanbit.com", "use_tls": true}
+2025-08-31T03:25:46.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756599947.121|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:25:48.013+0300	INFO	email/email.go:407	Email sent successfully	{"to": "ashenafialemu9898@gmail.com", "subject": "Welcome to TucanBIT - Verify your Account", "smtp_host": "smtp.gmail.com", "smtp_port": 465}
+2025-08-31T03:25:48.013+0300	INFO	otp/otp.go:98	Email verification OTP created	{"email": "ashenafialemu9898@gmail.com", "otp_id": "38111e44-3f25-4afe-96e7-f1a6fceccd1a"}
+2025-08-31T03:25:48.013+0300	INFO	user/registration_service.go:196	User registration initiated successfully	{"email": "ashenafialemu9898@gmail.com", "user_id": "04cb3c03-b667-4d70-86e6-75d0565b52ae", "ip": "127.0.0.1"}
+2025-08-31T03:25:48.016+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/register", "ip": "127.0.0.1", "query": {}, "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0", "latency": 0.14684812351666668}
+%3|1756599977.122|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:26:46.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600007.123|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:26:48.151+0300	WARN	otp/otp.go:139	Invalid OTP attempt	{"email": "ashenafialemu9898@gmail.com", "otp_id": "38111e44-3f25-4afe-96e7-f1a6fceccd1a"}
+github.com/tucanbit/internal/module/otp.(*OTPService).VerifyOTP
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/otp/otp.go:139
+github.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:370
+github.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func6
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func5
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:26:48.151+0300	ERROR	user/registration_service.go:376	Failed to verify OTP during registration completion	{"error": "invalid OTP code", "email": "ashenafialemu9898@gmail.com", "otp_id": "38111e44-3f25-4afe-96e7-f1a6fceccd1a"}
+github.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:376
+github.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func6
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func5
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:26:48.151+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 400, "method": "POST", "path": "/register/complete", "ip": "127.0.0.1", "query": {}, "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0", "latency": 0.00003968495}
+2025-08-31T03:26:54.504+0300	INFO	otp/otp.go:205	OTP verified successfully	{"email": "ashenafialemu9898@gmail.com", "user_id": "00000000-0000-0000-0000-000000000000", "is_new_user": true}
+{"level":"info","ts":1756600014.566898,"caller":"pisi/client.go:77","msg":"logging in before sending SMS","time":"2025-08-31T03:26:54+03:00"}
+2025-08-31T03:26:54.568+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "POST", "path": "/Authentication/login", "ip": "127.0.0.1", "query": {}, "user-agent": "Go-http-client/1.1", "latency": 0.0000001459}
+{"level":"error","ts":1756600014.5687938,"caller":"pisi/client.go:56","msg":"failed to login","time":"2025-08-31T03:26:54+03:00","error":"server error.unable to send sms message to the user: failed to login, cause: unexpected status code: 404, body: 404 page not found","errorVerbose":"server error.unable to send sms message to the user: failed to login, cause: unexpected status code: 404, body: 404 page not found\n at github.com/tucanbit/platform/pisi.(*pisiClient).Login()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:55\n at github.com/tucanbit/platform/pisi.(*pisiClient).SendBulkSMS()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:78\n at github.com/tucanbit/internal/module/user.(*User).RegisterUser()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:428\n at github.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:409\n at github.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/internal/glue/user.Init.IpFilter.func6()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/internal/glue/user.Init.RateLimiter.func5()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/initiator.Initiate.CORS.func3()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/initiator.Initiate.GinLogger.func2()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/gin-gonic/gin.(*Engine).handleHTTPRequest()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644\n at github.com/gin-gonic/gin.(*Engine).ServeHTTP()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600\n at net/http.serverHandler.ServeHTTP()\n\t/snap/go/10938/src/net/http/server.go:3301\n at net/http.(*conn).serve()\n\t/snap/go/10938/src/net/http/server.go:2102\n at runtime.goexit()\n\t/snap/go/10938/src/runtime/asm_amd64.s:1700","stacktrace":"github.com/tucanbit/platform/pisi.(*pisiClient).Login\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:56\ngithub.com/tucanbit/platform/pisi.(*pisiClient).SendBulkSMS\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:78\ngithub.com/tucanbit/internal/module/user.(*User).RegisterUser\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:428\ngithub.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:409\ngithub.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/internal/glue/user.Init.IpFilter.func6\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/internal/glue/user.Init.RateLimiter.func5\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/internal/handler/middleware.ErrorHandler.func1\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/initiator.Initiate.CORS.func3\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/initiator.Initiate.GinLogger.func2\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/gin-gonic/gin.(*Engine).handleHTTPRequest\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644\ngithub.com/gin-gonic/gin.(*Engine).ServeHTTP\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600\nnet/http.serverHandler.ServeHTTP\n\t/snap/go/10938/src/net/http/server.go:3301\nnet/http.(*conn).serve\n\t/snap/go/10938/src/net/http/server.go:2102"}
+{"level":"error","ts":1756600014.569018,"caller":"pisi/client.go:81","msg":"failed to login","time":"2025-08-31T03:26:54+03:00","error":"server error.unable to send sms message to the user: failed to login, cause: server error.unable to send sms message to the user: failed to login, cause: unexpected status code: 404, body: 404 page not found","errorVerbose":"server error.unable to send sms message to the user: failed to login, cause: server error.unable to send sms message to the user: failed to login, cause: unexpected status code: 404, body: 404 page not found\n at github.com/tucanbit/platform/pisi.(*pisiClient).Login()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:55\n at github.com/tucanbit/platform/pisi.(*pisiClient).SendBulkSMS()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:78\n at github.com/tucanbit/internal/module/user.(*User).RegisterUser()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:428\n at github.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:409\n at github.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/internal/glue/user.Init.IpFilter.func6()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/internal/glue/user.Init.RateLimiter.func5()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/initiator.Initiate.CORS.func3()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/tucanbit/initiator.Initiate.GinLogger.func2()\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23\n at github.com/gin-gonic/gin.(*Context).Next()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\n at github.com/gin-gonic/gin.(*Engine).handleHTTPRequest()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644\n at github.com/gin-gonic/gin.(*Engine).ServeHTTP()\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600\n at net/http.serverHandler.ServeHTTP()\n\t/snap/go/10938/src/net/http/server.go:3301\n at net/http.(*conn).serve()\n\t/snap/go/10938/src/net/http/server.go:2102\n at runtime.goexit()\n\t/snap/go/10938/src/runtime/asm_amd64.s:1700","stacktrace":"github.com/tucanbit/platform/pisi.(*pisiClient).SendBulkSMS\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/pisi/client.go:81\ngithub.com/tucanbit/internal/module/user.(*User).RegisterUser\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:428\ngithub.com/tucanbit/internal/handler/user.(*RegistrationService).CompleteUserRegistration\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/registration_service.go:409\ngithub.com/tucanbit/internal/handler/user.(*user).CompleteUserRegistration\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:1630\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/internal/glue/user.Init.IpFilter.func6\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/internal/glue/user.Init.RateLimiter.func5\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/internal/handler/middleware.ErrorHandler.func1\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/initiator.Initiate.CORS.func3\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/tucanbit/initiator.Initiate.GinLogger.func2\n\t/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23\ngithub.com/gin-gonic/gin.(*Context).Next\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185\ngithub.com/gin-gonic/gin.(*Engine).handleHTTPRequest\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644\ngithub.com/gin-gonic/gin.(*Engine).ServeHTTP\n\t/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600\nnet/http.serverHandler.ServeHTTP\n\t/snap/go/10938/src/net/http/server.go:3301\nnet/http.(*conn).serve\n\t/snap/go/10938/src/net/http/server.go:2102"}
+2025-08-31T03:26:54.570+0300	INFO	user/user.go:1098	updating user verification status	{"user_id": "78872d78-4ec1-454d-a563-c00ce47bece7", "verified": true}
+2025-08-31T03:26:54.571+0300	INFO	user/user.go:1112	user verification status updated successfully	{"user_id": "78872d78-4ec1-454d-a563-c00ce47bece7", "verified": true}
+2025-08-31T03:26:54.571+0300	INFO	user/registration_service.go:460	User email verification status updated successfully	{"user_id": "78872d78-4ec1-454d-a563-c00ce47bece7", "email": "ashenafialemu9898@gmail.com"}
+2025-08-31T03:26:54.571+0300	INFO	user/registration_service.go:465	User registration completed successfully	{"email": "ashenafialemu9898@gmail.com", "user_id": "78872d78-4ec1-454d-a563-c00ce47bece7", "ip": "127.0.0.1"}
+2025-08-31T03:26:54.571+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/register/complete", "ip": "127.0.0.1", "query": {}, "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0", "latency": 0.0011544330333333333}
+2025-08-31T03:27:03.992+0300	INFO	email/email.go:407	Email sent successfully	{"to": "ashenafialemu9898@gmail.com", "subject": "Welcome to TucanBIT!", "smtp_host": "smtp.gmail.com", "smtp_port": 465}
+%3|1756600037.124|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:27:46.003+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600067.125|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756600097.126|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:28:46.000+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+2025-08-31T03:28:46.132+0300	INFO	user/user.go:1714	Found expiring sessions	{"count": 3}
+2025-08-31T03:28:46.132+0300	INFO	user/user.go:1721	Processing session	{"userID": "21703745-3849-4b23-a318-c0c9ef2a5304", "timeLeft": "2h57m14.758823498s", "minutesLeft": 177}
+2025-08-31T03:28:46.132+0300	INFO	user/user.go:1721	Processing session	{"userID": "21703745-3849-4b23-a318-c0c9ef2a5304", "timeLeft": "2h59m52.858109873s", "minutesLeft": 179}
+2025-08-31T03:28:46.132+0300	INFO	user/user.go:1721	Processing session	{"userID": "21703745-3849-4b23-a318-c0c9ef2a5304", "timeLeft": "3h0m44.95452154s", "minutesLeft": 180}
+%3|1756600127.127|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756600157.129|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:29:17.289+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "55d16b2d-61bc-4df1-8c94-214ad8024caf"}
+2025-08-31T03:29:46.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600187.129|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756600217.131|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:30:39.184+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.0009924323333333333}
+2025-08-31T03:30:41.779+0300	WARN	user/user.go:706	login id or password not correct	{"loginRequest": {"login_id":"ashenafialemu9898@gmail.com","password":"SecurePass123!"}}
+github.com/tucanbit/internal/module/user.(*User).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:706
+github.com/tucanbit/internal/handler/user.(*user).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:129
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func10
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func9
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:30:41.781+0300	ERROR	logs/logs.go:38	ERROR: insert or update on table "login_attempts" violates foreign key constraint "login_attempts_user_id_fkey" (SQLSTATE 23503)	{"loginAttemptReq": {"id":"00000000-0000-0000-0000-000000000000","user_id":"00000000-0000-0000-0000-000000000000","ip_address":"::1","success":false,"attempt_time":"2025-08-31T03:30:41.779065082+03:00","user_agent":"curl/8.5.0"}}
+github.com/tucanbit/internal/storage/logs.(*logs).CreateLoginAttempts
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/storage/logs/logs.go:38
+github.com/tucanbit/internal/module/user.(*User).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:709
+github.com/tucanbit/internal/handler/user.(*user).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:129
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func10
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func9
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:30:41.781+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 400, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.000059796233333333335}
+2025-08-31T03:30:46.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600247.132|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:30:48.794+0300	WARN	user/user.go:706	login id or password not correct	{"loginRequest": {"login_id":"+251912308971","password":"WrongPassword123!"}}
+github.com/tucanbit/internal/module/user.(*User).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:706
+github.com/tucanbit/internal/handler/user.(*user).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:129
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func10
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func9
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:30:48.797+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 400, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.0008682753833333333}
+2025-08-31T03:31:02.102+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.0009301338666666667}
+2025-08-31T03:31:04.731+0300	WARN	user/user.go:706	login id or password not correct	{"loginRequest": {"login_id":"ashenafialemu9898@gmail.com","password":"SecurePass123!"}}
+github.com/tucanbit/internal/module/user.(*User).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:706
+github.com/tucanbit/internal/handler/user.(*user).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:129
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func10
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func9
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:31:04.734+0300	ERROR	logs/logs.go:38	ERROR: insert or update on table "login_attempts" violates foreign key constraint "login_attempts_user_id_fkey" (SQLSTATE 23503)	{"loginAttemptReq": {"id":"00000000-0000-0000-0000-000000000000","user_id":"00000000-0000-0000-0000-000000000000","ip_address":"::1","success":false,"attempt_time":"2025-08-31T03:31:04.731207667+03:00","user_agent":"curl/8.5.0"}}
+github.com/tucanbit/internal/storage/logs.(*logs).CreateLoginAttempts
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/storage/logs/logs.go:38
+github.com/tucanbit/internal/module/user.(*User).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/user/user.go:709
+github.com/tucanbit/internal/handler/user.(*user).Login
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/user/user.go:129
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.IpFilter.func10
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ipfiler.go:24
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/user.Init.RateLimiter.func9
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ratelimit.go:68
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-08-31T03:31:04.734+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 400, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00007609828333333333}
+%3|1756600277.133|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:31:46.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600307.134|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756600337.135|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:32:46.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600367.137|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756600397.138|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:33:46.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+2025-08-31T03:33:46.129+0300	INFO	user/user.go:1714	Found expiring sessions	{"count": 3}
+2025-08-31T03:33:46.129+0300	INFO	user/user.go:1721	Processing session	{"userID": "21703745-3849-4b23-a318-c0c9ef2a5304", "timeLeft": "2h52m14.761666899s", "minutesLeft": 172}
+2025-08-31T03:33:46.129+0300	INFO	user/user.go:1721	Processing session	{"userID": "21703745-3849-4b23-a318-c0c9ef2a5304", "timeLeft": "2h54m52.86094239s", "minutesLeft": 174}
+2025-08-31T03:33:46.130+0300	INFO	user/user.go:1721	Processing session	{"userID": "21703745-3849-4b23-a318-c0c9ef2a5304", "timeLeft": "2h55m44.957349417s", "minutesLeft": 175}
+%3|1756600427.139|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1756600457.140|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-08-31T03:34:17.227+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "e1c7c39e-20cf-4bd0-b1fc-1f4ef6bba359"}
+2025-08-31T03:34:46.007+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1756600487.141|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)

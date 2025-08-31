@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )

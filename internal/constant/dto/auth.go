@@ -6,7 +6,10 @@ import (
 )
 
 type Claim struct {
-	UserID uuid.UUID `json:"user_id"`
+	UserID        uuid.UUID `json:"user_id"`
+	IsVerified    bool      `json:"is_verified"`
+	EmailVerified bool      `json:"email_verified"`
+	PhoneVerified bool      `json:"phone_verified"`
 	jwt.StandardClaims
 }
 

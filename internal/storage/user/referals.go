@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/db"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/db"
 	"go.uber.org/zap"
 )
 
-func (u *user) CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalMultiplierReq) (dto.ReferalMultiplierRes, error) {
+func (u *user) CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalMultiplierReq) (dto.ReferalData, error) {
 	res, err := u.db.Queries.CreateConfig(ctx, db.CreateConfigParams{
 		Name:  constant.CONFIG_POINT_MULTIPLIER,
 		Value: fmt.Sprintf("%d", req.PointMultiplier),
@@ -27,7 +27,7 @@ func (u *user) CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalM
 	if err != nil {
 		u.log.Error(err.Error())
 		err = errors.ErrUnableTocreate.Wrap(err, err.Error())
-		return dto.ReferalMultiplierRes{}, err
+		return dto.ReferalData{}, err
 	}
 
 	// change from string to decimal
@@ -36,13 +36,10 @@ func (u *user) CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalM
 		u.log.Error(err.Error())
 	}
 
-	return dto.ReferalMultiplierRes{
-		Message: constant.SUCCESS,
-		Data: dto.ReferalData{
-			ID:              res.ID,
-			Name:            res.Name,
-			PointMultiplier: decimalMultiplier,
-		},
+	return dto.ReferalData{
+		ID:              res.ID,
+		Name:            res.Name,
+		PointMultiplier: decimalMultiplier,
 	}, nil
 }
 
@@ -98,13 +95,13 @@ func (u *user) GetUserPointsByReferalPoint(ctx context.Context, referal string) 
 		ReferalCode: sql.NullString{String: referal, Valid: true},
 		Currency:    constant.POINT_CURRENCY,
 	})
-	if err != nil && err.Error() != dto.ErrNoRows {
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return dto.UserPoint{}, false, nil
+		}
 		u.log.Error(err.Error(), zap.Any("referal_code", referal))
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return dto.UserPoint{}, false, err
-	}
-	if err != nil {
-		return dto.UserPoint{}, false, nil
 	}
 	intp := res.RealMoney.Decimal.IntPart()
 	return dto.UserPoint{
@@ -130,13 +127,12 @@ func (u *user) UpdateUserPointByUserID(ctx context.Context, userID uuid.UUID, po
 func (u *user) GetUsersDoseNotHaveReferalCode(ctx context.Context) ([]dto.User, error) {
 	var users []dto.User
 	res, err := u.db.Queries.GetUsersDoseNotHaveReferalCode(ctx)
-	if err != nil && err.Error() != dto.ErrNoRows {
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return []dto.User{}, nil
+		}
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return []dto.User{}, err
-	}
-
-	if err != nil {
-		return []dto.User{}, nil
 	}
 
 	for _, usr := range res {
@@ -173,14 +169,13 @@ func (u *user) GetUserReferalUsersByUserID(ctx context.Context, userID uuid.UUID
 	amount := 0
 	referralLogs, err := u.db.Queries.GetUserReferalUsersByUserID(ctx, uuid.NullUUID{UUID: userID, Valid: true})
 
-	if err != nil && err.Error() != dto.ErrNoRows {
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return dto.MyRefferedUsers{}, false, nil
+		}
 		u.log.Error(err.Error())
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return dto.MyRefferedUsers{}, false, err
-	}
-
-	if err != nil {
-		return dto.MyRefferedUsers{}, false, nil
 	}
 
 	for _, reffered := range referralLogs {
@@ -250,7 +245,7 @@ func (u *user) GetCurrentReferralMultiplier(ctx context.Context) (int, error) {
 	return multiplier, nil
 }
 
-func (u *user) UpdateReferralMultiplier(ctx context.Context, newValue int) (dto.ReferalUpdateResp, error) {
+func (u *user) UpdateReferralMultiplier(ctx context.Context, newValue int) (dto.ReferalData, error) {
 	_, err := u.db.Queries.UpdateConfigByName(ctx, db.UpdateConfigByNameParams{
 		Name:  constant.CONFIG_POINT_MULTIPLIER,
 		Value: strconv.Itoa(newValue),
@@ -259,11 +254,12 @@ func (u *user) UpdateReferralMultiplier(ctx context.Context, newValue int) (dto.
 	if err != nil {
 		u.log.Error(err.Error())
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
-		return dto.ReferalUpdateResp{}, err
+		return dto.ReferalData{}, err
 	}
 
-	return dto.ReferalUpdateResp{
-		Message:         constant.SUCCESS,
+	return dto.ReferalData{
+		ID:              uuid.Nil, // Since we're not returning the ID from the update
+		Name:            constant.CONFIG_POINT_MULTIPLIER,
 		PointMultiplier: newValue,
 	}, nil
 }

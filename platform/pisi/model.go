@@ -3,7 +3,7 @@ package pisi
 import (
 	"time"
 
-	"github.com/joshjones612/egyptkingcrash/platform/logger"
+	"github.com/tucanbit/platform/logger"
 )
 
 // Login request DTO

@@ -1,14 +1,14 @@
 version: "2"
 
 sql:
-  - schema: "../internal/constant/query/schemas"
-    queries: "../internal/constant/query/queries"
+  - schema: "../../internal/constant/query/schemas/sqlc_schema.sql"
+    queries: "../../internal/constant/query/queries"
     engine: "postgresql"
 
     gen:
       go:
         package: "db"
-        out: "../internal/constant/model/db"
+        out: "../../internal/constant/model/db"
         sql_package: "pgx/v4"
         overrides:
           - db_type: "pg_catalog.numeric"

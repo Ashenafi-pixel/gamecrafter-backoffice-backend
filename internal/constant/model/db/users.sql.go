@@ -30,11 +30,12 @@ func (q *Queries) AddReferalCode(ctx context.Context, arg AddReferalCodeParams) 
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status) 
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type
+INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status) 
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, user_type, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, refered_by_code, referal_type
 `
 
 type CreateUserParams struct {
+	Username        string
 	PhoneNumber     sql.NullString
 	Password        string
 	DefaultCurrency sql.NullString
@@ -54,6 +55,7 @@ type CreateUserParams struct {
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
 		arg.PhoneNumber,
 		arg.Password,
 		arg.DefaultCurrency,
@@ -84,6 +86,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.LastName,
 		&i.DateOfBirth,
 		&i.Source,
+		&i.UserType,
 		&i.ReferalCode,
 		&i.StreetAddress,
 		&i.Country,
@@ -94,9 +97,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedBy,
 		&i.IsAdmin,
 		&i.Status,
-		&i.ReferalType,
 		&i.ReferedByCode,
-		&i.UserType,
+		&i.ReferalType,
 	)
 	return i, err
 }
@@ -680,49 +682,57 @@ func (q *Queries) GetOTP(ctx context.Context, userID uuid.UUID) (UsersOtp, error
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id,phone_number,email,first_name,last_name,date_of_birth,profile,default_currency,source,referal_code,street_address,country,state,city,postal_code,kyc_status,created_by,is_admin,status,password,referal_code,user_type,refered_by_code,referal_type FROM users where email = $1 or phone_number = $1
+SELECT id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, is_email_verified, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, primary_wallet_address, wallet_verification_status FROM users where email = $1
 `
 
 type GetUserByEmailRow struct {
-	ID              uuid.UUID
-	PhoneNumber     sql.NullString
-	Email           sql.NullString
-	FirstName       sql.NullString
-	LastName        sql.NullString
-	DateOfBirth     sql.NullString
-	Profile         sql.NullString
-	DefaultCurrency sql.NullString
-	Source          sql.NullString
-	ReferalCode     sql.NullString
-	StreetAddress   string
-	Country         string
-	State           string
-	City            string
-	PostalCode      string
-	KycStatus       string
-	CreatedBy       uuid.NullUUID
-	IsAdmin         sql.NullBool
-	Status          sql.NullString
-	Password        string
-	ReferalCode_2   sql.NullString
-	UserType        sql.NullString
-	ReferedByCode   sql.NullString
-	ReferalType     sql.NullString
+	ID                       uuid.UUID
+	Username                 sql.NullString
+	PhoneNumber              sql.NullString
+	Password                 string
+	CreatedAt                time.Time
+	DefaultCurrency          sql.NullString
+	Profile                  sql.NullString
+	Email                    sql.NullString
+	FirstName                sql.NullString
+	LastName                 sql.NullString
+	DateOfBirth              sql.NullString
+	Source                   sql.NullString
+	IsEmailVerified          sql.NullBool
+	ReferalCode              sql.NullString
+	StreetAddress            sql.NullString
+	Country                  sql.NullString
+	State                    sql.NullString
+	City                     sql.NullString
+	PostalCode               sql.NullString
+	KycStatus                sql.NullString
+	CreatedBy                uuid.NullUUID
+	IsAdmin                  sql.NullBool
+	Status                   sql.NullString
+	ReferalType              sql.NullString
+	ReferedByCode            sql.NullString
+	UserType                 sql.NullString
+	PrimaryWalletAddress     sql.NullString
+	WalletVerificationStatus sql.NullString
 }
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (GetUserByEmailRow, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (bool, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.PhoneNumber,
+		&i.Password,
+		&i.CreatedAt,
+		&i.DefaultCurrency,
+		&i.Profile,
 		&i.Email,
 		&i.FirstName,
 		&i.LastName,
 		&i.DateOfBirth,
-		&i.Profile,
-		&i.DefaultCurrency,
 		&i.Source,
+		&i.IsEmailVerified,
 		&i.ReferalCode,
 		&i.StreetAddress,
 		&i.Country,
@@ -733,13 +743,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (Get
 		&i.CreatedBy,
 		&i.IsAdmin,
 		&i.Status,
-		&i.Password,
-		&i.ReferalCode_2,
-		&i.UserType,
-		&i.ReferedByCode,
 		&i.ReferalType,
+		&i.ReferedByCode,
+		&i.UserType,
+		&i.PrimaryWalletAddress,
+		&i.WalletVerificationStatus,
 	)
-	return i, err
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 const getUserByID = `-- name: GetUserByID :one

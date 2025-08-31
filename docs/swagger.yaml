@@ -687,6 +687,19 @@ definitions:
     - support_email
     - support_phone
     type: object
+  dto.CompleteRegistrationRequest:
+    properties:
+      otp_code:
+        type: string
+      otp_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - otp_code
+    - otp_id
+    - user_id
+    type: object
   dto.Config:
     properties:
       id:
@@ -1174,6 +1187,22 @@ definitions:
       success:
         type: boolean
     type: object
+  dto.CryptoWalletType:
+    enum:
+    - metamask
+    - walletconnect
+    - coinbase
+    - phantom
+    - trust
+    - ledger
+    type: string
+    x-enum-varnames:
+    - WalletMetaMask
+    - WalletWalletConnect
+    - WalletCoinbase
+    - WalletPhantom
+    - WalletTrust
+    - WalletLedger
   dto.Currency:
     properties:
       id:
@@ -1248,6 +1277,66 @@ definitions:
           type: string
         type: array
     type: object
+  dto.DetailedAccount:
+    properties:
+      bonus_money:
+        type: integer
+      currency:
+        type: string
+      id:
+        type: string
+      real_money:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.DetailedUserRegistration:
+    properties:
+      accounts:
+        items:
+          $ref: '#/definitions/dto.DetailedAccount'
+        type: array
+      agent_request_id:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      date_of_birth:
+        type: string
+      default_currency:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      kyc_status:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      profile_picture:
+        type: string
+      referal_type:
+        type: string
+      refered_by_code:
+        type: string
+      referral_code:
+        type: string
+      state:
+        type: string
+      street_address:
+        type: string
+      type:
+        type: string
+    type: object
   dto.EditProfileAdminReq:
     properties:
       city:
@@ -1281,6 +1370,128 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/dto.User'
+    type: object
+  dto.EmailVerificationRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.EmailVerificationResponse:
+    properties:
+      email:
+        type: string
+      expires_at:
+        type: string
+      message:
+        type: string
+      otp_id:
+        type: string
+      resend_after:
+        type: string
+    type: object
+  dto.EnterpriseRegistrationCompleteRequest:
+    properties:
+      otp_code:
+        maxLength: 6
+        minLength: 6
+        type: string
+      otp_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - otp_code
+    - otp_id
+    - user_id
+    type: object
+  dto.EnterpriseRegistrationCompleteResponse:
+    properties:
+      access_token:
+        type: string
+      email:
+        type: string
+      is_verified:
+        type: boolean
+      message:
+        type: string
+      refresh_token:
+        type: string
+      user_id:
+        type: string
+      verified_at:
+        type: string
+    type: object
+  dto.EnterpriseRegistrationRequest:
+    properties:
+      company_name:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone_number:
+        type: string
+      referral_code:
+        type: string
+      user_type:
+        enum:
+        - PLAYER
+        - AGENT
+        - ADMIN
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    - user_type
+    type: object
+  dto.EnterpriseRegistrationResponse:
+    properties:
+      email:
+        type: string
+      expires_at:
+        type: string
+      message:
+        type: string
+      otp_id:
+        type: string
+      resend_after:
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.EnterpriseRegistrationStatus:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      otp_expires_at:
+        type: string
+      status:
+        description: pending, verified, completed
+        type: string
+      user_id:
+        type: string
+      verified_at:
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
     type: object
   dto.Event:
     properties:
@@ -2620,6 +2831,96 @@ definitions:
     - NOTIFICATION_TYPE_WELCOME
     - NOTIFICATION_TYPE_SYSTEM
     - NOTIFICATION_TYPE_ALERT
+  dto.OTPInfo:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      otp_code:
+        type: string
+      status:
+        $ref: '#/definitions/dto.OTPStatus'
+      type:
+        $ref: '#/definitions/dto.OTPType'
+      updated_at:
+        type: string
+      verified_at:
+        type: string
+    type: object
+  dto.OTPStatsResponse:
+    properties:
+      average_response_time:
+        type: number
+      expired_otps:
+        type: integer
+      failed_attempts:
+        type: integer
+      period:
+        type: integer
+      success_rate:
+        type: number
+      total_otps:
+        type: integer
+      verified_otps:
+        type: integer
+    type: object
+  dto.OTPStatus:
+    enum:
+    - pending
+    - verified
+    - expired
+    - used
+    type: string
+    x-enum-varnames:
+    - OTPStatusPending
+    - OTPStatusVerified
+    - OTPStatusExpired
+    - OTPStatusUsed
+  dto.OTPType:
+    enum:
+    - email_verification
+    - password_reset
+    - login
+    type: string
+    x-enum-varnames:
+    - OTPTypeEmailVerification
+    - OTPTypePasswordReset
+    - OTPTypeLogin
+  dto.OTPVerificationRequest:
+    properties:
+      email:
+        type: string
+      otp_code:
+        maxLength: 6
+        minLength: 6
+        type: string
+      otp_id:
+        type: string
+    required:
+    - email
+    - otp_code
+    - otp_id
+    type: object
+  dto.OTPVerificationResponse:
+    properties:
+      access_token:
+        type: string
+      is_verified:
+        type: boolean
+      message:
+        type: string
+      refresh_token:
+        type: string
+      user_id:
+        type: string
+      verified_at:
+        type: string
+    type: object
   dto.OpenRoundRes:
     properties:
       bet_round:
@@ -3035,6 +3336,36 @@ definitions:
       username:
         type: string
     type: object
+  dto.RegistrationCompleteResponse:
+    properties:
+      access_token:
+        type: string
+      is_new_user:
+        type: boolean
+      message:
+        type: string
+      refresh_token:
+        type: string
+      user_id:
+        type: string
+      user_profile:
+        $ref: '#/definitions/dto.UserProfile'
+    type: object
+  dto.RegistrationPendingResponse:
+    properties:
+      email:
+        type: string
+      expires_at:
+        type: string
+      message:
+        type: string
+      otp_id:
+        type: string
+      resend_after:
+        type: string
+      user_id:
+        type: string
+    type: object
   dto.RemoveIPBlockReq:
     properties:
       id:
@@ -3049,6 +3380,33 @@ definitions:
     properties:
       role_id:
         type: string
+    type: object
+  dto.ResendOTPRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.ResendOTPResponse:
+    properties:
+      email:
+        type: string
+      expires_at:
+        type: string
+      message:
+        type: string
+      otp_id:
+        type: string
+      resend_after:
+        type: string
+    type: object
+  dto.ResendVerificationEmailRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   dto.ResendVerificationOTPReq:
     properties:
@@ -3464,6 +3822,11 @@ definitions:
       won_status:
         type: string
     type: object
+  dto.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
   dto.SystemLogs:
     properties:
       detail: {}
@@ -3812,6 +4175,8 @@ definitions:
         type: string
       country:
         type: string
+      created_at:
+        type: string
       date_of_birth:
         type: string
       default_currency:
@@ -3845,6 +4210,8 @@ definitions:
         type: string
       type:
         $ref: '#/definitions/dto.Type'
+      username:
+        type: string
     required:
     - phone_number
     type: object
@@ -4015,6 +4382,111 @@ definitions:
         type: string
       user_id:
         type: string
+    type: object
+  dto.WalletChallengeRequest:
+    properties:
+      wallet_address:
+        maxLength: 255
+        minLength: 42
+        type: string
+      wallet_type:
+        allOf:
+        - $ref: '#/definitions/dto.CryptoWalletType'
+        enum:
+        - metamask
+        - walletconnect
+        - coinbase
+        - phantom
+        - trust
+        - ledger
+    required:
+    - wallet_address
+    - wallet_type
+    type: object
+  dto.WalletConnectionRequest:
+    properties:
+      wallet_address:
+        maxLength: 255
+        minLength: 42
+        type: string
+      wallet_chain:
+        type: string
+      wallet_icon_url:
+        type: string
+      wallet_name:
+        type: string
+      wallet_type:
+        allOf:
+        - $ref: '#/definitions/dto.CryptoWalletType'
+        enum:
+        - metamask
+        - walletconnect
+        - coinbase
+        - phantom
+        - trust
+        - ledger
+    required:
+    - wallet_address
+    - wallet_chain
+    - wallet_type
+    type: object
+  dto.WalletLoginRequest:
+    properties:
+      message:
+        type: string
+      nonce:
+        type: string
+      signature:
+        type: string
+      wallet_address:
+        maxLength: 255
+        minLength: 42
+        type: string
+      wallet_type:
+        allOf:
+        - $ref: '#/definitions/dto.CryptoWalletType'
+        enum:
+        - metamask
+        - walletconnect
+        - coinbase
+        - phantom
+        - trust
+        - ledger
+    required:
+    - message
+    - nonce
+    - signature
+    - wallet_address
+    - wallet_type
+    type: object
+  dto.WalletVerificationRequest:
+    properties:
+      message:
+        type: string
+      nonce:
+        type: string
+      signature:
+        type: string
+      wallet_address:
+        maxLength: 255
+        minLength: 42
+        type: string
+      wallet_type:
+        allOf:
+        - $ref: '#/definitions/dto.CryptoWalletType'
+        enum:
+        - metamask
+        - walletconnect
+        - coinbase
+        - phantom
+        - trust
+        - ledger
+    required:
+    - message
+    - nonce
+    - signature
+    - wallet_address
+    - wallet_type
     type: object
   response.ErrorResponse:
     properties:
@@ -6512,6 +6984,61 @@ paths:
       summary: GetOperationalType
       tags:
       - Admin
+  /api/admin/otp/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: Remove expired OTPs from the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Cleanup expired OTPs
+      tags:
+      - OTP
+  /api/admin/otp/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get statistics about OTP usage and performance
+      parameters:
+      - description: 'Number of days to look back (default: 30)'
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OTPStatsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get OTP statistics
+      tags:
+      - OTP
   /api/admin/permissions:
     get:
       consumes:
@@ -8008,6 +8535,146 @@ paths:
       summary: GetAvailableCurrencies
       tags:
       - Exchange
+  /api/enterprise/register:
+    post:
+      consumes:
+      - application/json
+      description: Start the enterprise registration process with email verification
+      parameters:
+      - description: Enterprise registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EnterpriseRegistrationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EnterpriseRegistrationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Initiate enterprise registration
+      tags:
+      - Enterprise Registration
+  /api/enterprise/register/complete:
+    post:
+      consumes:
+      - application/json
+      description: Complete the enterprise registration process by verifying OTP
+      parameters:
+      - description: Registration completion request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EnterpriseRegistrationCompleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EnterpriseRegistrationCompleteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Complete enterprise registration
+      tags:
+      - Enterprise Registration
+  /api/enterprise/register/resend:
+    post:
+      consumes:
+      - application/json
+      description: Resend the verification email for enterprise registration
+      parameters:
+      - description: Resend verification request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendVerificationEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EnterpriseRegistrationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Resend verification email
+      tags:
+      - Enterprise Registration
+  /api/enterprise/register/status/{user_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get the current status of an enterprise registration
+      parameters:
+      - description: User ID
+        format: uuid
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EnterpriseRegistrationStatus'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get registration status
+      tags:
+      - Enterprise Registration
   /api/football/rounds/bets:
     get:
       description: GetUserFootballBets allow user to get bet history
@@ -8513,6 +9180,158 @@ paths:
       summary: GetOperationsDefinitions
       tags:
       - User
+  /api/otp/{otp_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get information about a specific OTP
+      parameters:
+      - description: OTP ID
+        in: path
+        name: otp_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OTPInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get OTP information
+      tags:
+      - OTP
+  /api/otp/{otp_id}/invalidate:
+    delete:
+      consumes:
+      - application/json
+      description: Invalidate an OTP by ID
+      parameters:
+      - description: OTP ID
+        in: path
+        name: otp_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Invalidate OTP
+      tags:
+      - OTP
+  /api/otp/email-verification:
+    post:
+      consumes:
+      - application/json
+      description: Send a verification OTP to the specified email address
+      parameters:
+      - description: Email verification request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EmailVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.EmailVerificationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create email verification OTP
+      tags:
+      - OTP
+  /api/otp/resend:
+    post:
+      consumes:
+      - application/json
+      description: Resend an OTP to the specified email address
+      parameters:
+      - description: Resend OTP request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ResendOTPResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Resend OTP
+      tags:
+      - OTP
+  /api/otp/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verify the OTP code sent to the user's email
+      parameters:
+      - description: OTP verification request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.OTPVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OTPVerificationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Verify OTP code
+      tags:
+      - OTP
   /api/plinko/config:
     get:
       description: Retrieve plinko game configs
@@ -10505,6 +11324,79 @@ paths:
       summary: GetUserPoints
       tags:
       - User
+  /api/wallet/challenge:
+    post:
+      consumes:
+      - application/json
+      description: Create a verification challenge for wallet authentication
+      parameters:
+      - description: Wallet Challenge Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.WalletChallengeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create Wallet Challenge
+      tags:
+      - Wallet
+  /api/wallet/connect:
+    post:
+      consumes:
+      - application/json
+      description: Connect a crypto wallet to the user's account
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Wallet Connection Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.WalletConnectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Connect Wallet
+      tags:
+      - Wallet
   /api/wallet/credit:
     patch:
       consumes:
@@ -10546,6 +11438,145 @@ paths:
       tags:
       - Wallet
       - Payment
+  /api/wallet/disconnect/{connection_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Disconnect a crypto wallet from the user's account
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Wallet Connection ID
+        in: path
+        name: connection_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Disconnect Wallet
+      tags:
+      - Wallet
+  /api/wallet/list:
+    get:
+      consumes:
+      - application/json
+      description: Get all crypto wallets connected to the user's account
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get User Wallets
+      tags:
+      - Wallet
+  /api/wallet/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user using their crypto wallet
+      parameters:
+      - description: Wallet Login Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.WalletLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Login with Wallet
+      tags:
+      - Wallet
+  /api/wallet/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verify a wallet challenge signature
+      parameters:
+      - description: Wallet Verification Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.WalletVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Verify Wallet Challenge
+      tags:
+      - Wallet
   /login:
     post:
       consumes:
@@ -10636,30 +11667,90 @@ paths:
     post:
       consumes:
       - application/json
-      description: Register user using phone, username, and password,
+      description: Start user registration process and send email verification OTP
       parameters:
-      - description: Register Request
+      - description: User registration request
         in: body
-        name: userRequest
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.User'
+          $ref: '#/definitions/dto.DetailedUserRegistration'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.UserRegisterResponse'
+            $ref: '#/definitions/dto.RegistrationPendingResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "409":
-          description: Conflict
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Register
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Initiate user registration
+      tags:
+      - User
+  /register/complete:
+    post:
+      consumes:
+      - application/json
+      description: Verify OTP and complete user registration process
+      parameters:
+      - description: Complete registration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CompleteRegistrationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RegistrationCompleteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Complete user registration
+      tags:
+      - User
+  /register/resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Resend verification email for pending user registration
+      parameters:
+      - description: Resend verification request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ResendOTPResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Resend verification email
       tags:
       - User
   /user/oauth/facebook:

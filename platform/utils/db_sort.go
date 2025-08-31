@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/joshjones612/egyptkingcrash/internal/constant"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
+	"github.com/tucanbit/internal/constant"
+	"github.com/tucanbit/internal/constant/errors"
 )
 
 func ValidateSortOptions(name, req string) error {

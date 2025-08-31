@@ -1,4 +1,4 @@
-version: '3.8'
+name: tucanbit
 
 services:
   create-kafka-topic:
@@ -9,14 +9,13 @@ services:
         condition: service_healthy
     command: >
       sh -c "
-      echo 'Waiting for Kafka to be ready...';
-      until kafka-topics --bootstrap-server kafka:9092 --list; do sleep 1; done;
-      echo 'Creating topic egyptkingcrash_events...';
-      kafka-topics --create --topic egyptkingcrash_events 
-        --bootstrap-server kafka:9092 
-        --partitions 3 
-        --replication-factor 1;
-      echo 'Topic created successfully'"
+        echo 'Waiting for Kafka to be ready...'
+        sleep 10
+        kafka-topics --bootstrap-server kafka:9092 --list
+        echo 'Creating topic events...'
+        kafka-topics --bootstrap-server kafka:9092 --create --topic events --partitions 1 --replication-factor 1 --if-not-exists
+        echo 'Topic created successfully'
+      "
     networks:
       - app-network
 
@@ -24,7 +23,7 @@ services:
     build: .
     command: sh -c "./wait-for-it.sh db:5432 -- migrate -database $$DB_URL -path migrations -verbose up"
     environment:
-      DB_URL: "postgres://egyptkingcrash:5kj0YmV5FKKpU9D50B7yH5A@db:5432/egyptkingcrash?sslmode=disable"
+      DB_URL: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable"
     volumes:
       - ./migrations:/app/migrations
     networks:
@@ -35,9 +34,9 @@ services:
 
   app:
     build: .
-    container_name: egyptkingcrash-app
+    container_name: tucanbit-app
     ports:
-      - "8000:8000"
+      - "8080:8080"
     command: sh -c "
       ./wait-for-it.sh db:5432 -- 
       ./wait-for-it.sh kafka:9092 -- 
@@ -45,41 +44,44 @@ services:
       echo '=== ENVIRONMENT VARIABLES ===';
       printenv | grep KAFKA;
       echo '=== STARTING APPLICATION ===';
-      ./egyptkingcrash"
+      ./tucanbit"
     environment:
       # Application Configuration
-      DB_URL: "postgres://egyptkingcrash:5kj0YmV5FKKpU9D50B7yH5A@db:5432/egyptkingcrash?sslmode=disable"
+      DB_URL: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable"
       APP_HOST: "0.0.0.0"
-      APP_PORT: "8000"
+      APP_PORT: "8080"
       JWT_SECRET: "tokensecrethere"
       DB_CONNECT_RETRIES: "10"
       DB_CONNECT_TIMEOUT: "5s"
       
       # Kafka Configuration
-      KAFKA_TOPIC: "egyptkingcrash_events"
-      KAFKA__TOPIC: "egyptkingcrash_events"
-      KAFKA_BROKERS: "kafka:9092"
-      KAFKA__BROKERS: "kafka:9092"
-      KAFKA__SECURITY_PROTOCOL: "PLAINTEXT"
-      KAFKA__ACKS: "all"
+      KAFKA_TOPIC: "events"
+      KAFKA_TOPICS: "events"
+      KAFKA_BOOTSTRAP_SERVER: "kafka:9092"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      KAFKA_CLUSTER_API_KEY: ""
+      KAFKA_CLUSTER_API_SECRET: ""
+      KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
+      KAFKA_MECHANISMS: "PLAIN"
+      KAFKA_ACKS: "all"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       
       # Redis Configuration
-      REDIS__ADDR: "redis:6379"
-      REDIS__PASSWORD: ""
-      REDIS__DB: "0"
-      REDIS__KEY_PREFIX: "egyptkingcrash:"
-      REDIS__TTL: "5m"
-      REDIS__ATTEMPTS: "3"
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      REDIS_KEY_PREFIX: "tucanbit:"
+      REDIS_TTL: "5m"
+      REDIS_ATTEMPTS: "3"
       
       # Pisi Configuration
-      PISI__BASE_URL: "http://pisi-service:8080"
-      PISI__PASSWORD: "pisi_password"
-      PISI__VASPID: "pisi_vaspid"
-      PISI__TIMEOUT: "10s"
-      PISI__RETRY_COUNT: "3"
-      PISI__RETRY_DELAY: "5s"
-      PISI__SENDER_ID: "egyptkingcrash"
+      PISI_BASE_URL: "http://pisi-service:8080"
+      PISI_PASSWORD: "pisi_password"
+      PISI_VASPID: "pisi_vaspid"
+      PISI_TIMEOUT: "10s"
+      PISI_RETRY_COUNT: "3"
+      PISI_RETRY_DELAY: "5s"
+      PISI_SENDER_ID: "tucanbit"
     volumes:
       - ./internal/constant/query/schemas:/app/internal/constant/query/schemas
     networks:
@@ -96,7 +98,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -104,15 +106,15 @@ services:
 
   db:
     image: postgres:13
-    container_name: egyptkingcrash-db
+    container_name: tucanbit-db
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: "egyptkingcrash"
+      POSTGRES_USER: "tucanbit"
       POSTGRES_PASSWORD: "5kj0YmV5FKKpU9D50B7yH5A"
-      POSTGRES_DB: "egyptkingcrash"
+      POSTGRES_DB: "tucanbit"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U egyptkingcrash -d egyptkingcrash"]
+      test: ["CMD-SHELL", "pg_isready -U tucanbit -d tucanbit"]
       interval: 5s
       timeout: 5s
       retries: 10

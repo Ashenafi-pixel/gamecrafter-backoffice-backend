@@ -2,8 +2,13 @@ package handler
 
 import "github.com/gin-gonic/gin"
 
+// RegistrationServiceInterface defines the interface for registration service
+type RegistrationServiceInterface interface {
+	InitiateUserRegistration(c *gin.Context)
+	CompleteUserRegistration(c *gin.Context)
+}
+
 type User interface {
-	RegisterUser(c *gin.Context)
 	Login(c *gin.Context)
 	GetProfile(c *gin.Context)
 	UpdateProfilePicture(c *gin.Context)
@@ -34,7 +39,6 @@ type User interface {
 	GetUserPoints(c *gin.Context)
 	AdminRegisterPlayer(c *gin.Context)
 	AdminLogin(c *gin.Context)
-	GetAdmins(c *gin.Context)
 	UpdateSignupBonus(c *gin.Context)
 	GetSignupBonus(c *gin.Context)
 	UpdateReferralBonus(c *gin.Context)
@@ -43,6 +47,28 @@ type User interface {
 	VerifyUser(c *gin.Context)
 	ReSendVerificationOTP(c *gin.Context)
 	GetOtp(c *gin.Context)
+	GetAdmins(c *gin.Context)
+	// Enterprise Registration Methods
+	InitiateEnterpriseRegistration(c *gin.Context)
+	CompleteEnterpriseRegistration(c *gin.Context)
+	GetEnterpriseRegistrationStatus(c *gin.Context)
+	ResendEnterpriseVerificationEmail(c *gin.Context)
+	// Regular Registration with Email Verification Methods
+	InitiateUserRegistration(c *gin.Context)
+	CompleteUserRegistration(c *gin.Context)
+	ResendVerificationEmail(c *gin.Context)
+	// Service Management
+	SetRegistrationService(service RegistrationServiceInterface)
+}
+
+type OTP interface {
+	CreateEmailVerification(c *gin.Context)
+	VerifyOTP(c *gin.Context)
+	ResendOTP(c *gin.Context)
+	GetOTPInfo(c *gin.Context)
+	InvalidateOTP(c *gin.Context)
+	CleanupExpiredOTPs(c *gin.Context)
+	GetOTPStats(c *gin.Context)
 }
 
 type OpeartionalGroup interface {
@@ -191,6 +217,13 @@ type Authz interface {
 	RevokeUserRole(c *gin.Context)
 	GetRoleUsers(c *gin.Context)
 	GetUserRoles(c *gin.Context)
+	// Crypto Wallet Methods
+	ConnectWallet(c *gin.Context)
+	DisconnectWallet(c *gin.Context)
+	GetUserWallets(c *gin.Context)
+	CreateWalletChallenge(c *gin.Context)
+	VerifyWalletChallenge(c *gin.Context)
+	LoginWithWallet(c *gin.Context)
 }
 
 type AirtimeProvider interface {

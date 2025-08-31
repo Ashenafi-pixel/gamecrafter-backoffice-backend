@@ -2,8 +2,8 @@ package constant
 
 import (
 	"github.com/google/uuid"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant/dto"
 )
 
 const (
@@ -71,8 +71,8 @@ const (
 )
 
 var (
-	GAME_EGYPTKING                      = uuid.MustParse("cfb2c688-0d30-46ea-ba7e-6ee2b29a8443")
-	GAME_EGYPTKING_DEFAULT_NAME         = "Egypt Kings"
+	GAME_TUCAKBIT                       = uuid.MustParse("cfb2c688-0d30-46ea-ba7e-6ee2b29a8443")
+	GAME_TUCAKBIT_DEFAULT_NAME          = "TucanBIT"
 	GAME_PLINKO                         = uuid.MustParse("843495fe-c0b7-451f-b1d2-e68b86d06008")
 	GAME_PLINKO_DEFAULT_NAME            = "Plinko"
 	GAME_CRYPTO_KINGS                   = uuid.MustParse("e567e3b0-a432-4062-84e5-dca294aa2479")
@@ -93,7 +93,7 @@ var (
 	GAME_LOOT_BOX_DEFAULT_NAME          = "Loot Box"
 )
 
-var GAMES = []uuid.UUID{GAME_EGYPTKING, GAME_PLINKO, GAME_CRYPTO_KINGS, GAME_FOOTBALL_FIXTURES, GAME_QUICK_HUSTLE, GAME_ROLL_DA_DICE, GAME_SCRATCH_CARD, GAME_SPINNING_WHEEL, GAME_STREET_KINGS}
+var GAMES = []uuid.UUID{GAME_TUCAKBIT, GAME_PLINKO, GAME_CRYPTO_KINGS, GAME_FOOTBALL_FIXTURES, GAME_QUICK_HUSTLE, GAME_ROLL_DA_DICE, GAME_SCRATCH_CARD, GAME_SPINNING_WHEEL, GAME_STREET_KINGS}
 
 var VALID_IMGS = []string{".png", ".jpeg", ".jpg", ".svg"}
 
@@ -155,7 +155,7 @@ Content-Type: text/html; charset="UTF-8"
       <div class="header">
         <h1>Password Reset Request</h1>
       </div>
-      <p>Egyptking</p>
+      <p>TucanBIT</p>
       <p>You have requested to reset your password. To complete the process, please use the following One-Time Password (OTP):</p>
       <div class="otp-code">` + otp + `</div>
       <p>If you did not request this change, please ignore this email or contact support immediately.</p>
@@ -426,7 +426,7 @@ const (
 	CRYPTO_KINGS_TIME_MAX_VALUE          = "c_k_t_m_v"
 	CRYPTO_KINGS_TIME_MAX_VALUE_DEFAULT  = "2500"
 	CRYPTO_KINGS_RANGE_MAX_VALUE         = "c_k_r_m_v"
-	CRYPTO_KINGS_RANGE_MAX_VALUE_DEFAULT = "1800000"
+	CRYPTO_KINGS_RANGE_MAX_VALUE_DEFAULT = "1808000"
 	CRYPTO_KING_DEFAULT_CURRENT_VALUE    = 30000
 	CRYPTO_KING_HIGHER                   = "HIGHER"
 	CRYPTO_KING_LOWER                    = "LOWER"

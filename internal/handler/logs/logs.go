@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/dto"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/errors"
-	"github.com/joshjones612/egyptkingcrash/internal/constant/model/response"
-	"github.com/joshjones612/egyptkingcrash/internal/handler"
-	"github.com/joshjones612/egyptkingcrash/internal/module"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/handler"
+	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +25,7 @@ func Init(log *zap.Logger, sysLogger module.SystemLogs) handler.SystemLogs {
 }
 
 // GetSystemLogs get system logs
+//
 //	@Summary		get system logs
 //	@Description	get system logs
 //	@Tags			Admin
@@ -54,6 +55,7 @@ func (l *logs) GetSystemLogs(c *gin.Context) {
 }
 
 // GetAvailableLogModules get available log modules
+//
 //	@Summary		get available log modules
 //	@Description	get available log modules
 //	@Tags			Admin

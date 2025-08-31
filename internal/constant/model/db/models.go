@@ -859,31 +859,34 @@ type TournamentsClaim struct {
 }
 
 type User struct {
-	ID              uuid.UUID
-	Username        sql.NullString
-	PhoneNumber     sql.NullString
-	Password        string
-	CreatedAt       time.Time
-	DefaultCurrency sql.NullString
-	Profile         sql.NullString
-	Email           sql.NullString
-	FirstName       sql.NullString
-	LastName        sql.NullString
-	DateOfBirth     sql.NullString
-	Source          sql.NullString
-	ReferalCode     sql.NullString
-	StreetAddress   string
-	Country         string
-	State           string
-	City            string
-	PostalCode      string
-	KycStatus       string
-	CreatedBy       uuid.NullUUID
-	IsAdmin         sql.NullBool
-	Status          sql.NullString
-	ReferalType     sql.NullString
-	ReferedByCode   sql.NullString
-	UserType        sql.NullString
+	ID                       uuid.UUID
+	Username                 sql.NullString
+	PhoneNumber              sql.NullString
+	Password                 string
+	CreatedAt                time.Time
+	DefaultCurrency          sql.NullString
+	Profile                  sql.NullString
+	Email                    sql.NullString
+	FirstName                sql.NullString
+	LastName                 sql.NullString
+	DateOfBirth              sql.NullString
+	Source                   sql.NullString
+	IsEmailVerified          sql.NullBool
+	ReferalCode              sql.NullString
+	StreetAddress            sql.NullString
+	Country                  sql.NullString
+	State                    sql.NullString
+	City                     sql.NullString
+	PostalCode               sql.NullString
+	KycStatus                sql.NullString
+	CreatedBy                uuid.NullUUID
+	IsAdmin                  sql.NullBool
+	Status                   sql.NullString
+	ReferalType              sql.NullString
+	ReferedByCode            sql.NullString
+	UserType                 sql.NullString
+	PrimaryWalletAddress     sql.NullString
+	WalletVerificationStatus sql.NullString
 }
 
 type UserNotification struct {

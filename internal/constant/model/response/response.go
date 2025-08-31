@@ -1,6 +1,6 @@
 package response
 
-//ErrorResponse response if there is an error
+// ErrorResponse response if there is an error
 type ErrorResponse struct {
 	// Code is the error code. It is not status code
 	Code int `json:"code,omitempty"`
