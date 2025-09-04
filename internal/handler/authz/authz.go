@@ -12,20 +12,20 @@ import (
 	"github.com/tucanbit/internal/constant/model/response"
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/module"
-	"go.uber.org/zap"
 	"github.com/tucanbit/internal/module/crypto_wallet"
+	"go.uber.org/zap"
 )
 
 type authz struct {
-	log         *zap.Logger
-	authzModule module.Authz
-	cryptoWallet crypto_wallet.CryptoWalletModule
+	log          *zap.Logger
+	authzModule  module.Authz
+	cryptoWallet *crypto_wallet.CasinoWalletService
 }
 
-func Init(log *zap.Logger, authzModule module.Authz, cryptoWallet crypto_wallet.CryptoWalletModule) handler.Authz {
+func Init(log *zap.Logger, authzModule module.Authz, cryptoWallet *crypto_wallet.CasinoWalletService) handler.Authz {
 	return &authz{
-		log:         log,
-		authzModule: authzModule,
+		log:          log,
+		authzModule:  authzModule,
 		cryptoWallet: cryptoWallet,
 	}
 }

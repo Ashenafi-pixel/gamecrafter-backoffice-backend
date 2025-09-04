@@ -25,6 +25,10 @@ func ErrorHandler() gin.HandlerFunc {
 			response := CastErrorResponse(err)
 			if response != nil {
 				er := errorx.Cast(err)
+				// Use the wrapped error message if available, otherwise use the type message
+				if er.Cause() != nil && er.Cause().Error() != "" {
+					response.Message = er.Cause().Error()
+				}
 				if debugMode {
 					response.Description = fmt.Sprintf("Error: %v", er)
 					response.StackTrace = fmt.Sprintf("%+v", errorx.EnsureStackTrace(err))

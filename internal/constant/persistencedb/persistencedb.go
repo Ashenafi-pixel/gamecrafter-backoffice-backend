@@ -148,3 +148,8 @@ func (p *PersistenceDB) GetUserByEmailFull(ctx context.Context, email string) (d
 
 	return usr, err
 }
+
+// GetPool returns the underlying database pool for raw SQL queries
+func (p *PersistenceDB) GetPool() *pgxpool.Pool {
+	return p.pool
+}

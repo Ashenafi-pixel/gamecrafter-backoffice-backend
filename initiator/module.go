@@ -59,7 +59,7 @@ type Module struct {
 	AirtimeProvider       module.AirtimeProvider
 	SystemLogs            module.SystemLogs
 	Company               module.Company
-	CryptoWallet          crypto_wallet.CryptoWalletModule
+	CryptoWallet          *crypto_wallet.CasinoWalletService
 	Report                module.Report
 	Squads                module.Squads
 	Notification          module.Notification
@@ -169,10 +169,11 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		),
 		SystemLogs: logs.Init(log, persistence.Logs),
 		Company:    company.Init(persistence.Company, log),
-		CryptoWallet: crypto_wallet.NewCryptoWalletService(
+		CryptoWallet: crypto_wallet.NewCasinoWalletService(
 			persistence.CryptoWallet,
 			persistence.User,
 			persistence.Balance,
+			viper.GetString("app.jwt_secret"),
 		),
 		// Crypto: crypto.Init(
 		// 	persistence.Crypto,

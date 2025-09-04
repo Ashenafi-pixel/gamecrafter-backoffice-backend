@@ -224,6 +224,7 @@ type Authz interface {
 	CreateWalletChallenge(c *gin.Context)
 	VerifyWalletChallenge(c *gin.Context)
 	LoginWithWallet(c *gin.Context)
+	TestWalletSignature(c *gin.Context)
 }
 
 type AirtimeProvider interface {

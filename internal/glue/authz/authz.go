@@ -164,6 +164,14 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.SystemLogs("wallet login", &log, systemLog),
 			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/wallet/test-signature",
+			Handler: authzModule.TestWalletSignature,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.SystemLogs("test wallet signature", &log, systemLog),
+			},
 		},
 	}
 	routing.RegisterRoute(group, authzRoute, log)

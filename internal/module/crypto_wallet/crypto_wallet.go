@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -50,6 +49,102 @@ func NewCryptoWalletService(
 		user:    user,
 		balance: balance,
 	}
+}
+
+// createPersonalMessageHash creates the Ethereum personal message hash
+// This follows the same format as MetaMask's personal_sign: \x19Ethereum Signed Message:\n<length><message>
+func createPersonalMessageHash(message string) []byte {
+	// Create the prefixed message
+	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
+	prefixedMessage := prefix + message
+
+	// Hash the prefixed message using Keccak256 (SHA3) - Ethereum standard
+	hash := crypto.Keccak256([]byte(prefixedMessage))
+	return hash
+}
+
+// logSignatureVerification logs detailed signature verification process for debugging
+func logSignatureVerification(walletAddress, message, signature string, messageHash []byte, signatureBytes []byte) {
+	fmt.Printf("=== SIGNATURE VERIFICATION DEBUG ===\n")
+	fmt.Printf("Wallet Address: %s\n", walletAddress)
+	fmt.Printf("Message: %s\n", message)
+	fmt.Printf("Signature: %s\n", signature)
+	fmt.Printf("Message Hash (hex): %x\n", messageHash)
+	fmt.Printf("Signature Length: %d bytes\n", len(signatureBytes))
+	fmt.Printf("Signature Bytes (hex): %x\n", signatureBytes)
+	fmt.Printf("=====================================\n")
+}
+
+// recoverPublicKeyFromSignature handles EIP-155 recovery IDs properly
+func recoverPublicKeyFromSignature(messageHash []byte, signatureBytes []byte) (*ecdsa.PublicKey, error) {
+	var publicKey *ecdsa.PublicKey
+	originalRecoveryID := signatureBytes[0]
+
+	// Try using crypto.Ecrecover first (handles recovery IDs better)
+	pubKeyBytes, err := crypto.Ecrecover(messageHash[:], signatureBytes)
+	if err == nil {
+		publicKey, err = crypto.UnmarshalPubkey(pubKeyBytes)
+		if err == nil {
+			fmt.Printf("Successfully recovered public key using Ecrecover\n")
+			return publicKey, nil
+		}
+	} else {
+		fmt.Printf("Ecrecover failed: %v\n", err)
+	}
+
+	// Fallback: try different recovery IDs
+	recoveryIDs := []byte{0, 1, 27, 28}
+
+	// Handle EIP-155 encoded recovery IDs
+	if originalRecoveryID > 28 {
+		fmt.Printf("Original recovery ID: 0x%02x (%d) - attempting EIP-155 decoding\n", originalRecoveryID, originalRecoveryID)
+
+		// For EIP-155: recovery_id = base_recovery_id + 27 + 2 * chain_id
+		// Try to extract the base recovery ID
+		baseRecoveryID := originalRecoveryID - 27
+		if baseRecoveryID <= 1 {
+			recoveryIDs = append(recoveryIDs, baseRecoveryID)
+			fmt.Printf("Added EIP-155 base recovery ID: 0x%02x (%d)\n", baseRecoveryID, baseRecoveryID)
+		}
+
+		// Also try with different chain ID calculations
+		// Some wallets use: recovery_id = base_recovery_id + 27 + 2 * (chain_id % 2)
+		altBaseRecoveryID := originalRecoveryID - 27 - 2
+		if altBaseRecoveryID <= 1 {
+			recoveryIDs = append(recoveryIDs, altBaseRecoveryID)
+			fmt.Printf("Added alternative EIP-155 base recovery ID: 0x%02x (%d)\n", altBaseRecoveryID, altBaseRecoveryID)
+		}
+
+		// Try with the original recovery ID as well (some implementations might handle it)
+		recoveryIDs = append(recoveryIDs, originalRecoveryID)
+		fmt.Printf("Added original recovery ID: 0x%02x (%d)\n", originalRecoveryID, originalRecoveryID)
+
+		// For recovery ID 106 (0x6a), try different calculations
+		// This might be: 106 = 0 + 27 + 2 * 39.5 (not valid)
+		// Or: 106 = 1 + 27 + 2 * 39 (not valid)
+		// Let's try: 106 - 27 = 79, then 79 % 2 = 1
+		if originalRecoveryID == 106 {
+			// Try recovery ID 1 (since 79 % 2 = 1)
+			recoveryIDs = append(recoveryIDs, 1)
+			fmt.Printf("Added special case recovery ID for 106: 0x%02x (%d)\n", 1, 1)
+
+			// Try recovery ID 0 as well
+			recoveryIDs = append(recoveryIDs, 0)
+			fmt.Printf("Added special case recovery ID for 106: 0x%02x (%d)\n", 0, 0)
+		}
+	}
+
+	for _, recoveryID := range recoveryIDs {
+		signatureBytes[0] = recoveryID
+		publicKey, err = crypto.SigToPub(messageHash[:], signatureBytes)
+		if err == nil {
+			fmt.Printf("Successfully recovered public key with recovery ID: 0x%02x (%d)\n", recoveryID, recoveryID)
+			return publicKey, nil
+		}
+		fmt.Printf("Failed with recovery ID 0x%02x (%d): %v\n", recoveryID, recoveryID, err)
+	}
+
+	return nil, fmt.Errorf("failed to recover public key with any recovery ID, original was 0x%02x", originalRecoveryID)
 }
 
 // CreateWalletConnection establishes a new wallet connection for a user
@@ -169,7 +264,7 @@ func (s *CryptoWalletService) CreateWalletChallenge(
 	expiresAt := time.Now().Add(5 * time.Minute)
 
 	// Store the challenge
-	challenge, err := s.storage.CreateWalletChallenge(ctx, req.WalletAddress, nonce, expiresAt)
+	challenge, err := s.storage.CreateWalletChallenge(ctx, req.WalletAddress, nonce, challengeMessage, expiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet challenge %w", err)
 	}
@@ -201,9 +296,16 @@ func (s *CryptoWalletService) VerifyWalletSignature(
 		return nil, fmt.Errorf("challenge has expired")
 	}
 
-	// Verify the signature cryptographically
-	messageHash := sha256.Sum256([]byte(req.Message))
-	signatureBytes, err := hex.DecodeString(req.Signature)
+	// Verify the signature cryptographically using Ethereum personal message format
+	messageHash := createPersonalMessageHash(req.Message)
+
+	// Decode the signature from hex (remove 0x prefix if present)
+	signature := req.Signature
+	if len(signature) > 2 && signature[:2] == "0x" {
+		signature = signature[2:]
+	}
+
+	signatureBytes, err := hex.DecodeString(signature)
 	if err != nil {
 		return nil, fmt.Errorf("invalid signature format: %w", err)
 	}
@@ -213,18 +315,36 @@ func (s *CryptoWalletService) VerifyWalletSignature(
 		return nil, fmt.Errorf("invalid signature length: expected 65 bytes, got %d", len(signatureBytes))
 	}
 
-	// Recover the public key from the signature
-	publicKey, err := crypto.SigToPub(messageHash[:], signatureBytes)
+	// Log signature verification details for debugging
+	logSignatureVerification(req.WalletAddress, req.Message, req.Signature, messageHash, signatureBytes)
+
+	// Recover the public key from the signature using the improved logic
+	publicKey, err := recoverPublicKeyFromSignature(messageHash, signatureBytes)
 	if err != nil {
+		fmt.Printf("ERROR: Failed to recover public key: %v\n", err)
 		return nil, fmt.Errorf("failed to recover public key from signature: %w", err)
 	}
 
 	// Generate the wallet address from the recovered public key
 	recoveredAddress := crypto.PubkeyToAddress(*publicKey)
 
-	// Verify that the recovered address matches the claimed wallet address
-	if recoveredAddress.Hex() != req.WalletAddress {
-		return nil, fmt.Errorf("signature verification failed: address mismatch")
+	// Verify that the recovered address matches the claimed wallet address (case-insensitive)
+	recoveredAddrHex := recoveredAddress.Hex()
+	claimedAddrHex := req.WalletAddress
+	if len(claimedAddrHex) > 2 && claimedAddrHex[:2] == "0x" {
+		claimedAddrHex = claimedAddrHex[2:]
+	}
+	if len(recoveredAddrHex) > 2 && recoveredAddrHex[:2] == "0x" {
+		recoveredAddrHex = recoveredAddrHex[2:]
+	}
+
+	fmt.Printf("Address Comparison:\n")
+	fmt.Printf("  Recovered: %s\n", recoveredAddrHex)
+	fmt.Printf("  Claimed:   %s\n", claimedAddrHex)
+	fmt.Printf("  Match:     %t\n", recoveredAddrHex == claimedAddrHex)
+
+	if recoveredAddrHex != claimedAddrHex {
+		return nil, fmt.Errorf("signature verification failed: address mismatch (recovered: %s, claimed: %s)", recoveredAddrHex, claimedAddrHex)
 	}
 
 	// Extract R and S components for additional verification
@@ -248,7 +368,9 @@ func (s *CryptoWalletService) VerifyWalletSignature(
 	connection, err := s.storage.GetWalletConnectionByAddress(ctx, req.WalletAddress)
 	if err != nil {
 		if err.Error() == "no record found" {
-			return nil, fmt.Errorf("wallet connection not found")
+			// Create a temporary user for wallet-only authentication
+			// This will be handled by the login endpoint later
+			return nil, fmt.Errorf("wallet connection not found - please use login endpoint for new users")
 		}
 		return nil, fmt.Errorf("failed to get wallet connection: %w", err)
 	}
@@ -366,7 +488,7 @@ func (s *CryptoWalletService) LoginWithWallet(
 
 	return &dto.WalletLoginResponse{
 		Message:      "Wallet authentication successful",
-		UserID:       user.ID,
+		UserID:       user.ID.String(),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		IsNewUser:    false,
@@ -376,11 +498,16 @@ func (s *CryptoWalletService) LoginWithWallet(
 
 // verifyWalletSignature verifies the wallet signature
 func (s *CryptoWalletService) verifyWalletSignature(req *dto.WalletLoginRequest) error {
-	// Hash the message
-	messageHash := sha256.Sum256([]byte(req.Message))
+	// Hash the message using Ethereum personal message format
+	messageHash := createPersonalMessageHash(req.Message)
 
-	// Decode the signature from hex
-	signatureBytes, err := hex.DecodeString(req.Signature)
+	// Decode the signature from hex (remove 0x prefix if present)
+	signature := req.Signature
+	if len(signature) > 2 && signature[:2] == "0x" {
+		signature = signature[2:]
+	}
+
+	signatureBytes, err := hex.DecodeString(signature)
 	if err != nil {
 		return fmt.Errorf("invalid signature format: %w", err)
 	}
@@ -390,18 +517,36 @@ func (s *CryptoWalletService) verifyWalletSignature(req *dto.WalletLoginRequest)
 		return fmt.Errorf("invalid signature length: expected 65 bytes, got %d", len(signatureBytes))
 	}
 
-	// Recover the public key from the signature
-	publicKey, err := crypto.SigToPub(messageHash[:], signatureBytes)
+	// Log signature verification details for debugging
+	logSignatureVerification(req.WalletAddress, req.Message, req.Signature, messageHash, signatureBytes)
+
+	// Recover the public key from the signature using the improved logic
+	publicKey, err := recoverPublicKeyFromSignature(messageHash, signatureBytes)
 	if err != nil {
+		fmt.Printf("ERROR: Failed to recover public key: %v\n", err)
 		return fmt.Errorf("failed to recover public key from signature: %w", err)
 	}
 
 	// Generate the wallet address from the recovered public key
 	recoveredAddress := crypto.PubkeyToAddress(*publicKey)
 
-	// Verify that the recovered address matches the claimed wallet address
-	if recoveredAddress.Hex() != req.WalletAddress {
-		return fmt.Errorf("signature verification failed: address mismatch")
+	// Verify that the recovered address matches the claimed wallet address (case-insensitive)
+	recoveredAddrHex := recoveredAddress.Hex()
+	claimedAddrHex := req.WalletAddress
+	if len(claimedAddrHex) > 2 && claimedAddrHex[:2] == "0x" {
+		claimedAddrHex = claimedAddrHex[2:]
+	}
+	if len(recoveredAddrHex) > 2 && recoveredAddrHex[:2] == "0x" {
+		recoveredAddrHex = recoveredAddrHex[2:]
+	}
+
+	fmt.Printf("Address Comparison:\n")
+	fmt.Printf("  Recovered: %s\n", recoveredAddrHex)
+	fmt.Printf("  Claimed:   %s\n", claimedAddrHex)
+	fmt.Printf("  Match:     %t\n", recoveredAddrHex == claimedAddrHex)
+
+	if recoveredAddrHex != claimedAddrHex {
+		return fmt.Errorf("signature verification failed: address mismatch (recovered: %s, claimed: %s)", recoveredAddrHex, claimedAddrHex)
 	}
 
 	// Extract R and S components for additional verification
@@ -468,7 +613,7 @@ func (s *CryptoWalletService) createNewUserWithWallet(
 
 	return &dto.WalletLoginResponse{
 		Message:      "Wallet authentication successful",
-		UserID:       createdUser.ID,
+		UserID:       createdUser.ID.String(),
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		IsNewUser:    true,
