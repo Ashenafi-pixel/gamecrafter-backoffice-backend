@@ -73,6 +73,27 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 		return dto.User{}, err
 	}
 
+	// Update additional fields that are not in the CreateUser query
+	_, err = u.db.Queries.UpdateProfile(ctx, db.UpdateProfileParams{
+		FirstName:     sql.NullString{String: userRequest.FirstName, Valid: true},
+		LastName:      sql.NullString{String: userRequest.LastName, Valid: true},
+		Email:         sql.NullString{String: userRequest.Email, Valid: true},
+		DateOfBirth:   sql.NullString{String: userRequest.DateOfBirth, Valid: true},
+		PhoneNumber:   sql.NullString{String: userRequest.PhoneNumber, Valid: true},
+		Username:      sql.NullString{String: userRequest.Username, Valid: true},
+		StreetAddress: userRequest.StreetAddress,
+		City:          userRequest.City,
+		PostalCode:    userRequest.PostalCode,
+		State:         userRequest.State,
+		Country:       userRequest.Country,
+		KycStatus:     userRequest.KYCStatus,
+		ID:            usr.ID,
+	})
+	if err != nil {
+		u.log.Error("unable to update user profile ", zap.Error(err), zap.Any("user", userRequest))
+		// Don't return error here as user was created successfully
+	}
+
 	return dto.User{
 		ID:              usr.ID,
 		Username:        usr.Username.String,

@@ -1,6 +1,6 @@
 -- name: CreateUser :one 
-INSERT INTO users (phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status) 
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *;
+INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status,street_address,country,state,city,postal_code,kyc_status,profile) 
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING *;
 
 -- name: GetUserByUserName :one 
 SELECT * FROM users where username = $1;
