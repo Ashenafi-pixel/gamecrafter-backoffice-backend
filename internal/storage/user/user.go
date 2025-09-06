@@ -170,6 +170,7 @@ func (u *user) GetUserByPhoneNumber(ctx context.Context, phone string) (dto.User
 	}
 	return dto.User{
 		ID:              usr.ID,
+		Username:        usr.Username.String,
 		PhoneNumber:     usr.PhoneNumber.String,
 		Password:        usr.Password,
 		Email:           usr.Email.String,
@@ -206,6 +207,7 @@ func (u *user) GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, boo
 	}
 	return dto.User{
 		ID:              usr.ID,
+		Username:        usr.Username.String,
 		PhoneNumber:     usr.PhoneNumber.String,
 		Email:           usr.Email.String,
 		DefaultCurrency: usr.DefaultCurrency.String,
@@ -297,6 +299,7 @@ func (u *user) GetUserByEmail(ctx context.Context, email string) (dto.User, bool
 	// Return complete user data for authentication
 	return dto.User{
 		ID:              usr.ID,
+		Username:        usr.Username.String,
 		PhoneNumber:     usr.PhoneNumber.String,
 		Password:        usr.Password,
 		Email:           usr.Email.String,

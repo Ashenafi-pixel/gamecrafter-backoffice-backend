@@ -23,7 +23,7 @@ const (
 type User struct {
 	ID              uuid.UUID  `json:"id,omitempty"  swaggerignore:"true"`
 	Username        string     `json:"username,omitempty"`
-	PhoneNumber     string     `json:"phone_number" validate:"required,e164,min=8"`
+	PhoneNumber     string     `json:"phone_number" validate:"omitempty,e164,min=8"`
 	FirstName       string     `json:"first_name"`
 	LastName        string     `json:"last_name"`
 	Email           string     `json:"email"`
@@ -53,6 +53,7 @@ type User struct {
 
 // profileResponse
 type UserProfile struct {
+	Username       string    `json:"username"`
 	PhoneNumber    string    `json:"phone_number" validate:"required,e164,min=8"`
 	Email          string    `json:"email"`
 	UserID         uuid.UUID `json:"user_id"`
@@ -81,8 +82,9 @@ type UserLoginReq struct {
 
 // UserLoginRes hold response to the User login response
 type UserLoginRes struct {
-	Message     string `json:"message"`
-	AccessToken string `json:"access_token"`
+	Message     string       `json:"message"`
+	AccessToken string       `json:"access_token"`
+	UserProfile *UserProfile `json:"user_profile,omitempty"`
 }
 
 func IsValidCurrency(currency string) bool {

@@ -1591,6 +1591,7 @@ func (u *user) ResendEnterpriseVerificationEmail(c *gin.Context) {
 
 // InitiateUserRegistration delegates to the registration service
 func (u *user) InitiateUserRegistration(c *gin.Context) {
+	u.log.Info("InitiateUserRegistration called")
 	if u.registrationService == nil {
 		u.log.Error("Registration service not initialized")
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{

@@ -255,8 +255,8 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 		return dto.UserRegisterResponse{}, "", err
 	}
 
-	if userRequest.Email == "" && userRequest.PhoneNumber == "" {
-		err = fmt.Errorf("email or phone number is required")
+	if userRequest.Email == "" {
+		err = fmt.Errorf("email is required")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.UserRegisterResponse{}, "", err
 	}
@@ -304,17 +304,19 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 
 	}
 
-	//check if user is exist with  requested phone number
-	_, exist, err = u.userStorage.GetUserByPhoneNumber(ctx, userRequest.PhoneNumber)
-	if err != nil {
-		return dto.UserRegisterResponse{}, "", err
-	}
+	//check if user is exist with  requested phone number (only if phone number is provided)
+	if userRequest.PhoneNumber != "" {
+		_, exist, err = u.userStorage.GetUserByPhoneNumber(ctx, userRequest.PhoneNumber)
+		if err != nil {
+			return dto.UserRegisterResponse{}, "", err
+		}
 
-	if exist {
-		err = fmt.Errorf("user already exist with this phone")
-		u.log.Warn("user already exist ", zap.Any("phone", userRequest.PhoneNumber))
-		err = errors.ErrDataAlredyExist.Wrap(err, err.Error())
-		return dto.UserRegisterResponse{}, "", err
+		if exist {
+			err = fmt.Errorf("user already exist with this phone")
+			u.log.Warn("user already exist ", zap.Any("phone", userRequest.PhoneNumber))
+			err = errors.ErrDataAlredyExist.Wrap(err, err.Error())
+			return dto.UserRegisterResponse{}, "", err
+		}
 	}
 	hashPassword, err := utils.HashPassword(userRequest.Password)
 	if err != nil {
@@ -348,8 +350,13 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 		u.log.Debug("Referral code already exists, generating new one", zap.String("referral_code", userRequest.ReferralCode))
 	}
 
-	// Set the username to the same value as the referral code
-	userRequest.Username = userRequest.ReferralCode
+	// Set the username to the same value as the referral code for phone-based registration
+	// For email-based registration, username is provided in the request
+	u.log.Debug("Username before processing", zap.String("username", userRequest.Username), zap.String("phone", userRequest.PhoneNumber), zap.String("email", userRequest.Email))
+	if userRequest.PhoneNumber != "" {
+		userRequest.Username = userRequest.ReferralCode
+		u.log.Debug("Username set to referral code for phone registration", zap.String("username", userRequest.Username))
+	}
 
 	// check the referal user is exist
 	_, err = u.userStorage.GetUserByReferalCode(ctx, userRequest.ReferedByCode)
@@ -422,24 +429,27 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 		return dto.UserRegisterResponse{}, "", errors.ErrInternalServerError.Wrap(err, "failed to save user referral data to temp storage")
 	}
 
-	// save OTP to redis
-	otp := utils.GenerateOTP()
+	// Skip SMS for email-based registration - OTP is handled by email service
+	// SMS and phone-based OTP are only used for phone-based registration flows
 
-	u.PisiClient.SendBulkSMS(ctx, pisi.SendBulkSMSRequest{
-		Message:    fmt.Sprintf("Your verification code is {%s}. Please do not share this code.", otp),
-		Recipients: userRequest.PhoneNumber,
-	})
-
-	// sendsms
-	//validate the username or phone or email
-	err = u.redis.SaveOTP(ctx, userRequest.PhoneNumber, otp)
+	// Generate JWT tokens for automatic login after registration
+	accessToken, err := utils.GenerateJWT(usrRes.ID)
 	if err != nil {
-		return dto.UserRegisterResponse{}, "", errors.ErrInternalServerError.Wrap(err, "failed to save OTP")
+		u.log.Error("Failed to generate access token", zap.Error(err), zap.String("userID", usrRes.ID.String()))
+		return dto.UserRegisterResponse{}, "", errors.ErrInternalServerError.Wrap(err, "failed to generate access token")
+	}
+
+	refreshToken, err := utils.GenerateRefreshJWT(usrRes.ID)
+	if err != nil {
+		u.log.Error("Failed to generate refresh token", zap.Error(err), zap.String("userID", usrRes.ID.String()))
+		return dto.UserRegisterResponse{}, "", errors.ErrInternalServerError.Wrap(err, "failed to generate refresh token")
 	}
 
 	return dto.UserRegisterResponse{
-		Message: constant.USER_REGISTRATION_SUCCESS,
-		UserID:  usrRes.ID,
+		Message:      constant.USER_REGISTRATION_SUCCESS,
+		UserID:       usrRes.ID,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, "", nil
 }
 
@@ -753,13 +763,28 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 	}
 	u.logsStorage.CreateLoginSessions(ctx, userSession)
 
+	// Get user profile for response
+	u.log.Info("User data from database", zap.String("username", usr.Username), zap.String("email", usr.Email), zap.String("userID", usr.ID.String()))
+	userProfile := dto.UserProfile{
+		Username:     usr.Username,
+		UserID:       usr.ID,
+		Email:        usr.Email,
+		PhoneNumber:  usr.PhoneNumber,
+		FirstName:    usr.FirstName,
+		LastName:     usr.LastName,
+		Type:         usr.Type,
+		ReferralCode: usr.ReferralCode,
+	}
+
 	return dto.UserLoginRes{
 		Message:     constant.LOGIN_SUCCESS,
 		AccessToken: token,
+		UserProfile: &userProfile,
 	}, refreshToken, nil
 }
 
 func (u *User) GetProfile(ctx context.Context, userID uuid.UUID) (dto.UserProfile, error) {
+	u.log.Info("GetProfile called", zap.String("userID", userID.String()))
 	profile, exist, err := u.userStorage.GetUserByID(ctx, userID)
 	var profilePicture string
 	if err != nil {
@@ -775,7 +800,9 @@ func (u *User) GetProfile(ctx context.Context, userID uuid.UUID) (dto.UserProfil
 		profilePicture = utils.GetFromS3Bucket(u.bucketName, profile.ProfilePicture)
 	}
 
+	u.log.Info("Profile data from database", zap.String("username", profile.Username), zap.String("email", profile.Email), zap.String("userID", profile.ID.String()))
 	return dto.UserProfile{
+		Username:       profile.Username,
 		PhoneNumber:    profile.PhoneNumber,
 		Email:          profile.Email,
 		ProfilePicture: profilePicture,

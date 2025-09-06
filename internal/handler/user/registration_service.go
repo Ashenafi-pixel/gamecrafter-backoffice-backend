@@ -66,10 +66,14 @@ func NewRegistrationService(
 func (rs *RegistrationService) InitiateUserRegistration(c *gin.Context) {
 	// Try to bind to detailed registration first
 	var detailedReq dto.DetailedUserRegistration
+	rs.logger.Info("InitiateUserRegistration called in registration service")
 	if err := c.ShouldBindJSON(&detailedReq); err == nil {
 		// Handle detailed registration
+		rs.logger.Info("Detailed registration request received", zap.String("username", detailedReq.Username), zap.String("email", detailedReq.Email))
 		rs.handleDetailedRegistration(c, &detailedReq)
 		return
+	} else {
+		rs.logger.Info("Detailed registration binding failed, trying simple registration", zap.Error(err))
 	}
 
 	// Fall back to simple registration
@@ -86,6 +90,7 @@ func (rs *RegistrationService) InitiateUserRegistration(c *gin.Context) {
 	}
 
 	// Handle simple registration
+	rs.logger.Info("Simple registration request received", zap.String("username", simpleReq.Username), zap.String("email", simpleReq.Email))
 	rs.handleSimpleRegistration(c, &simpleReq)
 }
 
@@ -121,6 +126,7 @@ func (rs *RegistrationService) handleDetailedRegistration(c *gin.Context, req *d
 	// Store registration data temporarily in Redis (24 hour expiration)
 	registrationData := dto.RegistrationData{
 		ID:              userID.String(),
+		Username:        req.Username,
 		Email:           req.Email,
 		PhoneNumber:     req.PhoneNumber,
 		FirstName:       req.FirstName,
@@ -406,7 +412,9 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 	}
 
 	// Create user account using existing user module
+	rs.logger.Debug("Registration data before creating user", zap.String("username", registrationData.Username), zap.String("email", registrationData.Email))
 	userResponse, _, err := rs.userModule.RegisterUser(c.Request.Context(), dto.User{
+		Username:        registrationData.Username,
 		Email:           registrationData.Email,
 		PhoneNumber:     registrationData.PhoneNumber,
 		FirstName:       registrationData.FirstName,
@@ -475,6 +483,7 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 		RefreshToken: userResponse.RefreshToken,
 		IsNewUser:    true,
 		UserProfile: &dto.UserProfile{
+			Username:     registrationData.Username,
 			UserID:       userResponse.UserID,
 			Email:        registrationData.Email,
 			PhoneNumber:  registrationData.PhoneNumber,
@@ -558,21 +567,23 @@ func (rs *RegistrationService) validateDetailedRegistrationRequest(req *dto.Deta
 	if req.Email == "" {
 		return fmt.Errorf("email is required")
 	}
-	if req.PhoneNumber == "" {
-		return fmt.Errorf("phone number is required")
-	}
-	if req.FirstName == "" {
-		return fmt.Errorf("first name is required")
-	}
-	if req.LastName == "" {
-		return fmt.Errorf("last name is required")
+	if req.Username == "" {
+		return fmt.Errorf("username is required")
 	}
 	if req.Password == "" {
 		return fmt.Errorf("password is required")
 	}
-	if req.Type == "" {
-		return fmt.Errorf("user type is required")
+
+	// Set default currency to USD if not provided
+	if req.DefaultCurrency == "" {
+		req.DefaultCurrency = "USD"
 	}
+
+	// Set default user type to PLAYER if not provided
+	if req.Type == "" {
+		req.Type = "PLAYER"
+	}
+
 	return nil
 }
 
