@@ -7,3 +7,8 @@ vendor/
 config/rsa_private_key.pem
 config/rsa_public_key.pembackups/
 *.log
+
+# Binary files
+tucanbit
+tucanbit-app
+*.log
