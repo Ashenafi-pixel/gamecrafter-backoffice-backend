@@ -7,7 +7,7 @@ echo "=============================="
 
 # Check if PID file exists
 if [ ! -f "tucanbit.pid" ]; then
-    echo "❌ PID file not found"
+    echo " PID file not found"
 else
     APP_PID=$(cat tucanbit.pid)
     echo "🆔 PID file: $APP_PID"
@@ -15,15 +15,15 @@ fi
 
 # Check if process is running
 if pgrep -f "tucanbit" > /dev/null; then
-    echo "✅ Application is RUNNING"
+    echo "Application is RUNNING"
     echo ""
     echo "📋 Process details:"
     ps aux | grep tucanbit | grep -v grep
     echo ""
-    echo "🌐 Application should be accessible at: http://localhost:8080"
+    echo "Application should be accessible at: http://localhost:8080"
 echo "📚 Swagger docs: http://localhost:8080/swagger/index.html"
 else
-    echo "❌ Application is NOT RUNNING"
+    echo " Application is NOT RUNNING"
     echo ""
     echo "💡 To start the app: ./start-app-background.sh"
 fi

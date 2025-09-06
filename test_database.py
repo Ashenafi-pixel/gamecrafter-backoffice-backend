@@ -21,10 +21,10 @@ def test_connection():
     """Test database connection"""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
-        print("✅ Database connection successful!")
+        print("Database connection successful!")
         return conn
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f" Database connection failed: {e}")
         return None
 
 def list_tables(conn):
@@ -44,7 +44,7 @@ def list_tables(conn):
         cursor.close()
         return [table[0] for table in tables]
     except Exception as e:
-        print(f"❌ Error listing tables: {e}")
+        print(f" Error listing tables: {e}")
         return []
 
 def list_users(conn):
@@ -74,7 +74,7 @@ def list_users(conn):
         cursor.close()
         return users
     except Exception as e:
-        print(f"❌ Error listing users: {e}")
+        print(f" Error listing users: {e}")
         return []
 
 def get_user_count(conn):
@@ -86,7 +86,7 @@ def get_user_count(conn):
         cursor.close()
         return count
     except Exception as e:
-        print(f"❌ Error getting user count: {e}")
+        print(f" Error getting user count: {e}")
         return 0
 
 def get_recent_registrations(conn, limit=5):
@@ -113,7 +113,7 @@ def get_recent_registrations(conn, limit=5):
         cursor.close()
         return users
     except Exception as e:
-        print(f"❌ Error getting recent registrations: {e}")
+        print(f" Error getting recent registrations: {e}")
         return []
 
 def main():

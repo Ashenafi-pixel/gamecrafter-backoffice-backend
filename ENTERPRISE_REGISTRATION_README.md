@@ -6,7 +6,7 @@ This is a **100% production-ready, enterprise-grade registration system** built 
 
 ## ✨ **Key Features**
 
-### 🔐 **Security & Authentication**
+### **Security & Authentication**
 - **Multi-factor verification** with email OTP
 - **Rate limiting** on all endpoints
 - **Input validation** with comprehensive error handling
@@ -150,17 +150,17 @@ GET    /swagger/doc.json                 # OpenAPI specification
 ### **Environment Variables**
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `SMTP_HOST` | SMTP server hostname | - | ✅ |
-| `SMTP_PORT` | SMTP server port | 465 | ✅ |
-| `SMTP_USERNAME` | SMTP username | - | ✅ |
-| `SMTP_PASSWORD` | SMTP password/app password | - | ✅ |
-| `SMTP_FROM` | From email address | - | ✅ |
-| `SMTP_FROM_NAME` | From display name | - | ✅ |
-| `DB_URL` | PostgreSQL connection string | - | ✅ |
-| `REDIS_ADDR` | Redis server address | localhost:6379 | ✅ |
-| `JWT_SECRET` | JWT signing secret | - | ✅ |
-| `APP_HOST` | Application host | 0.0.0.0 | ❌ |
-| `APP_PORT` | Application port | 8080 | ❌ |
+| `SMTP_HOST` | SMTP server hostname | - | |
+| `SMTP_PORT` | SMTP server port | 465 | |
+| `SMTP_USERNAME` | SMTP username | - | |
+| `SMTP_PASSWORD` | SMTP password/app password | - | |
+| `SMTP_FROM` | From email address | - | |
+| `SMTP_FROM_NAME` | From display name | - | |
+| `DB_URL` | PostgreSQL connection string | - | |
+| `REDIS_ADDR` | Redis server address | localhost:6379 | |
+| `JWT_SECRET` | JWT signing secret | - | |
+| `APP_HOST` | Application host | 0.0.0.0 |  |
+| `APP_PORT` | Application port | 8080 |  |
 
 ### **Database Configuration**
 ```sql
@@ -539,7 +539,7 @@ For enterprise customers, we offer:
 
 ## 🎯 **Roadmap**
 
-### **Phase 1: Core System** ✅
+### **Phase 1: Core System** 
 - [x] Enterprise registration endpoints
 - [x] Email verification system
 - [x] OTP management

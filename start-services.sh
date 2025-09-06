@@ -27,7 +27,7 @@ docker run -d --name tucanbit-redis \
 echo "⏳ Waiting for Redis to be ready..."
 sleep 5
 
-echo "✅ Services started successfully!"
+echo "Services started successfully!"
 echo "📊 Service status:"
 echo "   - PostgreSQL: localhost:5433"
 echo "   - Redis: localhost:63790"

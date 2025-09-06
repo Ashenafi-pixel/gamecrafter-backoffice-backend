@@ -6,11 +6,11 @@ echo "🛑 Stopping TucanBIT..."
 
 # Check if PID file exists
 if [ ! -f "tucanbit.pid" ]; then
-    echo "❌ PID file not found. Checking if process is running..."
+    echo " PID file not found. Checking if process is running..."
     if pgrep -f "tucanbit" > /dev/null; then
         echo "⚠️  Found running process, stopping it..."
         pkill -f "tucanbit"
-        echo "✅ Process stopped!"
+        echo "Process stopped!"
     else
         echo "ℹ️  No TucanBIT process found running."
     fi
@@ -42,5 +42,5 @@ fi
 
 # Clean up
 rm -f tucanbit.pid
-echo "✅ TucanBIT stopped successfully!"
+echo "TucanBIT stopped successfully!"
 echo "📁 Log file preserved: tucanbit.log" 
