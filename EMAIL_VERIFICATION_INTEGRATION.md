@@ -4,12 +4,12 @@
 
 This guide explains how to integrate the enterprise-grade email verification system into your existing TucanBIT application. The system provides:
 
-- ✅ **Professional email templates** with TucanBIT branding
-- ✅ **Secure OTP generation** and validation
-- ✅ **Redis-based storage** for scalability
-- ✅ **Comprehensive API endpoints** with Swagger documentation
-- ✅ **Professional logging** and error handling
-- ✅ **Rate limiting** and security features
+- **Professional email templates** with TucanBIT branding
+- **Secure OTP generation** and validation
+- **Redis-based storage** for scalability
+- **Comprehensive API endpoints** with Swagger documentation
+- **Professional logging** and error handling
+- **Rate limiting** and security features
 
 ## 🏗️ **Architecture**
 
@@ -181,7 +181,7 @@ curl -X POST http://localhost:8080/api/otp/email-verification \
 
 3. **Check Email**: Look for the verification email in your inbox
 
-## 🔐 **Security Features**
+## **Security Features**
 
 ### **Rate Limiting**
 - OTP requests: 10 per minute per email

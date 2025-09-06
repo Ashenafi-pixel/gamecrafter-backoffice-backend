@@ -76,13 +76,13 @@ if [ -n "$USER_ID" ] && [ -n "$OTP_ID" ]; then
     
     # Check if completion was successful
     if echo "$COMPLETION_RESPONSE" | grep -q "Registration completed successfully"; then
-        echo "✅ Registration and completion successful!"
+        echo "Registration and completion successful!"
     else
-        echo "❌ Completion failed. This might be expected if OTP verification is required."
+        echo " Completion failed. This might be expected if OTP verification is required."
         echo "The important thing is that the username duplicate error is fixed."
     fi
 else
-    echo "❌ Registration failed"
+    echo " Registration failed"
 fi
 
 echo "Test completed!" 

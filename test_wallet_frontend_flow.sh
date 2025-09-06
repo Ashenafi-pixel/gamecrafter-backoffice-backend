@@ -26,7 +26,7 @@ echo "Message: $CHALLENGE_MESSAGE"
 echo "Nonce: $NONCE"
 echo ""
 
-echo "🔐 Step 2: Instructions for Frontend Testing"
+echo "Step 2: Instructions for Frontend Testing"
 echo "============================================="
 echo "1. Open your frontend application"
 echo "2. Click 'Connect Wallet' -> 'MetaMask'"

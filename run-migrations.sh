@@ -6,7 +6,7 @@ echo "🔄 Running database migrations..."
 
 # Check if PostgreSQL is running
 if ! pg_isready -h localhost -p 5433 -U tucanbit > /dev/null 2>&1; then
-    echo "❌ PostgreSQL is not running. Please start services first:"
+    echo " PostgreSQL is not running. Please start services first:"
     echo "   ./start-services.sh"
     exit 1
 fi
@@ -24,5 +24,5 @@ fi
 echo "🚀 Running migrations from ./migrations directory..."
 migrate -database "$DB_URL" -path migrations -verbose up
 
-echo "✅ Migrations completed!"
+echo "Migrations completed!"
 echo "🎯 You can now start the application with: ./run-local.sh" 

@@ -23,11 +23,11 @@ log() {
 }
 
 success() {
-    echo -e "${GREEN}✅ $1${NC}" | tee -a "$LOG_FILE"
+    echo -e "${GREEN}$1${NC}" | tee -a "$LOG_FILE"
 }
 
 error() {
-    echo -e "${RED}❌ $1${NC}" | tee -a "$LOG_FILE"
+    echo -e "${RED} $1${NC}" | tee -a "$LOG_FILE"
 }
 
 warning() {
@@ -226,13 +226,13 @@ main() {
     log ""
     log "🎉 All tests completed!"
     log "📋 Test Summary:"
-    log "  - Registration initiation: ✅"
-    log "  - OTP creation: ✅"
-    log "  - OTP verification (expected failure): ✅"
-    log "  - Registration completion (expected failure): ✅"
-    log "  - Swagger documentation: ✅"
-    log "  - OTP endpoints: ✅"
-    log "  - OTP resend: ✅"
+    log "  - Registration initiation: "
+    log "  - OTP creation: "
+    log "  - OTP verification (expected failure): "
+    log "  - Registration completion (expected failure): "
+    log "  - Swagger documentation: "
+    log "  - OTP endpoints: "
+    log "  - OTP resend: "
     log ""
     log "📧 Next Steps:"
     log "  1. Check your email for verification OTP"

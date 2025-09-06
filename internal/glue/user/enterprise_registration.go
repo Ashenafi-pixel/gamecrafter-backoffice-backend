@@ -53,6 +53,5 @@ func InitEnterpriseRegistration(
 
 	log.Info("🔧 Registering enterprise registration routes...", zap.Int("route_count", len(enterpriseRoutes)))
 	routing.RegisterRoute(group, enterpriseRoutes, log)
-	log.Info("✅ Enterprise registration routes initialized successfully")
+	log.Info("Enterprise registration routes initialized successfully")
 }
-

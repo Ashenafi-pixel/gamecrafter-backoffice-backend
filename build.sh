@@ -8,7 +8,7 @@ echo "🚀 Starting TucanBIT build process..."
 
 # Check if we're in the right directory
 if [ ! -f "go.mod" ]; then
-    echo "❌ Error: go.mod not found. Please run this script from the project root."
+    echo " Error: go.mod not found. Please run this script from the project root."
     exit 1
 fi
 
@@ -18,7 +18,7 @@ check_network() {
     
     # Test Go proxy
     if curl -s --connect-timeout 5 https://proxy.golang.org > /dev/null 2>&1; then
-        echo "✅ Go proxy is accessible"
+        echo "Go proxy is accessible"
         return 0
     else
         echo "⚠️  Go proxy is not accessible"
@@ -46,10 +46,10 @@ build_local() {
     go build -o tucanbit cmd/main.go
     
     if [ -f "tucanbit" ]; then
-        echo "✅ Local build successful!"
+        echo "Local build successful!"
         echo "📁 Binary created: ./tucanbit"
     else
-        echo "❌ Local build failed!"
+        echo " Local build failed!"
         exit 1
     fi
 }
@@ -60,7 +60,7 @@ build_docker() {
     
     # Check if Docker is running
     if ! docker info > /dev/null 2>&1; then
-        echo "❌ Docker is not running. Please start Docker and try again."
+        echo " Docker is not running. Please start Docker and try again."
         exit 1
     fi
     
@@ -68,7 +68,7 @@ build_docker() {
     echo "🔨 Building Docker image..."
     docker build -t tucanbit:latest .
     
-    echo "✅ Docker build successful!"
+    echo "Docker build successful!"
     echo "🐳 Image created: tucanbit:latest"
 }
 
@@ -78,15 +78,15 @@ run_docker_compose() {
     
     # Check if docker-compose is available
     if ! command -v docker-compose > /dev/null 2>&1; then
-        echo "❌ docker-compose not found. Please install it and try again."
+        echo " docker-compose not found. Please install it and try again."
         exit 1
     fi
     
     # Start the services
     docker-compose up --build -d
     
-    echo "✅ Services started successfully!"
-    echo "🌐 Application should be available at http://localhost:8080"
+    echo "Services started successfully!"
+    echo "Application should be available at http://localhost:8080"
     echo "📊 Check status with: docker-compose ps"
 }
 
@@ -96,7 +96,7 @@ echo "========================"
 
 # Check network first
 if check_network; then
-    echo "🌐 Network is accessible, proceeding with normal build..."
+    echo "Network is accessible, proceeding with normal build..."
 else
     echo "⚠️  Network issues detected, using fallback options..."
 fi
@@ -131,7 +131,7 @@ case $choice in
         exit 0
         ;;
     *)
-        echo "❌ Invalid choice. Exiting."
+        echo " Invalid choice. Exiting."
         exit 1
         ;;
 esac 

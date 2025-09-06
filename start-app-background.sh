@@ -8,7 +8,7 @@ echo "🚀 Starting TucanBIT in the background..."
 
 # Check if we're in the right directory
 if [ ! -f "go.mod" ]; then
-    echo "❌ Error: go.mod not found. Please run this script from the project root."
+    echo " Error: go.mod not found. Please run this script from the project root."
     exit 1
 fi
 
@@ -19,7 +19,7 @@ if [ ! -f "tucanbit" ]; then
     export GOSUMDB=off
     go mod download
     go build -o tucanbit cmd/main.go
-    echo "✅ Build completed!"
+    echo "Build completed!"
 fi
 
 # Check if app is already running
@@ -44,7 +44,7 @@ export KAFKA_BOOTSTRAP_SERVER="localhost:9093"
 export KAFKA_TOPIC="events"
 
 # Start the application in background
-echo "🌐 Starting TucanBIT on http://localhost:8080"
+echo "Starting TucanBIT on http://localhost:8080"
 echo "📊 Environment:"
 echo "   - Database: $DB_URL"
 echo "   - Redis: $REDIS_ADDR"
@@ -59,7 +59,7 @@ APP_PID=$!
 # Save PID to file for management
 echo $APP_PID > tucanbit.pid
 
-echo "✅ TucanBIT started successfully in background!"
+echo "TucanBIT started successfully in background!"
 echo "🆔 Process ID: $APP_PID"
 echo "📁 Log file: tucanbit.log"
 echo "📁 PID file: tucanbit.pid"
@@ -68,6 +68,6 @@ echo "🎯 Management commands:"
 echo "   📋 View logs: ./view-logs.sh"
 echo "   🛑 Stop app: ./stop-app.sh"
 echo "   📊 Check status: ./check-status.sh"
-echo "   🌐 Open Swagger: http://localhost:8080/swagger/index.html"
+echo "   Open Swagger: http://localhost:8080/swagger/index.html"
 echo ""
 echo "💡 The app will continue running even if you close this terminal!" 

@@ -17,7 +17,7 @@ help:
 	@echo "make logs           - View Docker Compose logs"
 	@echo "make status         - Check service status"
 	@echo ""
-	@echo "🌐 Local Development (bypasses Docker network issues):"
+	@echo "Local Development (bypasses Docker network issues):"
 	@echo "make services-up    - Start PostgreSQL and Redis locally"
 	@echo "make services-down  - Stop local services"
 	@echo "make migrate-up     - Run database migrations"
@@ -35,13 +35,13 @@ build:
 	export GOPROXY=direct && export GOSUMDB=off && \
 	go mod download && \
 	go build -o tucanbit cmd/main.go
-	@echo "✅ Build completed successfully!"
+	@echo "Build completed successfully!"
 
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
 	rm -f tucanbit
-	@echo "✅ Clean completed!"
+	@echo "Clean completed!"
 
 # Run tests
 test:
@@ -57,7 +57,7 @@ run: build
 docker-build:
 	@echo "🐳 Building Docker image..."
 	docker build -t tucanbit:latest .
-	@echo "✅ Docker build completed!"
+	@echo "Docker build completed!"
 
 # Run Docker container
 docker-run: docker-build
@@ -68,13 +68,13 @@ docker-run: docker-build
 up:
 	@echo "🚀 Starting all services..."
 	docker-compose up --build -d
-	@echo "✅ Services started! Check status with: make status"
+	@echo "Services started! Check status with: make status"
 
 # Stop all services
 down:
 	@echo "🛑 Stopping all services..."
 	docker-compose down
-	@echo "✅ Services stopped!"
+	@echo "Services stopped!"
 
 # View logs
 logs:
@@ -101,7 +101,7 @@ services-down:
 	@echo "🛑 Stopping local services..."
 	docker stop tucanbit-db tucanbit-redis 2>/dev/null || true
 	docker rm tucanbit-db tucanbit-redis 2>/dev/null || true
-	@echo "✅ Local services stopped!"
+	@echo "Local services stopped!"
 
 migrate-up:
 	@echo "🔄 Running migrations..."

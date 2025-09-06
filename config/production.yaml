@@ -1,0 +1,77 @@
+db:
+  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5432/tucanbit?sslmode=disable
+  
+app:
+  host: 0.0.0.0
+  port: 8080
+  timeout: 30m
+debug: false
+auth:
+  jwt_secret: tokensecrethere
+  otp_jwt_secret: otpkwtsecretgoinghere
+  otp_attempt_limit: 4
+paymentMs:
+  secret: <your_payment_ms_secret_here>
+bet:
+  max: 15
+  open_duration: 10s
+aws:
+  bucket:
+    name: bucketname
+    accessKey: accesskeyhere
+    secretAccessKey: secretKeyHere
+    region: regionHere
+google:
+  smtp:
+    password: drki dvog hvgk adjx
+    from: alazarbeyene99@gmail.com 
+  oauth:
+    client_id: 290465420820-dt8oe9om2hbsbdno7nl0mtfunpr6cg1g.apps.googleusercontent.com
+    client_secret: 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
+    redirect_url: http://51.21.181.162:8080/user/oauth/google/res
+oauth:
+  frontend_oauth_handler_url: http://51.21.181.162:3000/oauth
+facebook:
+  oauth:
+    client_id: 837667311758955
+    client_secret: 9136275f085069e22f2ca55ce033e3c0
+    redirect_url: http://51.21.181.162:8080/user/oauth/facebook/res
+sportsservice:
+  api_key: 0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u
+  api_secret: 0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u
+
+rise_and_hustle:
+  auth_url: https://rise-and-hustle-tau.vercel.app/auth
+pisi:
+  base_url: https://api.pisimobile.com/bulksms/v1/
+  password: ""
+  vaspid: ""
+  sender_id: ""
+  timeout: 30s
+  retry_count: 3
+  retry_delay: 1000ms
+  
+# Kafka Configuration
+kafka:
+  bootstrap_servers: localhost:9092
+  topic: "events"
+  cluster_api_key: ""
+  cluster_api_secret: ""
+  security_protocol: PLAINTEXT
+  acks: "all"
+  mechanisms: PLAIN
+  group_id: tucanbit_group
+  auto_offset_reset: earliest
+  enable_auto_commit: true
+  session_timeout_ms: 60000
+
+# Redis Configuration
+redis:
+  addr: "localhost:6379"
+  password: "tucanbit_redis_password"
+  db: 0
+  key_prefix: "tucanbit:"
+  ttl: "2h"
+  attempts: 3
+  pool_size: 10
+  min_idle_conns: 2

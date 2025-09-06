@@ -222,20 +222,20 @@ func (s *CasinoWalletService) LoginWithWallet(ctx context.Context, req *dto.Wall
 
 		// Check if it's a "no rows" error (user not found)
 		if strings.Contains(err.Error(), "no rows") || strings.Contains(err.Error(), "user not found") {
-			fmt.Printf("DEBUG: ✅ User not found, creating new user for wallet: %s\n", req.WalletAddress)
+			fmt.Printf("DEBUG: User not found, creating new user for wallet: %s\n", req.WalletAddress)
 			dbUser, err = s.createNewUserWithWallet(ctx, req, chainType)
 			if err != nil {
-				fmt.Printf("DEBUG: ❌ Failed to create new user: %v\n", err)
+				fmt.Printf("DEBUG:  Failed to create new user: %v\n", err)
 				return nil, fmt.Errorf("failed to create new user account: %w", err)
 			}
 			isNewUser = true
-			fmt.Printf("DEBUG: ✅ Successfully created new user with ID: %s\n", dbUser.ID.String())
+			fmt.Printf("DEBUG: Successfully created new user with ID: %s\n", dbUser.ID.String())
 		} else {
-			fmt.Printf("DEBUG: ❌ Database error while getting user: %v\n", err)
+			fmt.Printf("DEBUG:  Database error while getting user: %v\n", err)
 			return nil, fmt.Errorf("database error while retrieving user account: %w", err)
 		}
 	} else {
-		fmt.Printf("DEBUG: ✅ User found with ID: %s\n", dbUser.ID.String())
+		fmt.Printf("DEBUG: User found with ID: %s\n", dbUser.ID.String())
 	}
 
 	connection, err := s.storage.GetWalletConnectionByAddress(ctx, req.WalletAddress)

@@ -8,7 +8,7 @@ echo "🚀 Starting TucanBIT locally..."
 
 # Check if we're in the right directory
 if [ ! -f "go.mod" ]; then
-    echo "❌ Error: go.mod not found. Please run this script from the project root."
+    echo " Error: go.mod not found. Please run this script from the project root."
     exit 1
 fi
 
@@ -19,7 +19,7 @@ if [ ! -f "tucanbit" ]; then
     export GOSUMDB=off
     go mod download
     go build -o tucanbit cmd/main.go
-    echo "✅ Build completed!"
+    echo "Build completed!"
 fi
 
 # Check if required services are running
@@ -47,7 +47,7 @@ export REDIS_ADDR="localhost:63790"
 export KAFKA_BOOTSTRAP_SERVER="localhost:9093"
 export KAFKA_TOPIC="events"
 
-echo "🌐 Starting TucanBIT on http://localhost:8080"
+echo "Starting TucanBIT on http://localhost:8080"
 echo "📊 Environment:"
 echo "   - Database: $DB_URL"
 echo "   - Redis: $REDIS_ADDR"

@@ -448,7 +448,7 @@ func GetPlainTextWelcomeEmail(data EmailTemplateData) string {
 Your %s account has been successfully verified and activated. You're now ready to explore all the amazing features TucanBIT has to offer!
 
 What's Next?
-✅ Complete your profile setup
+Complete your profile setup
 💰 Explore our gaming platforms
 🎮 Start playing and earning
 📱 Download our mobile app
@@ -1688,7 +1688,7 @@ func GetVerificationSuccessTemplate() *template.Template {
         
         <div class="brand-name">TucanBIT</div>
         
-        <div class="success-icon">✅</div>
+        <div class="success-icon"></div>
         
         <h1 class="main-heading">Verification Successful!</h1>
         
@@ -1940,8 +1940,8 @@ func GetVerificationPageTemplate() *template.Template {
         <div class="brand-name">TucanBIT</div>
         
         <div id="loading" class="loading-spinner"></div>
-        <div id="success" class="success-icon">✅</div>
-        <div id="error" class="error-icon">❌</div>
+        <div id="success" class="success-icon"></div>
+        <div id="error" class="error-icon"></div>
         
         <h1 class="main-heading" id="heading">Verifying Your Account...</h1>
         
