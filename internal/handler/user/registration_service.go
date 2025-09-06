@@ -615,16 +615,18 @@ func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, re
 		return fmt.Errorf("email '%s' is already in use", email)
 	}
 
-	// Check if phone number is already in use
-	exists, err = rs.userModule.CheckUserExistsByPhoneNumber(ctx, phone)
-	if err != nil {
-		rs.logger.Error("Failed to check phone number uniqueness",
-			zap.Error(err),
-			zap.String("phone_number", phone))
-		return fmt.Errorf("failed to check phone number uniqueness: %w", err)
-	}
-	if exists {
-		return fmt.Errorf("phone number '%s' is already in use", phone)
+	// Check if phone number is already in use (only if phone number is provided)
+	if phone != "" {
+		exists, err = rs.userModule.CheckUserExistsByPhoneNumber(ctx, phone)
+		if err != nil {
+			rs.logger.Error("Failed to check phone number uniqueness",
+				zap.Error(err),
+				zap.String("phone_number", phone))
+			return fmt.Errorf("failed to check phone number uniqueness: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("phone number '%s' is already in use", phone)
+		}
 	}
 
 	return nil
