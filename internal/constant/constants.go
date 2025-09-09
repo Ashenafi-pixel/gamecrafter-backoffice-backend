@@ -9,7 +9,7 @@ import (
 const (
 	USER_REGISTRATION_SUCCESS       = "User registered successfully"
 	LOGIN_SUCCESS                   = "Login successful"
-	DEFAULT_CURRENCY                = "P"
+	DEFAULT_CURRENCY                = "USD"
 	DEPOSIT                         = "deposit"
 	TRANSFER                        = "transfer"
 	FUND                            = "fund"
@@ -36,6 +36,7 @@ const (
 	REFERAL_POINT                   = "referal_point"
 	POINT_CURRENCY                  = "P"
 	NGN_CURRENCY                    = "NGN"
+	USD_CURRENCY                    = "USD"
 	WON                             = "WON"
 	LOSE                            = "LOSE"
 )
