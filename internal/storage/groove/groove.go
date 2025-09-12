@@ -52,13 +52,22 @@ func (s *GrooveStorageImpl) CreateAccount(ctx context.Context, account dto.Groov
 		zap.String("account_id", account.AccountID),
 		zap.String("user_id", userID.String()))
 
+	// Check if account already exists for this user
+	existingAccount, err := s.GetAccountByUserID(ctx, userID)
+	if err == nil && existingAccount != nil {
+		s.logger.Info("Account already exists for user, returning existing account",
+			zap.String("account_id", existingAccount.AccountID),
+			zap.String("user_id", userID.String()))
+		return existingAccount, nil
+	}
+
 	query := `
 		INSERT INTO groove_accounts (id, user_id, account_id, session_id, balance, currency, status, created_at, last_activity)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING created_at, last_activity`
 
 	var createdAt, lastActivity time.Time
-	err := s.db.GetPool().QueryRow(ctx, query,
+	err = s.db.GetPool().QueryRow(ctx, query,
 		uuid.New(), // Internal ID
 		userID,
 		account.AccountID,
