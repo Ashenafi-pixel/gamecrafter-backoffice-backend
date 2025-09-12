@@ -13,8 +13,8 @@ import (
 	"github.com/tucanbit/internal/module/bet"
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
-	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/module/crypto_wallet"
+	"github.com/tucanbit/internal/module/groove"
 
 	"github.com/tucanbit/internal/module/department"
 	moduleExchange "github.com/tucanbit/internal/module/exchange"

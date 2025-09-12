@@ -1,12 +1,15 @@
 package groove
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
+	googleUUID "github.com/google/uuid"
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/model/response"
@@ -16,18 +19,18 @@ import (
 )
 
 type GrooveHandler struct {
-	grooveService groove.GrooveService
-	userStorage   storage.User
+	grooveService  groove.GrooveService
+	userStorage    storage.User
 	balanceStorage storage.Balance
-	logger        *zap.Logger
+	logger         *zap.Logger
 }
 
 func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, logger *zap.Logger) *GrooveHandler {
 	return &GrooveHandler{
-		grooveService: grooveService,
-		userStorage:   userStorage,
+		grooveService:  grooveService,
+		userStorage:    userStorage,
 		balanceStorage: balanceStorage,
-		logger:        logger,
+		logger:         logger,
 	}
 }
 
@@ -116,7 +119,39 @@ func (h *GrooveHandler) DebitTransaction(c *gin.Context) {
 		return
 	}
 
-	// Set transaction type to debit
+	// Extract user ID from JWT token to get account ID
+	userID, err := h.extractUserIDFromToken(c)
+	if err != nil {
+		h.logger.Error("Failed to extract user ID from token", zap.Error(err))
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Invalid or missing authentication token",
+		})
+		return
+	}
+
+	// Get account ID for this user (convert to google/uuid)
+	googleUserID, err := googleUUID.Parse(userID.String())
+	if err != nil {
+		h.logger.Error("Failed to convert UUID", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Internal server error",
+		})
+		return
+	}
+	account, err := h.grooveService.GetAccountByUserID(c.Request.Context(), googleUserID)
+	if err != nil {
+		h.logger.Error("Failed to get account for user", zap.Error(err))
+		c.JSON(http.StatusNotFound, response.ErrorResponse{
+			Code:    http.StatusNotFound,
+			Message: "Account not found for user",
+		})
+		return
+	}
+
+	// Set account ID and transaction type
+	req.AccountID = account.AccountID
 	req.Type = "debit"
 
 	// Process debit transaction
@@ -156,7 +191,39 @@ func (h *GrooveHandler) CreditTransaction(c *gin.Context) {
 		return
 	}
 
-	// Set transaction type to credit
+	// Extract user ID from JWT token to get account ID
+	userID, err := h.extractUserIDFromToken(c)
+	if err != nil {
+		h.logger.Error("Failed to extract user ID from token", zap.Error(err))
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Invalid or missing authentication token",
+		})
+		return
+	}
+
+	// Get account ID for this user (convert to google/uuid)
+	googleUserID, err := googleUUID.Parse(userID.String())
+	if err != nil {
+		h.logger.Error("Failed to convert UUID", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Internal server error",
+		})
+		return
+	}
+	account, err := h.grooveService.GetAccountByUserID(c.Request.Context(), googleUserID)
+	if err != nil {
+		h.logger.Error("Failed to get account for user", zap.Error(err))
+		c.JSON(http.StatusNotFound, response.ErrorResponse{
+			Code:    http.StatusNotFound,
+			Message: "Account not found for user",
+		})
+		return
+	}
+
+	// Set account ID and transaction type
+	req.AccountID = account.AccountID
 	req.Type = "credit"
 
 	// Process credit transaction
@@ -474,12 +541,12 @@ func (h *GrooveHandler) GetAccountOfficial(c *gin.Context) {
 	var realBalance float64 = 0.0
 	var bonusBalance float64 = 0.0
 	var userCurrency string = "USD"
-	
+
 	// Use user's default currency if available
 	if user.DefaultCurrency != "" {
 		userCurrency = user.DefaultCurrency
 	}
-	
+
 	// Find USD balance or default currency balance
 	for _, balance := range userBalances {
 		if balance.CurrencyCode == userCurrency {
@@ -502,7 +569,7 @@ func (h *GrooveHandler) GetAccountOfficial(c *gin.Context) {
 	if city == "" {
 		city = "Unknown"
 	}
-	
+
 	country := user.Country
 	if country == "" {
 		country = "US" // Default to US
@@ -523,4 +590,40 @@ func (h *GrooveHandler) GetAccountOfficial(c *gin.Context) {
 		"order":         "cash_money", // cash_money or bonus_money
 		"apiversion":    apiVersion,
 	})
+}
+
+// extractUserIDFromToken extracts user ID from JWT token in Authorization header
+func (h *GrooveHandler) extractUserIDFromToken(c *gin.Context) (uuid.UUID, error) {
+	// Get Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return uuid.Nil, fmt.Errorf("missing Authorization header")
+	}
+
+	// Remove "Bearer " prefix if present
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		authHeader = authHeader[7:]
+	}
+
+	// Parse JWT token
+	claims := &dto.Claim{}
+	key := viper.GetString("app.jwt_secret")
+	if key == "" {
+		key = viper.GetString("auth.jwt_secret")
+	}
+	if key == "" {
+		return uuid.Nil, fmt.Errorf("JWT secret not configured")
+	}
+
+	jwtKey := []byte(key)
+	token, err := jwt.ParseWithClaims(authHeader, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+
+	if err != nil || !token.Valid {
+		return uuid.Nil, fmt.Errorf("invalid or expired token: %w", err)
+	}
+
+	// Convert from google/uuid to gofrs/uuid
+	return uuid.FromStringOrNil(claims.UserID.String()), nil
 }

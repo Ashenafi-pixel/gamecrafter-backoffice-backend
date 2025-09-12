@@ -17,6 +17,7 @@ import (
 type GrooveService interface {
 	// Account operations
 	GetAccount(ctx context.Context, sessionID string) (*dto.GrooveAccount, error)
+	GetAccountByUserID(ctx context.Context, userID uuid.UUID) (*dto.GrooveAccount, error)
 	CreateAccount(ctx context.Context, userID uuid.UUID) (*dto.GrooveAccount, error)
 
 	// Official GrooveTech Transaction API methods
@@ -91,6 +92,23 @@ func (s *GrooveServiceImpl) GetAccount(ctx context.Context, sessionID string) (*
 		zap.String("balance", updatedAccount.Balance.String()))
 
 	return updatedAccount, nil
+}
+
+// GetAccountByUserID retrieves account by user ID
+func (s *GrooveServiceImpl) GetAccountByUserID(ctx context.Context, userID uuid.UUID) (*dto.GrooveAccount, error) {
+	s.logger.Info("Getting GrooveTech account by user ID", zap.String("user_id", userID.String()))
+
+	account, err := s.storage.GetAccountByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get account by user ID", zap.Error(err))
+		return nil, fmt.Errorf("account not found: %w", err)
+	}
+
+	s.logger.Info("Account retrieved successfully by user ID",
+		zap.String("account_id", account.AccountID),
+		zap.String("user_id", userID.String()))
+
+	return account, nil
 }
 
 // CreateAccount creates a new GrooveTech account for a user

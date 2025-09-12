@@ -2,6 +2,7 @@ package groove
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -93,15 +94,23 @@ func (s *GrooveStorageImpl) GetAccountByUserID(ctx context.Context, userID uuid.
 		WHERE user_id = $1`
 
 	var account dto.GrooveAccount
+	var sessionID sql.NullString
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(
 		&account.AccountID,
-		&account.SessionID,
+		&sessionID,
 		&account.Balance,
 		&account.Currency,
 		&account.Status,
 		&account.CreatedAt,
 		&account.LastActivity,
 	)
+
+	// Handle NULL session_id
+	if sessionID.Valid {
+		account.SessionID = sessionID.String
+	} else {
+		account.SessionID = ""
+	}
 
 	if err != nil {
 		s.logger.Info("GrooveTech account not found for user", zap.String("user_id", userID.String()))
@@ -231,14 +240,49 @@ func (s *GrooveStorageImpl) ProcessTransaction(ctx context.Context, transaction 
 		return nil, fmt.Errorf("invalid transaction type: %s", transaction.Type)
 	}
 
-	// Update account balance
+	// Update GrooveTech account balance
 	_, err = tx.Exec(ctx,
 		`UPDATE groove_accounts SET balance = $1, last_activity = $2 WHERE account_id = $3`,
 		newBalance, time.Now(), transaction.AccountID)
 	if err != nil {
-		s.logger.Error("Failed to update account balance", zap.Error(err))
-		return nil, fmt.Errorf("failed to update balance: %w", err)
+		s.logger.Error("Failed to update GrooveTech account balance", zap.Error(err))
+		return nil, fmt.Errorf("failed to update GrooveTech balance: %w", err)
 	}
+
+	// Update REAL user balance in balances table
+	// Get user_id from groove_accounts
+	var userID uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT user_id FROM groove_accounts WHERE account_id = $1`, transaction.AccountID).Scan(&userID)
+	if err != nil {
+		s.logger.Error("Failed to get user_id from GrooveTech account", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user_id: %w", err)
+	}
+
+	// Convert amount to cents for balances table
+	amountCents := transaction.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+
+	// Update real user balance based on transaction type
+	var balanceUpdateSQL string
+	if transaction.Type == "debit" {
+		// For debit, subtract from balance (negative amount)
+		balanceUpdateSQL = `UPDATE balances SET amount_cents = amount_cents - $1, amount_units = amount_cents / 100.0 WHERE user_id = $2 AND currency_code = $3`
+	} else if transaction.Type == "credit" {
+		// For credit, add to balance (positive amount)
+		balanceUpdateSQL = `UPDATE balances SET amount_cents = amount_cents + $1, amount_units = amount_cents / 100.0 WHERE user_id = $2 AND currency_code = $3`
+	} else {
+		return nil, fmt.Errorf("invalid transaction type for real balance update: %s", transaction.Type)
+	}
+
+	_, err = tx.Exec(ctx, balanceUpdateSQL, amountCents, userID, transaction.Currency)
+	if err != nil {
+		s.logger.Error("Failed to update real user balance", zap.Error(err))
+		return nil, fmt.Errorf("failed to update real balance: %w", err)
+	}
+
+	s.logger.Info("Updated both GrooveTech and real user balance",
+		zap.String("user_id", userID.String()),
+		zap.String("amount", transaction.Amount.String()),
+		zap.String("type", transaction.Type))
 
 	// Insert transaction record
 	_, err = tx.Exec(ctx, `
