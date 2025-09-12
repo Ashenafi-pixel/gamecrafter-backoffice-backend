@@ -2,6 +2,7 @@ package groove
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -44,6 +45,9 @@ type GrooveService interface {
 	// Game launch functionality
 	LaunchGame(ctx context.Context, userID uuid.UUID, req dto.LaunchGameRequest) (*dto.LaunchGameResponse, error)
 	ValidateGameSession(ctx context.Context, sessionID string) (*dto.GameSession, error)
+
+	// User profile operations
+	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
 }
 
 type GrooveServiceImpl struct {
@@ -763,13 +767,16 @@ func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, re
 	if err != nil {
 		s.logger.Info("GrooveTech account not found, creating new one", zap.String("user_id", userID.String()))
 
-		// Auto-create GrooveTech account
+		// Create new GrooveTech account
+		accountID := fmt.Sprintf("groove_%s", userID.String())
 		newAccount := dto.GrooveAccount{
-			AccountID: userID.String(), // Use user ID as account ID
-			SessionID: session.SessionID,
-			Balance:   decimal.NewFromFloat(100.0), // Default balance
-			Currency:  "USD",
-			Status:    "active",
+			AccountID:    accountID,
+			SessionID:    session.SessionID, // Use the new session ID
+			Balance:      decimal.Zero,      // Start with zero balance
+			Currency:     req.Currency,
+			Status:       "active",
+			CreatedAt:    time.Now(),
+			LastActivity: time.Now(),
 		}
 
 		account, err = s.storage.CreateAccount(ctx, newAccount, userID)
@@ -783,6 +790,23 @@ func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, re
 		}
 
 		s.logger.Info("GrooveTech account created successfully",
+			zap.String("account_id", account.AccountID),
+			zap.String("session_id", session.SessionID))
+	} else {
+		// Update existing account with new session ID
+		account.SessionID = session.SessionID
+		account.LastActivity = time.Now()
+		_, err = s.storage.UpdateAccount(ctx, *account)
+		if err != nil {
+			s.logger.Error("Failed to update GrooveTech account", zap.Error(err))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "ACCOUNT_UPDATE_FAILED",
+				Message:   "Failed to update GrooveTech account",
+			}, err
+		}
+
+		s.logger.Info("GrooveTech account updated with new session",
 			zap.String("account_id", account.AccountID),
 			zap.String("session_id", session.SessionID))
 	}
@@ -894,4 +918,48 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 	}
 
 	return url
+}
+
+// GetUserProfile retrieves user profile information for GrooveTech API
+func (s *GrooveServiceImpl) GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error) {
+	s.logger.Info("Getting user profile", zap.String("user_id", userID.String()))
+
+	// Get user information from the users table
+	query := `
+		SELECT city, country, currency_code 
+		FROM users u
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
+		WHERE u.id = $1`
+
+	var city, country, currencyCode sql.NullString
+	err := s.storage.GetPool().QueryRow(ctx, query, userID).Scan(&city, &country, &currencyCode)
+	if err != nil {
+		s.logger.Error("Failed to get user profile", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user profile: %w", err)
+	}
+
+	// Set defaults for null values
+	profile := &dto.GrooveUserProfile{
+		City:     "Unknown",
+		Country:  "US",
+		Currency: "USD",
+	}
+
+	if city.Valid {
+		profile.City = city.String
+	}
+	if country.Valid {
+		profile.Country = country.String
+	}
+	if currencyCode.Valid {
+		profile.Currency = currencyCode.String
+	}
+
+	s.logger.Info("User profile retrieved successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("city", profile.City),
+		zap.String("country", profile.Country),
+		zap.String("currency", profile.Currency))
+
+	return profile, nil
 }

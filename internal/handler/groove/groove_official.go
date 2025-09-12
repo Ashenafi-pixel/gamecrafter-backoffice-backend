@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
@@ -119,10 +120,10 @@ func (h *GrooveOfficialHandler) GetAccount(c *gin.Context) {
 		return
 	}
 
-	// Get account information using gameSessionID as session identifier
-	_, err := h.grooveService.GetAccount(c.Request.Context(), gameSessionID)
+	// Validate game session and get user information
+	session, err := h.grooveService.ValidateGameSession(c.Request.Context(), gameSessionID)
 	if err != nil {
-		h.logger.Error("Failed to get account", zap.Error(err))
+		h.logger.Error("Failed to validate game session", zap.Error(err))
 		c.JSON(http.StatusOK, gin.H{
 			"code":   1000,
 			"status": "Not logged on",
@@ -131,23 +132,68 @@ func (h *GrooveOfficialHandler) GetAccount(c *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Account retrieved successfully",
-		zap.String("accountid", accountID),
-		zap.String("gamesessionid", gameSessionID))
+	// Get account information for the user
+	userID, err := uuid.Parse(session.UserID)
+	if err != nil {
+		h.logger.Error("Failed to parse user ID", zap.Error(err))
+		c.JSON(http.StatusOK, gin.H{
+			"code":   1000,
+			"status": "Not logged on",
+			"error":  "Player session is invalid or expired",
+		})
+		return
+	}
 
-	// Return response in official GrooveTech format
+	account, err := h.grooveService.GetAccountByUserID(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get account by user ID", zap.Error(err))
+		c.JSON(http.StatusOK, gin.H{
+			"code":   1000,
+			"status": "Not logged on",
+			"error":  "Player session is invalid or expired",
+		})
+		return
+	}
+
+	// Get user's real balance from the balances table
+	realBalance, err := h.grooveService.GetUserBalance(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user balance", zap.Error(err))
+		realBalance = decimal.Zero // Default to zero if balance not found
+	}
+
+	// Get user profile information for city, country, etc.
+	userProfile, err := h.grooveService.GetUserProfile(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user profile", zap.Error(err))
+		// Use defaults if profile not found
+		userProfile = &dto.GrooveUserProfile{
+			City:     "Unknown",
+			Country:  "US",
+			Currency: "USD",
+		}
+	}
+
+	h.logger.Info("Account retrieved successfully",
+		zap.String("accountid", account.AccountID),
+		zap.String("gamesessionid", gameSessionID),
+		zap.String("real_balance", realBalance.String()),
+		zap.String("city", userProfile.City),
+		zap.String("country", userProfile.Country))
+
+	// Return response in official GrooveTech format with real account data
 	c.JSON(http.StatusOK, gin.H{
 		"code":          200,
 		"status":        "Success",
-		"accountid":     accountID,
-		"city":          "London", // Default city - should be retrieved from user profile
-		"country":       "GB",     // Default country - should be retrieved from user profile
-		"currency":      "USD",    // Default currency - should be retrieved from user profile
+		"accountid":     account.AccountID,
+		"city":          userProfile.City,     // Real city from user profile
+		"country":       userProfile.Country,  // Real country from user profile
+		"currency":      userProfile.Currency, // Real currency from user profile
 		"gamesessionid": gameSessionID,
-		"real_balance":  100.00,       // Should be retrieved from user's real balance
-		"bonus_balance": 0.00,         // Should be retrieved from user's bonus balance
-		"game_mode":     1,            // 1 = Real money mode, 2 = Bonus mode
-		"order":         "cash_money", // cash_money or bonus_money
+		"real_balance":  realBalance.InexactFloat64(), // Real balance from balances table
+		"bonus_balance": 0.00,                         // Bonus balance (not implemented yet)
+		"game_mode":     1,                            // 1 = Real money mode, 2 = Bonus mode
+		"order":         "cash_money",                 // cash_money or bonus_money
 		"apiversion":    apiVersion,
 	})
 }

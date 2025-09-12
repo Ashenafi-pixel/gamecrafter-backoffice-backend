@@ -86,41 +86,14 @@ func (v *GrooveSignatureValidator) GenerateSignatureFromQuery(queryString string
 
 // ValidateGrooveSignature validates signature from GrooveTech request
 func (v *GrooveSignatureValidator) ValidateGrooveSignature(signature string, queryParams map[string]string) bool {
-	// Create parameter map for sorting (excluding 'request' parameter)
-	paramMap := make(map[string]string)
-	for key, value := range queryParams {
-		if key != "request" {
-			// Treat 'nogsgameid' as 'gameid' for sorting purposes as per GrooveTech docs
-			sortKey := key
-			if key == "nogsgameid" {
-				sortKey = "gameid"
-			}
-			paramMap[sortKey] = value
-		}
-	}
+	// Remove 'request' parameter if present
+	delete(queryParams, "request")
 
-	// Sort keys alphabetically
-	var keys []string
-	for k := range paramMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	// Generate expected signature
+	expectedSignature := v.GenerateSignature("GET", "", queryParams)
 
-	// Concatenate values in sorted order
-	var concatenatedValues strings.Builder
-	for _, key := range keys {
-		concatenatedValues.WriteString(paramMap[key])
-	}
-
-	expectedSignature := v.calculateHMACSHA256(concatenatedValues.String())
-	return strings.EqualFold(signature, expectedSignature)
-}
-
-// calculateHMACSHA256 calculates HMAC-SHA256 signature
-func (v *GrooveSignatureValidator) calculateHMACSHA256(data string) string {
-	h := hmac.New(sha256.New, []byte(v.secretKey))
-	h.Write([]byte(data))
-	return hex.EncodeToString(h.Sum(nil))
+	// Compare signatures
+	return hmac.Equal([]byte(signature), []byte(expectedSignature))
 }
 
 // GenerateGrooveSignature generates signature for requests to GrooveTech

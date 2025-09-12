@@ -342,3 +342,10 @@ type GrooveTransactionHistoryRequest struct {
 	PageSize  int       `json:"pageSize,omitempty"`
 	Type      string    `json:"type,omitempty"`
 }
+
+// GrooveUserProfile represents user profile information for GrooveTech API
+type GrooveUserProfile struct {
+	City     string `json:"city"`
+	Country  string `json:"country"`
+	Currency string `json:"currency"`
+}

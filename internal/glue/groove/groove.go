@@ -5,12 +5,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/handler/groove"
 	"github.com/tucanbit/internal/module"
+	grooveModule "github.com/tucanbit/internal/module/groove"
 	"go.uber.org/zap"
 )
 
 // Init initializes GrooveTech API routes
 // Based on official documentation: https://groove-docs.pages.dev/transaction-api/
-func Init(grp *gin.RouterGroup, log zap.Logger, handler *groove.GrooveHandler, authz module.Authz, enforcer *casbin.Enforcer, systemLogs module.SystemLogs) {
+func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, grooveService grooveModule.GrooveService, authz module.Authz, enforcer *casbin.Enforcer, systemLogs module.SystemLogs) {
 	log.Info("Initializing GrooveTech Transaction API routes")
 
 	// Official GrooveTech Transaction API routes
@@ -49,15 +50,19 @@ func Init(grp *gin.RouterGroup, log zap.Logger, handler *groove.GrooveHandler, a
 		// legacyGroup.DELETE("/session/:sessionId", handler.EndGameSession)
 	}
 
-	// Official GrooveTech Transaction API endpoint
-	// This matches the exact specification from GrooveTech documentation
+	// Official GrooveTech Transaction API endpoints
+	// These match the exact specification from GrooveTech documentation
 	// Endpoint: {casino_endpoint}?request=getaccount&[parameters]
 	grp.GET("/groove-official", handler.GetAccountOfficial) // Official Get Account API
+
+	// Create GrooveOfficialHandler for official APIs
+	officialHandler := groove.NewGrooveOfficialHandler(grooveService, log)
+	grp.GET("/groove-official-balance", officialHandler.GetBalance) // Official Get Balance API
 
 	// Game Launch API routes (secure endpoints for frontend)
 	gameGroup := grp.Group("/api/groove")
 	{
-		gameGroup.POST("/launch-game", handler.LaunchGame)                    // Launch Game
+		gameGroup.POST("/launch-game", handler.LaunchGame)                         // Launch Game
 		gameGroup.GET("/validate-session/:sessionId", handler.ValidateGameSession) // Validate Game Session
 	}
 

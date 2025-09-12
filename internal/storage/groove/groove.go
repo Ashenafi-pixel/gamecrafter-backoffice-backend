@@ -32,6 +32,9 @@ type GrooveStorage interface {
 	// Balance operations
 	GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error)
 	UpdateUserBalance(ctx context.Context, userID uuid.UUID, amount decimal.Decimal, transactionType string) error
+
+	// User profile operations
+	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
 }
 
 type GrooveStorageImpl struct {
