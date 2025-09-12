@@ -1,0 +1,840 @@
+{
+	"info": {
+		"_postman_id": "tucanbit-api-collection",
+		"name": "TucanBIT Casino API Collection",
+		"description": "Complete API collection for TucanBIT Casino platform including GrooveTech Transaction APIs and Cashback System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "User Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login_id\": \"ashenafialemu9898@gmail.com\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/login",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"login"
+							]
+						},
+						"description": "Login user and get JWT access token"
+					},
+					"response": []
+				},
+				{
+					"name": "User Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"country\": \"US\",\n  \"city\": \"New York\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/register",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"register"
+							]
+						},
+						"description": "Register a new user account"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "GrooveTech Transaction APIs",
+			"item": [
+				{
+					"name": "Get Account Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/account?user_id={{user_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"account"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "{{user_id}}"
+								}
+							]
+						},
+						"description": "Get GrooveTech account information for game launch"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Balance",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/balance?user_id={{user_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"balance"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "{{user_id}}"
+								}
+							]
+						},
+						"description": "Get current GrooveTech account balance"
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/health",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"health"
+							]
+						},
+						"description": "Check GrooveTech service health status"
+					},
+					"response": []
+				},
+				{
+					"name": "Official Get Account (GrooveTech Spec)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove-official?request=getaccount&accountid={{user_id}}&gamesessionid={{access_token}}&device=desktop&apiversion=1.2",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove-official"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "getaccount",
+									"description": "Must be 'getaccount'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{user_id}}",
+									"description": "Player account ID (user_id)"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{access_token}}",
+									"description": "Game session ID (JWT token)"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								}
+							]
+						},
+						"description": "Official GrooveTech Get Account API according to specification"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "GrooveTech Legacy Transaction APIs",
+			"item": [
+				{
+					"name": "Debit Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 25.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"debit\",\n  \"description\": \"Betting transaction - $25 deduction\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/legacy/debit",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"legacy",
+								"debit"
+							]
+						},
+						"description": "Deduct money from user balance (for betting)"
+					},
+					"response": []
+				},
+				{
+					"name": "Credit Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 50.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"credit\",\n  \"description\": \"Winning transaction - $50 addition\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/legacy/credit",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"legacy",
+								"credit"
+							]
+						},
+						"description": "Add money to user balance (for winnings)"
+					},
+					"response": []
+				},
+				{
+					"name": "Bet Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 10.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"bet\",\n  \"description\": \"Place bet - $10\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/legacy/bet",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"legacy",
+								"bet"
+							]
+						},
+						"description": "Process betting transaction"
+					},
+					"response": []
+				},
+				{
+					"name": "Win Transaction",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 30.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"win\",\n  \"description\": \"Win payout - $30\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/legacy/win",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"legacy",
+								"win"
+							]
+						},
+						"description": "Process winning transaction"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Transaction History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/groove/legacy/transactions",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"groove",
+								"legacy",
+								"transactions"
+							]
+						},
+						"description": "Get user's transaction history"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cashback System APIs",
+			"item": [
+				{
+					"name": "Get Cashback Tiers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.tucanbit.tv/cashback/tiers",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"cashback",
+								"tiers"
+							]
+						},
+						"description": "Get all available cashback tiers (Bronze, Silver, Gold, Platinum, Diamond)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Cashback Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/user/cashback",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"user",
+								"cashback"
+							]
+						},
+						"description": "Get user's current cashback status and earnings"
+					},
+					"response": []
+				},
+				{
+					"name": "Claim Cashback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 25.50\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/user/cashback/claim",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"user",
+								"cashback",
+								"claim"
+							]
+						},
+						"description": "Claim earned cashback"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Cashback Earnings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/user/cashback/earnings",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"user",
+								"cashback",
+								"earnings"
+							]
+						},
+						"description": "Get detailed cashback earnings history"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Cashback Claims",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/user/cashback/claims",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"user",
+								"cashback",
+								"claims"
+							]
+						},
+						"description": "Get user's cashback claim history"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin Cashback APIs",
+			"item": [
+				{
+					"name": "Get Cashback Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/admin/cashback/stats",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"admin",
+								"cashback",
+								"stats"
+							]
+						},
+						"description": "Get system-wide cashback statistics (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Cashback Tier",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tier_name\": \"VIP\",\n  \"tier_level\": 6,\n  \"min_ggr_required\": \"100000\",\n  \"cashback_percentage\": \"3.0\",\n  \"bonus_multiplier\": \"2.5\",\n  \"daily_cashback_limit\": \"2000\",\n  \"special_benefits\": {\n    \"personal_manager\": true,\n    \"priority_support\": true,\n    \"exclusive_games\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/admin/cashback/tiers",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"admin",
+								"cashback",
+								"tiers"
+							]
+						},
+						"description": "Create new cashback tier (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Cashback Tier",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tier_name\": \"Diamond Plus\",\n  \"tier_level\": 5,\n  \"min_ggr_required\": \"75000\",\n  \"cashback_percentage\": \"3.0\",\n  \"bonus_multiplier\": \"2.2\",\n  \"daily_cashback_limit\": \"1500\",\n  \"special_benefits\": {\n    \"personal_manager\": true,\n    \"priority_support\": true\n  }\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/admin/cashback/tiers/{{tier_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"admin",
+								"cashback",
+								"tiers",
+								"{{tier_id}}"
+							]
+						},
+						"description": "Update existing cashback tier (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Cashback Promotion",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"promotion_name\": \"Weekend Cashback Boost\",\n  \"description\": \"Double cashback on weekends\",\n  \"bonus_multiplier\": \"2.0\",\n  \"start_date\": \"2025-09-13T00:00:00Z\",\n  \"end_date\": \"2025-09-15T23:59:59Z\",\n  \"is_active\": true,\n  \"target_tiers\": [3, 4, 5]\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/admin/cashback/promotions",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"admin",
+								"cashback",
+								"promotions"
+							]
+						},
+						"description": "Create promotional cashback campaign (Admin only)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Core System APIs",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/user/profile",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"user",
+								"profile"
+							]
+						},
+						"description": "Get user profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Balances",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.tucanbit.tv/balance",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"balance"
+							]
+						},
+						"description": "Get user's wallet balances"
+					},
+					"response": []
+				},
+				{
+					"name": "Deposit Funds",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"payment_method\": \"crypto\",\n  \"description\": \"Deposit via Bitcoin\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/balance/deposit",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"balance",
+								"deposit"
+							]
+						},
+						"description": "Deposit funds to user account"
+					},
+					"response": []
+				},
+				{
+					"name": "Withdraw Funds",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 50.00,\n  \"currency\": \"USD\",\n  \"payment_method\": \"crypto\",\n  \"wallet_address\": \"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\",\n  \"description\": \"Withdrawal to Bitcoin wallet\"\n}"
+						},
+						"url": {
+							"raw": "https://api.tucanbit.tv/balance/withdraw",
+							"protocol": "https",
+							"host": [
+								"api",
+								"tucanbit",
+								"tv"
+							],
+							"path": [
+								"balance",
+								"withdraw"
+							]
+						},
+						"description": "Withdraw funds from user account"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://api.tucanbit.tv",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU3NzcyNjYxLCJpYXQiOjE3NTc2ODYyNjEsImlzcyI6InR1Y2FuYml0Iiwic3ViIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1In0.KSnmX3gSrzOawHvPNjLBw7rQ0smcfnUz2_5h52vn-JM",
+			"type": "string",
+			"description": "JWT access token for authenticated requests"
+		},
+		{
+			"key": "user_id",
+			"value": "a5e168fb-168e-4183-84c5-d49038ce00b5",
+			"type": "string",
+			"description": "User ID for testing"
+		},
+		{
+			"key": "admin_access_token",
+			"value": "{{access_token}}",
+			"type": "string",
+			"description": "Admin JWT access token (replace with admin token)"
+		},
+		{
+			"key": "tier_id",
+			"value": "c2d2125b-8718-421c-b537-f41fc46333c8",
+			"type": "string",
+			"description": "Cashback tier ID for updates"
+		}
+	]
+}

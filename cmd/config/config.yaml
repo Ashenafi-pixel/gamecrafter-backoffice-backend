@@ -28,6 +28,17 @@ google:
   oauth:
     client_id: 290465420820-dt8oe9om2hbsbdno7nl0mtfunpr6cg1g.apps.googleusercontent.com
     client_secret: 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
+
+groove:
+  operator_id: "3818"
+  api_domain: "https://routerstg.groovegaming.com"
+  api_key: "your_groove_api_key_here"
+  home_url: "https://tucanbit.vercel.app"
+  exit_url: "https://tucanbit.vercel.app"
+  history_url: "https://tucanbit.vercel.app/history"
+  license_type: "Curacao"
+  signature_validation: true
+  signature_secret: "test_key"
     redirect_url: http://localhost:8080/user/oauth/google/res
 oauth:
   frontend_oauth_handler_url: http://localhost:3000/oauth

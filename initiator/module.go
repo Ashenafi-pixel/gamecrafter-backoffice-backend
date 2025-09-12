@@ -194,7 +194,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Agent:         agentModule,
 		OTP:           otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
 		Cashback:      cashback.NewCashbackService(persistence.Cashback, log),
-		Groove:        groove.NewGrooveService(persistence.Groove, log),
+		Groove:        groove.NewGrooveService(persistence.Groove, persistence.GameSession, log),
 		Email:         emailService,
 		Redis:         redis,
 	}

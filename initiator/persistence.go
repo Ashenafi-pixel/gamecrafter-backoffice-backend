@@ -62,6 +62,7 @@ type Persistence struct {
 	OTP                  otp.OTP
 	Cashback             cashback.CashbackStorage
 	Groove               groove.GrooveStorage
+	GameSession          groove.GameSessionStorage
 }
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP) *Persistence {
@@ -93,5 +94,6 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		OTP:                  otp.NewOTP(otp.NewOTPDatabase(redis, log)),
 		Cashback:             cashback.NewCashbackStorage(persistencdb, log),
 		Groove:               groove.NewGrooveStorage(persistencdb, log),
+		GameSession:          groove.NewGameSessionStorage(persistencdb),
 	}
 }

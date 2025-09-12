@@ -9,6 +9,51 @@ import (
 // GrooveTech API DTOs for game integration
 // Based on official documentation: https://groove-docs.pages.dev/transaction-api/
 
+// GameSession represents a game session for tracking
+type GameSession struct {
+	ID                   string    `json:"id"`
+	UserID               string    `json:"user_id"`
+	SessionID            string    `json:"session_id"`
+	GameID               string    `json:"game_id"`
+	DeviceType           string    `json:"device_type"`
+	GameMode             string    `json:"game_mode"`
+	GrooveURL            string    `json:"groove_url"`
+	HomeURL              string    `json:"home_url"`
+	ExitURL              string    `json:"exit_url"`
+	HistoryURL           string    `json:"history_url"`
+	LicenseType          string    `json:"license_type"`
+	IsTestAccount        bool      `json:"is_test_account"`
+	RealityCheckElapsed  int       `json:"reality_check_elapsed"`
+	RealityCheckInterval int       `json:"reality_check_interval"`
+	CreatedAt            time.Time `json:"created_at"`
+	ExpiresAt            time.Time `json:"expires_at"`
+	IsActive             bool      `json:"is_active"`
+	LastActivity         time.Time `json:"last_activity"`
+}
+
+// LaunchGameRequest represents the request to launch a game
+type LaunchGameRequest struct {
+	GameID     string `json:"game_id" validate:"required"`
+	DeviceType string `json:"device_type" validate:"required,oneof=desktop mobile"`
+	GameMode   string `json:"game_mode" validate:"required,oneof=demo real"`
+	// CMA Compliance fields
+	Country              string `json:"country,omitempty"`                // ISO 3166-1 alpha-2 code
+	Currency             string `json:"currency,omitempty"`               // ISO 4217 currency code
+	Language             string `json:"language,omitempty"`               // ISO format language
+	IsTestAccount        *bool  `json:"is_test_account,omitempty"`        // Test account flag
+	RealityCheckElapsed  int    `json:"reality_check_elapsed,omitempty"`  // Minutes elapsed since session start
+	RealityCheckInterval int    `json:"reality_check_interval,omitempty"` // Minutes between reality checks
+}
+
+// LaunchGameResponse represents the response for game launch
+type LaunchGameResponse struct {
+	Success   bool   `json:"success"`
+	GameURL   string `json:"game_url"`
+	SessionID string `json:"session_id"`
+	ErrorCode string `json:"error_code,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
 // GrooveAccount represents the account information for game launch
 // GET /account endpoint response
 type GrooveAccount struct {
@@ -83,22 +128,27 @@ type GrooveTransactionResponse struct {
 // GrooveTech Official API DTOs based on documentation
 // https://groove-docs.pages.dev/transaction-api/
 
-// GrooveGetBalanceRequest represents the request for Get Balance
+// GrooveGetBalanceRequest represents the request for Get Balance (GrooveTech spec)
 type GrooveGetBalanceRequest struct {
-	AccountID string `json:"accountId"`
-	SessionID string `json:"sessionId"`
+	AccountID  string `json:"accountid" validate:"required"`
+	SessionID  string `json:"gamesessionid" validate:"required"`
+	Device     string `json:"device" validate:"required,oneof=desktop mobile"`
+	GameID     string `json:"nogsgameid" validate:"required"`
+	APIVersion string `json:"apiversion" validate:"required"`
+	Request    string `json:"request" validate:"required"`
 }
 
-// GrooveGetBalanceResponse represents the response for Get Balance
+// GrooveGetBalanceResponse represents the response for Get Balance (GrooveTech spec)
 type GrooveGetBalanceResponse struct {
-	Success      bool            `json:"success"`
-	AccountID    string          `json:"accountId"`
-	SessionID    string          `json:"sessionId"`
-	Balance      decimal.Decimal `json:"balance"`
-	Currency     string          `json:"currency"`
+	Code         int             `json:"code"`
 	Status       string          `json:"status"`
-	ErrorCode    string          `json:"errorCode,omitempty"`
-	ErrorMessage string          `json:"errorMessage,omitempty"`
+	Balance      decimal.Decimal `json:"balance"`
+	BonusBalance decimal.Decimal `json:"bonus_balance"`
+	RealBalance  decimal.Decimal `json:"real_balance"`
+	GameMode     int             `json:"game_mode,omitempty"`
+	Order        string          `json:"order,omitempty"`
+	APIVersion   string          `json:"apiversion"`
+	Message      string          `json:"message,omitempty"`
 }
 
 // GrooveWagerRequest represents a wager transaction request

@@ -6,22 +6,32 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
+	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module/groove"
+	"github.com/tucanbit/internal/utils"
 	"go.uber.org/zap"
 )
 
 // GrooveOfficialHandler implements the official GrooveTech Transaction API
 // Based on documentation: https://groove-docs.pages.dev/transaction-api/
 type GrooveOfficialHandler struct {
-	grooveService groove.GrooveService
-	logger        *zap.Logger
+	grooveService      groove.GrooveService
+	logger             *zap.Logger
+	signatureValidator *utils.GrooveSignatureValidator
 }
 
 func NewGrooveOfficialHandler(grooveService groove.GrooveService, logger *zap.Logger) *GrooveOfficialHandler {
+	// Initialize signature validator
+	secretKey := viper.GetString("groove.signature_secret")
+	if secretKey == "" {
+		secretKey = "default_secret_key" // Fallback for development
+	}
+
 	return &GrooveOfficialHandler{
-		grooveService: grooveService,
-		logger:        logger,
+		grooveService:      grooveService,
+		logger:             logger,
+		signatureValidator: utils.NewGrooveSignatureValidator(secretKey),
 	}
 }
 
@@ -30,6 +40,41 @@ func NewGrooveOfficialHandler(grooveService groove.GrooveService, logger *zap.Lo
 // Based on: https://groove-docs.pages.dev/transaction-api/get-account/
 func (h *GrooveOfficialHandler) GetAccount(c *gin.Context) {
 	h.logger.Info("GrooveTech Official Get Account request")
+
+	// Validate signature if signature validation is enabled
+	signatureValidationEnabled := viper.GetBool("groove.signature_validation")
+	h.logger.Info("Signature validation check", zap.Bool("enabled", signatureValidationEnabled))
+	if signatureValidationEnabled {
+		signature := c.GetHeader("X-Groove-Signature")
+		if signature == "" {
+			h.logger.Error("Missing X-Groove-Signature header")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    1001,
+				"status":  "Invalid signature",
+				"message": "invalid signature",
+			})
+			return
+		}
+
+		// Extract query parameters for signature validation
+		queryParams := make(map[string]string)
+		for key, values := range c.Request.URL.Query() {
+			if len(values) > 0 {
+				queryParams[key] = values[0]
+			}
+		}
+
+		// Validate signature
+		if !h.signatureValidator.ValidateGrooveSignature(signature, queryParams) {
+			h.logger.Error("Invalid signature")
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    1001,
+				"status":  "Invalid signature",
+				"message": "invalid signature",
+			})
+			return
+		}
+	}
 
 	// Extract parameters according to official API specification
 	request := c.Query("request")
@@ -112,6 +157,39 @@ func (h *GrooveOfficialHandler) GetAccount(c *gin.Context) {
 func (h *GrooveOfficialHandler) GetBalance(c *gin.Context) {
 	h.logger.Info("GrooveTech Get Balance request")
 
+	// Validate signature if signature validation is enabled
+	if viper.GetBool("groove.signature_validation") {
+		signature := c.GetHeader("X-Groove-Signature")
+		if signature == "" {
+			h.logger.Error("Missing X-Groove-Signature header")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    1001,
+				"status":  "Invalid signature",
+				"message": "invalid signature",
+			})
+			return
+		}
+
+		// Extract query parameters for signature validation
+		queryParams := make(map[string]string)
+		for key, values := range c.Request.URL.Query() {
+			if len(values) > 0 {
+				queryParams[key] = values[0]
+			}
+		}
+
+		// Validate signature
+		if !h.signatureValidator.ValidateGrooveSignature(signature, queryParams) {
+			h.logger.Error("Invalid signature")
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    1001,
+				"status":  "Invalid signature",
+				"message": "invalid signature",
+			})
+			return
+		}
+	}
+
 	// Extract account ID and session ID from query parameters
 	accountID := c.Query("accountId")
 	sessionID := c.Query("sessionId")
@@ -119,9 +197,10 @@ func (h *GrooveOfficialHandler) GetBalance(c *gin.Context) {
 	if accountID == "" || sessionID == "" {
 		h.logger.Error("Missing required parameters")
 		c.JSON(http.StatusBadRequest, dto.GrooveGetBalanceResponse{
-			Success:      false,
-			ErrorCode:    "MISSING_PARAMETERS",
-			ErrorMessage: "accountId and sessionId are required",
+			Code:       1,
+			Status:     "Technical error",
+			Message:    "accountId and sessionId are required",
+			APIVersion: "1.2",
 		})
 		return
 	}
@@ -131,9 +210,10 @@ func (h *GrooveOfficialHandler) GetBalance(c *gin.Context) {
 	if err != nil {
 		h.logger.Error("Failed to get balance", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, dto.GrooveGetBalanceResponse{
-			Success:      false,
-			ErrorCode:    "BALANCE_ERROR",
-			ErrorMessage: "Failed to retrieve balance",
+			Code:       1,
+			Status:     "Technical error",
+			Message:    "Failed to retrieve balance",
+			APIVersion: "1.2",
 		})
 		return
 	}

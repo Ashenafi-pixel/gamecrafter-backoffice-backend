@@ -8,29 +8,37 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/gofrs/uuid"
-	googleUUID "github.com/google/uuid"
+	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/model/response"
 	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/internal/utils"
 	"go.uber.org/zap"
 )
 
 type GrooveHandler struct {
-	grooveService  groove.GrooveService
-	userStorage    storage.User
-	balanceStorage storage.Balance
-	logger         *zap.Logger
+	grooveService      groove.GrooveService
+	userStorage        storage.User
+	balanceStorage     storage.Balance
+	logger             *zap.Logger
+	signatureValidator *utils.GrooveSignatureValidator
 }
 
 func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, logger *zap.Logger) *GrooveHandler {
+	// Initialize signature validator
+	secretKey := viper.GetString("groove.signature_secret")
+	if secretKey == "" {
+		secretKey = "default_secret_key" // Fallback for development
+	}
+
 	return &GrooveHandler{
-		grooveService:  grooveService,
-		userStorage:    userStorage,
-		balanceStorage: balanceStorage,
-		logger:         logger,
+		grooveService:      grooveService,
+		userStorage:        userStorage,
+		balanceStorage:     balanceStorage,
+		logger:             logger,
+		signatureValidator: utils.NewGrooveSignatureValidator(secretKey),
 	}
 }
 
@@ -101,7 +109,7 @@ func (h *GrooveHandler) GetBalance(c *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Balance retrieved successfully", zap.String("account_id", balance.AccountID))
+	h.logger.Info("Balance retrieved successfully", zap.String("balance", balance.Balance.String()))
 	c.JSON(http.StatusOK, balance)
 }
 
@@ -131,7 +139,7 @@ func (h *GrooveHandler) DebitTransaction(c *gin.Context) {
 	}
 
 	// Get account ID for this user (convert to google/uuid)
-	googleUserID, err := googleUUID.Parse(userID.String())
+	googleUserID, err := uuid.Parse(userID.String())
 	if err != nil {
 		h.logger.Error("Failed to convert UUID", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
@@ -203,7 +211,7 @@ func (h *GrooveHandler) CreditTransaction(c *gin.Context) {
 	}
 
 	// Get account ID for this user (convert to google/uuid)
-	googleUserID, err := googleUUID.Parse(userID.String())
+	googleUserID, err := uuid.Parse(userID.String())
 	if err != nil {
 		h.logger.Error("Failed to convert UUID", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
@@ -427,6 +435,47 @@ func (h *GrooveHandler) HealthCheck(c *gin.Context) {
 func (h *GrooveHandler) GetAccountOfficial(c *gin.Context) {
 	h.logger.Info("GrooveTech Official Get Account request")
 
+	// Debug: Check all groove config values
+	h.logger.Info("Groove config debug",
+		zap.Bool("signature_validation", viper.GetBool("groove.signature_validation")),
+		zap.String("signature_secret", viper.GetString("groove.signature_secret")),
+		zap.String("operator_id", viper.GetString("groove.operator_id")))
+
+	// Validate signature if signature validation is enabled
+	signatureValidationEnabled := viper.GetBool("groove.signature_validation")
+	h.logger.Info("Signature validation check", zap.Bool("enabled", signatureValidationEnabled))
+	if signatureValidationEnabled {
+		signature := c.GetHeader("X-Groove-Signature")
+		if signature == "" {
+			h.logger.Error("Missing X-Groove-Signature header")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    1001,
+				"status":  "Invalid signature",
+				"message": "invalid signature",
+			})
+			return
+		}
+
+		// Extract query parameters for signature validation
+		queryParams := make(map[string]string)
+		for key, values := range c.Request.URL.Query() {
+			if len(values) > 0 {
+				queryParams[key] = values[0]
+			}
+		}
+
+		// Validate signature
+		if !h.signatureValidator.ValidateGrooveSignature(signature, queryParams) {
+			h.logger.Error("Invalid signature")
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    1001,
+				"status":  "Invalid signature",
+				"message": "invalid signature",
+			})
+			return
+		}
+	}
+
 	// Extract parameters according to official API specification
 	request := c.Query("request")
 	accountID := c.Query("accountid")
@@ -624,6 +673,109 @@ func (h *GrooveHandler) extractUserIDFromToken(c *gin.Context) (uuid.UUID, error
 		return uuid.Nil, fmt.Errorf("invalid or expired token: %w", err)
 	}
 
-	// Convert from google/uuid to gofrs/uuid
-	return uuid.FromStringOrNil(claims.UserID.String()), nil
+	// Return the UUID directly since we're using google/uuid everywhere
+	return claims.UserID, nil
+}
+
+// LaunchGame - POST /api/groove/launch-game
+// Secure endpoint for launching games with user authentication
+func (h *GrooveHandler) LaunchGame(c *gin.Context) {
+	h.logger.Info("Processing game launch request")
+
+	var req dto.LaunchGameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Error("Invalid request body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request body",
+		})
+		return
+	}
+
+	// Extract user ID from JWT token
+	userID, err := h.extractUserIDFromToken(c)
+	if err != nil {
+		h.logger.Error("Failed to extract user ID from token", zap.Error(err))
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Invalid or missing authentication token",
+		})
+		return
+	}
+
+	// Convert to google/uuid for service layer
+	googleUserID, err := uuid.Parse(userID.String())
+	if err != nil {
+		h.logger.Error("Failed to convert UUID", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Internal server error",
+		})
+		return
+	}
+
+	// Set CMA compliance defaults if not provided
+	if req.Country == "" {
+		req.Country = "ET" // Default to Ethiopia
+	}
+	if req.Currency == "" {
+		req.Currency = "USD" // Default to USD
+	}
+	if req.Language == "" {
+		req.Language = "en_US" // Default to English
+	}
+	if req.IsTestAccount == nil {
+		testAccount := false // Default to real account
+		req.IsTestAccount = &testAccount
+	}
+	if req.RealityCheckElapsed == 0 {
+		req.RealityCheckElapsed = 0 // Default to 0 minutes elapsed
+	}
+	if req.RealityCheckInterval == 0 {
+		req.RealityCheckInterval = 60 // Default to 60 minutes interval
+	}
+
+	// Launch the game
+	launchResponse, err := h.grooveService.LaunchGame(c.Request.Context(), googleUserID, req)
+	if err != nil {
+		h.logger.Error("Failed to launch game", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, launchResponse)
+		return
+	}
+
+	h.logger.Info("Game launched successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("game_id", req.GameID),
+		zap.String("session_id", launchResponse.SessionID))
+
+	c.JSON(http.StatusOK, launchResponse)
+}
+
+// ValidateGameSession - GET /api/groove/validate-session/:sessionId
+// Validates a game session and returns session details
+func (h *GrooveHandler) ValidateGameSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	if sessionID == "" {
+		h.logger.Error("Missing session ID parameter")
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Missing session ID parameter",
+		})
+		return
+	}
+
+	h.logger.Info("Validating game session", zap.String("session_id", sessionID))
+
+	session, err := h.grooveService.ValidateGameSession(c.Request.Context(), sessionID)
+	if err != nil {
+		h.logger.Error("Failed to validate game session", zap.Error(err))
+		c.JSON(http.StatusNotFound, response.ErrorResponse{
+			Code:    http.StatusNotFound,
+			Message: "Game session not found or expired",
+		})
+		return
+	}
+
+	h.logger.Info("Game session validated successfully", zap.String("session_id", sessionID))
+	c.JSON(http.StatusOK, session)
 }

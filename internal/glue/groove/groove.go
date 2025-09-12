@@ -54,6 +54,13 @@ func Init(grp *gin.RouterGroup, log zap.Logger, handler *groove.GrooveHandler, a
 	// Endpoint: {casino_endpoint}?request=getaccount&[parameters]
 	grp.GET("/groove-official", handler.GetAccountOfficial) // Official Get Account API
 
+	// Game Launch API routes (secure endpoints for frontend)
+	gameGroup := grp.Group("/api/groove")
+	{
+		gameGroup.POST("/launch-game", handler.LaunchGame)                    // Launch Game
+		gameGroup.GET("/validate-session/:sessionId", handler.ValidateGameSession) // Validate Game Session
+	}
+
 	// Admin GrooveTech API routes - TODO: Implement these methods
 	// adminGrooveGroup := grp.Group("/admin/groove")
 	// adminGrooveGroup.Use(func(c *gin.Context) {

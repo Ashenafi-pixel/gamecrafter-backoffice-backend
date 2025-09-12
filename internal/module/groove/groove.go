@@ -40,17 +40,23 @@ type GrooveService interface {
 	// Game session management
 	CreateGameSession(ctx context.Context, accountID, gameID string) (*dto.GrooveGameSession, error)
 	EndGameSession(ctx context.Context, sessionID string) error
+
+	// Game launch functionality
+	LaunchGame(ctx context.Context, userID uuid.UUID, req dto.LaunchGameRequest) (*dto.LaunchGameResponse, error)
+	ValidateGameSession(ctx context.Context, sessionID string) (*dto.GameSession, error)
 }
 
 type GrooveServiceImpl struct {
-	storage groove.GrooveStorage
-	logger  *zap.Logger
+	storage            groove.GrooveStorage
+	gameSessionStorage groove.GameSessionStorage
+	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
-		storage: storage,
-		logger:  logger,
+		storage:            storage,
+		gameSessionStorage: gameSessionStorage,
+		logger:             logger,
 	}
 }
 
@@ -318,19 +324,22 @@ func (s *GrooveServiceImpl) GetBalance(ctx context.Context, accountID string) (*
 	if err != nil {
 		s.logger.Error("Failed to get account balance", zap.Error(err))
 		return &dto.GrooveGetBalanceResponse{
-			Success:      false,
-			AccountID:    accountID,
-			ErrorCode:    "ACCOUNT_NOT_FOUND",
-			ErrorMessage: "Account not found",
+			Code:       1,
+			Status:     "Technical error",
+			Message:    "Account not found",
+			APIVersion: "1.2",
 		}, nil
 	}
 
 	response := &dto.GrooveGetBalanceResponse{
-		Success:   true,
-		AccountID: accountID,
-		Balance:   balance,
-		Currency:  "USD",
-		Status:    "active",
+		Code:         200,
+		Status:       "Success",
+		Balance:      balance,
+		BonusBalance: decimal.Zero, // No bonus balance for now
+		RealBalance:  balance,
+		GameMode:     1, // Real money mode
+		Order:        "cash_money",
+		APIVersion:   "1.2",
 	}
 
 	s.logger.Info("Balance retrieved successfully",
@@ -728,4 +737,161 @@ func (s *GrooveServiceImpl) validateTransaction(req dto.GrooveTransactionRequest
 		return fmt.Errorf("currency is required")
 	}
 	return nil
+}
+
+// LaunchGame creates a new game session and calls GrooveTech API to get game URL
+func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, req dto.LaunchGameRequest) (*dto.LaunchGameResponse, error) {
+	s.logger.Info("Launching game",
+		zap.String("user_id", userID.String()),
+		zap.String("game_id", req.GameID),
+		zap.String("device_type", req.DeviceType),
+		zap.String("game_mode", req.GameMode))
+
+	// Create game session in our database
+	session, err := s.gameSessionStorage.CreateGameSession(ctx, userID, req.GameID, req.DeviceType, req.GameMode)
+	if err != nil {
+		s.logger.Error("Failed to create game session", zap.Error(err))
+		return &dto.LaunchGameResponse{
+			Success:   false,
+			ErrorCode: "SESSION_CREATION_FAILED",
+			Message:   "Failed to create game session",
+		}, err
+	}
+
+	// Get or create user account for GrooveTech
+	account, err := s.GetAccountByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Info("GrooveTech account not found, creating new one", zap.String("user_id", userID.String()))
+
+		// Auto-create GrooveTech account
+		newAccount := dto.GrooveAccount{
+			AccountID: userID.String(), // Use user ID as account ID
+			SessionID: session.SessionID,
+			Balance:   decimal.NewFromFloat(100.0), // Default balance
+			Currency:  "USD",
+			Status:    "active",
+		}
+
+		account, err = s.storage.CreateAccount(ctx, newAccount, userID)
+		if err != nil {
+			s.logger.Error("Failed to create GrooveTech account", zap.Error(err))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "ACCOUNT_CREATION_FAILED",
+				Message:   "Failed to create GrooveTech account",
+			}, err
+		}
+
+		s.logger.Info("GrooveTech account created successfully",
+			zap.String("account_id", account.AccountID),
+			zap.String("session_id", session.SessionID))
+	}
+
+	// Use CMA compliance parameters from request
+	country := req.Country
+	currency := req.Currency
+	language := req.Language
+	isTestAccount := false
+	if req.IsTestAccount != nil {
+		isTestAccount = *req.IsTestAccount
+	}
+	realityCheckElapsed := req.RealityCheckElapsed
+	realityCheckInterval := req.RealityCheckInterval
+
+	// Build GrooveTech API URL with parameters
+	grooveURL := s.buildGrooveGameURL(session.SessionID, account.AccountID, req.GameID, country, currency, language, req.DeviceType, req.GameMode, session.HomeURL, session.ExitURL, session.HistoryURL, session.LicenseType, isTestAccount, realityCheckElapsed, realityCheckInterval)
+
+	// TODO: Make actual HTTP request to GrooveTech API when credentials are available
+	// For now, we'll return the constructed URL for testing purposes
+	s.logger.Info("GrooveTech API URL constructed",
+		zap.String("groove_url", grooveURL),
+		zap.String("note", "Actual GrooveTech API call not implemented yet - credentials needed"))
+
+	// Update session with GrooveTech URL
+	err = s.gameSessionStorage.UpdateGameSessionURL(ctx, session.SessionID, grooveURL)
+	if err != nil {
+		s.logger.Error("Failed to update game session URL", zap.Error(err))
+		return &dto.LaunchGameResponse{
+			Success:   false,
+			ErrorCode: "URL_UPDATE_FAILED",
+			Message:   "Failed to update game session URL",
+		}, err
+	}
+
+	s.logger.Info("Game launched successfully",
+		zap.String("session_id", session.SessionID),
+		zap.String("game_url", grooveURL))
+
+	return &dto.LaunchGameResponse{
+		Success:   true,
+		GameURL:   grooveURL,
+		SessionID: session.SessionID,
+	}, nil
+}
+
+// ValidateGameSession validates a game session and returns session details
+func (s *GrooveServiceImpl) ValidateGameSession(ctx context.Context, sessionID string) (*dto.GameSession, error) {
+	s.logger.Info("Validating game session", zap.String("session_id", sessionID))
+
+	session, err := s.gameSessionStorage.GetGameSessionBySessionID(ctx, sessionID)
+	if err != nil {
+		s.logger.Error("Failed to validate game session", zap.Error(err))
+		return nil, err
+	}
+
+	// Check if session is expired
+	if time.Now().After(session.ExpiresAt) {
+		s.logger.Warn("Game session expired", zap.String("session_id", sessionID))
+		return nil, fmt.Errorf("game session expired")
+	}
+
+	// Check if session is active
+	if !session.IsActive {
+		s.logger.Warn("Game session inactive", zap.String("session_id", sessionID))
+		return nil, fmt.Errorf("game session inactive")
+	}
+
+	return session, nil
+}
+
+// buildGrooveGameURL constructs the GrooveTech game launch URL
+func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, country, currency, language, deviceType, gameMode, homeURL, exitURL, historyURL, licenseType string, isTestAccount bool, realityCheckElapsed, realityCheckInterval int) string {
+	operatorID := viper.GetString("groove.operator_id")
+	if operatorID == "" {
+		operatorID = "3818" // Real GrooveTech operator ID
+	}
+
+	grooveDomain := viper.GetString("groove.api_domain")
+	if grooveDomain == "" {
+		grooveDomain = "https://routerstg.groovegaming.com" // Real GrooveTech domain
+	}
+
+	// Build URL with all required parameters
+	url := fmt.Sprintf("%s/game/?accountid=%s&country=%s&nogsgameid=%s&nogslang=%s&nogsmode=%s&nogsoperatorid=%s&nogscurrency=%s&sessionid=%s&homeurl=%s&license=%s&is_test_account=%t&device_type=%s&realityCheckElapsed=%d&realityCheckInterval=%d",
+		grooveDomain,
+		accountID,
+		country,
+		gameID,
+		language,
+		gameMode,
+		operatorID,
+		currency,
+		sessionID,
+		homeURL,
+		licenseType,
+		isTestAccount,
+		deviceType,
+		realityCheckElapsed,
+		realityCheckInterval,
+	)
+
+	// Add optional parameters if provided
+	if historyURL != "" {
+		url += fmt.Sprintf("&historyUrl=%s", historyURL)
+	}
+	if exitURL != "" {
+		url += fmt.Sprintf("&exitUrl=%s", exitURL)
+	}
+
+	return url
 }
