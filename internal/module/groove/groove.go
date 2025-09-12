@@ -2,7 +2,6 @@ package groove
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -48,6 +47,7 @@ type GrooveService interface {
 
 	// User profile operations
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
+	GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error)
 }
 
 type GrooveServiceImpl struct {
@@ -924,35 +924,10 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 func (s *GrooveServiceImpl) GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error) {
 	s.logger.Info("Getting user profile", zap.String("user_id", userID.String()))
 
-	// Get user information from the users table
-	query := `
-		SELECT city, country, currency_code 
-		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
-		WHERE u.id = $1`
-
-	var city, country, currencyCode sql.NullString
-	err := s.storage.GetPool().QueryRow(ctx, query, userID).Scan(&city, &country, &currencyCode)
+	profile, err := s.storage.GetUserProfile(ctx, userID)
 	if err != nil {
 		s.logger.Error("Failed to get user profile", zap.Error(err))
 		return nil, fmt.Errorf("failed to get user profile: %w", err)
-	}
-
-	// Set defaults for null values
-	profile := &dto.GrooveUserProfile{
-		City:     "Unknown",
-		Country:  "US",
-		Currency: "USD",
-	}
-
-	if city.Valid {
-		profile.City = city.String
-	}
-	if country.Valid {
-		profile.Country = country.String
-	}
-	if currencyCode.Valid {
-		profile.Currency = currencyCode.String
 	}
 
 	s.logger.Info("User profile retrieved successfully",
@@ -962,4 +937,22 @@ func (s *GrooveServiceImpl) GetUserProfile(ctx context.Context, userID uuid.UUID
 		zap.String("currency", profile.Currency))
 
 	return profile, nil
+}
+
+// GetUserBalance retrieves user balance from the existing balance system
+func (s *GrooveServiceImpl) GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
+	s.logger.Info("Getting user balance", zap.String("user_id", userID.String()))
+
+	// Use the storage layer method
+	balance, err := s.storage.GetUserBalance(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get user balance", zap.Error(err))
+		return decimal.Zero, fmt.Errorf("failed to get user balance: %w", err)
+	}
+
+	s.logger.Info("User balance retrieved successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("balance", balance.String()))
+
+	return balance, nil
 }

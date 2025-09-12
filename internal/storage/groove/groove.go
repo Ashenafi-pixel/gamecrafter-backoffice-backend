@@ -535,3 +535,46 @@ func (s *GrooveStorageImpl) UpdateUserBalance(ctx context.Context, userID uuid.U
 
 	return nil
 }
+
+func (s *GrooveStorageImpl) GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error) {
+	s.logger.Info("Getting user profile", zap.String("user_id", userID.String()))
+
+	// Get user information from the users table
+	query := `
+		SELECT city, country, currency_code 
+		FROM users u
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
+		WHERE u.id = $1`
+
+	var city, country, currencyCode sql.NullString
+	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&city, &country, &currencyCode)
+	if err != nil {
+		s.logger.Error("Failed to get user profile", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user profile: %w", err)
+	}
+
+	// Set defaults for null values
+	profile := &dto.GrooveUserProfile{
+		City:     "Unknown",
+		Country:  "US",
+		Currency: "USD",
+	}
+
+	if city.Valid {
+		profile.City = city.String
+	}
+	if country.Valid {
+		profile.Country = country.String
+	}
+	if currencyCode.Valid {
+		profile.Currency = currencyCode.String
+	}
+
+	s.logger.Info("User profile retrieved successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("city", profile.City),
+		zap.String("country", profile.Country),
+		zap.String("currency", profile.Currency))
+
+	return profile, nil
+}

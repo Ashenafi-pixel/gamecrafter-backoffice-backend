@@ -236,39 +236,103 @@ func (h *GrooveOfficialHandler) GetBalance(c *gin.Context) {
 		}
 	}
 
-	// Extract account ID and session ID from query parameters
-	accountID := c.Query("accountId")
-	sessionID := c.Query("sessionId")
+	// Extract parameters according to official GrooveTech API specification
+	request := c.Query("request")
+	accountID := c.Query("accountid")
+	gameSessionID := c.Query("gamesessionid")
+	device := c.Query("device")
+	nogsGameID := c.Query("nogsgameid")
+	apiVersion := c.Query("apiversion")
 
-	if accountID == "" || sessionID == "" {
-		h.logger.Error("Missing required parameters")
+	// Validate required parameters according to official spec
+	if request != "getbalance" {
+		h.logger.Error("Invalid request parameter", zap.String("request", request))
 		c.JSON(http.StatusBadRequest, dto.GrooveGetBalanceResponse{
-			Code:       1,
-			Status:     "Technical error",
-			Message:    "accountId and sessionId are required",
+			Code:       400,
+			Status:     "Bad Request",
+			Message:    "Invalid request parameter. Must be 'getbalance'",
 			APIVersion: "1.2",
 		})
 		return
 	}
 
-	// Get balance
-	balance, err := h.grooveService.GetBalance(c.Request.Context(), accountID)
-	if err != nil {
-		h.logger.Error("Failed to get balance", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, dto.GrooveGetBalanceResponse{
-			Code:       1,
-			Status:     "Technical error",
-			Message:    "Failed to retrieve balance",
+	if accountID == "" || gameSessionID == "" || device == "" || nogsGameID == "" || apiVersion == "" {
+		h.logger.Error("Missing required parameters",
+			zap.String("accountid", accountID),
+			zap.String("gamesessionid", gameSessionID),
+			zap.String("device", device),
+			zap.String("nogsgameid", nogsGameID),
+			zap.String("apiversion", apiVersion))
+		c.JSON(http.StatusBadRequest, dto.GrooveGetBalanceResponse{
+			Code:       400,
+			Status:     "Bad Request",
+			Message:    "Missing required parameters: accountid, gamesessionid, device, nogsgameid, apiversion",
 			APIVersion: "1.2",
 		})
 		return
+	}
+
+	// Validate game session and get user information
+	session, err := h.grooveService.ValidateGameSession(c.Request.Context(), gameSessionID)
+	if err != nil {
+		h.logger.Error("Failed to validate game session", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveGetBalanceResponse{
+			Code:       1000,
+			Status:     "Not logged on",
+			Message:    "Player session is invalid or expired",
+			APIVersion: apiVersion,
+		})
+		return
+	}
+
+	// Get account information for the user
+	userID, err := uuid.Parse(session.UserID)
+	if err != nil {
+		h.logger.Error("Failed to parse user ID", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveGetBalanceResponse{
+			Code:       1000,
+			Status:     "Not logged on",
+			Message:    "Player session is invalid or expired",
+			APIVersion: apiVersion,
+		})
+		return
+	}
+
+	_, err = h.grooveService.GetAccountByUserID(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get account by user ID", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveGetBalanceResponse{
+			Code:       1000,
+			Status:     "Not logged on",
+			Message:    "Player session is invalid or expired",
+			APIVersion: apiVersion,
+		})
+		return
+	}
+
+	// Get user's real balance from the balances table
+	realBalance, err := h.grooveService.GetUserBalance(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user balance", zap.Error(err))
+		realBalance = decimal.Zero // Default to zero if balance not found
 	}
 
 	h.logger.Info("Balance retrieved successfully",
 		zap.String("account_id", accountID),
-		zap.String("balance", balance.Balance.String()))
+		zap.String("gamesessionid", gameSessionID),
+		zap.String("real_balance", realBalance.String()))
 
-	c.JSON(http.StatusOK, *balance)
+	// Return response in official GrooveTech format
+	c.JSON(http.StatusOK, dto.GrooveGetBalanceResponse{
+		Code:         200,
+		Status:       "Success",
+		Balance:      realBalance,
+		BonusBalance: decimal.Zero, // Bonus balance (not implemented yet)
+		RealBalance:  realBalance,
+		GameMode:     1,            // 1 = Real money mode, 2 = Bonus mode
+		Order:        "cash_money", // cash_money or bonus_money
+		APIVersion:   apiVersion,
+	})
 }
 
 // ProcessWager - POST /wager

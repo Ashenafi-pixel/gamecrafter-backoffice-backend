@@ -50,13 +50,13 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 		// legacyGroup.DELETE("/session/:sessionId", handler.EndGameSession)
 	}
 
+	// Create GrooveOfficialHandler for official APIs
+	officialHandler := groove.NewGrooveOfficialHandler(grooveService, log)
+
 	// Official GrooveTech Transaction API endpoints
 	// These match the exact specification from GrooveTech documentation
 	// Endpoint: {casino_endpoint}?request=getaccount&[parameters]
-	grp.GET("/groove-official", handler.GetAccountOfficial) // Official Get Account API
-
-	// Create GrooveOfficialHandler for official APIs
-	officialHandler := groove.NewGrooveOfficialHandler(grooveService, log)
+	grp.GET("/groove-official", officialHandler.GetAccount)         // Official Get Account API
 	grp.GET("/groove-official-balance", officialHandler.GetBalance) // Official Get Balance API
 
 	// Game Launch API routes (secure endpoints for frontend)
