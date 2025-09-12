@@ -8,21 +8,23 @@ import (
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/handler/adds"
 	"github.com/tucanbit/internal/handler/agent"
-	"github.com/tucanbit/internal/handler/airtime"
 	"github.com/tucanbit/internal/handler/authz"
 	"github.com/tucanbit/internal/handler/balance"
 	"github.com/tucanbit/internal/handler/balancelogs"
 	"github.com/tucanbit/internal/handler/banner"
 	"github.com/tucanbit/internal/handler/bet"
+	"github.com/tucanbit/internal/handler/cashback"
 	"github.com/tucanbit/internal/handler/company"
 	"github.com/tucanbit/internal/handler/department"
 	"github.com/tucanbit/internal/handler/exchange"
+	"github.com/tucanbit/internal/handler/groove"
 	"github.com/tucanbit/internal/handler/logs"
 	"github.com/tucanbit/internal/handler/lottery"
 	"github.com/tucanbit/internal/handler/notification"
 	"github.com/tucanbit/internal/handler/operationalgroup"
 	"github.com/tucanbit/internal/handler/operationalgrouptype"
 	"github.com/tucanbit/internal/handler/operationsdefinitions"
+	"github.com/tucanbit/internal/handler/otp"
 	"github.com/tucanbit/internal/handler/performance"
 	"github.com/tucanbit/internal/handler/report"
 	"github.com/tucanbit/internal/handler/risksettings"
@@ -30,10 +32,9 @@ import (
 	"github.com/tucanbit/internal/handler/squads"
 	"github.com/tucanbit/internal/handler/user"
 	"github.com/tucanbit/internal/handler/ws"
-	"github.com/tucanbit/internal/handler/otp"
+	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
-	"github.com/tucanbit/platform/redis"
 )
 
 type Handler struct {
@@ -49,7 +50,6 @@ type Handler struct {
 	Departments           handler.Departements
 	Performance           handler.Performance
 	Authz                 handler.Authz
-	Airtime               handler.AirtimeProvider
 	SystemLogs            handler.SystemLogs
 	Company               handler.Company
 	Report                handler.Report
@@ -62,13 +62,15 @@ type Handler struct {
 	RiskSettings          handler.RiskSettings
 	Agent                 handler.Agent
 	OTP                   handler.OTP
+	Cashback              *cashback.CashbackHandler
+	Groove                *groove.GrooveHandler
 	RegistrationService   *user.RegistrationService
 }
 
-func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler {
+func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS) *Handler {
 	// Create Redis adapter for RegistrationService
 	redisAdapter := &redisAdapter{client: module.Redis}
-	
+
 	// Initialize RegistrationService for email verification
 	registrationService := user.NewRegistrationService(
 		module.User,
@@ -80,7 +82,7 @@ func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler 
 
 	// Initialize user handler
 	userHandler := user.Init(module.User, log, viper.GetString("oauth.frontend_oauth_handler_url"))
-	
+
 	// Set the registration service in the user handler
 	userHandler.SetRegistrationService(registrationService)
 
@@ -97,7 +99,6 @@ func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler 
 		Departments:           department.Init(module.Departments, log),
 		Performance:           performance.Init(module.Performance, log),
 		Authz:                 authz.Init(log, module.Authz, module.CryptoWallet),
-		Airtime:               airtime.Init(log, module.AirtimeProvider),
 		SystemLogs:            logs.Init(log, module.SystemLogs),
 		Company:               company.Init(module.Company, log),
 		Report:                report.Init(module.Report, log),
@@ -110,6 +111,8 @@ func initHandler(module *Module, log *zap.Logger, userWS utils.UserWS) *Handler 
 		RiskSettings:          risksettings.Init(module.RiskSettings, log),
 		Agent:                 agent.Init(module.Agent, log),
 		OTP:                   otp.NewOTPHandler(module.OTP, log),
+		Cashback:              cashback.NewCashbackHandler(module.Cashback, log),
+		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, log),
 		RegistrationService:   registrationService,
 	}
 }

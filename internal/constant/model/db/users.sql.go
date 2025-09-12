@@ -1007,23 +1007,23 @@ func (q *Queries) GetUserEmailOrPhoneNumber(ctx context.Context, arg GetUserEmai
 }
 
 const getUserPointsByReferals = `-- name: GetUserPointsByReferals :one
-SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2
+SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency_code = $2
 `
 
 type GetUserPointsByReferalsParams struct {
-	ReferalCode sql.NullString
-	Currency    string
+	ReferalCode  sql.NullString
+	CurrencyCode string
 }
 
 type GetUserPointsByReferalsRow struct {
-	RealMoney decimal.NullDecimal
-	UserID    uuid.UUID
+	AmountUnits decimal.Decimal
+	UserID      uuid.UUID
 }
 
 func (q *Queries) GetUserPointsByReferals(ctx context.Context, arg GetUserPointsByReferalsParams) (GetUserPointsByReferalsRow, error) {
-	row := q.db.QueryRow(ctx, getUserPointsByReferals, arg.ReferalCode, arg.Currency)
+	row := q.db.QueryRow(ctx, getUserPointsByReferals, arg.ReferalCode, arg.CurrencyCode)
 	var i GetUserPointsByReferalsRow
-	err := row.Scan(&i.RealMoney, &i.UserID)
+	err := row.Scan(&i.AmountUnits, &i.UserID)
 	return i, err
 }
 

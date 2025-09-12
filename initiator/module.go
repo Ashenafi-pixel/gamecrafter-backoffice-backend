@@ -6,13 +6,14 @@ import (
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/adds"
 	"github.com/tucanbit/internal/module/agent"
-	"github.com/tucanbit/internal/module/airtime"
 	"github.com/tucanbit/internal/module/authz"
 	"github.com/tucanbit/internal/module/balance"
 	"github.com/tucanbit/internal/module/balancelogs"
 	"github.com/tucanbit/internal/module/banner"
 	"github.com/tucanbit/internal/module/bet"
+	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
+	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/module/crypto_wallet"
 
 	"github.com/tucanbit/internal/module/department"
@@ -56,7 +57,6 @@ type Module struct {
 	Departments           module.Departements
 	Performance           module.Performance
 	Authz                 module.Authz
-	AirtimeProvider       module.AirtimeProvider
 	SystemLogs            module.SystemLogs
 	Company               module.Company
 	CryptoWallet          *crypto_wallet.CasinoWalletService
@@ -70,8 +70,11 @@ type Module struct {
 	RiskSettings          module.RiskSettings
 	Agent                 module.Agent
 	OTP                   otp.OTPModule
+	Cashback              *cashback.CashbackService
+	Groove                groove.GrooveService
 	Email                 email.EmailService
 	Redis                 *redis.RedisOTP
+	UserBalanceWS         utils.UserWS
 }
 
 func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, enforcer *casbin.Enforcer, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient) *Module {
@@ -151,24 +154,12 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			persistence.Squad,
 			userBalanceWs,
 		),
-		Departments: department.Init(persistence.Departments, persistence.User, log),
-		Performance: performance.Init(persistence.Performance, log),
-		Authz:       authz.Init(log, persistence.Authz, enforcer),
-		AirtimeProvider: airtime.Init(
-			log,
-			viper.GetString("airtime.base_url"),
-			viper.GetString("airtime.password"),
-			viper.GetDuration("airtime.timeout"),
-			viper.GetInt("airtime.vaspid"),
-			persistence.AirtimeProvider,
-			persistence.Balance,
-			persistence.BalanageLogs,
-			persistence.User,
-			persistence.OperationalGroup,
-			persistence.OperationalGroupType,
-		),
-		SystemLogs: logs.Init(log, persistence.Logs),
-		Company:    company.Init(persistence.Company, log),
+		Departments:   department.Init(persistence.Departments, persistence.User, log),
+		Performance:   performance.Init(persistence.Performance, log),
+		Authz:         authz.Init(log, persistence.Authz, enforcer),
+		UserBalanceWS: userBalanceWs,
+		SystemLogs:    logs.Init(log, persistence.Logs),
+		Company:       company.Init(persistence.Company, log),
 		CryptoWallet: crypto_wallet.NewCasinoWalletService(
 			persistence.CryptoWallet,
 			persistence.User,
@@ -202,6 +193,8 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		RiskSettings:  risksettings.Init(persistence.RiskSettings, log),
 		Agent:         agentModule,
 		OTP:           otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
+		Cashback:      cashback.NewCashbackService(persistence.Cashback, log),
+		Groove:        groove.NewGrooveService(persistence.Groove, log),
 		Email:         emailService,
 		Redis:         redis,
 	}

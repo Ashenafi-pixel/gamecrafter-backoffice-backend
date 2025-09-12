@@ -3,8 +3,8 @@ package initiator
 import (
 	"log"
 
-	"github.com/tucanbit/platform/logger"
 	"github.com/spf13/viper"
+	"github.com/tucanbit/platform/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

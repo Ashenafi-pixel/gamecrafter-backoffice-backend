@@ -63,7 +63,7 @@ ORDER BY c.created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetUserPointsByReferals :one 
-SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;
+SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency_code = $2;
 
 
 -- name: GetUsersDoseNotHaveReferalCode :many 

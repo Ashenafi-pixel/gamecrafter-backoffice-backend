@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
@@ -15,7 +16,6 @@ import (
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +33,7 @@ func Init(db *persistencedb.PersistenceDB, log *zap.Logger) storage.BalanceLogs 
 
 func (b *balance_logs) SaveBalanceLogs(ctx context.Context, blanceLogReq dto.BalanceLogs) (dto.BalanceLogs, error) {
 	balanceStatus := utils.NullString(blanceLogReq.Status)
-	blanceRes, err := b.db.Queries.SaveBalanceLogs(ctx, db.SaveBalanceLogsParams{
+	blanceRes, err := b.db.SaveBalanceLogs(ctx, db.SaveBalanceLogsParams{
 		UserID:             uuid.NullUUID{UUID: blanceLogReq.UserID, Valid: true},
 		Component:          db.Components(blanceLogReq.Component),
 		Currency:           sql.NullString{String: blanceLogReq.Currency, Valid: true},
@@ -177,7 +177,7 @@ func (b *balance_logs) GetBalanceLogByID(ctx context.Context, balanceLogID uuid.
 		return dto.BalanceLogsRes{}, err
 	}
 
-	balanceLog, err := b.db.GetBalanceLogByID(ctx, balanceLogID)
+	balanceLog, err := b.db.GetBalanceLog(ctx, balanceLogID)
 	if err != nil {
 		b.log.Error(err.Error(), zap.Any("balanceLogID", balanceLogID.String()))
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
@@ -336,7 +336,7 @@ func (b *balance_logs) GetBalanceLogsForAdmin(ctx context.Context, req dto.Admin
 }
 
 func (b *balance_logs) GetBalanceLogByTransactionID(ctx context.Context, transactionID string) (dto.BalanceLogsRes, error) {
-	res, err := b.db.Queries.GetBalanceLogByTransactionID(ctx, transactionID)
+	res, err := b.db.GetBalanceLogByTransactionID(ctx, transactionID)
 	if err != nil {
 		return dto.BalanceLogsRes{}, nil
 	}

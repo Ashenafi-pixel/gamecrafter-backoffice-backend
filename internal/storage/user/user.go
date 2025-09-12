@@ -459,8 +459,8 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 
 func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Decimal, bool, error) {
 	blc, err := u.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:   userID,
-		Currency: constant.POINT_CURRENCY,
+		UserID:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 	if err != nil && err.Error() != dto.ErrNoRows {
 		u.log.Error("unable to make get balance request using user_id")
@@ -471,20 +471,21 @@ func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Dec
 		return decimal.Zero, false, nil
 	}
 
-	return blc.RealMoney.Decimal, true, nil
+	return blc.AmountUnits.Decimal, true, nil
 }
 
 func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (decimal.Decimal, error) {
-	resp, err := u.db.Queries.UpdateRealMoney(ctx, db.UpdateRealMoneyParams{
-		RealMoney: decimal.NullDecimal{Decimal: points, Valid: true},
-		UserID:    userID,
-		UpdatedAt: sql.NullTime{Time: time.Now(), Valid: true},
-		Currency:  constant.POINT_CURRENCY,
+	resp, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
+		AmountUnits:  points,
+		AmountCents:  points.Mul(decimal.NewFromInt(100)).IntPart(),
+		UpdatedAt:    time.Now(),
+		UserID:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
 	}
-	return resp.RealMoney.Decimal, nil
+	return resp.AmountUnits.Decimal, nil
 }
 
 func (u *user) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
@@ -677,10 +678,12 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 		var accounts []dto.Balance
 		for _, bal := range balance {
 			accounts = append(accounts, dto.Balance{
-				ID:         bal.ID,
-				Currency:   bal.Currency,
-				RealMoney:  bal.RealMoney.Decimal,
-				BonusMoney: bal.BonusMoney.Decimal,
+				ID:            bal.ID,
+				CurrencyCode:  bal.CurrencyCode,
+				AmountUnits:   bal.AmountUnits.Decimal,
+				AmountCents:   bal.AmountCents.Int64,
+				ReservedUnits: bal.ReservedUnits.Decimal,
+				ReservedCents: bal.ReservedCents.Int64,
 			})
 		}
 

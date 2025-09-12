@@ -9,12 +9,14 @@ import (
 )
 
 type Balance struct {
-	ID         uuid.UUID       `json:"id" `
-	UserId     uuid.UUID       `json:"user_id"`
-	Currency   string          `json:"currency" validate:"required"`
-	RealMoney  decimal.Decimal `json:"real_money"`
-	BonusMoney decimal.Decimal `json:"bonus_money"`
-	UpdateAt   time.Time       `json:"updated_at"`
+	ID            uuid.UUID       `json:"id" `
+	UserId        uuid.UUID       `json:"user_id"`
+	CurrencyCode  string          `json:"currency_code" validate:"required"`
+	AmountCents   int64           `json:"amount_cents"`   // amount in cents (bigint in DB)
+	AmountUnits   decimal.Decimal `json:"amount_units"`   // amount in units (numeric(20,8) in DB)
+	ReservedCents int64           `json:"reserved_cents"` // reserved amount in cents (bigint in DB)
+	ReservedUnits decimal.Decimal `json:"reserved_units"` // reserved amount in units (numeric(20,8) in DB)
+	UpdateAt      time.Time       `json:"updated_at"`
 }
 
 type UpdateBalanceReq struct {

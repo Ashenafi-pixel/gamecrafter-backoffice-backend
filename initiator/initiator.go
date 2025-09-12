@@ -91,7 +91,7 @@ func Initiate() {
 	// initializing handler layer
 	// which is the layer responsible to handle http layer and validate user
 	logger.Info("initializing handler layer ")
-	handler := initHandler(module, logger, userBalanceWs)
+	handler := initHandler(module, persistence, logger, userBalanceWs)
 	logger.Info("done initializing handler layer")
 
 	logger.Info("initializing http server")

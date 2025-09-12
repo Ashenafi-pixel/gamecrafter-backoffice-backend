@@ -7,7 +7,7 @@ toolchain go1.24.6
 require (
 	github.com/IBM/sarama v1.46.0
 	github.com/aws/aws-sdk-go v1.55.8
-	github.com/casbin/casbin/v2 v2.120.0
+	github.com/casbin/casbin/v2 v2.122.0
 	github.com/casbin/gorm-adapter/v3 v3.36.0
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible

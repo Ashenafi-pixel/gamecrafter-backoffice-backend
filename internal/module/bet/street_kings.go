@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -51,8 +51,8 @@ func (b *bet) CreateStreetKingsGame(ctx context.Context, req dto.CreateCrashKing
 	}
 
 	balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   userID,
-		Currency: constant.POINT_CURRENCY,
+		UserId:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 
 	if err != nil {
@@ -65,7 +65,7 @@ func (b *bet) CreateStreetKingsGame(ctx context.Context, req dto.CreateCrashKing
 		return dto.CreateStreetKingsResp{}, err
 	}
 
-	if balance.RealMoney.LessThan(req.BetAmount) {
+	if balance.AmountUnits.LessThan(req.BetAmount) {
 		err := fmt.Errorf("insufficent point ")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.CreateStreetKingsResp{}, err
@@ -92,7 +92,7 @@ func (b *bet) CreateStreetKingsGame(ctx context.Context, req dto.CreateCrashKing
 		return dto.CreateStreetKingsResp{}, err
 	}
 
-	newBalance := balance.RealMoney.Sub(req.BetAmount)
+	newBalance := balance.AmountUnits.Sub(req.BetAmount)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    userID,
@@ -112,7 +112,7 @@ func (b *bet) CreateStreetKingsGame(ctx context.Context, req dto.CreateCrashKing
 			UserID:    userID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		return dto.CreateStreetKingsResp{}, err
 	}
@@ -121,7 +121,7 @@ func (b *bet) CreateStreetKingsGame(ctx context.Context, req dto.CreateCrashKing
 		UserID:             userID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("place street kings bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.RealMoney.Sub(req.BetAmount), constant.POINT_CURRENCY),
+		Description:        fmt.Sprintf("place street kings bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.AmountUnits.Sub(req.BetAmount), constant.POINT_CURRENCY),
 		ChangeAmount:       req.BetAmount,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -305,8 +305,8 @@ func (b *bet) CashOutStreetKings(ctx context.Context, req dto.CashOutReq) (dto.S
 	wonAmount = wonAmount.Add(crash.Data.BetAmount.Mul(resp))
 
 	userBalance, _, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   req.UserID,
-		Currency: constant.POINT_CURRENCY,
+		UserId:       req.UserID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 
 	if err != nil {
@@ -332,14 +332,14 @@ func (b *bet) CashOutStreetKings(ctx context.Context, req dto.CashOutReq) (dto.S
 			UserID:    req.UserID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.RealMoney,
+			Amount:    userBalance.AmountUnits,
 		})
 
 		b.betStorage.ReverseCashOut(ctx, req.RoundID)
 		return dto.StreetKingsCrashResp{}, err
 	}
 
-	betAfterUpdate := userBalance.RealMoney.Add(wonAmount)
+	betAfterUpdate := userBalance.AmountUnits.Add(wonAmount)
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,
 		Currency:  constant.POINT_CURRENCY,
@@ -360,7 +360,7 @@ func (b *bet) CashOutStreetKings(ctx context.Context, req dto.CashOutReq) (dto.S
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("cash out street kings bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, userBalance.RealMoney.Add(wonAmount), constant.POINT_CURRENCY),
+		Description:        fmt.Sprintf("cash out street kings bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, userBalance.AmountUnits.Add(wonAmount), constant.POINT_CURRENCY),
 		ChangeAmount:       wonAmount,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,

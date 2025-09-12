@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -42,15 +42,15 @@ func (b *bet) PlaceQuickHustleBet(ctx context.Context, req dto.CreateQuickHustle
 
 	// check balance
 	balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   req.UserID,
-		Currency: constant.POINT_CURRENCY,
+		UserId:       req.UserID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 
 	if err != nil {
 		return dto.CreateQuickHustelBetRes{}, err
 	}
 
-	if !exist || balance.RealMoney.LessThan(req.BetAmount) {
+	if !exist || balance.AmountUnits.LessThan(req.BetAmount) {
 		err := fmt.Errorf("insufficient balance ")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.CreateQuickHustelBetRes{}, err
@@ -67,7 +67,7 @@ func (b *bet) PlaceQuickHustleBet(ctx context.Context, req dto.CreateQuickHustle
 
 	// do transaction
 	//update user balance
-	newBalance := balance.RealMoney.Sub(req.BetAmount)
+	newBalance := balance.AmountUnits.Sub(req.BetAmount)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,
@@ -88,7 +88,7 @@ func (b *bet) PlaceQuickHustleBet(ctx context.Context, req dto.CreateQuickHustle
 			UserID:    req.UserID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		return dto.CreateQuickHustelBetRes{}, err
 	}
@@ -98,7 +98,7 @@ func (b *bet) PlaceQuickHustleBet(ctx context.Context, req dto.CreateQuickHustle
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("place quick hustle bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.RealMoney.Sub(req.BetAmount), constant.POINT_CURRENCY),
+		Description:        fmt.Sprintf("place quick hustle bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.AmountUnits.Sub(req.BetAmount), constant.POINT_CURRENCY),
 		ChangeAmount:       req.BetAmount,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -198,14 +198,14 @@ func (b *bet) UserSelectCard(ctx context.Context, req dto.SelectQuickHustlePossi
 
 	if won == constant.WON {
 		balance, _, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-			UserId:   req.UserID,
-			Currency: constant.POINT_CURRENCY,
+			UserId:       req.UserID,
+			CurrencyCode: constant.POINT_CURRENCY,
 		})
 
 		if err != nil {
 			return dto.CloseQuickHustleResp{}, err
 		}
-		balanceAfterWin := balance.RealMoney.Add(wonAmount)
+		balanceAfterWin := balance.AmountUnits.Add(wonAmount)
 		updatedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    req.UserID,
 			Currency:  constant.POINT_CURRENCY,
@@ -225,7 +225,7 @@ func (b *bet) UserSelectCard(ctx context.Context, req dto.SelectQuickHustlePossi
 				UserID:    req.UserID,
 				Currency:  constant.POINT_CURRENCY,
 				Component: constant.REAL_MONEY,
-				Amount:    balance.RealMoney,
+				Amount:    balance.AmountUnits,
 			})
 			// reverse cashout
 
@@ -238,8 +238,8 @@ func (b *bet) UserSelectCard(ctx context.Context, req dto.SelectQuickHustlePossi
 			UserID:             req.UserID,
 			Component:          constant.REAL_MONEY,
 			Currency:           constant.POINT_CURRENCY,
-			Description:        fmt.Sprintf("cash out quick hustle kings bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, updatedBalance.RealMoney, constant.POINT_CURRENCY),
-			ChangeAmount:       updatedBalance.RealMoney,
+			Description:        fmt.Sprintf("cash out quick hustle kings bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, updatedBalance.AmountUnits, constant.POINT_CURRENCY),
+			ChangeAmount:       updatedBalance.AmountUnits,
 			OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 			OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
 			BalanceAfterUpdate: &balanceAfterWin,

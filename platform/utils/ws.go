@@ -9,10 +9,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/storage"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -111,8 +111,8 @@ func (b *User) getUserBalanceSocketLocker(conn *websocket.Conn) *sync.Mutex {
 func (b *User) GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBalanceResp, error) {
 
 	balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   userID,
-		Currency: constant.DEFAULT_CURRENCY,
+		UserId:       userID,
+		CurrencyCode: constant.DEFAULT_CURRENCY,
 	})
 	if err != nil {
 		b.log.Error("Failed to get user balance", zap.Error(err), zap.String("userID", userID.String()))
@@ -127,8 +127,8 @@ func (b *User) GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBa
 	}
 	return dto.UserBalanceResp{
 		UserID:   userID,
-		Balance:  balance.RealMoney,
-		Currency: balance.Currency,
+		Balance:  balance.AmountUnits,
+		Currency: balance.CurrencyCode,
 	}, nil
 }
 

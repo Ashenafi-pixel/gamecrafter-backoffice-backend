@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 )
 
 func (b *bet) SaveToSquads(ctx context.Context, req dto.SquadEarns) error {
@@ -79,8 +79,8 @@ func (b *bet) CheckRankAndClaim(ctx context.Context, req dto.SquadEarns) error {
 						if reward.Type == "bucks" {
 							// update user balance
 							balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-								UserId:   member.UserID,
-								Currency: constant.POINT_CURRENCY,
+								UserId:       member.UserID,
+								CurrencyCode: constant.POINT_CURRENCY,
 							})
 							if err != nil {
 								continue
@@ -88,9 +88,9 @@ func (b *bet) CheckRankAndClaim(ctx context.Context, req dto.SquadEarns) error {
 
 							if !exist {
 								balance = dto.Balance{
-									UserId:    member.UserID,
-									Currency:  constant.POINT_CURRENCY,
-									RealMoney: decimal.Zero,
+									UserId:       member.UserID,
+									CurrencyCode: constant.POINT_CURRENCY,
+									AmountUnits:  decimal.Zero,
 								}
 							}
 
@@ -111,7 +111,7 @@ func (b *bet) CheckRankAndClaim(ctx context.Context, req dto.SquadEarns) error {
 								ChangeAmount:       reward.Amount,
 								OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 								OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
-								BalanceAfterUpdate: &balance.RealMoney,
+								BalanceAfterUpdate: &balance.AmountUnits,
 								TransactionID:      &transactionID,
 							})
 							if err != nil {

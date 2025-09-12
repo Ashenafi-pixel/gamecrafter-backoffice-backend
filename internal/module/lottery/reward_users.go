@@ -54,8 +54,8 @@ func (l *lottery) RewardWinnersAndSaveLogs(ctx context.Context, event dto.KafkaL
 
 		// Update user balance
 		balance, exist, err := l.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-			UserId:   winner.UserID,
-			Currency: winner.PrizeCurrency,
+			UserId:       winner.UserID,
+			CurrencyCode: winner.PrizeCurrency,
 		})
 
 		if err != nil {
@@ -67,7 +67,7 @@ func (l *lottery) RewardWinnersAndSaveLogs(ctx context.Context, event dto.KafkaL
 			l.log.Warn("user balance does not exist", zap.Any("winner", winner))
 			continue
 		}
-		newBalance := balance.RealMoney.Add(winner.Prize.Mul(decimal.NewFromInt(int64(winner.NumberOfTickets))))
+		newBalance := balance.AmountUnits.Add(winner.Prize.Mul(decimal.NewFromInt(int64(winner.NumberOfTickets))))
 		transactionID := utils.GenerateTransactionId()
 		_, err = l.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    winner.UserID,

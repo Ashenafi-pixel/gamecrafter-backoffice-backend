@@ -380,12 +380,12 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 
 	// Lock the row
 	_, err = q.LockBalance(ctx, db.LockBalanceParams{
-		UserID:   params.UserID,
-		Currency: params.Currency,
+		UserID:       params.UserID,
+		CurrencyCode: params.CurrencyCode,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
+			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
 			return db.Balance{}, err
 		}
 		p.log.Error("Failed to lock balance", zap.Error(err))
@@ -394,11 +394,12 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 
 	// Perform the update
 	balance, err := q.UpdateBalance(ctx, db.UpdateBalanceParams{
-		Currency:   params.Currency,
-		RealMoney:  params.RealMoney,
-		BonusMoney: params.BonusMoney,
-		UpdatedAt:  params.UpdatedAt,
-		UserID:     params.UserID,
+		CurrencyCode:  params.CurrencyCode,
+		AmountUnits:   params.AmountUnits,
+		ReservedUnits: params.ReservedUnits,
+		ReservedCents: params.ReservedCents,
+		UpdatedAt:     params.UpdatedAt,
+		UserID:        params.UserID,
 	})
 	if err != nil {
 		p.log.Error("Failed to update balance", zap.Error(err))
@@ -410,11 +411,11 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 		return db.Balance{}, err
 	}
 
-	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
+	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
 	return balance, nil
 }
 
-func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateRealMoneyParams) (db.Balance, error) {
+func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateAmountUnitsParams) (db.Balance, error) {
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		p.log.Error("Failed to begin transaction", zap.Error(err))
@@ -430,12 +431,12 @@ func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateRealMon
 
 	// Lock the row
 	_, err = q.LockBalance(ctx, db.LockBalanceParams{
-		UserID:   params.UserID,
-		Currency: params.Currency,
+		UserID:       params.UserID,
+		CurrencyCode: params.CurrencyCode,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
+			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
 			return db.Balance{}, err
 		}
 		p.log.Error("Failed to lock balance", zap.Error(err))
@@ -443,12 +444,7 @@ func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateRealMon
 	}
 
 	// Perform the update
-	balance, err := q.UpdateRealMoney(ctx, db.UpdateRealMoneyParams{
-		Currency:  params.Currency,
-		RealMoney: params.RealMoney,
-		UpdatedAt: params.UpdatedAt,
-		UserID:    params.UserID,
-	})
+	balance, err := q.UpdateAmountUnits(ctx, params)
 	if err != nil {
 		p.log.Error("Failed to update balance", zap.Error(err))
 		return db.Balance{}, err
@@ -459,6 +455,160 @@ func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateRealMon
 		return db.Balance{}, err
 	}
 
-	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
+	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
 	return balance, nil
+}
+
+
+func (p *PersistenceDB) GetBalanceLog(ctx context.Context, balanceLogID uuid.UUID) (db.BalanceLog, error) {
+	query := `
+		SELECT
+			bl.id,
+			bl.user_id,
+			bl.component,
+			bl.currency,
+			bl.description,
+			bl.change_amount,
+			bl.operational_group_id,
+			ops.name AS type,
+			bl.operational_type_id,
+			ot.name AS operational_type_name,
+			bl.timestamp,
+			bl.balance_after_update,
+			bl.transaction_id,
+			bl.status
+		FROM
+			balance_logs bl
+		JOIN
+			operational_groups ops ON ops.id = bl.operational_group_id
+		JOIN
+			operational_types ot ON ot.id = bl.operational_type_id
+		WHERE
+			bl.id = $1`
+
+	var balanceLog db.BalanceLog
+	err := p.pool.QueryRow(ctx, query, balanceLogID).Scan(
+		&balanceLog.ID,
+		&balanceLog.UserID,
+		&balanceLog.Component,
+		&balanceLog.Currency,
+		&balanceLog.Description,
+		&balanceLog.ChangeAmount,
+		&balanceLog.OperationalGroupID,
+		&balanceLog.Type,
+		&balanceLog.OperationalTypeID,
+		&balanceLog.OperationalTypeName,
+		&balanceLog.Timestamp,
+		&balanceLog.BalanceAfterUpdate,
+		&balanceLog.TransactionID,
+		&balanceLog.Status,
+	)
+	if err != nil {
+		return db.BalanceLog{}, err
+	}
+
+	return balanceLog, nil
+}
+
+
+func (p *PersistenceDB) GetBalanceLogByTransactionID(ctx context.Context, transactionID string) (db.BalanceLog, error) {
+	query := `
+		SELECT
+			bl.id,
+			bl.user_id,
+			bl.component,
+			bl.currency,
+			bl.description,
+			bl.change_amount,
+			bl.operational_group_id,
+			ops.name AS type,
+			bl.operational_type_id,
+			ot.name AS operational_type_name,
+			bl.timestamp,
+			bl.balance_after_update,
+			bl.transaction_id,
+			bl.status
+		FROM
+			balance_logs bl
+		JOIN
+			operational_groups ops ON ops.id = bl.operational_group_id
+		JOIN
+			operational_types ot ON ot.id = bl.operational_type_id
+		WHERE
+			bl.transaction_id = $1`
+
+	var balanceLog db.BalanceLog
+	err := p.pool.QueryRow(ctx, query, transactionID).Scan(
+		&balanceLog.ID,
+		&balanceLog.UserID,
+		&balanceLog.Component,
+		&balanceLog.Currency,
+		&balanceLog.Description,
+		&balanceLog.ChangeAmount,
+		&balanceLog.OperationalGroupID,
+		&balanceLog.Type,
+		&balanceLog.OperationalTypeID,
+		&balanceLog.OperationalTypeName,
+		&balanceLog.Timestamp,
+		&balanceLog.BalanceAfterUpdate,
+		&balanceLog.TransactionID,
+		&balanceLog.Status,
+	)
+	if err != nil {
+		return db.BalanceLog{}, err
+	}
+
+	return balanceLog, nil
+}
+
+
+func (p *PersistenceDB) SaveBalanceLogs(ctx context.Context, arg db.SaveBalanceLogsParams) (db.BalanceLog, error) {
+	query := `
+		INSERT INTO balance_logs (
+			user_id,
+			component,
+			currency,
+			change_amount,
+			operational_group_id,
+			operational_type_id,
+			description,
+			timestamp,
+			balance_after_update,
+			transaction_id,
+			status
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+		) RETURNING id, user_id, component, currency, change_amount, operational_group_id, operational_type_id, description, timestamp, balance_after_update, transaction_id, status`
+
+	row := p.pool.QueryRow(ctx, query,
+		arg.UserID,
+		arg.Component,
+		arg.Currency,
+		arg.ChangeAmount,
+		arg.OperationalGroupID,
+		arg.OperationalTypeID,
+		arg.Description,
+		arg.Timestamp,
+		arg.BalanceAfterUpdate,
+		arg.TransactionID,
+		arg.Status,
+	)
+
+	var balanceLog db.BalanceLog
+	err := row.Scan(
+		&balanceLog.ID,
+		&balanceLog.UserID,
+		&balanceLog.Component,
+		&balanceLog.Currency,
+		&balanceLog.ChangeAmount,
+		&balanceLog.OperationalGroupID,
+		&balanceLog.OperationalTypeID,
+		&balanceLog.Description,
+		&balanceLog.Timestamp,
+		&balanceLog.BalanceAfterUpdate,
+		&balanceLog.TransactionID,
+		&balanceLog.Status,
+	)
+
+	return balanceLog, err
 }

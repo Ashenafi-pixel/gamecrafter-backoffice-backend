@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -394,8 +394,8 @@ func (b *bet) PleceBetOnFootballRound(ctx context.Context, req dto.UserFootballM
 	// get user balance
 
 	balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		Currency: req.Currency,
-		UserId:   req.UserID,
+		CurrencyCode: req.Currency,
+		UserId:       req.UserID,
 	})
 
 	if err != nil {
@@ -416,7 +416,7 @@ func (b *bet) PleceBetOnFootballRound(ctx context.Context, req dto.UserFootballM
 		return dto.UserFootballMatchBetRes{}, err
 	}
 
-	if balance.RealMoney.LessThan(price) {
+	if balance.AmountUnits.LessThan(price) {
 		err := fmt.Errorf("insufficient balance  %v", tiketPrice.Value)
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.UserFootballMatchBetRes{}, err
@@ -510,14 +510,14 @@ func (b *bet) PleceBetOnFootballRound(ctx context.Context, req dto.UserFootballM
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		return dto.UserFootballMatchBetRes{}, err
 	}
 
 	// save transaction logs
 	//update user balance
-	newBalance := balance.RealMoney.Sub(price)
+	newBalance := balance.AmountUnits.Sub(price)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,
@@ -535,7 +535,7 @@ func (b *bet) PleceBetOnFootballRound(ctx context.Context, req dto.UserFootballM
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           req.Currency,
-		Description:        fmt.Sprintf("place football bet amount %v, new balance is %v and  currency %s", price, balance.RealMoney.Sub(price), req.Currency),
+		Description:        fmt.Sprintf("place football bet amount %v, new balance is %v and  currency %s", price, balance.AmountUnits.Sub(price), req.Currency),
 		ChangeAmount:       price,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -548,7 +548,7 @@ func (b *bet) PleceBetOnFootballRound(ctx context.Context, req dto.UserFootballM
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		if err2 != nil {
 			return dto.UserFootballMatchBetRes{}, err2
@@ -584,7 +584,7 @@ func (b *bet) PleceBetOnFootballRound(ctx context.Context, req dto.UserFootballM
 				UserID:    req.UserID,
 				Currency:  req.Currency,
 				Component: constant.REAL_MONEY,
-				Amount:    balance.RealMoney,
+				Amount:    balance.AmountUnits,
 			})
 			if err2 != nil {
 				return dto.UserFootballMatchBetRes{}, err2
@@ -705,8 +705,8 @@ func (b *bet) UpdateFootballBetWinnerBalance(ctx context.Context, req dto.UserFo
 
 	// get user balance
 	balance, _, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   req.UserID,
-		Currency: req.Currency,
+		UserId:       req.UserID,
+		CurrencyCode: req.Currency,
 	})
 
 	if err != nil {
@@ -714,7 +714,7 @@ func (b *bet) UpdateFootballBetWinnerBalance(ctx context.Context, req dto.UserFo
 		return
 	}
 
-	newBalance := balance.RealMoney.Add(req.WonAmount)
+	newBalance := balance.AmountUnits.Add(req.WonAmount)
 	updatedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,
 		Currency:  req.Currency,
@@ -741,7 +741,7 @@ func (b *bet) UpdateFootballBetWinnerBalance(ctx context.Context, req dto.UserFo
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		// reverse cashout
 
@@ -754,8 +754,8 @@ func (b *bet) UpdateFootballBetWinnerBalance(ctx context.Context, req dto.UserFo
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           req.Currency,
-		Description:        fmt.Sprintf("cash out football bet  %v  amount, new balance is %v s currency balance is  %s", req.WonAmount, updatedBalance.RealMoney, req.Currency),
-		ChangeAmount:       updatedBalance.RealMoney,
+		Description:        fmt.Sprintf("cash out football bet  %v  amount, new balance is %v s currency balance is  %s", req.WonAmount, updatedBalance.AmountUnits, req.Currency),
+		ChangeAmount:       updatedBalance.AmountUnits,
 		OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
 		BalanceAfterUpdate: &newBalance,

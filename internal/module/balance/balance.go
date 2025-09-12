@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	customerrors "github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/storage"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -133,8 +132,8 @@ func (b *balance) Deposite(ctx context.Context, depositeReq dto.UpdateBalanceReq
 
 	// Check if the balance exists or notD
 	blnc, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   depositeReq.UserID,
-		Currency: depositeReq.Currency,
+		UserId:       depositeReq.UserID,
+		CurrencyCode: depositeReq.Currency,
 	})
 	if err != nil {
 		return dto.UpdateBalanceRes{}, err
@@ -148,16 +147,16 @@ func (b *balance) Deposite(ctx context.Context, depositeReq dto.UpdateBalanceReq
 		}
 		var newBalance decimal.Decimal
 		if depositeReq.Component == constant.REAL_MONEY {
-			newBalance = updatedMoney.RealMoney
+			newBalance = updatedMoney.AmountUnits
 		} else {
-			newBalance = updatedMoney.BonusMoney
+			newBalance = updatedMoney.ReservedUnits
 		}
 		return dto.UpdateBalanceRes{
 			Status:  constant.SUCCESS,
 			Message: constant.BALANCE_SUCCESS,
 			Data: dto.BalanceData{
 				UserID:           updatedMoney.UserId,
-				Currency:         updatedMoney.Currency,
+				Currency:         updatedMoney.CurrencyCode,
 				UpdatedComponent: depositeReq.Component,
 				NewBalance:       newBalance,
 			},
@@ -165,19 +164,19 @@ func (b *balance) Deposite(ctx context.Context, depositeReq dto.UpdateBalanceReq
 	}
 
 	// Create balance
-	realMoney := decimal.Zero
-	bonusMoney := decimal.Zero
+	amountUnits := decimal.Zero
+	reservedUnits := decimal.Zero
 	if depositeReq.Component == constant.REAL_MONEY {
-		realMoney = depositeReq.Amount
+		amountUnits = depositeReq.Amount
 	} else if depositeReq.Component == constant.BONUS_MONEY {
-		bonusMoney = depositeReq.Amount
+		reservedUnits = depositeReq.Amount
 	}
 
 	createdBalance, err := b.balanceStorage.CreateBalance(ctx, dto.Balance{
-		UserId:     depositeReq.UserID,
-		Currency:   depositeReq.Currency,
-		RealMoney:  realMoney,
-		BonusMoney: bonusMoney,
+		UserId:        depositeReq.UserID,
+		CurrencyCode:  depositeReq.Currency,
+		AmountUnits:   amountUnits,
+		ReservedUnits: reservedUnits,
 	})
 	if err != nil {
 		return dto.UpdateBalanceRes{}, err
@@ -187,7 +186,7 @@ func (b *balance) Deposite(ctx context.Context, depositeReq dto.UpdateBalanceReq
 		Message: constant.BALANCE_SUCCESS,
 		Data: dto.BalanceData{
 			UserID:           createdBalance.UserId,
-			Currency:         createdBalance.Currency,
+			Currency:         createdBalance.CurrencyCode,
 			UpdatedComponent: depositeReq.Component,
 			NewBalance:       depositeReq.Amount,
 		},
@@ -202,8 +201,8 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 
 	// Check if the balance exists or not
 	blnc, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   withdrawalReq.UserID,
-		Currency: withdrawalReq.Currency,
+		UserId:       withdrawalReq.UserID,
+		CurrencyCode: withdrawalReq.Currency,
 	})
 	if err != nil {
 		return dto.UpdateBalanceRes{}, err
@@ -214,14 +213,14 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 		return dto.UpdateBalanceRes{}, err
 	}
 	if withdrawalReq.Component == constant.REAL_MONEY {
-		newBalance := blnc.RealMoney.Sub(withdrawalReq.Amount)
+		newBalance := blnc.AmountUnits.Sub(withdrawalReq.Amount)
 		if newBalance.LessThan(decimal.Zero) {
 			err := fmt.Errorf("insufficient amount")
 			b.log.Warn(err.Error(), zap.Any("withdrawalReq", withdrawalReq))
 			err = customerrors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return dto.UpdateBalanceRes{}, err
 		}
-		blnc.RealMoney = newBalance
+		blnc.AmountUnits = newBalance
 		updatedBlance, err := b.balanceStorage.UpdateBalance(ctx, blnc)
 		if err != nil {
 			return dto.UpdateBalanceRes{}, err
@@ -231,20 +230,20 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 			Message: constant.BALANCE_SUCCESS,
 			Data: dto.BalanceData{
 				UserID:           updatedBlance.UserId,
-				Currency:         updatedBlance.Currency,
+				Currency:         updatedBlance.CurrencyCode,
 				UpdatedComponent: constant.REAL_MONEY,
 				NewBalance:       newBalance,
 			},
 		}, nil
 
 	} else if withdrawalReq.Component == constant.BONUS_MONEY {
-		newBalance := blnc.BonusMoney.Sub(withdrawalReq.Amount)
+		newBalance := blnc.ReservedUnits.Sub(withdrawalReq.Amount)
 		if newBalance.LessThan(decimal.Zero) {
 			err := fmt.Errorf("insufficient amount")
 			b.log.Warn(err.Error(), zap.Any("withdrawalReq", withdrawalReq))
 			return dto.UpdateBalanceRes{}, err
 		}
-		blnc.RealMoney = newBalance
+		blnc.ReservedUnits = newBalance
 		updatedBlance, err := b.balanceStorage.UpdateBalance(ctx, blnc)
 		if err != nil {
 			return dto.UpdateBalanceRes{}, err
@@ -254,7 +253,7 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 			Message: constant.BALANCE_SUCCESS,
 			Data: dto.BalanceData{
 				UserID:           updatedBlance.UserId,
-				Currency:         updatedBlance.Currency,
+				Currency:         updatedBlance.CurrencyCode,
 				UpdatedComponent: constant.REAL_MONEY,
 				NewBalance:       newBalance,
 			},
@@ -271,9 +270,9 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 func (b *balance) UpdateMoney(ctx context.Context, blnc dto.Balance, updateBalanceReq dto.UpdateBalanceReq) (dto.Balance, error) {
 	if updateBalanceReq.Component == constant.REAL_MONEY || updateBalanceReq.Component == constant.BONUS_MONEY {
 		if updateBalanceReq.Component == constant.REAL_MONEY {
-			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.RealMoney)
+			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.AmountUnits)
 		} else {
-			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.BonusMoney)
+			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.ReservedUnits)
 		}
 		updatedMoney, err := b.balanceStorage.UpdateMoney(ctx, updateBalanceReq)
 		if err != nil {
@@ -310,8 +309,8 @@ func (b *balance) CreditWallet(ctx context.Context, req dto.CreditWalletReq) (dt
 	defer userLock.Unlock()
 
 	blnc, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   req.UserID,
-		Currency: req.Currency,
+		UserId:       req.UserID,
+		CurrencyCode: req.Currency,
 	})
 	if err != nil {
 		return dto.CreditWalletRes{Success: false, Reason: err.Error()}, err
@@ -319,16 +318,16 @@ func (b *balance) CreditWallet(ctx context.Context, req dto.CreditWalletReq) (dt
 	if !exist {
 		// create balance if not exist
 		blnc, err = b.balanceStorage.CreateBalance(ctx, dto.Balance{
-			UserId:    req.UserID,
-			Currency:  req.Currency,
-			RealMoney: req.Amount,
-			UpdateAt:  time.Now(),
+			UserId:        req.UserID,
+			CurrencyCode:  req.Currency,
+			AmountUnits:   req.Amount,
+			ReservedUnits: decimal.Zero,
 		})
 		if err != nil {
 			return dto.CreditWalletRes{Success: false, Reason: err.Error()}, err
 		}
 	} else {
-		blnc.RealMoney = blnc.RealMoney.Add(req.Amount)
+		blnc.AmountUnits = blnc.AmountUnits.Add(req.Amount)
 		blnc, err = b.balanceStorage.UpdateBalance(ctx, blnc)
 		if err != nil {
 			return dto.CreditWalletRes{Success: false, Reason: err.Error()}, err
@@ -349,7 +348,7 @@ func (b *balance) CreditWallet(ctx context.Context, req dto.CreditWalletReq) (dt
 		ChangeAmount:       req.Amount,
 		OperationalGroupID: operationalGroupAndType.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndType.OperationalTypeID,
-		BalanceAfterUpdate: &blnc.RealMoney,
+		BalanceAfterUpdate: &blnc.AmountUnits,
 		TransactionID:      &transactionID,
 	})
 	if err != nil {

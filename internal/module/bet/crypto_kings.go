@@ -158,14 +158,14 @@ func (b *bet) PlaceCryptoKingsBet(ctx context.Context, req dto.PlaceCryptoKingsB
 	// check balance
 	balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
 		UserId:   userID,
-		Currency: constant.POINT_CURRENCY,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 
 	if err != nil {
 		return dto.PlaceCryptoKingsBetRes{}, err
 	}
 
-	if !exist || balance.RealMoney.LessThan(decimal.NewFromInt(req.BetAmount)) {
+	if !exist || balance.AmountUnits.LessThan(decimal.NewFromInt(req.BetAmount)) {
 		err := fmt.Errorf("insufficient balance ")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.PlaceCryptoKingsBetRes{}, err
@@ -361,7 +361,7 @@ func (b *bet) PlaceCryptoKingsBet(ctx context.Context, req dto.PlaceCryptoKingsB
 
 	// do transaction
 	//update user balance
-	newBalance := balance.RealMoney.Sub(decimal.NewFromInt(req.BetAmount))
+	newBalance := balance.AmountUnits.Sub(decimal.NewFromInt(req.BetAmount))
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    userID,
@@ -382,7 +382,7 @@ func (b *bet) PlaceCryptoKingsBet(ctx context.Context, req dto.PlaceCryptoKingsB
 			UserID:    userID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		return dto.PlaceCryptoKingsBetRes{}, err
 	}
@@ -392,7 +392,7 @@ func (b *bet) PlaceCryptoKingsBet(ctx context.Context, req dto.PlaceCryptoKingsB
 		UserID:             userID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("place cryto kings bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.RealMoney.Sub(decimal.NewFromInt(req.BetAmount)), constant.POINT_CURRENCY),
+		Description:        fmt.Sprintf("place cryto kings bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.AmountUnits.Sub(decimal.NewFromInt(req.BetAmount)), constant.POINT_CURRENCY),
 		ChangeAmount:       decimal.NewFromInt(req.BetAmount),
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -432,7 +432,7 @@ func (b *bet) PlaceCryptoKingsBet(ctx context.Context, req dto.PlaceCryptoKingsB
 				UserID:    userID,
 				Currency:  constant.POINT_CURRENCY,
 				Component: constant.REAL_MONEY,
-				Amount:    balance.RealMoney,
+				Amount:    balance.AmountUnits,
 			})
 			// reverse cashout
 
@@ -445,8 +445,8 @@ func (b *bet) PlaceCryptoKingsBet(ctx context.Context, req dto.PlaceCryptoKingsB
 			UserID:             userID,
 			Component:          constant.REAL_MONEY,
 			Currency:           constant.POINT_CURRENCY,
-			Description:        fmt.Sprintf("cash out cyrpto kings bet  %v  amount, new balance is %v s currency balance is  %s", response.Data.PotentialWinAmount, updatedBalance.RealMoney, constant.POINT_CURRENCY),
-			ChangeAmount:       updatedBalance.RealMoney,
+			Description:        fmt.Sprintf("cash out cyrpto kings bet  %v  amount, new balance is %v s currency balance is  %s", response.Data.PotentialWinAmount, updatedBalance.AmountUnits, constant.POINT_CURRENCY),
+			ChangeAmount:       updatedBalance.AmountUnits,
 			OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 			OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
 			BalanceAfterUpdate: &balanceAfterWin,

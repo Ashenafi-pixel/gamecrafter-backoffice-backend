@@ -273,17 +273,34 @@ type AirtimeUtility struct {
 }
 
 type Balance struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	Currency   string
-	RealMoney  decimal.NullDecimal
-	BonusMoney decimal.NullDecimal
-	Points     sql.NullInt32
-	UpdatedAt  sql.NullTime
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	CurrencyCode  string
+	AmountCents   sql.NullInt64
+	AmountUnits   decimal.NullDecimal
+	ReservedCents sql.NullInt64
+	ReservedUnits decimal.NullDecimal
+	UpdatedAt     sql.NullTime
 }
 
 type BalanceLog struct {
-	ID                 uuid.UUID
+	ID                  uuid.UUID
+	UserID              uuid.NullUUID
+	Component           Components
+	Currency            sql.NullString
+	ChangeAmount        decimal.NullDecimal
+	OperationalGroupID  uuid.NullUUID
+	OperationalTypeID   uuid.NullUUID
+	OperationalTypeName sql.NullString
+	Type                sql.NullString
+	Description         sql.NullString
+	Timestamp           sql.NullTime
+	BalanceAfterUpdate  decimal.Decimal
+	TransactionID       string
+	Status              sql.NullString
+}
+
+type SaveBalanceLogsParams struct {
 	UserID             uuid.NullUUID
 	Component          Components
 	Currency           sql.NullString

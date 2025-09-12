@@ -2,18 +2,17 @@ package balance
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/db"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -31,11 +30,13 @@ func Init(db *persistencedb.PersistenceDB, log *zap.Logger) storage.Balance {
 
 func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balance) (dto.Balance, error) {
 	blc, err := b.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-		UserID:     createBalanceReq.UserId,
-		Currency:   createBalanceReq.Currency,
-		RealMoney:  decimal.NullDecimal{Decimal: createBalanceReq.RealMoney, Valid: true},
-		BonusMoney: decimal.NullDecimal{Decimal: createBalanceReq.BonusMoney, Valid: true},
-		UpdatedAt:  sql.NullTime{Time: time.Now(), Valid: true},
+		UserID:        createBalanceReq.UserId,
+		CurrencyCode:  createBalanceReq.CurrencyCode,
+		AmountCents:   createBalanceReq.AmountCents,
+		AmountUnits:   createBalanceReq.AmountUnits,
+		ReservedCents: createBalanceReq.ReservedCents,
+		ReservedUnits: createBalanceReq.ReservedUnits,
+		UpdatedAt:     time.Now(),
 	})
 	if err != nil {
 		b.log.Error("unable to create balance ", zap.Error(err), zap.Any("user", createBalanceReq))
@@ -43,19 +44,21 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 		return dto.Balance{}, err
 	}
 	return dto.Balance{
-		ID:         blc.ID,
-		UserId:     blc.UserID,
-		Currency:   blc.Currency,
-		RealMoney:  blc.RealMoney.Decimal,
-		BonusMoney: blc.BonusMoney.Decimal,
-		UpdateAt:   blc.UpdatedAt.Time,
+		ID:            blc.ID,
+		UserId:        blc.UserID,
+		CurrencyCode:  blc.CurrencyCode,
+		AmountCents:   blc.AmountCents.Int64,
+		AmountUnits:   blc.AmountUnits.Decimal,
+		ReservedCents: blc.ReservedCents.Int64,
+		ReservedUnits: blc.ReservedUnits.Decimal,
+		UpdateAt:      blc.UpdatedAt.Time,
 	}, nil
 }
 
 func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto.Balance) (dto.Balance, bool, error) {
 	blc, err := b.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:   getBalanceReq.UserId,
-		Currency: getBalanceReq.Currency,
+		UserID:       getBalanceReq.UserId,
+		CurrencyCode: getBalanceReq.CurrencyCode,
 	})
 	if err != nil && err.Error() != dto.ErrNoRows {
 		b.log.Error("unable to make get balance request using user_id")
@@ -67,12 +70,14 @@ func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto
 	}
 
 	return dto.Balance{
-		ID:         blc.ID,
-		UserId:     blc.UserID,
-		Currency:   blc.Currency,
-		RealMoney:  blc.RealMoney.Decimal,
-		BonusMoney: blc.BonusMoney.Decimal,
-		UpdateAt:   blc.UpdatedAt.Time,
+		ID:            blc.ID,
+		UserId:        blc.UserID,
+		CurrencyCode:  blc.CurrencyCode,
+		AmountCents:   blc.AmountCents.Int64,
+		AmountUnits:   blc.AmountUnits.Decimal,
+		ReservedCents: blc.ReservedCents.Int64,
+		ReservedUnits: blc.ReservedUnits.Decimal,
+		UpdateAt:      blc.UpdatedAt.Time,
 	}, true, nil
 
 }
@@ -80,11 +85,13 @@ func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto
 func (b *balance) UpdateBalance(ctx context.Context, updatedBalance dto.Balance) (dto.Balance, error) {
 
 	ubalance, err := b.db.UpdateBalance(ctx, db.UpdateBalanceParams{
-		Currency:   updatedBalance.Currency,
-		RealMoney:  decimal.NullDecimal{Decimal: updatedBalance.RealMoney, Valid: true},
-		BonusMoney: decimal.NullDecimal{Decimal: updatedBalance.BonusMoney, Valid: true},
-		UpdatedAt:  sql.NullTime{Time: time.Now(), Valid: true},
-		UserID:     updatedBalance.UserId,
+		CurrencyCode:  updatedBalance.CurrencyCode,
+		AmountCents:   updatedBalance.AmountCents,
+		AmountUnits:   updatedBalance.AmountUnits,
+		ReservedCents: updatedBalance.ReservedCents,
+		ReservedUnits: updatedBalance.ReservedUnits,
+		UpdatedAt:     time.Now(),
+		UserID:        updatedBalance.UserId,
 	})
 	if err != nil {
 		b.log.Error(err.Error(), zap.Any("updateBalance", updatedBalance))
@@ -92,12 +99,14 @@ func (b *balance) UpdateBalance(ctx context.Context, updatedBalance dto.Balance)
 		return dto.Balance{}, err
 	}
 	return dto.Balance{
-		ID:         ubalance.ID,
-		UserId:     ubalance.UserID,
-		Currency:   ubalance.Currency,
-		RealMoney:  ubalance.RealMoney.Decimal,
-		BonusMoney: ubalance.BonusMoney.Decimal,
-		UpdateAt:   ubalance.UpdatedAt.Time,
+		ID:            ubalance.ID,
+		UserId:        ubalance.UserID,
+		CurrencyCode:  ubalance.CurrencyCode,
+		AmountCents:   ubalance.AmountCents.Int64,
+		AmountUnits:   ubalance.AmountUnits.Decimal,
+		ReservedCents: ubalance.ReservedCents.Int64,
+		ReservedUnits: ubalance.ReservedUnits.Decimal,
+		UpdateAt:      ubalance.UpdatedAt.Time,
 	}, err
 }
 
@@ -111,12 +120,14 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 	}
 	for _, userBalance := range userBalances {
 		balances = append(balances, dto.Balance{
-			ID:         userBalance.ID,
-			UserId:     userBalance.UserID,
-			Currency:   userBalance.Currency,
-			RealMoney:  userBalance.RealMoney.Decimal,
-			BonusMoney: userBalance.BonusMoney.Decimal,
-			UpdateAt:   userBalance.UpdatedAt.Time,
+			ID:            userBalance.ID,
+			UserId:        userBalance.UserID,
+			CurrencyCode:  userBalance.CurrencyCode,
+			AmountCents:   userBalance.AmountCents.Int64,
+			AmountUnits:   userBalance.AmountUnits.Decimal,
+			ReservedCents: userBalance.ReservedCents.Int64,
+			ReservedUnits: userBalance.ReservedUnits.Decimal,
+			UpdateAt:      userBalance.UpdatedAt.Time,
 		})
 	}
 	return balances, nil
@@ -126,29 +137,42 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 	var blnc db.Balance
 	var err error
 	// check if the user balance exist and if not create balance
-	exist, err := b.db.BalanceExist(ctx, db.BalanceExistParams{
-		UserID:   updateReq.UserID,
-		Currency: updateReq.Currency,
+	exist, err := b.db.Queries.BalanceExist(ctx, db.BalanceExistParams{
+		UserID:       updateReq.UserID,
+		CurrencyCode: updateReq.Currency,
 	})
 	if err != nil {
 		b.log.Error("unable to get balance ", zap.Error(err), zap.Any("updateReq", updateReq))
 		err = errors.ErrUnableToUpdate.Wrap(err, "unable to get balance ", zap.Any("updateReq", updateReq))
 		return dto.Balance{}, err
-
 	}
 	if !exist {
-		b.db.CreateBalance(ctx, db.CreateBalanceParams{
-			UserID:   updateReq.UserID,
-			Currency: updateReq.Currency,
+		_, err = b.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
+			UserID:        updateReq.UserID,
+			CurrencyCode:  updateReq.Currency,
+			AmountCents:   0,
+			AmountUnits:   decimal.Zero,
+			ReservedCents: 0,
+			ReservedUnits: decimal.Zero,
+			UpdatedAt:     time.Now(),
 		})
+		if err != nil {
+			b.log.Error("unable to create balance ", zap.Error(err), zap.Any("updateReq", updateReq))
+			return dto.Balance{}, err
+		}
 	}
+
+	// Convert amount to cents and units
+	amountCents := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+
 	switch updateReq.Component {
 	case constant.REAL_MONEY:
-		blnc, err = b.db.UpdateRealMoney(ctx, db.UpdateRealMoneyParams{
-			RealMoney: decimal.NullDecimal{Decimal: updateReq.Amount, Valid: true},
-			UpdatedAt: sql.NullTime{Time: time.Now(), Valid: true},
-			UserID:    updateReq.UserID,
-			Currency:  updateReq.Currency,
+		blnc, err = b.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
+			AmountUnits:  updateReq.Amount,
+			AmountCents:  amountCents,
+			UpdatedAt:    time.Now(),
+			UserID:       updateReq.UserID,
+			CurrencyCode: updateReq.Currency,
 		})
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -157,11 +181,12 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		}
 
 	case constant.BONUS_MONEY:
-		blnc, err = b.db.Queries.UpdateBonusMoney(ctx, db.UpdateBonusMoneyParams{
-			BonusMoney: decimal.NullDecimal{Decimal: updateReq.Amount, Valid: true},
-			UpdatedAt:  sql.NullTime{Time: time.Now(), Valid: true},
-			UserID:     updateReq.UserID,
-			Currency:   updateReq.Currency,
+		blnc, err = b.db.Queries.UpdateReservedUnits(ctx, db.UpdateReservedUnitsParams{
+			ReservedUnits: updateReq.Amount,
+			ReservedCents: amountCents,
+			UpdatedAt:     time.Now(),
+			UserID:        updateReq.UserID,
+			CurrencyCode:  updateReq.Currency,
 		})
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -171,12 +196,14 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 	}
 
 	return dto.Balance{
-		ID:         blnc.ID,
-		UserId:     blnc.UserID,
-		Currency:   blnc.Currency,
-		RealMoney:  blnc.RealMoney.Decimal,
-		BonusMoney: blnc.BonusMoney.Decimal,
-		UpdateAt:   blnc.UpdatedAt.Time,
+		ID:            blnc.ID,
+		UserId:        blnc.UserID,
+		CurrencyCode:  blnc.CurrencyCode,
+		AmountCents:   blnc.AmountCents.Int64,
+		AmountUnits:   blnc.AmountUnits.Decimal,
+		ReservedCents: blnc.ReservedCents.Int64,
+		ReservedUnits: blnc.ReservedUnits.Decimal,
+		UpdateAt:      blnc.UpdatedAt.Time,
 	}, nil
 }
 

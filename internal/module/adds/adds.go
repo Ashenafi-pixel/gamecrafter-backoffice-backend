@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -137,7 +137,7 @@ func (a *adds) UpdateBalance(ctx context.Context, req dto.AddUpdateBalanceReq) (
 	// Get current user balance
 	currentBalance, exists, err := a.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
 		UserId:   req.UserID,
-		Currency: req.Currency,
+		CurrencyCode: req.Currency,
 	})
 	if err != nil {
 		a.logger.Error("error getting user balance", zap.Error(err))
@@ -148,22 +148,22 @@ func (a *adds) UpdateBalance(ctx context.Context, req dto.AddUpdateBalanceReq) (
 
 	if !exists {
 		// Create new balance if it doesn't exist
-		realMoney := decimal.Zero
-		bonusMoney := decimal.Zero
+		amountUnits := decimal.Zero
+		reservedUnits := decimal.Zero
 
 		if req.Component == constant.REAL_MONEY {
-			realMoney = amount
+			amountUnits = amount
 			newBalance = amount
 		} else {
-			bonusMoney = amount
+			reservedUnits = amount
 			newBalance = amount
 		}
 
 		_, err = a.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:     req.UserID,
-			Currency:   req.Currency,
-			RealMoney:  realMoney,
-			BonusMoney: bonusMoney,
+			CurrencyCode:   req.Currency,
+			AmountUnits:  amountUnits,
+			ReservedUnits: reservedUnits,
 		})
 		if err != nil {
 			a.logger.Error("error creating balance", zap.Error(err))
@@ -180,10 +180,10 @@ func (a *adds) UpdateBalance(ctx context.Context, req dto.AddUpdateBalanceReq) (
 
 		// Add the new amount to existing balance
 		if req.Component == constant.REAL_MONEY {
-			updateReq.Amount = currentBalance.RealMoney.Add(amount)
+			updateReq.Amount = currentBalance.AmountUnits.Add(amount)
 			newBalance = updateReq.Amount
 		} else {
-			updateReq.Amount = currentBalance.BonusMoney.Add(amount)
+			updateReq.Amount = currentBalance.ReservedUnits.Add(amount)
 			newBalance = updateReq.Amount
 		}
 

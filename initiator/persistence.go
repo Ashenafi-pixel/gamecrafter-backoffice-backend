@@ -11,7 +11,9 @@ import (
 	"github.com/tucanbit/internal/storage/balancelogs"
 	"github.com/tucanbit/internal/storage/banner"
 	"github.com/tucanbit/internal/storage/bet"
+	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/company"
+	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/internal/storage/config"
 	"github.com/tucanbit/internal/storage/departements"
 	"github.com/tucanbit/internal/storage/exchange"
@@ -58,6 +60,8 @@ type Persistence struct {
 	RiskSettings         storage.RiskSettings
 	Agent                storage.Agent
 	OTP                  otp.OTP
+	Cashback             cashback.CashbackStorage
+	Groove               groove.GrooveStorage
 }
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP) *Persistence {
@@ -87,5 +91,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		RiskSettings:         risksettings.Init(persistencdb, log),
 		Agent:                agent.Init(persistencdb, log),
 		OTP:                  otp.NewOTP(otp.NewOTPDatabase(redis, log)),
+		Cashback:             cashback.NewCashbackStorage(persistencdb, log),
+		Groove:               groove.NewGrooveStorage(persistencdb, log),
 	}
 }

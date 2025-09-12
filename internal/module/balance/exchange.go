@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/platform/utils"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -93,8 +93,8 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 	}
 	// check balance
 	userFromBalance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   exchngeReq.UserID,
-		Currency: exchngeReq.CurrencyFrom,
+		UserId:       exchngeReq.UserID,
+		CurrencyCode: exchngeReq.CurrencyFrom,
 	})
 	if err != nil {
 		return dto.ExchangeBalanceRes{}, err
@@ -107,7 +107,7 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 	}
 
 	// check if the user has enough balance
-	if userFromBalance.RealMoney.LessThan(exchngeReq.Amount) {
+	if userFromBalance.AmountUnits.LessThan(exchngeReq.Amount) {
 		err := fmt.Errorf("insufficient amount")
 		b.log.Warn(err.Error(), zap.Any("exchngeReq", exchngeReq))
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
@@ -117,8 +117,8 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 	// check if to_currency exist if not create balance with that currency
 	// check balance
 	userToBalance, exist, err = b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
-		UserId:   exchngeReq.UserID,
-		Currency: exchngeReq.CurrencyTo,
+		UserId:       exchngeReq.UserID,
+		CurrencyCode: exchngeReq.CurrencyTo,
 	})
 	if err != nil {
 		return dto.ExchangeBalanceRes{}, err
@@ -126,11 +126,10 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 	if !exist {
 		// create balance with current currency
 		userToBalance, err = b.balanceStorage.CreateBalance(ctx, dto.Balance{
-			UserId:     exchngeReq.UserID,
-			Currency:   exchngeReq.CurrencyTo,
-			RealMoney:  decimal.Zero,
-			BonusMoney: decimal.Zero,
-			UpdateAt:   time.Now(),
+			UserId:        exchngeReq.UserID,
+			CurrencyCode:  exchngeReq.CurrencyTo,
+			AmountUnits:   decimal.Zero,
+			ReservedUnits: decimal.Zero,
 		})
 		if err != nil {
 			return dto.ExchangeBalanceRes{}, err
@@ -155,28 +154,28 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 	exchangedCurrency := exchngeReq.Amount.Mul(conversionRate.Rate)
 
 	// save changed currency
-	userToBalanceTemp := userToBalance.RealMoney
-	userToBalance.RealMoney = userToBalance.RealMoney.Add(exchangedCurrency)
+	userToBalanceTemp := userToBalance.AmountUnits
+	userToBalance.AmountUnits = userToBalance.AmountUnits.Add(exchangedCurrency)
 	exchangedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
-		Currency:  userToBalance.Currency,
 		UserID:    exchngeReq.UserID,
+		Currency:  userToBalance.CurrencyCode,
 		Component: constant.REAL_MONEY,
-		Amount:    userToBalance.RealMoney,
+		Amount:    userToBalance.AmountUnits,
 	})
 	if err != nil {
 		return dto.ExchangeBalanceRes{}, err
 	}
 	// substract currency_from account
-	userFromBalance.RealMoney = userFromBalance.RealMoney.Sub(exchngeReq.Amount)
+	userFromBalance.AmountUnits = userFromBalance.AmountUnits.Sub(exchngeReq.Amount)
 	balanceAfterSubstracted, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    exchngeReq.UserID,
-		Currency:  userFromBalance.Currency,
+		Currency:  userFromBalance.CurrencyCode,
 		Component: constant.REAL_MONEY,
-		Amount:    userFromBalance.RealMoney,
+		Amount:    userFromBalance.AmountUnits,
 	})
 	if err != nil {
 		// reverse user balance to the previous balance
-		userToBalance.RealMoney = userToBalanceTemp
+		userToBalance.AmountUnits = userToBalanceTemp
 		_, err = b.balanceStorage.UpdateBalance(ctx, userToBalance)
 		if err != nil {
 			err = fmt.Errorf("unable to revert user exchange %s", err.Error())
@@ -196,7 +195,7 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 		OperationalGroupID: operationalGroup.ID,
 		OperationalTypeID:  operationalGroupTypeID.ID,
 		TransactionID:      &transactionID,
-		BalanceAfterUpdate: &userToBalance.RealMoney,
+		BalanceAfterUpdate: &userToBalance.AmountUnits,
 		Status:             constant.COMPLTE,
 	})
 	if err != nil {
@@ -209,12 +208,12 @@ func (b *balance) Exchange(ctx context.Context, exchngeReq dto.ExchangeBalanceRe
 		Message: "balance exchanged successfully",
 		Date: dto.ExchangeBalanceResData{
 			NewFromBalance: dto.NewBalance{
-				Currency: balanceAfterSubstracted.Currency,
-				Balance:  balanceAfterSubstracted.RealMoney,
+				Currency: balanceAfterSubstracted.CurrencyCode,
+				Balance:  balanceAfterSubstracted.AmountUnits,
 			},
 			NewToBalance: dto.NewBalance{
-				Currency: exchangedBalance.Currency,
-				Balance:  exchangedBalance.RealMoney,
+				Currency: exchangedBalance.CurrencyCode,
+				Balance:  exchangedBalance.AmountUnits,
 			},
 		},
 	}, nil

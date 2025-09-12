@@ -5,13 +5,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/adds"
 	"github.com/tucanbit/internal/glue/agent"
-	"github.com/tucanbit/internal/glue/airtime"
 	"github.com/tucanbit/internal/glue/authz"
 	"github.com/tucanbit/internal/glue/balance"
 	"github.com/tucanbit/internal/glue/balancelogs"
 	"github.com/tucanbit/internal/glue/banner"
 	"github.com/tucanbit/internal/glue/bet"
+	"github.com/tucanbit/internal/glue/cashback"
 	"github.com/tucanbit/internal/glue/company"
+	"github.com/tucanbit/internal/glue/groove"
 	"github.com/tucanbit/internal/glue/department"
 	"github.com/tucanbit/internal/glue/exchange"
 	"github.com/tucanbit/internal/glue/logs"
@@ -44,7 +45,6 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	department.Init(grp, *log, handler.Departments, module.Authz, enforcer, module.SystemLogs)
 	performance.Init(grp, *log, handler.Performance, module.Authz, enforcer, module.SystemLogs)
 	authz.Init(grp, *log, handler.Authz, module.Authz, enforcer, module.SystemLogs)
-	airtime.Init(grp, *log, handler.Airtime, module.Authz, enforcer, module.SystemLogs)
 	logs.Init(grp, *log, handler.SystemLogs, module.Authz, module.SystemLogs, enforcer)
 	company.Init(grp, *log, handler.Company, module.Authz, enforcer, module.SystemLogs)
 	report.Init(grp, *log, handler.Report, module.Authz, enforcer, module.SystemLogs)
@@ -57,4 +57,6 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	risksettings.Init(grp, *log, module.Authz, enforcer, handler.RiskSettings, module.SystemLogs)
 	agent.Init(grp, *log, handler.Agent, module.Authz, module.SystemLogs, enforcer)
 	otp.Init(grp, *log, handler.OTP, module.OTP)
+	cashback.Init(grp, *log, handler.Cashback, module.Authz, enforcer, module.SystemLogs)
+	groove.Init(grp, *log, handler.Groove, module.Authz, enforcer, module.SystemLogs)
 }

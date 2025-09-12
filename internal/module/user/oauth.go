@@ -125,9 +125,11 @@ func (u *User) OuathRegister(ctx context.Context, userRequest dto.User) (dto.Use
 	//create user balance
 	u.balanceStorage.CreateBalance(ctx, dto.Balance{
 		UserId:     usrRes.ID,
-		Currency:   constant.DEFAULT_CURRENCY,
-		RealMoney:  decimal.Zero,
-		BonusMoney: decimal.Zero,
+		CurrencyCode:   constant.DEFAULT_CURRENCY,
+		AmountUnits:  decimal.Zero,
+		AmountCents: 0,
+		ReservedUnits: decimal.Zero,
+		ReservedCents: 0,
 	})
 
 	// generate jwt token  to the user

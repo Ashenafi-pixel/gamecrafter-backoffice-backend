@@ -7,13 +7,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/db"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage"
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -39,8 +39,8 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	}
 	// get user balance by user id
 	balance, err := s.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:   req.UserID,
-		Currency: constant.NGN_CURRENCY,
+		UserID:       req.UserID,
+		CurrencyCode: constant.NGN_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToGet.Wrap(err, "error fetching user balance")
@@ -48,7 +48,7 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 		return nil, err
 	}
 
-	if balance.RealMoney.Decimal.LessThan(requestedAmount) {
+	if balance.AmountUnits.Decimal.LessThan(requestedAmount) {
 		err = errors.ErrInvalidUserInput.Wrap(err, "insufficient balance")
 		s.log.Error("insufficient balance", zap.Error(err))
 		return nil, err
@@ -56,9 +56,12 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 
 	// update user balance by the requested amount
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
-		UserID:    req.UserID,
-		Currency:  constant.NGN_CURRENCY,
-		RealMoney: decimal.NullDecimal{Decimal: balance.RealMoney.Decimal.Sub(requestedAmount), Valid: true},
+		UserID:        req.UserID,
+		CurrencyCode:  constant.NGN_CURRENCY,
+		AmountCents:   balance.AmountCents.Int64 - requestedAmount.Mul(decimal.NewFromInt(100)).IntPart(),
+		AmountUnits:   balance.AmountUnits.Decimal.Sub(requestedAmount),
+		ReservedCents: balance.ReservedCents.Int64,
+		ReservedUnits: balance.ReservedUnits.Decimal,
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, "error updating user balance")
@@ -115,10 +118,10 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	}
 
 	return &dto.PlaceBetResponse{
-		Balance:          updatedBalance.RealMoney.Decimal.String(),
+		Balance:          updatedBalance.AmountUnits.Decimal.String(),
 		ExtTransactionID: bet.TransactionID,
 		CustomerId:       updatedBalance.UserID.String(),
-		BonusAmount:      updatedBalance.BonusMoney.Decimal.String(),
+		BonusAmount:      updatedBalance.ReservedUnits.Decimal.String(),
 	}, nil
 }
 
@@ -147,8 +150,8 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 
 	// get user balance by user id
 	balance, err := s.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:   userID,
-		Currency: constant.NGN_CURRENCY,
+		UserID:       userID,
+		CurrencyCode: constant.NGN_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToGet.Wrap(err, "error fetching user balance")
@@ -158,9 +161,12 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 
 	// update user balance by the requested amount
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
-		UserID:    userID,
-		Currency:  constant.NGN_CURRENCY,
-		RealMoney: decimal.NullDecimal{Decimal: balance.RealMoney.Decimal.Add(requestedAmount), Valid: true},
+		UserID:        userID,
+		CurrencyCode:  constant.NGN_CURRENCY,
+		AmountCents:   balance.AmountCents.Int64 + requestedAmount.Mul(decimal.NewFromInt(100)).IntPart(),
+		AmountUnits:   balance.AmountUnits.Decimal.Add(requestedAmount),
+		ReservedCents: balance.ReservedCents.Int64,
+		ReservedUnits: balance.ReservedUnits.Decimal,
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, "error updating user balance")
@@ -181,7 +187,7 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 	}
 
 	return &dto.SportsServiceAwardWinningsRes{
-		Balance:          updatedBalance.RealMoney.Decimal.String(),
+		Balance:          updatedBalance.AmountUnits.Decimal.String(),
 		ExtTransactionID: req.TransactionID,
 		AlreadyProcessed: "false",
 	}, nil
