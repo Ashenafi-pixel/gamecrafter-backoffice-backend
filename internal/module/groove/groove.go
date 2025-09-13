@@ -23,7 +23,10 @@ type GrooveService interface {
 	// Official GrooveTech Transaction API methods
 	GetBalance(ctx context.Context, accountID string) (*dto.GrooveGetBalanceResponse, error)
 	ProcessWager(ctx context.Context, req dto.GrooveWagerRequest) (*dto.GrooveWagerResponse, error)
+	ProcessWagerTransaction(ctx context.Context, req dto.GrooveWagerRequest) (*dto.GrooveWagerResponse, error)
+	GetTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
 	ProcessResult(ctx context.Context, req dto.GrooveResultRequest) (*dto.GrooveResultResponse, error)
+	ProcessResultTransaction(ctx context.Context, req dto.GrooveResultRequest) (*dto.GrooveResultResponse, error)
 	ProcessWagerAndResult(ctx context.Context, req dto.GrooveWagerAndResultRequest) (*dto.GrooveWagerAndResultResponse, error)
 	ProcessRollback(ctx context.Context, req dto.GrooveRollbackRequest) (*dto.GrooveRollbackResponse, error)
 	ProcessJackpot(ctx context.Context, req dto.GrooveJackpotRequest) (*dto.GrooveJackpotResponse, error)
@@ -199,11 +202,8 @@ func (s *GrooveServiceImpl) ProcessDebit(ctx context.Context, req dto.GrooveTran
 	transaction := dto.GrooveTransaction{
 		TransactionID: transactionID,
 		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Type:          "debit",
-		Status:        "completed",
+		GameSessionID: req.SessionID,
+		BetAmount:     req.Amount,
 		CreatedAt:     time.Now(),
 	}
 
@@ -248,11 +248,8 @@ func (s *GrooveServiceImpl) ProcessCredit(ctx context.Context, req dto.GrooveTra
 	transaction := dto.GrooveTransaction{
 		TransactionID: transactionID,
 		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Type:          "credit",
-		Status:        "completed",
+		GameSessionID: req.SessionID,
+		BetAmount:     req.Amount,
 		CreatedAt:     time.Now(),
 	}
 
@@ -358,66 +355,10 @@ func (s *GrooveServiceImpl) ProcessWager(ctx context.Context, req dto.GrooveWage
 	s.logger.Info("Processing wager",
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("account_id", req.AccountID),
-		zap.String("amount", req.Amount.String()))
+		zap.String("bet_amount", req.BetAmount.String()))
 
-	// Check if account has sufficient balance
-	balance, err := s.storage.GetAccountBalance(ctx, req.AccountID)
-	if err != nil {
-		s.logger.Error("Failed to get account balance", zap.Error(err))
-		return &dto.GrooveWagerResponse{
-			Success:       false,
-			TransactionID: req.TransactionID,
-			ErrorCode:     "ACCOUNT_NOT_FOUND",
-			ErrorMessage:  "Account not found",
-		}, nil
-	}
-
-	if balance.LessThan(req.Amount) {
-		return &dto.GrooveWagerResponse{
-			Success:       false,
-			TransactionID: req.TransactionID,
-			ErrorCode:     "INSUFFICIENT_FUNDS",
-			ErrorMessage:  "Insufficient funds",
-		}, nil
-	}
-
-	// Process the wager (debit)
-	transaction := dto.GrooveTransaction{
-		TransactionID: req.TransactionID,
-		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Type:          "wager",
-		Status:        "completed",
-		CreatedAt:     time.Now(),
-	}
-
-	response, err := s.storage.ProcessTransaction(ctx, transaction)
-	if err != nil {
-		s.logger.Error("Failed to process wager", zap.Error(err))
-		return &dto.GrooveWagerResponse{
-			Success:       false,
-			TransactionID: req.TransactionID,
-			ErrorCode:     "WAGER_FAILED",
-			ErrorMessage:  "Failed to process wager",
-		}, nil
-	}
-
-	s.logger.Info("Wager processed successfully",
-		zap.String("transaction_id", response.TransactionID),
-		zap.String("new_balance", response.Balance.String()))
-
-	return &dto.GrooveWagerResponse{
-		Success:       true,
-		TransactionID: response.TransactionID,
-		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		NewBalance:    response.Balance,
-		Status:        "completed",
-	}, nil
+	// Delegate to the new ProcessWagerTransaction method
+	return s.ProcessWagerTransaction(ctx, req)
 }
 
 // ProcessResult processes a result transaction (Official GrooveTech API)
@@ -431,11 +372,8 @@ func (s *GrooveServiceImpl) ProcessResult(ctx context.Context, req dto.GrooveRes
 	transaction := dto.GrooveTransaction{
 		TransactionID: req.TransactionID,
 		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Type:          "result",
-		Status:        "completed",
+		GameSessionID: req.SessionID,
+		BetAmount:     req.Amount,
 		CreatedAt:     time.Now(),
 	}
 
@@ -460,9 +398,187 @@ func (s *GrooveServiceImpl) ProcessResult(ctx context.Context, req dto.GrooveRes
 		AccountID:     req.AccountID,
 		SessionID:     req.SessionID,
 		Amount:        req.Amount,
-		Currency:      req.Currency,
-		NewBalance:    response.Balance,
-		Status:        "completed",
+		Balance:       response.Balance,
+		Status:        "Success",
+		Code:          200,
+	}, nil
+}
+
+// ProcessResultTransaction processes a result transaction (Official GrooveTech API)
+func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dto.GrooveResultRequest) (*dto.GrooveResultResponse, error) {
+	s.logger.Info("Processing result transaction",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_id", req.AccountID),
+		zap.String("result", req.Result.String()),
+		zap.String("game_status", req.GameStatus))
+
+	// Validate game session (but don't fail if expired - Results must be processed even if session expired)
+	_, err := s.ValidateGameSession(ctx, req.GameSessionID)
+	if err != nil {
+		s.logger.Warn("Game session validation failed, but processing result anyway",
+			zap.String("session_id", req.GameSessionID), zap.Error(err))
+		// Continue processing - Results must be accepted even if session expired
+	}
+
+	// Get account by account ID
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Error("Failed to get account", zap.Error(err))
+		return &dto.GrooveResultResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: req.APIVersion,
+		}, nil
+	}
+
+	// Check idempotency - if transaction already exists, return original response
+	existingTransaction, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
+	if err == nil && existingTransaction != nil {
+		s.logger.Info("Duplicate result transaction found", zap.String("transaction_id", req.TransactionID))
+
+		// Get current balance
+		userUUID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID", zap.Error(err))
+			return &dto.GrooveResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: req.APIVersion,
+			}, nil
+		}
+		currentBalance, err := s.storage.GetUserBalance(ctx, userUUID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance", zap.Error(err))
+			return &dto.GrooveResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: req.APIVersion,
+			}, nil
+		}
+
+		// Return original response with current balance
+		return &dto.GrooveResultResponse{
+			Code:         200,
+			Status:       "Success - duplicate request",
+			WalletTx:     existingTransaction.AccountTransactionID,
+			Balance:      currentBalance,
+			BonusWin:     decimal.Zero, // We don't use bonuses
+			RealMoneyWin: req.Result,
+			BonusBalance: decimal.Zero,
+			RealBalance:  currentBalance,
+			GameMode:     1, // Real money mode
+			Order:        "cash_money",
+			APIVersion:   req.APIVersion,
+		}, nil
+	}
+
+	// If result is 0, no balance change needed
+	if req.Result.Equal(decimal.Zero) {
+		s.logger.Info("Result is zero, no balance change needed", zap.String("transaction_id", req.TransactionID))
+
+		// Get current balance
+		userUUID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID", zap.Error(err))
+			return &dto.GrooveResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: req.APIVersion,
+			}, nil
+		}
+		currentBalance, err := s.storage.GetUserBalance(ctx, userUUID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance", zap.Error(err))
+			return &dto.GrooveResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: req.APIVersion,
+			}, nil
+		}
+
+		// Store transaction for idempotency
+		transaction := dto.GrooveTransaction{
+			TransactionID: req.TransactionID,
+			AccountID:     req.AccountID,
+			GameSessionID: req.GameSessionID,
+			BetAmount:     req.Result,
+			CreatedAt:     time.Now(),
+		}
+
+		err = s.storage.StoreTransaction(ctx, &transaction)
+		if err != nil {
+			s.logger.Error("Failed to store transaction", zap.Error(err))
+		}
+
+		return &dto.GrooveResultResponse{
+			Code:         200,
+			Status:       "Success",
+			WalletTx:     fmt.Sprintf("TXN_%s_%d", req.TransactionID[:8], time.Now().Unix()),
+			Balance:      currentBalance,
+			BonusWin:     decimal.Zero,
+			RealMoneyWin: decimal.Zero,
+			BonusBalance: decimal.Zero,
+			RealBalance:  currentBalance,
+			GameMode:     1,
+			Order:        "cash_money",
+			APIVersion:   req.APIVersion,
+		}, nil
+	}
+
+	// Add winnings to balance
+	userUUID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveResultResponse{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: req.APIVersion,
+		}, nil
+	}
+	newBalance, err := s.storage.AddBalance(ctx, userUUID, req.Result)
+	if err != nil {
+		s.logger.Error("Failed to add balance", zap.Error(err))
+		return &dto.GrooveResultResponse{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: req.APIVersion,
+		}, nil
+	}
+
+	// Generate wallet transaction ID
+	walletTxID := fmt.Sprintf("TXN_%s_%d", req.TransactionID[:8], time.Now().Unix())
+
+	// Store transaction for idempotency
+	transaction := dto.GrooveTransaction{
+		TransactionID: req.TransactionID,
+		AccountID:     req.AccountID,
+		GameSessionID: req.GameSessionID,
+		BetAmount:     req.Result,
+		CreatedAt:     time.Now(),
+	}
+
+	err = s.storage.StoreTransaction(ctx, &transaction)
+	if err != nil {
+		s.logger.Error("Failed to store transaction", zap.Error(err))
+	}
+
+	s.logger.Info("Result transaction processed successfully",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("result", req.Result.String()),
+		zap.String("new_balance", newBalance.String()))
+
+	return &dto.GrooveResultResponse{
+		Code:         200,
+		Status:       "Success",
+		WalletTx:     walletTxID,
+		Balance:      newBalance,
+		BonusWin:     decimal.Zero, // We don't use bonuses
+		RealMoneyWin: req.Result,
+		BonusBalance: decimal.Zero,
+		RealBalance:  newBalance,
+		GameMode:     1, // Real money mode
+		Order:        "cash_money",
+		APIVersion:   req.APIVersion,
 	}, nil
 }
 
@@ -502,11 +618,8 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 	transaction := dto.GrooveTransaction{
 		TransactionID: req.TransactionID,
 		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        netResult,
-		Currency:      req.Currency,
-		Type:          "wager_and_result",
-		Status:        "completed",
+		GameSessionID: req.SessionID,
+		BetAmount:     netResult,
 		CreatedAt:     time.Now(),
 	}
 
@@ -549,11 +662,8 @@ func (s *GrooveServiceImpl) ProcessRollback(ctx context.Context, req dto.GrooveR
 	transaction := dto.GrooveTransaction{
 		TransactionID: req.TransactionID,
 		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Type:          "rollback",
-		Status:        "completed",
+		GameSessionID: req.SessionID,
+		BetAmount:     req.Amount,
 		CreatedAt:     time.Now(),
 	}
 
@@ -596,11 +706,8 @@ func (s *GrooveServiceImpl) ProcessJackpot(ctx context.Context, req dto.GrooveJa
 	transaction := dto.GrooveTransaction{
 		TransactionID: req.TransactionID,
 		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		Type:          "jackpot",
-		Status:        "completed",
+		GameSessionID: req.SessionID,
+		BetAmount:     req.Amount,
 		CreatedAt:     time.Now(),
 	}
 
@@ -955,4 +1062,88 @@ func (s *GrooveServiceImpl) GetUserBalance(ctx context.Context, userID uuid.UUID
 		zap.String("balance", balance.String()))
 
 	return balance, nil
+}
+
+// ProcessWagerTransaction processes a wager transaction according to GrooveTech spec
+func (s *GrooveServiceImpl) ProcessWagerTransaction(ctx context.Context, req dto.GrooveWagerRequest) (*dto.GrooveWagerResponse, error) {
+	s.logger.Info("Processing wager transaction",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_id", req.AccountID),
+		zap.String("bet_amount", req.BetAmount.String()))
+
+	// Generate account transaction ID
+	transactionPrefix := req.TransactionID
+	if len(req.TransactionID) > 8 {
+		transactionPrefix = req.TransactionID[:8]
+	}
+	accountTransactionID := fmt.Sprintf("TXN_%s_%d", transactionPrefix, time.Now().Unix())
+
+	// Deduct bet amount from user balance
+	newBalance, err := s.storage.DeductBalance(ctx, req.UserID, req.BetAmount)
+	if err != nil {
+		s.logger.Error("Failed to deduct balance", zap.Error(err))
+		return nil, fmt.Errorf("failed to deduct balance: %w", err)
+	}
+
+	// Store transaction for idempotency
+	transaction := &dto.GrooveTransaction{
+		TransactionID:        req.TransactionID,
+		AccountTransactionID: accountTransactionID,
+		AccountID:            req.AccountID,
+		GameSessionID:        req.GameSessionID,
+		RoundID:              req.RoundID,
+		GameID:               req.GameID,
+		BetAmount:            req.BetAmount,
+		Device:               req.Device,
+		FRBID:                req.FRBID,
+		UserID:               req.UserID,
+		CreatedAt:            time.Now(),
+	}
+
+	err = s.storage.StoreTransaction(ctx, transaction)
+	if err != nil {
+		s.logger.Error("Failed to store transaction", zap.Error(err))
+		// Don't fail the transaction if storage fails, but log it
+	}
+
+	s.logger.Info("Wager transaction processed successfully",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_transaction_id", accountTransactionID),
+		zap.String("new_balance", newBalance.String()))
+
+	return &dto.GrooveWagerResponse{
+		Code:                 200,
+		Status:               "Success",
+		AccountTransactionID: accountTransactionID,
+		Balance:              newBalance,
+		BonusMoneyBet:        decimal.Zero, // No bonus money in our system
+		RealMoneyBet:         req.BetAmount,
+		BonusBalance:         decimal.Zero, // No bonus balance in our system
+		RealBalance:          newBalance,
+		GameMode:             1, // Real money mode
+		Order:                "cash_money",
+		APIVersion:           "1.2",
+	}, nil
+}
+
+// GetTransactionByID retrieves a transaction by its ID for idempotency checks
+func (s *GrooveServiceImpl) GetTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error) {
+	s.logger.Info("Getting transaction by ID", zap.String("transaction_id", transactionID))
+
+	transaction, err := s.storage.GetTransactionByID(ctx, transactionID)
+	if err != nil {
+		s.logger.Error("Failed to get transaction by ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to get transaction by ID: %w", err)
+	}
+
+	if transaction == nil {
+		s.logger.Info("Transaction not found", zap.String("transaction_id", transactionID))
+		return nil, nil
+	}
+
+	s.logger.Info("Transaction retrieved successfully",
+		zap.String("transaction_id", transactionID),
+		zap.String("account_transaction_id", transaction.AccountTransactionID))
+
+	return transaction, nil
 }

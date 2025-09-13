@@ -3,6 +3,7 @@ package dto
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -57,6 +58,8 @@ type LaunchGameResponse struct {
 // GrooveAccount represents the account information for game launch
 // GET /account endpoint response
 type GrooveAccount struct {
+	ID           string          `json:"id"`
+	UserID       string          `json:"userId"`
 	AccountID    string          `json:"accountId"`
 	SessionID    string          `json:"sessionId"`
 	Balance      decimal.Decimal `json:"balance"`
@@ -84,23 +87,19 @@ type GrooveGetAccountResponse struct {
 	ErrorMessage string          `json:"errorMessage,omitempty"`
 }
 
-// GrooveTransaction represents a transaction request/response
+// GrooveTransaction represents a stored transaction for idempotency
 type GrooveTransaction struct {
-	TransactionID string          `json:"transactionId"`
-	AccountID     string          `json:"accountId"`
-	SessionID     string          `json:"sessionId"`
-	Amount        decimal.Decimal `json:"amount"`
-	Currency      string          `json:"currency"`
-	Type          string          `json:"type"` // "debit", "credit", "bet", "win"
-	GameID        string          `json:"gameId,omitempty"`
-	GameRoundID   string          `json:"gameRoundId,omitempty"`
-	BetID         string          `json:"betId,omitempty"`
-	Status        string          `json:"status"` // "pending", "completed", "failed", "cancelled"
-	Balance       decimal.Decimal `json:"balance"`
-	CreatedAt     time.Time       `json:"createdAt"`
-	UpdatedAt     time.Time       `json:"updatedAt"`
-	ErrorCode     string          `json:"errorCode,omitempty"`
-	ErrorMessage  string          `json:"errorMessage,omitempty"`
+	TransactionID        string          `json:"transaction_id"`
+	AccountTransactionID string          `json:"account_transaction_id"`
+	AccountID            string          `json:"account_id"`
+	GameSessionID        string          `json:"game_session_id"`
+	RoundID              string          `json:"round_id"`
+	GameID               string          `json:"game_id"`
+	BetAmount            decimal.Decimal `json:"bet_amount"`
+	Device               string          `json:"device"`
+	FRBID                string          `json:"frbid,omitempty"`
+	UserID               uuid.UUID       `json:"user_id"`
+	CreatedAt            time.Time       `json:"created_at"`
 }
 
 // GrooveTransactionRequest represents a transaction request
@@ -151,57 +150,72 @@ type GrooveGetBalanceResponse struct {
 	Message      string          `json:"message,omitempty"`
 }
 
-// GrooveWagerRequest represents a wager transaction request
+// GrooveWagerRequest represents a wager transaction request according to GrooveTech spec
 type GrooveWagerRequest struct {
-	TransactionID string                 `json:"transactionId"`
-	AccountID     string                 `json:"accountId"`
-	SessionID     string                 `json:"sessionId"`
-	Amount        decimal.Decimal        `json:"amount"`
-	Currency      string                 `json:"currency"`
-	GameID        string                 `json:"gameId,omitempty"`
-	RoundID       string                 `json:"roundId,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	AccountID     string          `json:"accountid"`
+	GameSessionID string          `json:"gamesessionid"`
+	TransactionID string          `json:"transactionid"`
+	RoundID       string          `json:"roundid"`
+	GameID        string          `json:"gameid"`
+	BetAmount     decimal.Decimal `json:"betamount"`
+	Device        string          `json:"device"`
+	FRBID         string          `json:"frbid,omitempty"`   // Optional Free Round Bonus ID
+	UserID        uuid.UUID       `json:"user_id,omitempty"` // Internal field
 }
 
-// GrooveWagerResponse represents a wager transaction response
+// GrooveWagerResponse represents a wager transaction response according to GrooveTech spec
 type GrooveWagerResponse struct {
-	Success       bool            `json:"success"`
-	TransactionID string          `json:"transactionId"`
-	AccountID     string          `json:"accountId"`
-	SessionID     string          `json:"sessionId"`
-	Amount        decimal.Decimal `json:"amount"`
-	Currency      string          `json:"currency"`
-	NewBalance    decimal.Decimal `json:"newBalance"`
-	Status        string          `json:"status"`
-	ErrorCode     string          `json:"errorCode,omitempty"`
-	ErrorMessage  string          `json:"errorMessage,omitempty"`
+	Code                 int             `json:"code"`
+	Status               string          `json:"status"`
+	AccountTransactionID string          `json:"accounttransactionid"`
+	Balance              decimal.Decimal `json:"balance"`
+	BonusMoneyBet        decimal.Decimal `json:"bonusmoneybet"`
+	RealMoneyBet         decimal.Decimal `json:"realmoneybet"`
+	BonusBalance         decimal.Decimal `json:"bonus_balance"`
+	RealBalance          decimal.Decimal `json:"real_balance"`
+	GameMode             int             `json:"game_mode"`
+	Order                string          `json:"order"`
+	APIVersion           string          `json:"apiversion"`
+	Message              string          `json:"message,omitempty"`
 }
 
-// GrooveResultRequest represents a result transaction request
+// GrooveResultRequest represents a result transaction request (GrooveTech Official API)
 type GrooveResultRequest struct {
-	TransactionID string                 `json:"transactionId"`
-	AccountID     string                 `json:"accountId"`
-	SessionID     string                 `json:"sessionId"`
-	Amount        decimal.Decimal        `json:"amount"`
-	Currency      string                 `json:"currency"`
-	GameID        string                 `json:"gameId,omitempty"`
-	RoundID       string                 `json:"roundId,omitempty"`
-	WinAmount     decimal.Decimal        `json:"winAmount,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Request       string          `json:"request"`         // Must be "result"
+	AccountID     string          `json:"accountid"`       // Player's unique identifier
+	APIVersion    string          `json:"apiversion"`      // API version (e.g., "1.2")
+	Device        string          `json:"device"`          // Device type: "desktop" or "mobile"
+	GameID        string          `json:"gameid"`          // Groove game ID
+	GameSessionID string          `json:"gamesessionid"`   // Game session ID
+	SessionID     string          `json:"sessionid"`       // Session ID (alias for GameSessionID)
+	GameStatus    string          `json:"gamestatus"`      // Game status: "completed" or "pending"
+	Result        decimal.Decimal `json:"result"`          // Win amount (0 if player lost)
+	Amount        decimal.Decimal `json:"amount"`          // Amount (alias for Result)
+	RoundID       string          `json:"roundid"`         // Round identifier
+	TransactionID string          `json:"transactionid"`   // Unique transaction identifier
+	FRBID         string          `json:"frbid,omitempty"` // Free Round Bonus ID (optional)
 }
 
-// GrooveResultResponse represents a result transaction response
+// GrooveResultResponse represents a result transaction response (GrooveTech Official API)
 type GrooveResultResponse struct {
-	Success       bool            `json:"success"`
-	TransactionID string          `json:"transactionId"`
-	AccountID     string          `json:"accountId"`
-	SessionID     string          `json:"sessionId"`
-	Amount        decimal.Decimal `json:"amount"`
-	Currency      string          `json:"currency"`
-	NewBalance    decimal.Decimal `json:"newBalance"`
-	Status        string          `json:"status"`
-	ErrorCode     string          `json:"errorCode,omitempty"`
-	ErrorMessage  string          `json:"errorMessage,omitempty"`
+	Code          int             `json:"code"`                    // Response code (200 for success)
+	Status        string          `json:"status"`                  // Response status ("Success")
+	Success       bool            `json:"success"`                 // Success flag
+	TransactionID string          `json:"transactionid"`           // Transaction ID
+	AccountID     string          `json:"accountid"`               // Account ID
+	SessionID     string          `json:"sessionid"`               // Session ID
+	Amount        decimal.Decimal `json:"amount"`                  // Amount processed
+	WalletTx      string          `json:"walletTx"`                // Casino's wallet transaction ID
+	Balance       decimal.Decimal `json:"balance"`                 // Total player balance (real + bonus)
+	BonusWin      decimal.Decimal `json:"bonusWin"`                // Portion of win allocated to bonus funds
+	RealMoneyWin  decimal.Decimal `json:"realMoneyWin"`            // Portion of win allocated to real money
+	BonusBalance  decimal.Decimal `json:"bonus_balance"`           // Player's bonus balance
+	RealBalance   decimal.Decimal `json:"real_balance"`            // Player's real money balance
+	GameMode      int             `json:"game_mode"`               // Game mode: 1 - Real money, 2 - Bonus mode
+	Order         string          `json:"order"`                   // Order type: "cash_money" or "bonus_money"
+	APIVersion    string          `json:"apiversion"`              // API version
+	ErrorCode     string          `json:"error_code,omitempty"`    // Error code if failed
+	ErrorMessage  string          `json:"error_message,omitempty"` // Error message if failed
 }
 
 // GrooveWagerAndResultRequest represents a combined wager and result request

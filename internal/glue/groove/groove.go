@@ -56,8 +56,10 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 	// Official GrooveTech Transaction API endpoints
 	// These match the exact specification from GrooveTech documentation
 	// Endpoint: {casino_endpoint}?request=getaccount&[parameters]
-	grp.GET("/groove-official", officialHandler.GetAccount)         // Official Get Account API
-	grp.GET("/groove-official-balance", officialHandler.GetBalance) // Official Get Balance API
+	grp.GET("/groove-official", officialHandler.GetAccount)           // Official Get Account API
+	grp.GET("/groove-official-balance", officialHandler.GetBalance)   // Official Get Balance API
+	grp.GET("/groove-official-wager", officialHandler.ProcessWager)   // Official Wager API
+	grp.GET("/groove-official-result", officialHandler.ProcessResult) // Official Result API
 
 	// Game Launch API routes (secure endpoints for frontend)
 	gameGroup := grp.Group("/api/groove")

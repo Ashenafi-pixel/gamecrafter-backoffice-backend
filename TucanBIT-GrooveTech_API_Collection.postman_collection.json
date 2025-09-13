@@ -1,11 +1,183 @@
 {
 	"info": {
-		"_postman_id": "tucanbit-api-collection",
-		"name": "TucanBIT Casino API Collection",
-		"description": "Complete API collection for TucanBIT Casino platform including GrooveTech Transaction APIs and Cashback System",
+		"_postman_id": "tucanbit-groovetech-api-collection",
+		"name": "TucanBIT GrooveTech API Collection",
+		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing, and Edge Cases",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
+		{
+			"name": "User Registration & Verification",
+			"item": [
+				{
+					"name": "User Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"testuser@example.com\",\n  \"username\": \"testuser123\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"register"
+							]
+						},
+						"description": "Register a new user account. Returns OTP ID for email verification."
+					},
+					"response": [
+						{
+							"name": "Successful Registration",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"testuser@example.com\",\n  \"username\": \"testuser123\",\n  \"password\": \"SecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"register"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"message\": \"Please check your email to verify your account and complete registration\",\n  \"user_id\": \"f678dde6-9990-498a-9d68-609ac4fa1188\",\n  \"email\": \"testuser@example.com\",\n  \"otp_id\": \"0bcaccf5-32cc-481c-85b9-90227d707542\",\n  \"expires_at\": \"2025-09-13T21:08:59Z\",\n  \"resend_after\": \"2025-09-13T21:00:59Z\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get OTP from Redis",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "docker exec -it redis redis-cli GET \"tucanbit::tucanbit::otp:{{email}}:{{otp_id}}\"",
+							"host": [
+								"docker exec -it redis redis-cli GET \"tucanbit::tucanbit::otp:{{email}}:{{otp_id}}\""
+							],
+							"path": []
+						},
+						"description": "Retrieve OTP code from Redis for verification. Run this command in terminal to get the OTP code."
+					},
+					"response": [
+						{
+							"name": "OTP Retrieved",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "docker exec -it redis redis-cli GET \"tucanbit::tucanbit::otp:testuser@example.com:0bcaccf5-32cc-481c-85b9-90227d707542\"",
+									"host": [
+										"docker exec -it redis redis-cli GET \"tucanbit::tucanbit::otp:testuser@example.com:0bcaccf5-32cc-481c-85b9-90227d707542\""
+									],
+									"path": []
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": "\"{\\\"id\\\":\\\"0bcaccf5-32cc-481c-85b9-90227d707542\\\",\\\"email\\\":\\\"testuser@example.com\\\",\\\"otp_code\\\":\\\"295330\\\",\\\"type\\\":\\\"email_verification\\\",\\\"status\\\":\\\"pending\\\",\\\"expires_at\\\":\\\"2025-09-13T21:08:59.228801234Z\\\",\\\"created_at\\\":\\\"2025-09-13T20:58:59.228803829Z\\\",\\\"updated_at\\\":\\\"0001-01-01T00:00:00Z\\\"}\""
+						}
+					]
+				},
+				{
+					"name": "Complete Registration (Verify OTP)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"otp_code\": \"{{otp_code}}\",\n  \"otp_id\": \"{{otp_id}}\",\n  \"user_id\": \"{{temp_user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/register/complete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"register",
+								"complete"
+							]
+						},
+						"description": "Complete user registration by verifying OTP code. Returns final user ID and access token."
+					},
+					"response": [
+						{
+							"name": "Registration Completed",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"otp_code\": \"295330\",\n  \"otp_id\": \"0bcaccf5-32cc-481c-85b9-90227d707542\",\n  \"user_id\": \"f678dde6-9990-498a-9d68-609ac4fa1188\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/register/complete",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"register",
+										"complete"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"message\": \"Registration completed successfully! Welcome to TucanBIT!\",\n  \"user_id\": \"d4685b55-0494-4c9d-acf9-ab9a07281f0f\",\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...\",\n  \"is_new_user\": true,\n  \"user_profile\": {\n    \"username\": \"testuser123\",\n    \"phone_number\": \"\",\n    \"email\": \"testuser@example.com\",\n    \"user_id\": \"d4685b55-0494-4c9d-acf9-ab9a07281f0f\",\n    \"profile_picture\": \"\",\n    \"first_name\": \"\",\n    \"last_name\": \"\",\n    \"type\": \"PLAYER\"\n  }\n}"
+						}
+					]
+				}
+			]
+		},
 		{
 			"name": "Authentication",
 			"item": [
@@ -24,24 +196,20 @@
 							"raw": "{\n  \"login_id\": \"ashenafialemu9898@gmail.com\",\n  \"password\": \"SecurePass123!\"\n}"
 						},
 						"url": {
-							"raw": "https://api.tucanbit.tv/login",
-							"protocol": "https",
+							"raw": "{{base_url}}/login",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
 								"login"
 							]
 						},
-						"description": "Login user and get JWT access token"
+						"description": "Login user and get JWT access token for GrooveTech operations"
 					},
-					"response": []
-				},
+					"response": [
 				{
-					"name": "User Registration",
-					"request": {
+							"name": "Successful Login",
+							"originalRequest": {
 						"method": "POST",
 						"header": [
 							{
@@ -51,31 +219,115 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"country\": \"US\",\n  \"city\": \"New York\"\n}"
+									"raw": "{\n  \"login_id\": \"ashenafialemu9898@gmail.com\",\n  \"password\": \"SecurePass123!\"\n}"
 						},
 						"url": {
-							"raw": "https://api.tucanbit.tv/register",
-							"protocol": "https",
+									"raw": "{{base_url}}/login",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+										"{{base_url}}"
 							],
 							"path": [
-								"register"
-							]
-						},
-						"description": "Register a new user account"
-					},
-					"response": []
+										"login"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"message\": \"Login successful\",\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user_profile\": {\n    \"username\": \"ashenafi_alemu\",\n    \"phone_number\": \"+251912308971\",\n    \"email\": \"ashenafialemu9898@gmail.com\",\n    \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n    \"profile_picture\": \"\",\n    \"first_name\": \"Ashenafi\",\n    \"last_name\": \"Alemu\",\n    \"type\": \"PLAYER\",\n    \"referral_code\": \"ouWiLgN0RZDB\"\n  }\n}"
+						}
+					]
 				}
 			]
 		},
 		{
-			"name": "GrooveTech Transaction APIs",
+			"name": "GrooveTech Game Operations",
 			"item": [
 				{
-					"name": "Get Account Info",
+					"name": "Launch Game",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/groove/launch-game",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"groove",
+								"launch-game"
+							]
+						},
+						"description": "Launch a GrooveTech game and create a game session. Returns game URL and session ID for subsequent operations."
+					},
+					"response": [
+						{
+							"name": "Successful Game Launch",
+							"originalRequest": {
+								"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+							}
+						],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
+								},
+						"url": {
+									"raw": "{{base_url}}/api/groove/launch-game",
+							"host": [
+										"{{base_url}}"
+							],
+							"path": [
+										"api",
+								"groove",
+										"launch-game"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"game_url\": \"https://routerstg.groovegaming.com/game/?accountid=a25375ec-f4b7-401a-98b3-e924f4373850&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_c7483a21-a26f-45a2-a9ac-fcc09e915026&homeurl=https://tucanbit.vercel.app&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.vercel.app/history&exitUrl=https://tucanbit.vercel.app\",\n  \"session_id\": \"Tucan_c7483a21-a26f-45a2-a9ac-fcc09e915026\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Validate Game Session",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -85,95 +337,35 @@
 							}
 						],
 						"url": {
-							"raw": "https://api.tucanbit.tv/groove/account?user_id={{user_id}}",
-							"protocol": "https",
+							"raw": "{{base_url}}/api/groove/validate-session/{{session_id}}",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
-								"groove",
-								"account"
-							],
-							"query": [
-								{
-									"key": "user_id",
-									"value": "{{user_id}}"
-								}
-							]
-						},
-						"description": "Get GrooveTech account information for game launch"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Balance",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove/balance?user_id={{user_id}}",
-							"protocol": "https",
-							"host": [
 								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
 								"groove",
-								"balance"
-							],
-							"query": [
-								{
-									"key": "user_id",
-									"value": "{{user_id}}"
-								}
+								"validate-session",
+								"{{session_id}}"
 							]
 						},
-						"description": "Get current GrooveTech account balance"
+						"description": "Validate if a game session is still active and valid"
 					},
 					"response": []
+				}
+			]
 				},
 				{
-					"name": "Health Check",
+			"name": "GrooveTech Official Transaction APIs",
+			"item": [
+				{
+					"name": "Get Account (Official)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/groove/health",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&apiversion=1.2",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"groove",
-								"health"
-							]
-						},
-						"description": "Check GrooveTech service health status"
-					},
-					"response": []
-				},
-				{
-					"name": "Official Get Account (GrooveTech Spec)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove-official?request=getaccount&accountid={{user_id}}&gamesessionid={{access_token}}&device=desktop&apiversion=1.2",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
 								"groove-official"
@@ -186,13 +378,13 @@
 								},
 								{
 									"key": "accountid",
-									"value": "{{user_id}}",
-									"description": "Player account ID (user_id)"
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
 								},
 								{
 									"key": "gamesessionid",
-									"value": "{{access_token}}",
-									"description": "Game session ID (JWT token)"
+									"value": "{{session_id}}",
+									"description": "Game session ID from game launch"
 								},
 								{
 									"key": "device",
@@ -206,482 +398,917 @@
 								}
 							]
 						},
-						"description": "Official GrooveTech Get Account API according to specification"
+						"description": "Official GrooveTech Get Account API - Returns account details and user information"
 					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "GrooveTech Legacy Transaction APIs",
-			"item": [
-				{
-					"name": "Debit Transaction",
-					"request": {
-						"method": "POST",
+					"response": [
+						{
+							"name": "Successful Account Retrieval",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&apiversion=1.2",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "getaccount"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
 						"header": [
 							{
 								"key": "Content-Type",
 								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 25.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"debit\",\n  \"description\": \"Betting transaction - $25 deduction\"\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove/legacy/debit",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								}
 							],
-							"path": [
-								"groove",
-								"legacy",
-								"debit"
-							]
-						},
-						"description": "Deduct money from user balance (for betting)"
-					},
-					"response": []
+							"cookie": [],
+							"body": "{\n  \"accountId\": \"a25375ec-f4b7-401a-98b3-e924f4373850\",\n  \"gamesessionid\": \"Tucan_c7483a21-a26f-45a2-a9ac-fcc09e915026\",\n  \"balance\": \"105\",\n  \"currency\": \"USD\",\n  \"status\": \"active\",\n  \"createdAt\": \"2025-09-12T15:35:20.36332Z\",\n  \"lastActivity\": \"2025-09-12T18:32:44.450373973Z\"\n}"
+						}
+					]
 				},
 				{
-					"name": "Credit Transaction",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 50.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"credit\",\n  \"description\": \"Winning transaction - $50 addition\"\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove/legacy/credit",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"groove",
-								"legacy",
-								"credit"
-							]
-						},
-						"description": "Add money to user balance (for winnings)"
-					},
-					"response": []
-				},
-				{
-					"name": "Bet Transaction",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 10.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"bet\",\n  \"description\": \"Place bet - $10\"\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove/legacy/bet",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"groove",
-								"legacy",
-								"bet"
-							]
-						},
-						"description": "Process betting transaction"
-					},
-					"response": []
-				},
-				{
-					"name": "Win Transaction",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 30.00,\n  \"currency\": \"USD\",\n  \"transaction_type\": \"win\",\n  \"description\": \"Win payout - $30\"\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove/legacy/win",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"groove",
-								"legacy",
-								"win"
-							]
-						},
-						"description": "Process winning transaction"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Transaction History",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"url": {
-							"raw": "https://api.tucanbit.tv/groove/legacy/transactions",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"groove",
-								"legacy",
-								"transactions"
-							]
-						},
-						"description": "Get user's transaction history"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Cashback System APIs",
-			"item": [
-				{
-					"name": "Get Cashback Tiers",
+					"name": "Get Balance (Official)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/cashback/tiers",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove-official-balance?request=getbalance&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&nogsgameid=82695&apiversion=1.2",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
-								"cashback",
-								"tiers"
+								"groove-official-balance"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "getbalance",
+									"description": "Must be 'getbalance'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from game launch"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "nogsgameid",
+									"value": "82695",
+									"description": "Game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								}
 							]
 						},
-						"description": "Get all available cashback tiers (Bronze, Silver, Gold, Platinum, Diamond)"
+						"description": "Official GrooveTech Get Balance API - Returns current account balance"
 					},
-					"response": []
-				},
-				{
-					"name": "Get User Cashback Summary",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
+					"response": [
+						{
+							"name": "Successful Balance Retrieval",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/user/cashback",
-							"protocol": "https",
+									"raw": "{{base_url}}/groove-official-balance?request=getbalance&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&nogsgameid=82695&apiversion=1.2",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+										"{{base_url}}"
 							],
 							"path": [
-								"user",
-								"cashback"
-							]
-						},
-						"description": "Get user's current cashback status and earnings"
-					},
-					"response": []
-				},
-				{
-					"name": "Claim Cashback",
-					"request": {
-						"method": "POST",
+										"groove-official-balance"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "getbalance"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "nogsgameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
 						"header": [
 							{
 								"key": "Content-Type",
 								"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"balance\": \"105\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"105\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Wager Transaction (Official)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"groove-official-wager"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "wager",
+									"description": "Must be 'wager'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from game launch"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "gameid",
+									"value": "82695",
+									"description": "Game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								},
+								{
+									"key": "betamount",
+									"value": "10.0",
+									"description": "Bet amount in USD"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round ID for the game round"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Unique transaction ID"
+								}
+							]
+						},
+						"description": "Official GrooveTech Wager API - Places a bet and deducts funds from player balance. Supports idempotency."
+					},
+					"response": [
+						{
+							"name": "Successful Wager",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+						"url": {
+									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"host": [
+										"{{base_url}}"
+							],
+							"path": [
+										"groove-official-wager"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wager"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										}
+									]
+								}
 							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 25.50\n}"
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"accounttransactionid\": \"TXN_txn_456_1757784492\",\n  \"balance\": \"95\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"10\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"95\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
 						},
+						{
+							"name": "Duplicate Request (Idempotency)",
+							"originalRequest": {
+						"method": "GET",
+						"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/user/cashback/claim",
-							"protocol": "https",
+									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+										"{{base_url}}"
 							],
 							"path": [
-								"user",
-								"cashback",
-								"claim"
+										"groove-official-wager"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wager"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success - duplicate request\",\n  \"accounttransactionid\": \"TXN_txn_456_1757784492\",\n  \"balance\": \"95\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"10\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"95\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						},
+						{
+							"name": "Insufficient Funds (Code 1006)",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official-wager"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wager"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 1006,\n  \"status\": \"Out of money\",\n  \"accounttransactionid\": \"\",\n  \"balance\": \"0\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"0\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"0\",\n  \"game_mode\": 0,\n  \"order\": \"\",\n  \"apiversion\": \"1.2\",\n  \"message\": \"Insufficient funds to place the wager\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Result Transaction (Official)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/groove-official-result?request=result&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&winamount=15.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"groove-official-result"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "result",
+									"description": "Must be 'result'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from game launch"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "gameid",
+									"value": "82695",
+									"description": "Game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								},
+								{
+									"key": "winamount",
+									"value": "15.0",
+									"description": "Win amount in USD"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round ID for the game round"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Unique transaction ID"
+								}
 							]
 						},
-						"description": "Claim earned cashback"
+						"description": "Official GrooveTech Result API - Processes winnings and credits funds to player balance"
+					},
+					"response": []
+		},
+		{
+					"name": "Rollback Transaction (Official)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/groove-official-rollback?request=rollback&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"groove-official-rollback"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "rollback",
+									"description": "Must be 'rollback'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from game launch"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "gameid",
+									"value": "82695",
+									"description": "Game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round ID for the game round"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Unique transaction ID"
+								}
+							]
+						},
+						"description": "Official GrooveTech Rollback API - Reverses a previous transaction"
 					},
 					"response": []
 				},
 				{
-					"name": "Get User Cashback Earnings",
+					"name": "Jackpot Transaction (Official)",
 					"request": {
 						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
+						"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/user/cashback/earnings",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove-official-jackpot?request=jackpot&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&jackpotamount=1000.0&roundid={{round_id}}&transactionid={{transaction_id}}",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
-								"user",
-								"cashback",
-								"earnings"
+								"groove-official-jackpot"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "jackpot",
+									"description": "Must be 'jackpot'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from game launch"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "gameid",
+									"value": "82695",
+									"description": "Game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								},
+								{
+									"key": "jackpotamount",
+									"value": "1000.0",
+									"description": "Jackpot amount in USD"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round ID for the game round"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Unique transaction ID"
+								}
 							]
 						},
-						"description": "Get detailed cashback earnings history"
+						"description": "Official GrooveTech Jackpot API - Processes jackpot winnings"
 					},
 					"response": []
 				},
 				{
-					"name": "Get User Cashback Claims",
+					"name": "Wager and Result (Official)",
 					"request": {
 						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
+						"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/user/cashback/claims",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
-								"user",
-								"cashback",
-								"claims"
+								"groove"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "wagerAndResult",
+									"description": "Must be 'wagerAndResult'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player's unique identifier"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Player's device type: 'desktop' or 'mobile'"
+								},
+								{
+									"key": "gameid",
+									"value": "82695",
+									"description": "Groove game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								},
+								{
+									"key": "betamount",
+									"value": "10.0",
+									"description": "Wager amount (real + bonus funds)"
+								},
+								{
+									"key": "result",
+									"value": "15.0",
+									"description": "Win amount"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round identifier"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Unique transaction identifier"
+								},
+								{
+									"key": "gamestatus",
+									"value": "completed",
+									"description": "Game status: 'completed' or 'pending'"
+								}
 							]
 						},
-						"description": "Get user's cashback claim history"
+						"description": "Official GrooveTech Wager and Result API - Combines wager and result operations into a single transaction for instant games. Reduces latency and network traffic."
 					},
-					"response": []
+					"response": [
+						{
+							"name": "Successful Combined Transaction",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wagerAndResult"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "result",
+											"value": "15.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"walletTx\": \"TXN_wager_result_1757797200\",\n  \"balance\": \"105.00\",\n  \"bonusWin\": \"0.00\",\n  \"realMoneyWin\": \"15.00\",\n  \"bonusmoneybet\": \"0.00\",\n  \"realmoneybet\": \"10.00\",\n  \"bonus_balance\": \"0.00\",\n  \"real_balance\": \"105.00\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						},
+						{
+							"name": "Duplicate Request (Idempotency)",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wagerAndResult"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "result",
+											"value": "15.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success - duplicate request\",\n  \"walletTx\": \"TXN_wager_result_1757797200\",\n  \"balance\": \"105.00\",\n  \"bonusWin\": \"0.00\",\n  \"realMoneyWin\": \"15.00\",\n  \"bonusmoneybet\": \"0.00\",\n  \"realmoneybet\": \"10.00\",\n  \"bonus_balance\": \"0.00\",\n  \"real_balance\": \"105.00\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						},
+						{
+							"name": "Insufficient Funds (Code 1006)",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=5.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wagerAndResult"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "result",
+											"value": "5.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 1006,\n  \"status\": \"Out of money\",\n  \"walletTx\": \"\",\n  \"balance\": \"0\",\n  \"bonusWin\": \"0\",\n  \"realMoneyWin\": \"0\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"0\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"0\",\n  \"game_mode\": 0,\n  \"order\": \"\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
 				}
 			]
 		},
 		{
-			"name": "Admin Cashback APIs",
+			"name": "GrooveTech Internal APIs",
 			"item": [
 				{
-					"name": "Get Cashback Statistics",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"url": {
-							"raw": "https://api.tucanbit.tv/admin/cashback/stats",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"admin",
-								"cashback",
-								"stats"
-							]
-						},
-						"description": "Get system-wide cashback statistics (Admin only)"
-					},
-					"response": []
-				},
-				{
-					"name": "Create Cashback Tier",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"tier_name\": \"VIP\",\n  \"tier_level\": 6,\n  \"min_ggr_required\": \"100000\",\n  \"cashback_percentage\": \"3.0\",\n  \"bonus_multiplier\": \"2.5\",\n  \"daily_cashback_limit\": \"2000\",\n  \"special_benefits\": {\n    \"personal_manager\": true,\n    \"priority_support\": true,\n    \"exclusive_games\": true\n  }\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/admin/cashback/tiers",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"admin",
-								"cashback",
-								"tiers"
-							]
-						},
-						"description": "Create new cashback tier (Admin only)"
-					},
-					"response": []
-				},
-				{
-					"name": "Update Cashback Tier",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"tier_name\": \"Diamond Plus\",\n  \"tier_level\": 5,\n  \"min_ggr_required\": \"75000\",\n  \"cashback_percentage\": \"3.0\",\n  \"bonus_multiplier\": \"2.2\",\n  \"daily_cashback_limit\": \"1500\",\n  \"special_benefits\": {\n    \"personal_manager\": true,\n    \"priority_support\": true\n  }\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/admin/cashback/tiers/{{tier_id}}",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"admin",
-								"cashback",
-								"tiers",
-								"{{tier_id}}"
-							]
-						},
-						"description": "Update existing cashback tier (Admin only)"
-					},
-					"response": []
-				},
-				{
-					"name": "Create Cashback Promotion",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"promotion_name\": \"Weekend Cashback Boost\",\n  \"description\": \"Double cashback on weekends\",\n  \"bonus_multiplier\": \"2.0\",\n  \"start_date\": \"2025-09-13T00:00:00Z\",\n  \"end_date\": \"2025-09-15T23:59:59Z\",\n  \"is_active\": true,\n  \"target_tiers\": [3, 4, 5]\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/admin/cashback/promotions",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"admin",
-								"cashback",
-								"promotions"
-							]
-						},
-						"description": "Create promotional cashback campaign (Admin only)"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Core System APIs",
-			"item": [
-				{
-					"name": "Get User Profile",
+					"name": "Get Account Info (Internal)",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -691,24 +1318,28 @@
 							}
 						],
 						"url": {
-							"raw": "https://api.tucanbit.tv/user/profile",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove/account?user_id={{user_id}}",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
-								"user",
-								"profile"
+								"groove",
+								"account"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "{{user_id}}",
+									"description": "User ID from login response"
+								}
 							]
 						},
-						"description": "Get user profile information"
+						"description": "Internal GrooveTech account information API"
 					},
 					"response": []
 				},
 				{
-					"name": "Get User Balances",
+					"name": "Get Balance (Internal)",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -718,123 +1349,887 @@
 							}
 						],
 						"url": {
-							"raw": "https://api.tucanbit.tv/balance",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove/balance?user_id={{user_id}}",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
+								"groove",
 								"balance"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "{{user_id}}",
+									"description": "User ID from login response"
+								}
 							]
 						},
-						"description": "Get user's wallet balances"
+						"description": "Internal GrooveTech balance API"
 					},
 					"response": []
 				},
 				{
-					"name": "Deposit Funds",
+					"name": "Health Check",
 					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"payment_method\": \"crypto\",\n  \"description\": \"Deposit via Bitcoin\"\n}"
-						},
+						"method": "GET",
+						"header": [],
 						"url": {
-							"raw": "https://api.tucanbit.tv/balance/deposit",
-							"protocol": "https",
+							"raw": "{{base_url}}/groove/health",
 							"host": [
-								"api",
-								"tucanbit",
-								"tv"
+								"{{base_url}}"
 							],
 							"path": [
-								"balance",
-								"deposit"
+								"groove",
+								"health"
 							]
 						},
-						"description": "Deposit funds to user account"
-					},
-					"response": []
-				},
-				{
-					"name": "Withdraw Funds",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{access_token}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"amount\": 50.00,\n  \"currency\": \"USD\",\n  \"payment_method\": \"crypto\",\n  \"wallet_address\": \"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\",\n  \"description\": \"Withdrawal to Bitcoin wallet\"\n}"
-						},
-						"url": {
-							"raw": "https://api.tucanbit.tv/balance/withdraw",
-							"protocol": "https",
-							"host": [
-								"api",
-								"tucanbit",
-								"tv"
-							],
-							"path": [
-								"balance",
-								"withdraw"
-							]
-						},
-						"description": "Withdraw funds from user account"
+						"description": "Check GrooveTech service health status"
 					},
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "New User Flow Testing",
+			"item": [
+				{
+					"name": "Complete New User Journey",
+					"item": [
+						{
+							"name": "1. Register New User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"username\": \"newuser123\",\n  \"password\": \"SecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"register"
+									]
+								},
+								"description": "Step 1: Register a new user account"
+							},
+							"response": []
+						},
+						{
+							"name": "2. Get OTP from Redis",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "docker exec -it redis redis-cli KEYS \"tucanbit::tucanbit::otp:*\"",
+									"host": [
+										"docker exec -it redis redis-cli KEYS \"tucanbit::tucanbit::otp:*\""
+									],
+									"path": []
+								},
+								"description": "Step 2: Get OTP from Redis using the OTP ID from registration"
+							},
+							"response": []
+						},
+						{
+							"name": "3. Complete Registration",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"otp_code\": \"{{otp_code}}\",\n  \"otp_id\": \"{{otp_id}}\",\n  \"user_id\": \"{{temp_user_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/register/complete",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"register",
+										"complete"
+									]
+								},
+								"description": "Step 3: Complete registration with OTP verification"
+							},
+							"response": []
+						},
+						{
+							"name": "4. Login New User",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"login_id\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"login"
+									]
+								},
+								"description": "Step 4: Login with new user credentials"
+							},
+							"response": []
+						},
+						{
+							"name": "5. Launch Game (New User)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{new_user_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/groove/launch-game",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"groove",
+										"launch-game"
+									]
+								},
+								"description": "Step 5: Launch game for new user (creates account and session)"
+							},
+							"response": []
+						},
+						{
+							"name": "6. Get Account (Zero Balance)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&apiversion=1.2",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "getaccount"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										}
+									]
+								},
+								"description": "Step 6: Check account balance (should be $0 for new user)"
+							},
+							"response": [
+								{
+									"name": "Zero Balance Response",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/groove-official?request=getaccount&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&apiversion=1.2",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"groove-official"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "getaccount"
+												},
+												{
+													"key": "accountid",
+													"value": "groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"accountid\": \"groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f\",\n  \"apiversion\": \"1.2\",\n  \"bonus_balance\": 0,\n  \"city\": \"\",\n  \"code\": 200,\n  \"country\": \"\",\n  \"currency\": \"USD\",\n  \"game_mode\": 1,\n  \"gamesessionid\": \"Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51\",\n  \"order\": \"cash_money\",\n  \"real_balance\": 0,\n  \"status\": \"Success\"\n}"
+								}
+							]
+						},
+						{
+							"name": "7. Try Wager (Should Fail)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid=round_001&transactionid=txn_wager_001",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official-wager"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wager"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "roundid",
+											"value": "round_001"
+										},
+										{
+											"key": "transactionid",
+											"value": "txn_wager_001"
+										}
+									]
+								},
+								"description": "Step 7: Try to place wager with insufficient funds (should return Code 1006)"
+							},
+							"response": []
+						},
+						{
+							"name": "8. Process Result (Win)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official-result?request=result&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&gamestatus=completed&result=5.0&roundid=round_001&transactionid=txn_result_001",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official-result"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "result"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										},
+										{
+											"key": "result",
+											"value": "5.0"
+										},
+										{
+											"key": "roundid",
+											"value": "round_001"
+										},
+										{
+											"key": "transactionid",
+											"value": "txn_result_001"
+										}
+									]
+								},
+								"description": "Step 8: Process result (win) - should work even with $0 balance"
+							},
+							"response": [
+								{
+									"name": "Successful Result Processing",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/groove-official-result?request=result&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&gameid=82695&apiversion=1.2&gamestatus=completed&result=5.0&roundid=round_001&transactionid=txn_result_002",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"groove-official-result"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "result"
+												},
+												{
+													"key": "accountid",
+													"value": "groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "gameid",
+													"value": "82695"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												},
+												{
+													"key": "gamestatus",
+													"value": "completed"
+												},
+												{
+													"key": "result",
+													"value": "5.0"
+												},
+												{
+													"key": "roundid",
+													"value": "round_001"
+												},
+												{
+													"key": "transactionid",
+													"value": "txn_result_002"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"success\": false,\n  \"transactionid\": \"\",\n  \"accountid\": \"\",\n  \"sessionid\": \"\",\n  \"amount\": \"0\",\n  \"walletTx\": \"TXN_txn_resu_1757797200\",\n  \"balance\": \"5\",\n  \"bonusWin\": \"0\",\n  \"realMoneyWin\": \"5\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"5\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+								}
+							]
+						},
+						{
+							"name": "9. Verify Final Balance",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&apiversion=1.2",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "getaccount"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										}
+									]
+								},
+								"description": "Step 9: Verify final balance after win (should be $5)"
+							},
+							"response": [
+								{
+									"name": "Final Balance After Win",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/groove-official?request=getaccount&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&apiversion=1.2",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"groove-official"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "getaccount"
+												},
+												{
+													"key": "accountid",
+													"value": "groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"accountid\": \"groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f\",\n  \"apiversion\": \"1.2\",\n  \"bonus_balance\": 0,\n  \"city\": \"\",\n  \"code\": 200,\n  \"country\": \"\",\n  \"currency\": \"USD\",\n  \"game_mode\": 1,\n  \"gamesessionid\": \"Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51\",\n  \"order\": \"cash_money\",\n  \"real_balance\": 5,\n  \"status\": \"Success\"\n}"
+								}
+							]
+						},
+						{
+							"name": "10. Test Wager And Result (Combined)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=2.0&result=8.0&roundid=round_002&transactionid=txn_combined_001&gamestatus=completed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wagerAndResult"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "2.0"
+										},
+										{
+											"key": "result",
+											"value": "8.0"
+										},
+										{
+											"key": "roundid",
+											"value": "round_002"
+										},
+										{
+											"key": "transactionid",
+											"value": "txn_combined_001"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										}
+									]
+								},
+								"description": "Step 10: Test combined Wager And Result transaction (bet $2, win $8, net +$6)"
+							},
+							"response": [
+								{
+									"name": "Successful Combined Transaction",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/groove?request=wagerAndResult&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&gameid=82695&apiversion=1.2&betamount=2.0&result=8.0&roundid=round_002&transactionid=txn_combined_001&gamestatus=completed",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"groove"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "wagerAndResult"
+												},
+												{
+													"key": "accountid",
+													"value": "groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "gameid",
+													"value": "82695"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												},
+												{
+													"key": "betamount",
+													"value": "2.0"
+												},
+												{
+													"key": "result",
+													"value": "8.0"
+												},
+												{
+													"key": "roundid",
+													"value": "round_002"
+												},
+												{
+													"key": "transactionid",
+													"value": "txn_combined_001"
+												},
+												{
+													"key": "gamestatus",
+													"value": "completed"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"walletTx\": \"TXN_combined_1757797200\",\n  \"balance\": \"11.00\",\n  \"bonusWin\": \"0.00\",\n  \"realMoneyWin\": \"8.00\",\n  \"bonusmoneybet\": \"0.00\",\n  \"realmoneybet\": \"2.00\",\n  \"bonus_balance\": \"0.00\",\n  \"real_balance\": \"11.00\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+								}
+							]
+						},
+						{
+							"name": "11. Verify Final Balance After Combined Transaction",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&apiversion=1.2",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "getaccount"
+										},
+										{
+											"key": "accountid",
+											"value": "{{new_user_account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{new_user_session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										}
+									]
+								},
+								"description": "Step 11: Verify final balance after combined transaction (should be $11: $5 + $6 net from combined transaction)"
+							},
+							"response": [
+								{
+									"name": "Final Balance After Combined Transaction",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/groove-official?request=getaccount&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&apiversion=1.2",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"groove-official"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "getaccount"
+												},
+												{
+													"key": "accountid",
+													"value": "groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"accountid\": \"groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f\",\n  \"apiversion\": \"1.2\",\n  \"bonus_balance\": 0,\n  \"city\": \"\",\n  \"code\": 200,\n  \"country\": \"\",\n  \"currency\": \"USD\",\n  \"game_mode\": 1,\n  \"gamesessionid\": \"Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51\",\n  \"order\": \"cash_money\",\n  \"real_balance\": 11,\n  \"status\": \"Success\"\n}"
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
 		}
 	],
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "https://api.tucanbit.tv",
-			"type": "string"
+			"value": "http://localhost:8080",
+			"type": "string",
+			"description": "Base URL for TucanBIT API"
 		},
 		{
 			"key": "access_token",
-			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU3NzcyNjYxLCJpYXQiOjE3NTc2ODYyNjEsImlzcyI6InR1Y2FuYml0Iiwic3ViIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1In0.KSnmX3gSrzOawHvPNjLBw7rQ0smcfnUz2_5h52vn-JM",
+			"value": "",
 			"type": "string",
-			"description": "JWT access token for authenticated requests"
+			"description": "JWT access token from login"
 		},
 		{
 			"key": "user_id",
 			"value": "a5e168fb-168e-4183-84c5-d49038ce00b5",
 			"type": "string",
-			"description": "User ID for testing"
+			"description": "User ID from login response"
 		},
 		{
-			"key": "admin_access_token",
-			"value": "{{access_token}}",
+			"key": "account_id",
+			"value": "a25375ec-f4b7-401a-98b3-e924f4373850",
 			"type": "string",
-			"description": "Admin JWT access token (replace with admin token)"
+			"description": "GrooveTech account ID"
 		},
 		{
-			"key": "tier_id",
-			"value": "c2d2125b-8718-421c-b537-f41fc46333c8",
+			"key": "session_id",
+			"value": "",
 			"type": "string",
-			"description": "Cashback tier ID for updates"
+			"description": "Game session ID from game launch"
+		},
+		{
+			"key": "round_id",
+			"value": "round_123",
+			"type": "string",
+			"description": "Game round ID"
+		},
+		{
+			"key": "transaction_id",
+			"value": "txn_456",
+			"type": "string",
+			"description": "Unique transaction ID"
+		},
+		{
+			"key": "email",
+			"value": "testuser@example.com",
+			"type": "string",
+			"description": "Email for new user registration"
+		},
+		{
+			"key": "otp_id",
+			"value": "",
+			"type": "string",
+			"description": "OTP ID from registration response"
+		},
+		{
+			"key": "otp_code",
+			"value": "",
+			"type": "string",
+			"description": "OTP code retrieved from Redis"
+		},
+		{
+			"key": "temp_user_id",
+			"value": "",
+			"type": "string",
+			"description": "Temporary user ID from registration"
+		},
+		{
+			"key": "new_user_access_token",
+			"value": "",
+			"type": "string",
+			"description": "Access token for new user"
+		},
+		{
+			"key": "new_user_account_id",
+			"value": "",
+			"type": "string",
+			"description": "GrooveTech account ID for new user"
+		},
+		{
+			"key": "new_user_session_id",
+			"value": "",
+			"type": "string",
+			"description": "Game session ID for new user"
 		}
 	]
 }

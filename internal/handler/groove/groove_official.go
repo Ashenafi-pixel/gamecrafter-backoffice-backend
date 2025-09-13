@@ -335,94 +335,344 @@ func (h *GrooveOfficialHandler) GetBalance(c *gin.Context) {
 	})
 }
 
-// ProcessWager - POST /wager
+// ProcessWager - GET /wager
 // Deducts funds from player balance for placing a bet
 func (h *GrooveOfficialHandler) ProcessWager(c *gin.Context) {
 	h.logger.Info("GrooveTech Wager request")
 
-	var req dto.GrooveWagerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Error("Invalid wager request", zap.Error(err))
+	// Validate signature if signature validation is enabled
+	if viper.GetBool("groove.signature_validation") {
+		signature := c.GetHeader("X-Groove-Signature")
+		if signature == "" {
+			h.logger.Error("Missing X-Groove-Signature header")
+			c.JSON(http.StatusBadRequest, dto.GrooveWagerResponse{
+				Code:        1001,
+				Status:      "Invalid signature",
+				Message:     "invalid signature",
+				APIVersion:  "1.2",
+			})
+			return
+		}
+
+		// Extract query parameters for signature validation
+		queryParams := make(map[string]string)
+		for key, values := range c.Request.URL.Query() {
+			if len(values) > 0 {
+				queryParams[key] = values[0]
+			}
+		}
+
+		// Validate signature
+		if !h.signatureValidator.ValidateGrooveSignature(signature, queryParams) {
+			h.logger.Error("Invalid signature")
+			c.JSON(http.StatusUnauthorized, dto.GrooveWagerResponse{
+				Code:        1001,
+				Status:      "Invalid signature",
+				Message:     "invalid signature",
+				APIVersion:  "1.2",
+			})
+			return
+		}
+	}
+
+	// Extract parameters according to official GrooveTech API specification
+	request := c.Query("request")
+	accountID := c.Query("accountid")
+	gameSessionID := c.Query("gamesessionid")
+	device := c.Query("device")
+	gameID := c.Query("gameid")
+	apiVersion := c.Query("apiversion")
+	betAmountStr := c.Query("betamount")
+	roundID := c.Query("roundid")
+	transactionID := c.Query("transactionid")
+	frbid := c.Query("frbid") // Optional Free Round Bonus ID
+
+	// Validate required parameters according to official spec
+	if request != "wager" {
+		h.logger.Error("Invalid request parameter", zap.String("request", request))
 		c.JSON(http.StatusBadRequest, dto.GrooveWagerResponse{
-			Success:      false,
-			ErrorCode:    "INVALID_REQUEST",
-			ErrorMessage: "Invalid request format",
+			Code:        400,
+			Status:      "Bad Request",
+			Message:     "Invalid request parameter. Must be 'wager'",
+			APIVersion:  "1.2",
 		})
 		return
 	}
 
-	// Validate required fields
-	if req.TransactionID == "" || req.AccountID == "" || req.SessionID == "" || req.Amount.LessThanOrEqual(decimal.Zero) {
-		h.logger.Error("Missing required fields in wager request")
+	if accountID == "" || gameSessionID == "" || device == "" || gameID == "" || apiVersion == "" || betAmountStr == "" || roundID == "" || transactionID == "" {
+		h.logger.Error("Missing required parameters",
+			zap.String("accountid", accountID),
+			zap.String("gamesessionid", gameSessionID),
+			zap.String("device", device),
+			zap.String("gameid", gameID),
+			zap.String("apiversion", apiVersion),
+			zap.String("betamount", betAmountStr),
+			zap.String("roundid", roundID),
+			zap.String("transactionid", transactionID))
 		c.JSON(http.StatusBadRequest, dto.GrooveWagerResponse{
-			Success:      false,
-			ErrorCode:    "MISSING_FIELDS",
-			ErrorMessage: "transactionId, accountId, sessionId, and amount are required",
+			Code:        400,
+			Status:      "Bad Request",
+			Message:     "Missing required parameters: accountid, gamesessionid, device, gameid, apiversion, betamount, roundid, transactionid",
+			APIVersion:  "1.2",
 		})
 		return
 	}
 
-	// Process wager
-	response, err := h.grooveService.ProcessWager(c.Request.Context(), req)
+	// Parse bet amount
+	betAmount, err := decimal.NewFromString(betAmountStr)
+	if err != nil || betAmount.LessThanOrEqual(decimal.Zero) {
+		h.logger.Error("Invalid bet amount", zap.String("betamount", betAmountStr))
+		c.JSON(http.StatusBadRequest, dto.GrooveWagerResponse{
+			Code:        110,
+			Status:      "Operation not allowed",
+			Message:     "Invalid bet amount",
+			APIVersion:  "1.2",
+		})
+		return
+	}
+
+	// Validate game session and get user information
+	session, err := h.grooveService.ValidateGameSession(c.Request.Context(), gameSessionID)
 	if err != nil {
-		h.logger.Error("Failed to process wager", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, dto.GrooveWagerResponse{
-			Success:      false,
-			ErrorCode:    "WAGER_FAILED",
-			ErrorMessage: "Failed to process wager",
+		h.logger.Error("Failed to validate game session", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        1000,
+			Status:      "Not logged on",
+			Message:     "Player session is invalid or expired",
+			APIVersion:  apiVersion,
+		})
+		return
+	}
+
+	// Get account information for the user
+	userID, err := uuid.Parse(session.UserID)
+	if err != nil {
+		h.logger.Error("Failed to parse user ID", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        1000,
+			Status:      "Not logged on",
+			Message:     "Player session is invalid or expired",
+			APIVersion:  apiVersion,
+		})
+		return
+	}
+
+	account, err := h.grooveService.GetAccountByUserID(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get account by user ID", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        1000,
+			Status:      "Not logged on",
+			Message:     "Player session is invalid or expired",
+			APIVersion:  apiVersion,
+		})
+		return
+	}
+
+	// Check if account ID matches
+	if account.AccountID != accountID {
+		h.logger.Error("Account ID mismatch", 
+			zap.String("provided_accountid", accountID),
+			zap.String("session_accountid", account.AccountID))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        110,
+			Status:      "Operation not allowed",
+			Message:     "Account ID doesn't match session ID",
+			APIVersion:  apiVersion,
+		})
+		return
+	}
+
+	// Get user's current balance
+	currentBalance, err := h.grooveService.GetUserBalance(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user balance", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        1,
+			Status:      "Technical error",
+			Message:     "Failed to retrieve balance",
+			APIVersion:  apiVersion,
+		})
+		return
+	}
+
+	// Check if user has sufficient funds
+	if currentBalance.LessThan(betAmount) {
+		h.logger.Error("Insufficient funds",
+			zap.String("current_balance", currentBalance.String()),
+			zap.String("bet_amount", betAmount.String()))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        1006,
+			Status:      "Out of money",
+			Message:     "Insufficient funds to place the wager",
+			APIVersion:  apiVersion,
+		})
+		return
+	}
+
+	// Check for duplicate transaction (idempotency)
+	existingTransaction, err := h.grooveService.GetTransactionByID(c.Request.Context(), transactionID)
+	if err == nil && existingTransaction != nil {
+		// Duplicate transaction found - return original response
+		h.logger.Info("Duplicate transaction found", zap.String("transaction_id", transactionID))
+		
+		// Get current balance for the response
+		currentBalance, _ := h.grooveService.GetUserBalance(c.Request.Context(), userID)
+		
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:                200,
+			Status:              "Success - duplicate request",
+			AccountTransactionID: existingTransaction.AccountTransactionID,
+			Balance:             currentBalance,
+			BonusMoneyBet:      decimal.Zero, // No bonus money in our system
+			RealMoneyBet:       betAmount,
+			BonusBalance:       decimal.Zero, // No bonus balance in our system
+			RealBalance:        currentBalance,
+			GameMode:           1, // Real money mode
+			Order:              "cash_money",
+			APIVersion:         apiVersion,
+		})
+		return
+	}
+
+	// Process the wager transaction
+	response, err := h.grooveService.ProcessWagerTransaction(c.Request.Context(), dto.GrooveWagerRequest{
+		AccountID:     accountID,
+		GameSessionID: gameSessionID,
+		TransactionID: transactionID,
+		RoundID:       roundID,
+		GameID:        gameID,
+		BetAmount:     betAmount,
+		Device:        device,
+		FRBID:         frbid,
+		UserID:        userID,
+	})
+
+	if err != nil {
+		h.logger.Error("Failed to process wager transaction", zap.Error(err))
+		c.JSON(http.StatusOK, dto.GrooveWagerResponse{
+			Code:        1,
+			Status:      "Technical error",
+			Message:     "Failed to process wager",
+			APIVersion:  apiVersion,
 		})
 		return
 	}
 
 	h.logger.Info("Wager processed successfully",
-		zap.String("transaction_id", response.TransactionID),
-		zap.String("new_balance", response.NewBalance.String()))
+		zap.String("transaction_id", transactionID),
+		zap.String("account_id", accountID),
+		zap.String("bet_amount", betAmount.String()),
+		zap.String("new_balance", response.RealBalance.String()))
 
 	c.JSON(http.StatusOK, *response)
 }
 
-// ProcessResult - POST /result
-// Adds winnings to player balance after game round completion
+// ProcessResult - GET /groove-official-result
+// Official GrooveTech Result API - Processes game round outcomes and adds winnings
 func (h *GrooveOfficialHandler) ProcessResult(c *gin.Context) {
 	h.logger.Info("GrooveTech Result request")
 
-	var req dto.GrooveResultRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Error("Invalid result request", zap.Error(err))
+	// Extract query parameters
+	request := c.Query("request")
+	if request != "result" {
+		h.logger.Error("Invalid request parameter", zap.String("request", request))
 		c.JSON(http.StatusBadRequest, dto.GrooveResultResponse{
-			Success:      false,
-			ErrorCode:    "INVALID_REQUEST",
-			ErrorMessage: "Invalid request format",
+			Code:       400,
+			Status:     "Bad Request",
+			APIVersion: "1.2",
 		})
 		return
 	}
 
-	// Validate required fields
-	if req.TransactionID == "" || req.AccountID == "" || req.SessionID == "" || req.Amount.LessThan(decimal.Zero) {
-		h.logger.Error("Missing required fields in result request")
+	accountID := c.Query("accountid")
+	gameSessionID := c.Query("gamesessionid")
+	device := c.Query("device")
+	gameID := c.Query("gameid")
+	apiVersion := c.Query("apiversion")
+	gameStatus := c.Query("gamestatus")
+	resultStr := c.Query("result")
+	roundID := c.Query("roundid")
+	transactionID := c.Query("transactionid")
+	frbid := c.Query("frbid") // Optional
+
+	// Validate required parameters
+	if accountID == "" || gameSessionID == "" || device == "" || gameID == "" || 
+	   apiVersion == "" || gameStatus == "" || resultStr == "" || roundID == "" || transactionID == "" {
+		h.logger.Error("Missing required parameters")
 		c.JSON(http.StatusBadRequest, dto.GrooveResultResponse{
-			Success:      false,
-			ErrorCode:    "MISSING_FIELDS",
-			ErrorMessage: "transactionId, accountId, sessionId, and amount are required",
+			Code:       400,
+			Status:     "Bad Request",
+			APIVersion: apiVersion,
 		})
 		return
 	}
 
-	// Process result
-	response, err := h.grooveService.ProcessResult(c.Request.Context(), req)
+	// Validate game status
+	if gameStatus != "completed" && gameStatus != "pending" {
+		h.logger.Error("Invalid game status", zap.String("gamestatus", gameStatus))
+		c.JSON(http.StatusBadRequest, dto.GrooveResultResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: apiVersion,
+		})
+		return
+	}
+
+	// Parse result amount
+	result, err := decimal.NewFromString(resultStr)
 	if err != nil {
-		h.logger.Error("Failed to process result", zap.Error(err))
+		h.logger.Error("Invalid result amount", zap.String("result", resultStr), zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.GrooveResultResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: apiVersion,
+		})
+		return
+	}
+
+	// Validate result amount (should not be negative)
+	if result.LessThan(decimal.Zero) {
+		h.logger.Error("Negative result amount", zap.String("result", result.String()))
+		c.JSON(http.StatusBadRequest, dto.GrooveResultResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: apiVersion,
+		})
+		return
+	}
+
+	// Create request object
+	req := dto.GrooveResultRequest{
+		Request:       request,
+		AccountID:     accountID,
+		APIVersion:    apiVersion,
+		Device:        device,
+		GameID:        gameID,
+		GameSessionID: gameSessionID,
+		GameStatus:    gameStatus,
+		Result:        result,
+		RoundID:       roundID,
+		TransactionID: transactionID,
+		FRBID:         frbid,
+	}
+
+	// Process result transaction
+	response, err := h.grooveService.ProcessResultTransaction(c.Request.Context(), req)
+	if err != nil {
+		h.logger.Error("Failed to process result transaction", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, dto.GrooveResultResponse{
-			Success:      false,
-			ErrorCode:    "RESULT_FAILED",
-			ErrorMessage: "Failed to process result",
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: apiVersion,
 		})
 		return
 	}
 
 	h.logger.Info("Result processed successfully",
-		zap.String("transaction_id", response.TransactionID),
-		zap.String("new_balance", response.NewBalance.String()))
+		zap.String("transaction_id", transactionID),
+		zap.String("result", result.String()),
+		zap.String("balance", response.Balance.String()))
 
 	c.JSON(http.StatusOK, *response)
 }
