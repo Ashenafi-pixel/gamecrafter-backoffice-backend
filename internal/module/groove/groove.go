@@ -60,6 +60,7 @@ type GrooveService interface {
 type GrooveServiceImpl struct {
 	storage            groove.GrooveStorage
 	gameSessionStorage groove.GameSessionStorage
+	cashbackService    interface{} // Will be properly typed when integrated
 	logger             *zap.Logger
 }
 
@@ -1524,6 +1525,9 @@ func (s *GrooveServiceImpl) ProcessWagerTransaction(ctx context.Context, req dto
 		// Don't fail the transaction if storage fails, but log it
 	}
 
+	// Process cashback for this bet
+	s.processBetCashback(ctx, req)
+
 	s.logger.Info("Wager transaction processed successfully",
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("account_transaction_id", accountTransactionID),
@@ -1988,4 +1992,68 @@ func (s *GrooveServiceImpl) ProcessWagerByBatch(ctx context.Context, req dto.Gro
 		RealBalance:  finalBalance,
 		BonusBalance: decimal.Zero,
 	}, nil
+}
+
+// processBetCashback processes cashback for a GrooveTech bet
+func (s *GrooveServiceImpl) processBetCashback(ctx context.Context, req dto.GrooveWagerRequest) {
+	s.logger.Info("Processing cashback for GrooveTech bet",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("user_id", req.UserID.String()),
+		zap.String("bet_amount", req.BetAmount.String()))
+
+	// Create a bet DTO for cashback processing
+	bet := dto.Bet{
+		BetID:     uuid.New(), // Generate new UUID for cashback tracking
+		UserID:    req.UserID,
+		Amount:    req.BetAmount,
+		Payout:    decimal.Zero, // Will be updated when result is processed
+		Currency:  "USD",
+		GameType:  "groovetech",
+		GameID:    req.GameID,
+		RoundID:   req.RoundID,
+		CreatedAt: time.Now(),
+	}
+
+	// Process cashback asynchronously to avoid blocking the main transaction
+	go func() {
+		// Create a new context for the background processing
+		bgCtx := context.Background()
+		
+		// Initialize cashback service
+		cashbackStorage := s.getCashbackStorage()
+		if cashbackStorage == nil {
+			s.logger.Error("Cashback storage not available")
+			return
+		}
+		
+		cashbackService := s.getCashbackService(cashbackStorage)
+		if cashbackService == nil {
+			s.logger.Error("Cashback service not available")
+			return
+		}
+
+		// Process the cashback
+		err := cashbackService.ProcessBetCashback(bgCtx, bet)
+		if err != nil {
+			s.logger.Error("Failed to process cashback",
+				zap.String("transaction_id", req.TransactionID),
+				zap.Error(err))
+		} else {
+			s.logger.Info("Cashback processed successfully",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("bet_amount", req.BetAmount.String()))
+		}
+	}()
+}
+
+// getCashbackStorage returns the cashback storage instance
+func (s *GrooveServiceImpl) getCashbackStorage() interface{} {
+	// Return the cashback service if available
+	return s.cashbackService
+}
+
+// getCashbackService returns the cashback service instance
+func (s *GrooveServiceImpl) getCashbackService(storage interface{}) interface{} {
+	// Return the cashback service if available
+	return s.cashbackService
 }
