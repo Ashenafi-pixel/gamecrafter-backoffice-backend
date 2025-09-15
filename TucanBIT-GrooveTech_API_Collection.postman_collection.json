@@ -2,9 +2,88 @@
 	"info": {
 		"_postman_id": "tucanbit-groovetech-api-collection",
 		"name": "TucanBIT GrooveTech API Collection",
-		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing, and Edge Cases",
+		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, and Edge Cases",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "groove_security_key",
+			"value": "test_key",
+			"type": "string",
+			"description": "GrooveTech security key for HMAC-SHA256 signature generation"
+		},
+		{
+			"key": "signature_validation_enabled",
+			"value": "true",
+			"type": "boolean",
+			"description": "Enable/disable signature validation for GrooveTech endpoints"
+		},
+		{
+			"key": "account_id",
+			"value": "a5e168fb-168e-4183-84c5-d49038ce00b5",
+			"type": "string",
+			"description": "Player account ID from GrooveTech"
+		},
+		{
+			"key": "session_id",
+			"value": "Tucan_362a6ddd-eaf0-41f2-9a69-e64757c50cd7",
+			"type": "string",
+			"description": "Game session ID from game launch"
+		},
+		{
+			"key": "game_id",
+			"value": "82695",
+			"type": "string",
+			"description": "Groove game ID"
+		},
+		{
+			"key": "transaction_id",
+			"value": "test_tx_001",
+			"type": "string",
+			"description": "Transaction ID for testing"
+		},
+		{
+			"key": "round_id",
+			"value": "test_round_001",
+			"type": "string",
+			"description": "Round ID for testing"
+		},
+		{
+			"key": "result_amount",
+			"value": "15.0",
+			"type": "string",
+			"description": "Result/win amount for testing"
+		},
+		{
+			"key": "rollback_amount",
+			"value": "10.0",
+			"type": "string",
+			"description": "Rollback amount for testing"
+		},
+		{
+			"key": "jackpot_amount",
+			"value": "50.0",
+			"type": "string",
+			"description": "Jackpot amount for testing"
+		},
+		{
+			"key": "win_transaction_id",
+			"value": "win_tx_001",
+			"type": "string",
+			"description": "Win transaction ID for rollback on result"
+		},
+		{
+			"key": "groove_signature",
+			"value": "test_signature",
+			"type": "string",
+			"description": "HMAC-SHA256 signature for request validation"
+		}
+	],
 	"item": [
 		{
 			"name": "User Registration & Verification",
@@ -458,12 +537,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/groove-official-balance?request=getbalance&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&nogsgameid=82695&apiversion=1.2",
+							"raw": "{{base_url}}/groove-official/balance?request=getbalance&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&nogsgameid=82695&apiversion=1.2",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"groove-official-balance"
+								"groove-official",
+								"balance"
 							],
 							"query": [
 								{
@@ -507,12 +587,12 @@
 								"method": "GET",
 								"header": [],
 						"url": {
-									"raw": "{{base_url}}/groove-official-balance?request=getbalance&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&nogsgameid=82695&apiversion=1.2",
+									"raw": "{{base_url}}/groove-official/balance?request=getbalance&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&nogsgameid=82695&apiversion=1.2",
 							"host": [
 										"{{base_url}}"
 							],
 							"path": [
-										"groove-official-balance"
+										"groove-official/balance"
 									],
 									"query": [
 										{
@@ -562,12 +642,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"raw": "{{base_url}}/groove-official/wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"groove-official-wager"
+								"groove-official",
+								"wager"
 							],
 							"query": [
 								{
@@ -626,77 +707,12 @@
 								"method": "GET",
 								"header": [],
 						"url": {
-									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+									"raw": "{{base_url}}/groove-official/wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
 							"host": [
 										"{{base_url}}"
 							],
 							"path": [
-										"groove-official-wager"
-									],
-									"query": [
-										{
-											"key": "request",
-											"value": "wager"
-										},
-										{
-											"key": "accountid",
-											"value": "{{account_id}}"
-										},
-										{
-											"key": "gamesessionid",
-											"value": "{{session_id}}"
-										},
-										{
-											"key": "device",
-											"value": "desktop"
-										},
-										{
-											"key": "gameid",
-											"value": "82695"
-										},
-										{
-											"key": "apiversion",
-											"value": "1.2"
-										},
-										{
-											"key": "betamount",
-											"value": "10.0"
-										},
-										{
-											"key": "roundid",
-											"value": "{{round_id}}"
-										},
-										{
-											"key": "transactionid",
-											"value": "{{transaction_id}}"
-										}
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"accounttransactionid\": \"TXN_txn_456_1757784492\",\n  \"balance\": \"95\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"10\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"95\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
-						},
-						{
-							"name": "Duplicate Request (Idempotency)",
-							"originalRequest": {
-						"method": "GET",
-						"header": [],
-						"url": {
-									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
-							"host": [
-										"{{base_url}}"
-							],
-							"path": [
-										"groove-official-wager"
+										"groove-official/wager"
 									],
 									"query": [
 										{
@@ -745,8 +761,73 @@
 							{
 								"key": "Content-Type",
 								"value": "application/json"
-								}
+							}
+						],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"accounttransactionid\": \"TXN_txn_456_1757784492\",\n  \"balance\": \"95\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"10\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"95\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						},
+						{
+							"name": "Duplicate Request (Idempotency)",
+							"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager?request=wager&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"host": [
+										"{{base_url}}"
 							],
+							"path": [
+										"groove-official/wager"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wager"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "82695"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0"
+										},
+										{
+											"key": "roundid",
+											"value": "{{round_id}}"
+										},
+										{
+											"key": "transactionid",
+											"value": "{{transaction_id}}"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
 							"cookie": [],
 							"body": "{\n  \"code\": 200,\n  \"status\": \"Success - duplicate request\",\n  \"accounttransactionid\": \"TXN_txn_456_1757784492\",\n  \"balance\": \"95\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"10\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"95\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
 						},
@@ -755,13 +836,13 @@
 							"originalRequest": {
 								"method": "GET",
 								"header": [],
-								"url": {
-									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
-									"host": [
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager?request=wager&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
-										"groove-official-wager"
+							],
+							"path": [
+										"groove-official/wager"
 									],
 									"query": [
 										{
@@ -806,8 +887,8 @@
 							"status": "OK",
 							"code": 200,
 							"_postman_previewlanguage": "json",
-							"header": [
-								{
+						"header": [
+							{
 									"key": "Content-Type",
 									"value": "application/json"
 								}
@@ -821,14 +902,21 @@
 					"name": "Result Transaction (Official)",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "X-Groove-Signature",
+								"value": "{{groove_signature}}",
+								"description": "HMAC-SHA256 signature for request validation"
+							}
+						],
 						"url": {
-							"raw": "{{base_url}}/groove-official-result?request=result&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&winamount=15.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"raw": "{{base_url}}/groove-official/result?request=result&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&apiversion=1.2&result={{result_amount}}&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"groove-official-result"
+								"groove-official",
+								"result"
 							],
 							"query": [
 								{
@@ -853,8 +941,8 @@
 								},
 								{
 									"key": "gameid",
-									"value": "82695",
-									"description": "Game ID"
+									"value": "{{game_id}}",
+									"description": "Groove game ID"
 								},
 								{
 									"key": "apiversion",
@@ -862,8 +950,8 @@
 									"description": "API version"
 								},
 								{
-									"key": "winamount",
-									"value": "15.0",
+									"key": "result",
+									"value": "{{result_amount}}",
 									"description": "Win amount in USD"
 								},
 								{
@@ -875,25 +963,108 @@
 									"key": "transactionid",
 									"value": "{{transaction_id}}",
 									"description": "Unique transaction ID"
+								},
+								{
+									"key": "gamestatus",
+									"value": "completed",
+									"description": "Game status: 'completed' or 'pending'"
 								}
 							]
 						},
-						"description": "Official GrooveTech Result API - Processes winnings and credits funds to player balance"
+						"description": "Official GrooveTech Result API - Processes winnings and credits funds to player balance. Requires gamestatus parameter."
 					},
-					"response": []
-		},
-		{
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official/result?request=result&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&apiversion=1.2&result=15.0&roundid=result_test_001&transactionid=result_tx_001&gamestatus=completed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"result"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "result"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "{{game_id}}"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "result",
+											"value": "15.0"
+										},
+										{
+											"key": "roundid",
+											"value": "result_test_001"
+										},
+										{
+											"key": "transactionid",
+											"value": "result_tx_001"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"success\": true,\n  \"transactionid\": \"result_tx_001\",\n  \"accountid\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n  \"sessionid\": \"Tucan_362a6ddd-eaf0-41f2-9a69-e64757c50cd7\",\n  \"amount\": \"15\",\n  \"walletTx\": \"TXN_result_t_1757893830\",\n  \"balance\": \"423\",\n  \"bonusWin\": \"0\",\n  \"realMoneyWin\": \"15\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"423\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
+				},
+				{
 					"name": "Rollback Transaction (Official)",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "X-Groove-Signature",
+								"value": "{{groove_signature}}",
+								"description": "HMAC-SHA256 signature for request validation"
+							}
+						],
 						"url": {
-							"raw": "{{base_url}}/groove-official-rollback?request=rollback&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"raw": "{{base_url}}/groove-official/rollback?request=rollback&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&apiversion=1.2&rollbackamount={{rollback_amount}}&roundid={{round_id}}&transactionid={{transaction_id}}",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"groove-official-rollback"
+								"groove-official",
+								"rollback"
 							],
 							"query": [
 								{
@@ -918,13 +1089,18 @@
 								},
 								{
 									"key": "gameid",
-									"value": "82695",
-									"description": "Game ID"
+									"value": "{{game_id}}",
+									"description": "Groove game ID"
 								},
 								{
 									"key": "apiversion",
 									"value": "1.2",
 									"description": "API version"
+								},
+								{
+									"key": "rollbackamount",
+									"value": "{{rollback_amount}}",
+									"description": "Amount to rollback in USD"
 								},
 								{
 									"key": "roundid",
@@ -938,22 +1114,96 @@
 								}
 							]
 						},
-						"description": "Official GrooveTech Rollback API - Reverses a previous transaction"
+						"description": "Official GrooveTech Rollback API - Reverses a previous transaction. Requires rollbackamount parameter."
 					},
-					"response": []
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official/rollback?request=rollback&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&apiversion=1.2&rollbackamount=20.0&roundid=wager_demo_001&transactionid=wager_demo_tx_001",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"rollback"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "rollback"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "{{game_id}}"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "rollbackamount",
+											"value": "20.0"
+										},
+										{
+											"key": "roundid",
+											"value": "wager_demo_001"
+										},
+										{
+											"key": "transactionid",
+											"value": "wager_demo_tx_001"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success - duplicate request\",\n  \"accounttransactionid\": \"efc0e161-1fbe-4b5b-bc76-909b03cc90dd\",\n  \"balance\": \"408\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"408\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
 				},
 				{
 					"name": "Jackpot Transaction (Official)",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "X-Groove-Signature",
+								"value": "{{groove_signature}}",
+								"description": "HMAC-SHA256 signature for request validation"
+							}
+						],
 						"url": {
-							"raw": "{{base_url}}/groove-official-jackpot?request=jackpot&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&jackpotamount=1000.0&roundid={{round_id}}&transactionid={{transaction_id}}",
+							"raw": "{{base_url}}/groove-official/jackpot?request=jackpot&accountid={{account_id}}&gamesessionid={{session_id}}&gameid={{game_id}}&apiversion=1.2&amount={{jackpot_amount}}&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"groove-official-jackpot"
+								"groove-official",
+								"jackpot"
 							],
 							"query": [
 								{
@@ -972,14 +1222,9 @@
 									"description": "Game session ID from game launch"
 								},
 								{
-									"key": "device",
-									"value": "desktop",
-									"description": "Device type: 'desktop' or 'mobile'"
-								},
-								{
 									"key": "gameid",
-									"value": "82695",
-									"description": "Game ID"
+									"value": "{{game_id}}",
+									"description": "Groove game ID"
 								},
 								{
 									"key": "apiversion",
@@ -987,8 +1232,8 @@
 									"description": "API version"
 								},
 								{
-									"key": "jackpotamount",
-									"value": "1000.0",
+									"key": "amount",
+									"value": "{{jackpot_amount}}",
 									"description": "Jackpot amount in USD"
 								},
 								{
@@ -1000,12 +1245,84 @@
 									"key": "transactionid",
 									"value": "{{transaction_id}}",
 									"description": "Unique transaction ID"
+								},
+								{
+									"key": "gamestatus",
+									"value": "completed",
+									"description": "Game status: 'completed' or 'pending'"
 								}
 							]
 						},
-						"description": "Official GrooveTech Jackpot API - Processes jackpot winnings"
+						"description": "Official GrooveTech Jackpot API - Processes jackpot winnings. Requires gamestatus parameter."
 					},
-					"response": []
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official/jackpot?request=jackpot&accountid={{account_id}}&gamesessionid={{session_id}}&gameid={{game_id}}&apiversion=1.2&amount=25.0&roundid=jackpot_fresh_test&transactionid=jackpot_fresh_tx&gamestatus=completed",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"jackpot"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "jackpot"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "gameid",
+											"value": "{{game_id}}"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "amount",
+											"value": "25.0"
+										},
+										{
+											"key": "roundid",
+											"value": "jackpot_fresh_test"
+										},
+										{
+											"key": "transactionid",
+											"value": "jackpot_fresh_tx"
+										},
+										{
+											"key": "gamestatus",
+											"value": "completed"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"walletTx\": \"012e6821-122d-4c15-9fcd-103c3f644c3f\",\n  \"balance\": \"408\",\n  \"bonusWin\": \"0\",\n  \"realMoneyWin\": \"25\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"408\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
 				},
 				{
 					"name": "Wager and Result (Official)",
@@ -1013,12 +1330,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+							"raw": "{{base_url}}/groove-official/wager-and-result?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
-								"groove"
+								"groove-official",
+								"wager-and-result"
 							],
 							"query": [
 								{
@@ -1086,12 +1404,12 @@
 							"originalRequest": {
 								"method": "GET",
 								"header": [],
-								"url": {
-									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
-									"host": [
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager-and-result?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"groove"
 									],
 									"query": [
@@ -1145,10 +1463,10 @@
 							"status": "OK",
 							"code": 200,
 							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
 								}
 							],
 							"cookie": [],
@@ -1160,7 +1478,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+									"raw": "{{base_url}}/groove-official/wager-and-result?request=wagerAndResult&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1232,12 +1550,12 @@
 							"originalRequest": {
 								"method": "GET",
 								"header": [],
-								"url": {
-									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=5.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
-									"host": [
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager-and-result?request=wagerAndResult&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=5.0&roundid={{round_id}}&transactionid={{transaction_id}}&gamestatus=completed",
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"groove"
 									],
 									"query": [
@@ -1291,6 +1609,154 @@
 							"status": "OK",
 							"code": 200,
 							"_postman_previewlanguage": "json",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 1006,\n  \"status\": \"Out of money\",\n  \"walletTx\": \"\",\n  \"balance\": \"0\",\n  \"bonusWin\": \"0\",\n  \"realMoneyWin\": \"0\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"0\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"0\",\n  \"game_mode\": 0,\n  \"order\": \"\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Rollback On Result (Official)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Groove-Signature",
+								"value": "{{groove_signature}}",
+								"description": "HMAC-SHA256 signature for request validation"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/groove-official/reversewin?request=reversewin&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&apiversion=1.2&amount={{rollback_amount}}&roundid={{round_id}}&transactionid={{transaction_id}}&wintransactionid={{win_transaction_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"groove-official",
+								"reversewin"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "reversewin",
+									"description": "Must be 'reversewin'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from start game method"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: desktop or mobile"
+								},
+								{
+									"key": "gameid",
+									"value": "{{game_id}}",
+									"description": "Groove game ID"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								},
+								{
+									"key": "amount",
+									"value": "{{rollback_amount}}",
+									"description": "The jackpot win amount to rollback"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round ID for transaction tracking"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Transaction ID for rollback"
+								},
+								{
+									"key": "wintransactionid",
+									"value": "{{win_transaction_id}}",
+									"description": "Original win transaction ID (optional)"
+								}
+							]
+						},
+						"description": "Official GrooveTech Rollback On Result API - Reverses a previous result transaction (reversewin). Used when game providers need to rollback result requests, especially in sports games where results can change."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official/reversewin?request=reversewin&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&apiversion=1.2&amount=10.0&roundid=reverse_test_final&transactionid=reverse_test_final_tx&wintransactionid=win_tx_001",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"reversewin"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "reversewin"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "{{game_id}}"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										},
+										{
+											"key": "amount",
+											"value": "10.0"
+										},
+										{
+											"key": "roundid",
+											"value": "reverse_test_final"
+										},
+										{
+											"key": "transactionid",
+											"value": "reverse_test_final_tx"
+										},
+										{
+											"key": "wintransactionid",
+											"value": "win_tx_001"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
 							"header": [
 								{
 									"key": "Content-Type",
@@ -1298,7 +1764,146 @@
 								}
 							],
 							"cookie": [],
-							"body": "{\n  \"code\": 1006,\n  \"status\": \"Out of money\",\n  \"walletTx\": \"\",\n  \"balance\": \"0\",\n  \"bonusWin\": \"0\",\n  \"realMoneyWin\": \"0\",\n  \"bonusmoneybet\": \"0\",\n  \"realmoneybet\": \"0\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"0\",\n  \"game_mode\": 0,\n  \"order\": \"\",\n  \"apiversion\": \"1.2\"\n}"
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"accounttransactionid\": \"8a19463f-3d9f-4b7c-82d4-01192766b9fb\",\n  \"balance\": \"388\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"388\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Rollback On Rollback (Official)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Groove-Signature",
+								"value": "{{groove_signature}}",
+								"description": "HMAC-SHA256 signature for request validation"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/groove-official/rollbackrollback?request=rollbackrollback&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&rollbackAmount={{rollback_amount}}&roundid={{round_id}}&transactionid={{transaction_id}}&apiversion=1.2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"groove-official",
+								"rollbackrollback"
+							],
+							"query": [
+								{
+									"key": "request",
+									"value": "rollbackrollback",
+									"description": "Must be 'rollbackrollback'"
+								},
+								{
+									"key": "accountid",
+									"value": "{{account_id}}",
+									"description": "Player account ID from GrooveTech"
+								},
+								{
+									"key": "gamesessionid",
+									"value": "{{session_id}}",
+									"description": "Game session ID from start game method"
+								},
+								{
+									"key": "device",
+									"value": "desktop",
+									"description": "Device type: desktop or mobile"
+								},
+								{
+									"key": "gameid",
+									"value": "{{game_id}}",
+									"description": "Groove game ID"
+								},
+								{
+									"key": "rollbackAmount",
+									"value": "{{rollback_amount}}",
+									"description": "The refund amount to rollback"
+								},
+								{
+									"key": "roundid",
+									"value": "{{round_id}}",
+									"description": "Round ID for transaction tracking"
+								},
+								{
+									"key": "transactionid",
+									"value": "{{transaction_id}}",
+									"description": "Transaction ID for rollback"
+								},
+								{
+									"key": "apiversion",
+									"value": "1.2",
+									"description": "API version"
+								}
+							]
+						},
+						"description": "Official GrooveTech Rollback On Rollback API - Reverses a previous rollback transaction (rollbackrollback). Used when game providers need to reverse rollback requests, especially in sports games where results can change after sending a refund request."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove-official/rollbackrollback?request=rollbackrollback&accountid={{account_id}}&gamesessionid={{session_id}}&device=desktop&gameid={{game_id}}&rollbackAmount=5.0&roundid=rollback_rollback_test_final&transactionid=rollback_rollback_test_final_tx&apiversion=1.2",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"rollbackrollback"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "rollbackrollback"
+										},
+										{
+											"key": "accountid",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "{{session_id}}"
+										},
+										{
+											"key": "device",
+											"value": "desktop"
+										},
+										{
+											"key": "gameid",
+											"value": "{{game_id}}"
+										},
+										{
+											"key": "rollbackAmount",
+											"value": "5.0"
+										},
+										{
+											"key": "roundid",
+											"value": "rollback_rollback_test_final"
+										},
+										{
+											"key": "transactionid",
+											"value": "rollback_rollback_test_final_tx"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2"
+										}
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"accounttransactionid\": \"c991314f-48ce-4007-80c2-5f48b85b573e\",\n  \"balance\": \"393\",\n  \"bonus_balance\": \"0\",\n  \"real_balance\": \"393\",\n  \"game_mode\": 1,\n  \"order\": \"cash_money\",\n  \"apiversion\": \"1.2\"\n}"
 						}
 					]
 				}
@@ -1368,8 +1973,8 @@
 						"description": "Internal GrooveTech balance API"
 					},
 					"response": []
-				},
-				{
+		},
+		{
 					"name": "Health Check",
 					"request": {
 						"method": "GET",
@@ -1391,6 +1996,337 @@
 			]
 		},
 		{
+			"name": "GrooveTech Signature Validation",
+			"item": [
+				{
+					"name": "Signature Validation Examples",
+					"item": [
+						{
+							"name": "Get Account (with Signature)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+										"key": "X-Groove-Signature",
+										"value": "be426d042cd71743970779cd6ee7881d71d1f0eb769cbe14a0081c29c8ef2a09",
+										"description": "HMAC-SHA256 signature for request validation"
+							}
+						],
+						"url": {
+									"raw": "{{base_url}}/groove-official?request=getaccount&accountid=111&gamesessionid=123_jdhdujdk&device=desktop&apiversion=1.2",
+							"host": [
+										"{{base_url}}"
+							],
+							"path": [
+										"groove-official"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "getaccount",
+											"description": "Request type"
+										},
+										{
+											"key": "accountid",
+											"value": "111",
+											"description": "Player account ID"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "123_jdhdujdk",
+											"description": "Game session ID"
+										},
+										{
+											"key": "device",
+											"value": "desktop",
+											"description": "Device type"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2",
+											"description": "API version"
+										}
+									]
+								},
+								"description": "Get account information with HMAC-SHA256 signature validation. Signature excludes 'request' parameter."
+							},
+							"response": [
+								{
+									"name": "Successful Account Retrieval",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "X-Groove-Signature",
+												"value": "be426d042cd71743970779cd6ee7881d71d1f0eb769cbe14a0081c29c8ef2a09"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/groove-official?request=getaccount&accountid=111&gamesessionid=123_jdhdujdk&device=desktop&apiversion=1.2",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"groove-official"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "getaccount"
+												},
+												{
+													"key": "accountid",
+													"value": "111"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "123_jdhdujdk"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"accountid\": \"111\",\n  \"gamesessionid\": \"123_jdhdujdk\",\n  \"balance\": \"100.00\",\n  \"bonus_balance\": \"0.00\",\n  \"real_balance\": \"100.00\",\n  \"currency\": \"USD\",\n  \"country\": \"US\",\n  \"language\": \"en_US\"\n}"
+								},
+								{
+									"name": "Invalid Signature Error",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "X-Groove-Signature",
+												"value": "invalid_signature_12345"
+											}
+										],
+						"url": {
+											"raw": "{{base_url}}/groove-official?request=getaccount&accountid=111&gamesessionid=123_jdhdujdk&device=desktop&apiversion=1.2",
+							"host": [
+												"{{base_url}}"
+							],
+							"path": [
+												"groove-official"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "getaccount"
+												},
+												{
+													"key": "accountid",
+													"value": "111"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "123_jdhdujdk"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												}
+											]
+										}
+									},
+									"status": "Unauthorized",
+									"code": 401,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 1001,\n  \"status\": \"Invalid signature\",\n  \"message\": \"invalid signature\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Wager Transaction (with Signature)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+										"key": "X-Groove-Signature",
+										"value": "f6d980dfe7866b6676e6565ccca239f527979d702106233bb6f72a654931b3bc",
+										"description": "HMAC-SHA256 signature for wager request validation"
+							}
+						],
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager?request=wager&accountid=111&gamesessionid=123_jdhdujdk&device=desktop&gameid=80102&apiversion=1.2&betamount=10.0&roundid=nc8n4nd87&transactionid=trx_id",
+							"host": [
+										"{{base_url}}"
+							],
+							"path": [
+										"groove-official/wager"
+									],
+									"query": [
+										{
+											"key": "request",
+											"value": "wager",
+											"description": "Request type"
+										},
+										{
+											"key": "accountid",
+											"value": "111",
+											"description": "Player account ID"
+										},
+										{
+											"key": "gamesessionid",
+											"value": "123_jdhdujdk",
+											"description": "Game session ID"
+										},
+										{
+											"key": "device",
+											"value": "desktop",
+											"description": "Device type"
+										},
+										{
+											"key": "gameid",
+											"value": "80102",
+											"description": "Game ID"
+										},
+										{
+											"key": "apiversion",
+											"value": "1.2",
+											"description": "API version"
+										},
+										{
+											"key": "betamount",
+											"value": "10.0",
+											"description": "Bet amount"
+										},
+										{
+											"key": "roundid",
+											"value": "nc8n4nd87",
+											"description": "Round ID"
+										},
+										{
+											"key": "transactionid",
+											"value": "trx_id",
+											"description": "Transaction ID"
+										}
+									]
+								},
+								"description": "Process wager transaction with HMAC-SHA256 signature validation. Signature includes 'request' parameter."
+							},
+							"response": [
+								{
+									"name": "Successful Wager",
+									"originalRequest": {
+						"method": "GET",
+						"header": [
+							{
+												"key": "X-Groove-Signature",
+												"value": "f6d980dfe7866b6676e6565ccca239f527979d702106233bb6f72a654931b3bc"
+							}
+						],
+						"url": {
+											"raw": "{{base_url}}/groove-official/wager?request=wager&accountid=111&gamesessionid=123_jdhdujdk&device=desktop&gameid=80102&apiversion=1.2&betamount=10.0&roundid=nc8n4nd87&transactionid=trx_id",
+							"host": [
+												"{{base_url}}"
+							],
+							"path": [
+												"groove-official/wager"
+											],
+											"query": [
+												{
+													"key": "request",
+													"value": "wager"
+												},
+												{
+													"key": "accountid",
+													"value": "111"
+												},
+												{
+													"key": "gamesessionid",
+													"value": "123_jdhdujdk"
+												},
+												{
+													"key": "device",
+													"value": "desktop"
+												},
+												{
+													"key": "gameid",
+													"value": "80102"
+												},
+												{
+													"key": "apiversion",
+													"value": "1.2"
+												},
+												{
+													"key": "betamount",
+													"value": "10.0"
+												},
+												{
+													"key": "roundid",
+													"value": "nc8n4nd87"
+												},
+												{
+													"key": "transactionid",
+													"value": "trx_id"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 200,\n  \"status\": \"Success\",\n  \"transactionid\": \"trx_id\",\n  \"accountid\": \"111\",\n  \"gamesessionid\": \"123_jdhdujdk\",\n  \"balance\": \"90.00\",\n  \"bonus_balance\": \"0.00\",\n  \"real_balance\": \"90.00\",\n  \"currency\": \"USD\",\n  \"roundid\": \"nc8n4nd87\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Signature Generation Helper",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove/health",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"health"
+									]
+								},
+								"description": "Helper endpoint to test signature generation. Use this to verify your signature implementation before making actual requests."
+					},
+					"response": []
+						}
+					]
+				}
+			]
+		},
+		{
 			"name": "New User Flow Testing",
 			"item": [
 				{
@@ -1398,32 +2334,32 @@
 					"item": [
 						{
 							"name": "1. Register New User",
-							"request": {
+					"request": {
 								"method": "POST",
-								"header": [
-									{
+						"header": [
+							{
 										"key": "Content-Type",
 										"value": "application/json"
-									}
-								],
+							}
+						],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"email\": \"newuser@example.com\",\n  \"username\": \"newuser123\",\n  \"password\": \"SecurePass123!\"\n}"
 								},
-								"url": {
+						"url": {
 									"raw": "{{base_url}}/register",
-									"host": [
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"register"
-									]
-								},
-								"description": "Step 1: Register a new user account"
-							},
-							"response": []
+							]
 						},
-						{
+								"description": "Step 1: Register a new user account"
+					},
+					"response": []
+				},
+				{
 							"name": "2. Get OTP from Redis",
 							"request": {
 								"method": "GET",
@@ -1441,91 +2377,91 @@
 						},
 						{
 							"name": "3. Complete Registration",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
 									"raw": "{\n  \"otp_code\": \"{{otp_code}}\",\n  \"otp_id\": \"{{otp_id}}\",\n  \"user_id\": \"{{temp_user_id}}\"\n}"
-								},
-								"url": {
+						},
+						"url": {
 									"raw": "{{base_url}}/register/complete",
-									"host": [
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"register",
 										"complete"
-									]
-								},
+							]
+						},
 								"description": "Step 3: Complete registration with OTP verification"
-							},
-							"response": []
-						},
-						{
+					},
+					"response": []
+				},
+				{
 							"name": "4. Login New User",
-							"request": {
+					"request": {
 								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
 									"raw": "{\n  \"login_id\": \"newuser@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/login",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"login"
-									]
-								},
-								"description": "Step 4: Login with new user credentials"
-							},
-							"response": []
 						},
-						{
+						"url": {
+									"raw": "{{base_url}}/login",
+							"host": [
+										"{{base_url}}"
+							],
+							"path": [
+										"login"
+							]
+						},
+								"description": "Step 4: Login with new user credentials"
+					},
+					"response": []
+				},
+				{
 							"name": "5. Launch Game (New User)",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
+					"request": {
+						"method": "POST",
+						"header": [
+							{
 										"key": "Authorization",
 										"value": "Bearer {{new_user_access_token}}"
-									},
-									{
+							},
+							{
 										"key": "Content-Type",
 										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
+							}
+						],
+						"body": {
+							"mode": "raw",
 									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
-								},
-								"url": {
+						},
+						"url": {
 									"raw": "{{base_url}}/api/groove/launch-game",
-									"host": [
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"api",
 										"groove",
 										"launch-game"
 									]
 								},
 								"description": "Step 5: Launch game for new user (creates account and session)"
-							},
-							"response": []
+					},
+					"response": []
 						},
 						{
 							"name": "6. Get Account (Zero Balance)",
@@ -1569,7 +2505,7 @@
 								{
 									"name": "Zero Balance Response",
 									"originalRequest": {
-										"method": "GET",
+						"method": "GET",
 										"header": [],
 										"url": {
 											"raw": "{{base_url}}/groove-official?request=getaccount&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&apiversion=1.2",
@@ -1606,8 +2542,8 @@
 									"status": "OK",
 									"code": 200,
 									"_postman_previewlanguage": "json",
-									"header": [
-										{
+						"header": [
+							{
 											"key": "Content-Type",
 											"value": "application/json"
 										}
@@ -1622,13 +2558,13 @@
 							"request": {
 								"method": "GET",
 								"header": [],
-								"url": {
-									"raw": "{{base_url}}/groove-official-wager?request=wager&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid=round_001&transactionid=txn_wager_001",
-									"host": [
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager?request=wager&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid=round_001&transactionid=txn_wager_001",
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
-										"groove-official-wager"
+							],
+							"path": [
+										"groove-official/wager"
 									],
 									"query": [
 										{
@@ -1670,22 +2606,23 @@
 									]
 								},
 								"description": "Step 7: Try to place wager with insufficient funds (should return Code 1006)"
-							},
-							"response": []
-						},
-						{
+					},
+					"response": []
+				},
+				{
 							"name": "8. Process Result (Win)",
-							"request": {
-								"method": "GET",
+					"request": {
+						"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/groove-official-result?request=result&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&gamestatus=completed&result=5.0&roundid=round_001&transactionid=txn_result_001",
+									"raw": "{{base_url}}/groove-official/result?request=result&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&gamestatus=completed&result=5.0&roundid=round_001&transactionid=txn_result_001",
 									"host": [
 										"{{base_url}}"
 									],
-									"path": [
-										"groove-official-result"
-									],
+							"path": [
+								"groove-official",
+								"result"
+							],
 									"query": [
 										{
 											"key": "request",
@@ -1738,13 +2675,14 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{base_url}}/groove-official-result?request=result&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&gameid=82695&apiversion=1.2&gamestatus=completed&result=5.0&roundid=round_001&transactionid=txn_result_002",
+											"raw": "{{base_url}}/groove-official/result?request=result&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&gameid=82695&apiversion=1.2&gamestatus=completed&result=5.0&roundid=round_001&transactionid=txn_result_002",
 											"host": [
 												"{{base_url}}"
 											],
-											"path": [
-												"groove-official-result"
-											],
+							"path": [
+								"groove-official",
+								"result"
+							],
 											"query": [
 												{
 													"key": "request",
@@ -1792,8 +2730,8 @@
 									"status": "OK",
 									"code": 200,
 									"_postman_previewlanguage": "json",
-									"header": [
-										{
+						"header": [
+							{
 											"key": "Content-Type",
 											"value": "application/json"
 										}
@@ -1808,12 +2746,12 @@
 							"request": {
 								"method": "GET",
 								"header": [],
-								"url": {
+						"url": {
 									"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&apiversion=1.2",
-									"host": [
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"groove-official"
 									],
 									"query": [
@@ -1882,10 +2820,10 @@
 									"status": "OK",
 									"code": 200,
 									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
 										}
 									],
 									"cookie": [],
@@ -1898,12 +2836,12 @@
 							"request": {
 								"method": "GET",
 								"header": [],
-								"url": {
-									"raw": "{{base_url}}/groove?request=wagerAndResult&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=2.0&result=8.0&roundid=round_002&transactionid=txn_combined_001&gamestatus=completed",
-									"host": [
+						"url": {
+									"raw": "{{base_url}}/groove-official/wager-and-result?request=wagerAndResult&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&gameid=82695&apiversion=1.2&betamount=2.0&result=8.0&roundid=round_002&transactionid=txn_combined_001&gamestatus=completed",
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"groove"
 									],
 									"query": [
@@ -1962,7 +2900,7 @@
 										"method": "GET",
 										"header": [],
 										"url": {
-											"raw": "{{base_url}}/groove?request=wagerAndResult&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&gameid=82695&apiversion=1.2&betamount=2.0&result=8.0&roundid=round_002&transactionid=txn_combined_001&gamestatus=completed",
+											"raw": "{{base_url}}/groove-official/wager-and-result?request=wagerAndResult&accountid=groove_d4685b55-0494-4c9d-acf9-ab9a07281f0f&gamesessionid=Tucan_3746da44-52bb-4279-abeb-e5f56ef63b51&device=desktop&gameid=82695&apiversion=1.2&betamount=2.0&result=8.0&roundid=round_002&transactionid=txn_combined_001&gamestatus=completed",
 											"host": [
 												"{{base_url}}"
 											],
@@ -2020,10 +2958,10 @@
 									"status": "OK",
 									"code": 200,
 									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
 										}
 									],
 									"cookie": [],
@@ -2036,12 +2974,12 @@
 							"request": {
 								"method": "GET",
 								"header": [],
-								"url": {
+						"url": {
 									"raw": "{{base_url}}/groove-official?request=getaccount&accountid={{new_user_account_id}}&gamesessionid={{new_user_session_id}}&device=desktop&apiversion=1.2",
-									"host": [
+							"host": [
 										"{{base_url}}"
-									],
-									"path": [
+							],
+							"path": [
 										"groove-official"
 									],
 									"query": [
