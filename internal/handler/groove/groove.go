@@ -429,218 +429,6 @@ func (h *GrooveHandler) HealthCheck(c *gin.Context) {
 	})
 }
 
-// GetAccountOfficial - Official GrooveTech Get Account API
-// Endpoint: {casino_endpoint}?request=getaccount&[parameters]
-// Based on: https://groove-docs.pages.dev/transaction-api/get-account/
-func (h *GrooveHandler) GetAccountOfficial(c *gin.Context) {
-	h.logger.Info("GrooveTech Official Get Account request")
-
-	// Debug: Check all groove config values
-	h.logger.Info("Groove config debug",
-		zap.Bool("signature_validation", viper.GetBool("groove.signature_validation")),
-		zap.String("signature_secret", viper.GetString("groove.signature_secret")),
-		zap.String("operator_id", viper.GetString("groove.operator_id")))
-
-	// Validate signature if signature validation is enabled
-	signatureValidationEnabled := viper.GetBool("groove.signature_validation")
-	h.logger.Info("Signature validation check", zap.Bool("enabled", signatureValidationEnabled))
-	if signatureValidationEnabled {
-		signature := c.GetHeader("X-Groove-Signature")
-		if signature == "" {
-			h.logger.Error("Missing X-Groove-Signature header")
-			c.JSON(http.StatusBadRequest, gin.H{
-				"code":    1001,
-				"status":  "Invalid signature",
-				"message": "invalid signature",
-			})
-			return
-		}
-
-		// Extract query parameters for signature validation
-		queryParams := make(map[string]string)
-		for key, values := range c.Request.URL.Query() {
-			if len(values) > 0 {
-				queryParams[key] = values[0]
-			}
-		}
-
-		// Validate signature
-		if !h.signatureValidator.ValidateGrooveSignature(signature, queryParams) {
-			h.logger.Error("Invalid signature")
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"code":    1001,
-				"status":  "Invalid signature",
-				"message": "invalid signature",
-			})
-			return
-		}
-	}
-
-	// Extract parameters according to official API specification
-	request := c.Query("request")
-	accountID := c.Query("accountid")
-	gameSessionID := c.Query("gamesessionid")
-	device := c.Query("device")
-	apiVersion := c.Query("apiversion")
-
-	// Validate required parameters according to official spec
-	if request != "getaccount" {
-		h.logger.Error("Invalid request parameter", zap.String("request", request))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":   400,
-			"status": "Bad Request",
-			"error":  "Invalid request parameter. Must be 'getaccount'",
-		})
-		return
-	}
-
-	if accountID == "" || gameSessionID == "" || device == "" || apiVersion == "" {
-		h.logger.Error("Missing required parameters",
-			zap.String("accountid", accountID),
-			zap.String("gamesessionid", gameSessionID),
-			zap.String("device", device),
-			zap.String("apiversion", apiVersion))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":   400,
-			"status": "Bad Request",
-			"error":  "Missing required parameters: accountid, gamesessionid, device, apiversion",
-		})
-		return
-	}
-
-	// Validate device parameter
-	if device != "desktop" && device != "mobile" {
-		h.logger.Error("Invalid device parameter", zap.String("device", device))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":   400,
-			"status": "Bad Request",
-			"error":  "Invalid device parameter. Must be 'desktop' or 'mobile'",
-		})
-		return
-	}
-
-	// Get account information using gameSessionID as session identifier
-	_, err := h.grooveService.GetAccount(c.Request.Context(), gameSessionID)
-	if err != nil {
-		h.logger.Error("Failed to get account", zap.Error(err))
-		c.JSON(http.StatusOK, gin.H{
-			"code":   1000,
-			"status": "Not logged on",
-			"error":  "Player session is invalid or expired",
-		})
-		return
-	}
-
-	// Extract user ID from JWT token to get real user data
-	claims := &dto.Claim{}
-	key := viper.GetString("app.jwt_secret")
-	if key == "" {
-		key = viper.GetString("auth.jwt_secret")
-	}
-	if key == "" {
-		h.logger.Error("JWT secret not configured")
-		c.JSON(http.StatusOK, gin.H{
-			"code":   1,
-			"status": "Technical error",
-			"error":  "Internal server error",
-		})
-		return
-	}
-
-	jwtKey := []byte(key)
-	token, err := jwt.ParseWithClaims(gameSessionID, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil || !token.Valid {
-		h.logger.Error("Invalid JWT token", zap.Error(err))
-		c.JSON(http.StatusOK, gin.H{
-			"code":   1000,
-			"status": "Not logged on",
-			"error":  "Player session is invalid or expired",
-		})
-		return
-	}
-
-	// Get real user data from database
-	user, exists, err := h.userStorage.GetUserByID(c.Request.Context(), claims.UserID)
-	if err != nil || !exists {
-		h.logger.Error("Failed to get user data", zap.Error(err))
-		c.JSON(http.StatusOK, gin.H{
-			"code":   1,
-			"status": "Technical error",
-			"error":  "Internal server error",
-		})
-		return
-	}
-
-	// Get user balance from balances table
-	userBalances, err := h.balanceStorage.GetBalancesByUserID(c.Request.Context(), claims.UserID)
-	if err != nil {
-		h.logger.Error("Failed to get user balance", zap.Error(err))
-		c.JSON(http.StatusOK, gin.H{
-			"code":   1,
-			"status": "Technical error",
-			"error":  "Internal server error",
-		})
-		return
-	}
-
-	// Calculate total real balance (USD)
-	var realBalance float64 = 0.0
-	var bonusBalance float64 = 0.0
-	var userCurrency string = "USD"
-
-	// Use user's default currency if available
-	if user.DefaultCurrency != "" {
-		userCurrency = user.DefaultCurrency
-	}
-
-	// Find USD balance or default currency balance
-	for _, balance := range userBalances {
-		if balance.CurrencyCode == userCurrency {
-			// Convert from cents to dollars
-			realBalance = float64(balance.AmountCents) / 100.0
-			break
-		}
-	}
-
-	h.logger.Info("Account retrieved successfully",
-		zap.String("accountid", accountID),
-		zap.String("gamesessionid", gameSessionID),
-		zap.String("user_id", claims.UserID.String()),
-		zap.String("username", user.Username),
-		zap.Float64("real_balance", realBalance),
-		zap.String("currency", userCurrency))
-
-	// Get user location data with defaults
-	city := user.City
-	if city == "" {
-		city = "Unknown"
-	}
-
-	country := user.Country
-	if country == "" {
-		country = "US" // Default to US
-	}
-
-	// Return response in official GrooveTech format with real data
-	c.JSON(http.StatusOK, gin.H{
-		"code":          200,
-		"status":        "Success",
-		"accountid":     accountID,
-		"city":          city,
-		"country":       country,
-		"currency":      userCurrency,
-		"gamesessionid": gameSessionID,
-		"real_balance":  realBalance,
-		"bonus_balance": bonusBalance,
-		"game_mode":     1,            // 1 = Real money mode, 2 = Bonus mode
-		"order":         "cash_money", // cash_money or bonus_money
-		"apiversion":    apiVersion,
-	})
-}
-
 // extractUserIDFromToken extracts user ID from JWT token in Authorization header
 func (h *GrooveHandler) extractUserIDFromToken(c *gin.Context) (uuid.UUID, error) {
 	// Get Authorization header
@@ -778,4 +566,74 @@ func (h *GrooveHandler) ValidateGameSession(c *gin.Context) {
 
 	h.logger.Info("Game session validated successfully", zap.String("session_id", sessionID))
 	c.JSON(http.StatusOK, session)
+}
+
+// GetAccountOfficial - Official GrooveTech Get Account API
+func (h *GrooveHandler) GetAccountOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.GetAccount(c)
+}
+
+// GetBalanceOfficial - Official GrooveTech Get Balance API
+func (h *GrooveHandler) GetBalanceOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.GetBalance(c)
+}
+
+// ProcessWagerOfficial - Official GrooveTech Wager API
+func (h *GrooveHandler) ProcessWagerOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessWager(c)
+}
+
+// ProcessResultOfficial - Official GrooveTech Result API
+func (h *GrooveHandler) ProcessResultOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessResult(c)
+}
+
+// ProcessWagerAndResultOfficial - Official GrooveTech Wager and Result API
+func (h *GrooveHandler) ProcessWagerAndResultOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessWagerAndResult(c)
+}
+
+// ProcessRollbackOfficial - Official GrooveTech Rollback API
+func (h *GrooveHandler) ProcessRollbackOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessRollback(c)
+}
+
+// ProcessJackpotOfficial - Official GrooveTech Jackpot API
+func (h *GrooveHandler) ProcessJackpotOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessJackpot(c)
+}
+
+// ProcessRollbackOnResultOfficial - Official GrooveTech Rollback on Result API
+func (h *GrooveHandler) ProcessRollbackOnResultOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessRollbackOnResult(c)
+}
+
+// ProcessRollbackOnRollbackOfficial - Official GrooveTech Rollback on Rollback API
+func (h *GrooveHandler) ProcessRollbackOnRollbackOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessRollbackOnRollback(c)
+}
+
+// ProcessWagerByBatchOfficial - Official GrooveTech Wager by Batch API
+func (h *GrooveHandler) ProcessWagerByBatchOfficial(c *gin.Context) {
+	// Delegate to GrooveOfficialHandler
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+	officialHandler.ProcessWagerByBatch(c)
 }

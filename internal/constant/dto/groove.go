@@ -99,6 +99,7 @@ type GrooveTransaction struct {
 	Device               string          `json:"device"`
 	FRBID                string          `json:"frbid,omitempty"`
 	UserID               uuid.UUID       `json:"user_id"`
+	Status               string          `json:"status,omitempty"`
 	CreatedAt            time.Time       `json:"created_at"`
 }
 
@@ -220,33 +221,45 @@ type GrooveResultResponse struct {
 
 // GrooveWagerAndResultRequest represents a combined wager and result request
 type GrooveWagerAndResultRequest struct {
-	TransactionID string                 `json:"transactionId"`
-	AccountID     string                 `json:"accountId"`
-	SessionID     string                 `json:"sessionId"`
-	WagerAmount   decimal.Decimal        `json:"wagerAmount"`
-	WinAmount     decimal.Decimal        `json:"winAmount"`
-	Currency      string                 `json:"currency"`
-	GameID        string                 `json:"gameId,omitempty"`
-	RoundID       string                 `json:"roundId,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	TransactionID string          `json:"transactionId"`
+	AccountID     string          `json:"accountId"`
+	SessionID     string          `json:"sessionId"`
+	Device        string          `json:"device"`
+	GameID        string          `json:"gameId"`
+	APIVersion    string          `json:"apiversion"`
+	BetAmount     decimal.Decimal `json:"betamount"`
+	WinAmount     decimal.Decimal `json:"result"`
+	RoundID       string          `json:"roundid"`
+	GameStatus    string          `json:"gamestatus"`
+	FRBID         string          `json:"frbid,omitempty"`
 }
 
 // GrooveWagerAndResultResponse represents a combined wager and result response
 type GrooveWagerAndResultResponse struct {
-	Success       bool            `json:"success"`
-	TransactionID string          `json:"transactionId"`
-	AccountID     string          `json:"accountId"`
-	SessionID     string          `json:"sessionId"`
-	WagerAmount   decimal.Decimal `json:"wagerAmount"`
-	WinAmount     decimal.Decimal `json:"winAmount"`
-	Currency      string          `json:"currency"`
-	NewBalance    decimal.Decimal `json:"newBalance"`
-	Status        string          `json:"status"`
-	ErrorCode     string          `json:"errorCode,omitempty"`
-	ErrorMessage  string          `json:"errorMessage,omitempty"`
+	Code          int             `json:"code"`                    // Response code (200 for success)
+	Status        string          `json:"status"`                  // Response status ("Success")
+	Success       bool            `json:"success"`                 // Success flag
+	TransactionID string          `json:"transactionid"`           // Transaction ID
+	AccountID     string          `json:"accountid"`               // Account ID
+	SessionID     string          `json:"sessionid"`               // Session ID
+	RoundID       string          `json:"roundid"`                 // Round ID
+	GameStatus    string          `json:"gamestatus"`              // Game status
+	WalletTx      string          `json:"walletTx"`                // Casino's wallet transaction ID
+	Balance       decimal.Decimal `json:"balance"`                 // Total player balance (real + bonus)
+	BonusWin      decimal.Decimal `json:"bonusWin"`                // Portion of win allocated to bonus funds
+	RealMoneyWin  decimal.Decimal `json:"realMoneyWin"`            // Portion of win allocated to real money
+	BonusMoneyBet decimal.Decimal `json:"bonusmoneybet"`           // Portion of bet from bonus funds
+	RealMoneyBet  decimal.Decimal `json:"realmoneybet"`            // Portion of bet from real money
+	BonusBalance  decimal.Decimal `json:"bonus_balance"`           // Player's bonus balance
+	RealBalance   decimal.Decimal `json:"real_balance"`            // Player's real money balance
+	GameMode      int             `json:"game_mode"`               // Game mode: 1 - Real money, 2 - Bonus mode
+	Order         string          `json:"order"`                   // Order type: "cash_money" or "bonus_money"
+	APIVersion    string          `json:"apiversion"`              // API version
+	ErrorCode     string          `json:"error_code,omitempty"`    // Error code if failed
+	ErrorMessage  string          `json:"error_message,omitempty"` // Error message if failed
 }
 
-// GrooveRollbackRequest represents a rollback transaction request
+// GrooveRollbackRequest represents a rollback transaction request (Legacy)
 type GrooveRollbackRequest struct {
 	TransactionID         string                 `json:"transactionId"`
 	AccountID             string                 `json:"accountId"`
@@ -257,7 +270,7 @@ type GrooveRollbackRequest struct {
 	Metadata              map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// GrooveRollbackResponse represents a rollback transaction response
+// GrooveRollbackResponse represents a rollback transaction response (Legacy)
 type GrooveRollbackResponse struct {
 	Success       bool            `json:"success"`
 	TransactionID string          `json:"transactionId"`
@@ -271,7 +284,7 @@ type GrooveRollbackResponse struct {
 	ErrorMessage  string          `json:"errorMessage,omitempty"`
 }
 
-// GrooveJackpotRequest represents a jackpot transaction request
+// GrooveJackpotRequest represents a jackpot transaction request (Legacy)
 type GrooveJackpotRequest struct {
 	TransactionID string                 `json:"transactionId"`
 	AccountID     string                 `json:"accountId"`
@@ -284,7 +297,7 @@ type GrooveJackpotRequest struct {
 	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// GrooveJackpotResponse represents a jackpot transaction response
+// GrooveJackpotResponse represents a jackpot transaction response (Legacy)
 type GrooveJackpotResponse struct {
 	Success       bool            `json:"success"`
 	TransactionID string          `json:"transactionId"`
@@ -362,4 +375,147 @@ type GrooveUserProfile struct {
 	City     string `json:"city"`
 	Country  string `json:"country"`
 	Currency string `json:"currency"`
+}
+
+// GrooveRollbackRequestOfficial represents the request for rollback transaction (Official GrooveTech API)
+type GrooveRollbackRequestOfficial struct {
+	AccountID      string          `json:"accountid" validate:"required"`
+	APIVersion     string          `json:"apiversion" validate:"required"`
+	Device         string          `json:"device" validate:"required,oneof=desktop mobile"`
+	GameID         string          `json:"gameid" validate:"required"`
+	GameSessionID  string          `json:"gamesessionid" validate:"required"`
+	Request        string          `json:"request" validate:"required,eq=rollback"`
+	TransactionID  string          `json:"transactionid" validate:"required"`
+	RollbackAmount decimal.Decimal `json:"rollbackamount,omitempty"`
+	RoundID        string          `json:"roundid,omitempty"`
+}
+
+// GrooveRollbackResponseOfficial represents the response for rollback transaction (Official GrooveTech API)
+type GrooveRollbackResponseOfficial struct {
+	Code                 int             `json:"code"`
+	Status               string          `json:"status"`
+	AccountTransactionID string          `json:"accounttransactionid"`
+	Balance              decimal.Decimal `json:"balance"`
+	BonusBalance         decimal.Decimal `json:"bonus_balance"`
+	RealBalance          decimal.Decimal `json:"real_balance"`
+	GameMode             int             `json:"game_mode"`
+	Order                string          `json:"order"`
+	APIVersion           string          `json:"apiversion"`
+}
+
+// GrooveJackpotRequestOfficial represents the request for jackpot transaction (Official GrooveTech API)
+type GrooveJackpotRequestOfficial struct {
+	AccountID     string          `json:"accountid" validate:"required"`
+	Amount        decimal.Decimal `json:"amount" validate:"required"`
+	APIVersion    string          `json:"apiversion" validate:"required"`
+	GameID        string          `json:"gameid" validate:"required"`
+	GameSessionID string          `json:"gamesessionid" validate:"required"`
+	GameStatus    string          `json:"gamestatus" validate:"required,oneof=completed pending"`
+	Request       string          `json:"request" validate:"required,eq=jackpot"`
+	RoundID       string          `json:"roundid" validate:"required"`
+	TransactionID string          `json:"transactionid" validate:"required"`
+}
+
+// GrooveJackpotResponseOfficial represents the response for jackpot transaction (Official GrooveTech API)
+type GrooveJackpotResponseOfficial struct {
+	Code         int             `json:"code"`
+	Status       string          `json:"status"`
+	WalletTx     string          `json:"walletTx"`
+	Balance      decimal.Decimal `json:"balance"`
+	BonusWin     decimal.Decimal `json:"bonusWin"`
+	RealMoneyWin decimal.Decimal `json:"realMoneyWin"`
+	BonusBalance decimal.Decimal `json:"bonus_balance"`
+	RealBalance  decimal.Decimal `json:"real_balance"`
+	GameMode     int             `json:"game_mode"`
+	Order        string          `json:"order"`
+	APIVersion   string          `json:"apiversion"`
+}
+
+// GrooveRollbackOnResultRequest represents the request for rollback on result (reversewin)
+type GrooveRollbackOnResultRequest struct {
+	AccountID        string          `json:"accountid" validate:"required"`
+	Amount           decimal.Decimal `json:"amount" validate:"required"`
+	APIVersion       string          `json:"apiversion" validate:"required"`
+	Device           string          `json:"device" validate:"required,oneof=desktop mobile"`
+	GameID           string          `json:"gameid" validate:"required"`
+	GameSessionID    string          `json:"gamesessionid" validate:"required"`
+	Request          string          `json:"request" validate:"required,eq=reversewin"`
+	RoundID          string          `json:"roundid" validate:"required"`
+	TransactionID    string          `json:"transactionid" validate:"required"`
+	WinTransactionID string          `json:"wintransactionid"` // Optional parameter for signature validation
+}
+
+// GrooveRollbackOnResultResponse represents the response for rollback on result
+type GrooveRollbackOnResultResponse struct {
+	Code                 int             `json:"code"`
+	Status               string          `json:"status"`
+	AccountTransactionID string          `json:"accounttransactionid"`
+	Balance              decimal.Decimal `json:"balance"`
+	BonusBalance         decimal.Decimal `json:"bonus_balance"`
+	RealBalance          decimal.Decimal `json:"real_balance"`
+	GameMode             int             `json:"game_mode"`
+	Order                string          `json:"order"`
+	APIVersion           string          `json:"apiversion"`
+}
+
+// GrooveRollbackOnRollbackRequest represents the request for rollback on rollback (rollbackrollback)
+type GrooveRollbackOnRollbackRequest struct {
+	AccountID      string          `json:"accountid" validate:"required"`
+	RollbackAmount decimal.Decimal `json:"rollbackAmount" validate:"required"`
+	APIVersion     string          `json:"apiversion" validate:"required"`
+	Device         string          `json:"device" validate:"required,oneof=desktop mobile"`
+	GameID         string          `json:"gameid" validate:"required"`
+	GameSessionID  string          `json:"gamesessionid" validate:"required"`
+	Request        string          `json:"request" validate:"required,eq=rollbackrollback"`
+	RoundID        string          `json:"roundid" validate:"required"`
+	TransactionID  string          `json:"transactionid" validate:"required"`
+}
+
+// GrooveRollbackOnRollbackResponse represents the response for rollback on rollback
+type GrooveRollbackOnRollbackResponse struct {
+	Code                 int             `json:"code"`
+	Status               string          `json:"status"`
+	AccountTransactionID string          `json:"accounttransactionid"`
+	Balance              decimal.Decimal `json:"balance"`
+	BonusBalance         decimal.Decimal `json:"bonus_balance"`
+	RealBalance          decimal.Decimal `json:"real_balance"`
+	GameMode             int             `json:"game_mode"`
+	Order                string          `json:"order"`
+	APIVersion           string          `json:"apiversion"`
+}
+
+// GrooveWagerByBatchRequest represents the request for wager by batch (sportsbook)
+type GrooveWagerByBatchRequest struct {
+	AccountID     string           `json:"account_id" validate:"required"`
+	GameID        string           `json:"game_id" validate:"required"`
+	GameSessionID string           `json:"game_session_id" validate:"required"`
+	Device        string           `json:"device" validate:"required"`
+	Bets          []GrooveBatchBet `json:"bets" validate:"required,min=1"`
+}
+
+// GrooveBatchBet represents a single bet within a batch
+type GrooveBatchBet struct {
+	FRBID         string          `json:"frb_id,omitempty"`
+	Amount        decimal.Decimal `json:"amount" validate:"required"`
+	RoundID       string          `json:"round_id" validate:"required"`
+	TransactionID string          `json:"transaction_id" validate:"required"`
+}
+
+// GrooveWagerByBatchResponse represents the response for wager by batch
+type GrooveWagerByBatchResponse struct {
+	Status       string                 `json:"status"`
+	Code         int                    `json:"code"`
+	Message      string                 `json:"message"`
+	Bets         []GrooveBatchBetResult `json:"bets"`
+	Balance      decimal.Decimal        `json:"balance"`
+	RealBalance  decimal.Decimal        `json:"real_balance"`
+	BonusBalance decimal.Decimal        `json:"bonus_balance"`
+}
+
+// GrooveBatchBetResult represents the result of a single bet within a batch
+type GrooveBatchBetResult struct {
+	ProviderTransactionID string          `json:"provider_transaction_id"`
+	TransactionID         string          `json:"transaction_id"`
+	BonusMoneyBet         decimal.Decimal `json:"bonus_money_bet"`
+	RealMoneyBet          decimal.Decimal `json:"real_money_bet"`
 }

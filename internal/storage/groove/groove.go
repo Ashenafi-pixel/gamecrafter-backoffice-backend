@@ -2,11 +2,11 @@ package groove
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -113,7 +113,7 @@ func (s *GrooveStorageImpl) GetAccountByUserID(ctx context.Context, userID uuid.
 		WHERE user_id = $1`
 
 	var account dto.GrooveAccount
-	var sessionID sql.NullString
+	var sessionID *string
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(
 		&account.AccountID,
 		&sessionID,
@@ -125,8 +125,8 @@ func (s *GrooveStorageImpl) GetAccountByUserID(ctx context.Context, userID uuid.
 	)
 
 	// Handle NULL session_id
-	if sessionID.Valid {
-		account.SessionID = sessionID.String
+	if sessionID != nil {
+		account.SessionID = *sessionID
 	} else {
 		account.SessionID = ""
 	}
@@ -514,11 +514,11 @@ func (s *GrooveStorageImpl) EndGameSession(ctx context.Context, sessionID string
 	return nil
 }
 
-// GetUserBalance retrieves user balance from the existing balance system
+// GetUserBalance retrieves user balance from the main balances table
 func (s *GrooveStorageImpl) GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
 	s.logger.Info("Getting user balance", zap.String("user_id", userID.String()))
 
-	// Get balance from existing balance system
+	// Get balance from main balances table (source of truth)
 	query := `SELECT amount_units FROM balances WHERE user_id = $1 AND currency_code = 'USD' LIMIT 1`
 
 	var balance decimal.Decimal
@@ -562,7 +562,7 @@ func (s *GrooveStorageImpl) GetUserProfile(ctx context.Context, userID uuid.UUID
 		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
 		WHERE u.id = $1`
 
-	var city, country, currencyCode sql.NullString
+	var city, country, currencyCode *string
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&city, &country, &currencyCode)
 	if err != nil {
 		s.logger.Error("Failed to get user profile", zap.Error(err))
@@ -576,14 +576,14 @@ func (s *GrooveStorageImpl) GetUserProfile(ctx context.Context, userID uuid.UUID
 		Currency: "USD",
 	}
 
-	if city.Valid {
-		profile.City = city.String
+	if city != nil {
+		profile.City = *city
 	}
-	if country.Valid {
-		profile.Country = country.String
+	if country != nil {
+		profile.Country = *country
 	}
-	if currencyCode.Valid {
-		profile.Currency = currencyCode.String
+	if currencyCode != nil {
+		profile.Currency = *currencyCode
 	}
 
 	s.logger.Info("User profile retrieved successfully",
@@ -609,7 +609,7 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	}
 	defer tx.Rollback(ctx)
 
-	// Get current balance
+	// Get current balance from main balances table
 	var currentBalance decimal.Decimal
 	err = tx.QueryRow(ctx, `
 		SELECT COALESCE(amount_units, 0) 
@@ -632,7 +632,7 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	// Calculate new balance
 	newBalance := currentBalance.Sub(amount)
 
-	// Update balance
+	// Update main balances table
 	_, err = tx.Exec(ctx, `
 		INSERT INTO balances (user_id, currency_code, amount_units, updated_at)
 		VALUES ($1, 'USD', $2, NOW())
@@ -640,6 +640,17 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 		DO UPDATE SET 
 			amount_units = $2,
 			updated_at = NOW()
+	`, userID, newBalance)
+	if err != nil {
+		s.logger.Error("Failed to update balance", zap.Error(err))
+		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
+	}
+
+	// Synchronize groove_accounts.balance with main wallet
+	_, err = tx.Exec(ctx, `
+		UPDATE groove_accounts 
+		SET balance = $2, last_activity = NOW()
+		WHERE user_id = $1
 	`, userID, newBalance)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
@@ -675,7 +686,7 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	}
 	defer tx.Rollback(ctx)
 
-	// Get current balance
+	// Get current balance from main balances table
 	var currentBalance decimal.Decimal
 	err = tx.QueryRow(ctx, `
 		SELECT COALESCE(amount_units, 0) 
@@ -690,7 +701,7 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	// Calculate new balance
 	newBalance := currentBalance.Add(amount)
 
-	// Update balance
+	// Update main balances table
 	_, err = tx.Exec(ctx, `
 		INSERT INTO balances (user_id, currency_code, amount_units, updated_at)
 		VALUES ($1, 'USD', $2, NOW())
@@ -698,6 +709,17 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 		DO UPDATE SET 
 			amount_units = $2,
 			updated_at = NOW()
+	`, userID, newBalance)
+	if err != nil {
+		s.logger.Error("Failed to update balance", zap.Error(err))
+		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
+	}
+
+	// Synchronize groove_accounts.balance with main wallet
+	_, err = tx.Exec(ctx, `
+		UPDATE groove_accounts 
+		SET balance = $2, last_activity = NOW()
+		WHERE user_id = $1
 	`, userID, newBalance)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
@@ -774,7 +796,7 @@ func (s *GrooveStorageImpl) GetTransactionByID(ctx context.Context, transactionI
 		&transaction.CreatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == pgx.ErrNoRows {
 			s.logger.Info("Transaction not found", zap.String("transaction_id", transactionID))
 			return nil, nil
 		}

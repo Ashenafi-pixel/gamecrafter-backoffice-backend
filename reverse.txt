@@ -1,0 +1,104 @@
+Rollback On Result
+Rollback On Result
+
+Some Game Providers send Rollback for result requests, especially in sport games where the result of a game can be changed even after sending a result request. In this case, Game Providers want to deduct the result amount from a player’s balance.
+Responsibilities of the casino platform
+Request parameters:
+Parameter 	Data type 	Mandatory 	Description
+accountid 	String(60) - [0-9a-zA-Z] 	required 	Account ID Example: 5179068
+amount 	Decimal (32, 10) 	required 	The jackpot win amount.
+Example: 2000
+apiversion 	String 	required 	The API version that will be used
+Example: 1.2
+device 	String 	required 	The device currently used by the player.
+Valid values:
+• desktop
+• mobile
+gameid 	String(100) 	required 	Groove game ID.
+Example: 80102
+gamesessionid 	String(64) 	required 	The game session id from the start game method
+Example: 11_99d71938-c2d9-4844-b950-d598c2es
+request 	String 	required 	Request method name.
+Example: reversewin
+roundid 	String(255) 	required 	Each casino needs to know to handle the rollback with only the transactionId, although sometimes the roundId will be available as well.
+Example: 802d1812c32686748f2afbcacfcc82114cf
+transactionid 	String(255) 	required 	Transaction ID
+Example: 7617edd0924c11e7abb2865556898ad0re
+Request Example:
+
+{casino_endpoint}?request=reversewin&gamesessionid=123_jdhdujdk&accountid=111&device=desktop&gameid=80102&amount=10.0&roundid=nc8n4nd87&transactionid=trx_id
+Response parameters:
+Parameter 	Data type 	Mandatory 	Description
+accounttransactionid 	String(50) 	required 	The casino’s internal transaction ID.
+Example: 7617edd0924c11e7abb2865556898ad0
+apiversion 	String 	required 	The version of the API being used.
+Example: 1.2
+balance 	Decimal (32,10) 	required 	The total balance amount of the player. This is the sum of the player’s real balance and bonus balance.
+Examples:
+• 500
+• 140.25
+bonus_balance 	Decimal (32,10) 	optional 	The player’s bonus balance.
+Example: 50.0
+code 	Integer 	required 	Response code. See Appendix transactions response status.
+Example: 200
+game_mode 	Integer
+required for CMA-compliant games,otherwise 	optional 	Combined real and bonus modes.
+1 Real mode.
+2 Bonus mode.
+real_balance 	Decimal (32,10) 	required 	The player’s real balance.
+Example: 100.0
+status 	String 	required 	The status of the response. See Appendix transactions response status.
+Example: Success
+Response Example:
+Success Response:
+
+{
+  "code": 200,
+  "status": "Success",
+  "accounttransactionid": "aaaaaaa",
+  "balance": 100,
+  "bonus_balance": 50,
+  "real_balance": 50,
+  "game_mode": 1,
+  "apiversion": "1.2"
+}
+
+Error Codes:
+Code 	Status 	Message
+1 	Technical error 	Technical error
+110 	Operation not allowed
+Reasons for this error include:
+• A win request was already received for the given wager 	Operation not allowed
+400 	Transaction operator mismatch 	Transaction operator mismatch
+Security
+
+When Signature Validation is enabled:
+
+    Include the X-Groove-Signature header in your request
+    Calculate signature using query parameters (excluding request)
+    See Signature Validation for detailed implementation
+
+Signature Example
+
+For the request:
+
+GET {casino_endpoint}?request=reversewin&gamesessionid=123_jdhdujdk&accountid=111&device=desktop&gameid=80102&amount=10.0&roundid=nc8n4nd87&transactionid=trx_id&wintransactionid=win_trx_id&apiversion=1.2
+
+Query parameters for signature (alphabetically sorted):
+
+    accountid: “111”
+    amount: “10.0”
+    apiversion: “1.2”
+    device: “desktop”
+    gameid: “80102”
+    gamesessionid: “123_jdhdujdk”
+    roundid: “nc8n4nd87”
+    transactionid: “trx_id”
+    wintransactionid: “win_trx_id”
+
+Concatenated values: 11110.01.2desktop80102123_jdhdujdknc8n4nd87trx_idwin_trx_id
+
+With security key "test_key", the signature would be:
+
+request=reversewin&gamesessionid=123_jdhdujdk&accountid=111&device=desktop&gameid=80102&amount=10.0&roundid=nc8n4nd87&transactionid=trx_id    let's proceed 6. ❌ Rollback On Result API - 0% Complete  
+keey the context while doint this cursor

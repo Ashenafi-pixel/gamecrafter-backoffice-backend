@@ -4,6 +4,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/handler/groove"
+	"github.com/tucanbit/internal/handler/middleware"
 	"github.com/tucanbit/internal/module"
 	grooveModule "github.com/tucanbit/internal/module/groove"
 	"go.uber.org/zap"
@@ -22,15 +23,32 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 		grooveGroup.GET("/account", handler.GetAccount) // Get Account (Legacy)
 		grooveGroup.GET("/balance", handler.GetBalance) // Get Balance (Legacy)
 
-		// Financial Transactions - TODO: Implement official GrooveTech API methods
-		// grooveGroup.POST("/wager", handler.ProcessWager)           // Wager
-		// grooveGroup.POST("/result", handler.ProcessResult)          // Result
-		// grooveGroup.POST("/wager-and-result", handler.ProcessWagerAndResult) // Wager and Result
-		// grooveGroup.POST("/rollback", handler.ProcessRollback)      // Rollback
-		// grooveGroup.POST("/jackpot", handler.ProcessJackpot)       // Jackpot
-
 		// Health check
 		grooveGroup.GET("/health", handler.HealthCheck)
+	}
+
+	// Official GrooveTech Transaction API routes with signature validation
+	// These match the exact specification from GrooveTech documentation
+	officialGroup := grp.Group("/groove-official")
+	{
+		// Get security key for signature validation
+		securityKey := "test_key" // This should come from config in production
+
+		// Authentication & Information Requests
+		officialGroup.GET("", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.GetAccountOfficial)         // Get Account
+		officialGroup.GET("/balance", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.GetBalanceOfficial) // Get Balance
+
+		// Financial Transactions
+		officialGroup.GET("/wager", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessWagerOfficial)                         // Wager
+		officialGroup.GET("/result", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessResultOfficial)                       // Result
+		officialGroup.GET("/wager-and-result", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessWagerAndResultOfficial)     // Wager and Result
+		officialGroup.GET("/rollback", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessRollbackOfficial)                   // Rollback
+		officialGroup.GET("/jackpot", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessJackpotOfficial)                     // Jackpot
+		officialGroup.GET("/reversewin", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessRollbackOnResultOfficial)         // Rollback on Result
+		officialGroup.GET("/rollbackrollback", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessRollbackOnRollbackOfficial) // Rollback on Rollback
+
+		// Sportsbook - Wager by Batch (POST method)
+		officialGroup.POST("/wagerbybatch", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessWagerByBatchOfficial) // Wager by Batch
 	}
 
 	// Legacy GrooveTech API routes (for backward compatibility)
@@ -50,16 +68,8 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 		// legacyGroup.DELETE("/session/:sessionId", handler.EndGameSession)
 	}
 
-	// Create GrooveOfficialHandler for official APIs
-	officialHandler := groove.NewGrooveOfficialHandler(grooveService, log)
-
-	// Official GrooveTech Transaction API endpoints
-	// These match the exact specification from GrooveTech documentation
-	// Endpoint: {casino_endpoint}?request=getaccount&[parameters]
-	grp.GET("/groove-official", officialHandler.GetAccount)           // Official Get Account API
-	grp.GET("/groove-official-balance", officialHandler.GetBalance)   // Official Get Balance API
-	grp.GET("/groove-official-wager", officialHandler.ProcessWager)   // Official Wager API
-	grp.GET("/groove-official-result", officialHandler.ProcessResult) // Official Result API
+	// Add the new Wager And Result endpoint
+	grp.GET("/groove", middleware.GrooveSignatureMiddlewareOptional("test_key"), handler.ProcessWagerAndResultOfficial) // Official Wager And Result API
 
 	// Game Launch API routes (secure endpoints for frontend)
 	gameGroup := grp.Group("/api/groove")

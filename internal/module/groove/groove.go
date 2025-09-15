@@ -3,6 +3,7 @@ package groove
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -28,8 +29,11 @@ type GrooveService interface {
 	ProcessResult(ctx context.Context, req dto.GrooveResultRequest) (*dto.GrooveResultResponse, error)
 	ProcessResultTransaction(ctx context.Context, req dto.GrooveResultRequest) (*dto.GrooveResultResponse, error)
 	ProcessWagerAndResult(ctx context.Context, req dto.GrooveWagerAndResultRequest) (*dto.GrooveWagerAndResultResponse, error)
-	ProcessRollback(ctx context.Context, req dto.GrooveRollbackRequest) (*dto.GrooveRollbackResponse, error)
-	ProcessJackpot(ctx context.Context, req dto.GrooveJackpotRequest) (*dto.GrooveJackpotResponse, error)
+	ProcessRollback(ctx context.Context, req dto.GrooveRollbackRequestOfficial) (*dto.GrooveRollbackResponseOfficial, error)
+	ProcessJackpot(ctx context.Context, req dto.GrooveJackpotRequestOfficial) (*dto.GrooveJackpotResponseOfficial, error)
+	ProcessRollbackOnResult(ctx context.Context, req dto.GrooveRollbackOnResultRequest) (*dto.GrooveRollbackOnResultResponse, error)
+	ProcessRollbackOnRollback(ctx context.Context, req dto.GrooveRollbackOnRollbackRequest) (*dto.GrooveRollbackOnRollbackResponse, error)
+	ProcessWagerByBatch(ctx context.Context, req dto.GrooveWagerByBatchRequest) (*dto.GrooveWagerByBatchResponse, error)
 
 	// Legacy transaction operations (for backward compatibility)
 	ProcessDebit(ctx context.Context, req dto.GrooveTransactionRequest) (*dto.GrooveTransactionResponse, error)
@@ -136,8 +140,8 @@ func (s *GrooveServiceImpl) CreateAccount(ctx context.Context, userID uuid.UUID)
 	}
 
 	account := &dto.GrooveAccount{
-		AccountID:    uuid.New().String(),
-		SessionID:    "", // Will be set when user logs in
+		AccountID:    userID.String(), // Use user ID as account ID for consistency
+		SessionID:    "",              // Will be set when user logs in
 		Balance:      balance,
 		Currency:     "USD", // Default currency
 		Status:       "active",
@@ -350,18 +354,15 @@ func (s *GrooveServiceImpl) GetBalance(ctx context.Context, accountID string) (*
 	return response, nil
 }
 
-// ProcessWager processes a wager transaction (Official GrooveTech API)
 func (s *GrooveServiceImpl) ProcessWager(ctx context.Context, req dto.GrooveWagerRequest) (*dto.GrooveWagerResponse, error) {
 	s.logger.Info("Processing wager",
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("account_id", req.AccountID),
 		zap.String("bet_amount", req.BetAmount.String()))
 
-	// Delegate to the new ProcessWagerTransaction method
 	return s.ProcessWagerTransaction(ctx, req)
 }
 
-// ProcessResult processes a result transaction (Official GrooveTech API)
 func (s *GrooveServiceImpl) ProcessResult(ctx context.Context, req dto.GrooveResultRequest) (*dto.GrooveResultResponse, error) {
 	s.logger.Info("Processing result",
 		zap.String("transaction_id", req.TransactionID),
@@ -458,17 +459,22 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 
 		// Return original response with current balance
 		return &dto.GrooveResultResponse{
-			Code:         200,
-			Status:       "Success - duplicate request",
-			WalletTx:     existingTransaction.AccountTransactionID,
-			Balance:      currentBalance,
-			BonusWin:     decimal.Zero, // We don't use bonuses
-			RealMoneyWin: req.Result,
-			BonusBalance: decimal.Zero,
-			RealBalance:  currentBalance,
-			GameMode:     1, // Real money mode
-			Order:        "cash_money",
-			APIVersion:   req.APIVersion,
+			Code:          200,
+			Status:        "Success - duplicate request",
+			Success:       true,
+			TransactionID: req.TransactionID,
+			AccountID:     req.AccountID,
+			SessionID:     req.GameSessionID,
+			Amount:        req.Result,
+			WalletTx:      existingTransaction.AccountTransactionID,
+			Balance:       currentBalance,
+			BonusWin:      decimal.Zero, // We don't use bonuses
+			RealMoneyWin:  req.Result,
+			BonusBalance:  decimal.Zero,
+			RealBalance:   currentBalance,
+			GameMode:      1, // Real money mode
+			Order:         "cash_money",
+			APIVersion:    req.APIVersion,
 		}, nil
 	}
 
@@ -568,17 +574,22 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 		zap.String("new_balance", newBalance.String()))
 
 	return &dto.GrooveResultResponse{
-		Code:         200,
-		Status:       "Success",
-		WalletTx:     walletTxID,
-		Balance:      newBalance,
-		BonusWin:     decimal.Zero, // We don't use bonuses
-		RealMoneyWin: req.Result,
-		BonusBalance: decimal.Zero,
-		RealBalance:  newBalance,
-		GameMode:     1, // Real money mode
-		Order:        "cash_money",
-		APIVersion:   req.APIVersion,
+		Code:          200,
+		Status:        "Success",
+		Success:       true,
+		TransactionID: req.TransactionID,
+		AccountID:     req.AccountID,
+		SessionID:     req.GameSessionID,
+		Amount:        req.Result,
+		WalletTx:      walletTxID,
+		Balance:       newBalance,
+		BonusWin:      decimal.Zero, // We don't use bonuses
+		RealMoneyWin:  req.Result,
+		BonusBalance:  decimal.Zero,
+		RealBalance:   newBalance,
+		GameMode:      1, // Real money mode
+		Order:         "cash_money",
+		APIVersion:    req.APIVersion,
 	}, nil
 }
 
@@ -587,14 +598,30 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 	s.logger.Info("Processing wager and result",
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("account_id", req.AccountID),
-		zap.String("wager_amount", req.WagerAmount.String()),
+		zap.String("wager_amount", req.BetAmount.String()),
 		zap.String("win_amount", req.WinAmount.String()))
 
-	// Check if account has sufficient balance for wager
-	balance, err := s.storage.GetAccountBalance(ctx, req.AccountID)
+	// Validate game session
+	_, err := s.ValidateGameSession(ctx, req.SessionID)
 	if err != nil {
-		s.logger.Error("Failed to get account balance", zap.Error(err))
+		s.logger.Error("Invalid game session", zap.String("session_id", req.SessionID))
 		return &dto.GrooveWagerAndResultResponse{
+			Code:          1000,
+			Status:        "Not logged on",
+			Success:       false,
+			TransactionID: req.TransactionID,
+			ErrorCode:     "INVALID_SESSION",
+			ErrorMessage:  "Player session is invalid or expired",
+		}, nil
+	}
+
+	// Get GrooveTech account
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Error("Failed to get GrooveTech account", zap.Error(err))
+		return &dto.GrooveWagerAndResultResponse{
+			Code:          110,
+			Status:        "Operation not allowed",
 			Success:       false,
 			TransactionID: req.TransactionID,
 			ErrorCode:     "ACCOUNT_NOT_FOUND",
@@ -602,139 +629,530 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 		}, nil
 	}
 
-	if balance.LessThan(req.WagerAmount) {
+	// Check idempotency
+	existingTransaction, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
+	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+		s.logger.Error("Failed to check transaction idempotency", zap.Error(err))
 		return &dto.GrooveWagerAndResultResponse{
+			Code:          1,
+			Status:        "Technical error",
+			Success:       false,
+			TransactionID: req.TransactionID,
+			ErrorCode:     "TECHNICAL_ERROR",
+			ErrorMessage:  "Technical error",
+		}, nil
+	}
+
+	if existingTransaction != nil {
+		s.logger.Info("Duplicate wager and result transaction", zap.String("transaction_id", req.TransactionID))
+		// Get current balance
+		userID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID", zap.Error(err))
+			return &dto.GrooveWagerAndResultResponse{
+				Code:          1,
+				Status:        "Technical error",
+				Success:       false,
+				TransactionID: req.TransactionID,
+				ErrorCode:     "TECHNICAL_ERROR",
+				ErrorMessage:  "Technical error",
+			}, nil
+		}
+		currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance", zap.Error(err))
+			return &dto.GrooveWagerAndResultResponse{
+				Code:          1,
+				Status:        "Technical error",
+				Success:       false,
+				TransactionID: req.TransactionID,
+				ErrorCode:     "TECHNICAL_ERROR",
+				ErrorMessage:  "Technical error",
+			}, nil
+		}
+
+		// Return original response for duplicate
+		return &dto.GrooveWagerAndResultResponse{
+			Code:          200,
+			Status:        "Success - duplicate request",
+			Success:       true,
+			TransactionID: req.TransactionID,
+			AccountID:     req.AccountID,
+			SessionID:     req.SessionID,
+			RoundID:       req.RoundID,
+			GameStatus:    req.GameStatus,
+			WalletTx:      existingTransaction.AccountTransactionID,
+			Balance:       currentBalance,
+			BonusWin:      decimal.Zero,
+			RealMoneyWin:  req.WinAmount,
+			BonusMoneyBet: decimal.Zero,
+			RealMoneyBet:  req.BetAmount,
+			BonusBalance:  decimal.Zero,
+			RealBalance:   currentBalance,
+			GameMode:      1,
+			Order:         "cash_money",
+			APIVersion:    req.APIVersion,
+		}, nil
+	}
+
+	// Get current balance
+	userID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveWagerAndResultResponse{
+			Code:          1,
+			Status:        "Technical error",
+			Success:       false,
+			TransactionID: req.TransactionID,
+			ErrorCode:     "TECHNICAL_ERROR",
+			ErrorMessage:  "Technical error",
+		}, nil
+	}
+	currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get user balance", zap.Error(err))
+		return &dto.GrooveWagerAndResultResponse{
+			Code:          1,
+			Status:        "Technical error",
+			Success:       false,
+			TransactionID: req.TransactionID,
+			ErrorCode:     "TECHNICAL_ERROR",
+			ErrorMessage:  "Technical error",
+		}, nil
+	}
+
+	// Check if account has sufficient balance for wager
+	if currentBalance.LessThan(req.BetAmount) {
+		return &dto.GrooveWagerAndResultResponse{
+			Code:          1006,
+			Status:        "Out of money",
 			Success:       false,
 			TransactionID: req.TransactionID,
 			ErrorCode:     "INSUFFICIENT_FUNDS",
-			ErrorMessage:  "Insufficient funds for wager",
+			ErrorMessage:  "Insufficient funds to place the wager",
 		}, nil
 	}
 
 	// Calculate net result (win amount - wager amount)
-	netResult := req.WinAmount.Sub(req.WagerAmount)
+	netResult := req.WinAmount.Sub(req.BetAmount)
 
-	// Process the net result
-	transaction := dto.GrooveTransaction{
-		TransactionID: req.TransactionID,
-		AccountID:     req.AccountID,
-		GameSessionID: req.SessionID,
-		BetAmount:     netResult,
-		CreatedAt:     time.Now(),
+	// Process the net result (deduct wager, add win)
+	var newBalance decimal.Decimal
+	if netResult.GreaterThan(decimal.Zero) {
+		// Player won - add net winnings
+		newBalance, err = s.storage.AddBalance(ctx, userID, netResult)
+		if err != nil {
+			s.logger.Error("Failed to add balance", zap.Error(err))
+			return &dto.GrooveWagerAndResultResponse{
+				Code:          1,
+				Status:        "Technical error",
+				Success:       false,
+				TransactionID: req.TransactionID,
+				ErrorCode:     "TECHNICAL_ERROR",
+				ErrorMessage:  "Technical error",
+			}, nil
+		}
+	} else if netResult.LessThan(decimal.Zero) {
+		// Player lost - deduct the loss amount
+		lossAmount := netResult.Abs()
+		newBalance, err = s.storage.DeductBalance(ctx, userID, lossAmount)
+		if err != nil {
+			s.logger.Error("Failed to deduct balance", zap.Error(err))
+			return &dto.GrooveWagerAndResultResponse{
+				Code:          1,
+				Status:        "Technical error",
+				Success:       false,
+				TransactionID: req.TransactionID,
+				ErrorCode:     "TECHNICAL_ERROR",
+				ErrorMessage:  "Technical error",
+			}, nil
+		}
+	} else {
+		// Break even - no balance change
+		newBalance = currentBalance
 	}
 
-	response, err := s.storage.ProcessTransaction(ctx, transaction)
+	// Generate wallet transaction ID
+	walletTxID := fmt.Sprintf("TXN_%s_%d", req.TransactionID, time.Now().Unix())
+
+	// Store transaction
+	transaction := dto.GrooveTransaction{
+		TransactionID:        req.TransactionID,
+		AccountID:            req.AccountID,
+		GameSessionID:        req.SessionID,
+		BetAmount:            netResult,
+		AccountTransactionID: walletTxID,
+		CreatedAt:            time.Now(),
+		Status:               "completed",
+	}
+
+	err = s.storage.StoreTransaction(ctx, &transaction)
 	if err != nil {
-		s.logger.Error("Failed to process wager and result", zap.Error(err))
-		return &dto.GrooveWagerAndResultResponse{
-			Success:       false,
-			TransactionID: req.TransactionID,
-			ErrorCode:     "WAGER_RESULT_FAILED",
-			ErrorMessage:  "Failed to process wager and result",
-		}, nil
+		s.logger.Error("Failed to store transaction", zap.Error(err))
 	}
 
 	s.logger.Info("Wager and result processed successfully",
-		zap.String("transaction_id", response.TransactionID),
-		zap.String("new_balance", response.Balance.String()))
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("net_result", netResult.String()),
+		zap.String("new_balance", newBalance.String()))
 
 	return &dto.GrooveWagerAndResultResponse{
+		Code:          200,
+		Status:        "Success",
 		Success:       true,
-		TransactionID: response.TransactionID,
+		TransactionID: req.TransactionID,
 		AccountID:     req.AccountID,
 		SessionID:     req.SessionID,
-		WagerAmount:   req.WagerAmount,
-		WinAmount:     req.WinAmount,
-		Currency:      req.Currency,
-		NewBalance:    response.Balance,
-		Status:        "completed",
+		RoundID:       req.RoundID,
+		GameStatus:    req.GameStatus,
+		WalletTx:      walletTxID,
+		Balance:       newBalance,
+		BonusWin:      decimal.Zero,
+		RealMoneyWin:  req.WinAmount,
+		BonusMoneyBet: decimal.Zero,
+		RealMoneyBet:  req.BetAmount,
+		BonusBalance:  decimal.Zero,
+		RealBalance:   newBalance,
+		GameMode:      1,
+		Order:         "cash_money",
+		APIVersion:    req.APIVersion,
 	}, nil
 }
 
 // ProcessRollback processes a rollback transaction (Official GrooveTech API)
-func (s *GrooveServiceImpl) ProcessRollback(ctx context.Context, req dto.GrooveRollbackRequest) (*dto.GrooveRollbackResponse, error) {
-	s.logger.Info("Processing rollback",
-		zap.String("transaction_id", req.TransactionID),
-		zap.String("account_id", req.AccountID),
-		zap.String("original_transaction_id", req.OriginalTransactionID))
+func (s *GrooveServiceImpl) ProcessRollback(ctx context.Context, req dto.GrooveRollbackRequestOfficial) (*dto.GrooveRollbackResponseOfficial, error) {
+	s.logger.Info("Processing rollback transaction", zap.String("transaction_id", req.TransactionID))
 
-	// Process the rollback (credit back the amount)
-	transaction := dto.GrooveTransaction{
-		TransactionID: req.TransactionID,
-		AccountID:     req.AccountID,
-		GameSessionID: req.SessionID,
-		BetAmount:     req.Amount,
-		CreatedAt:     time.Now(),
-	}
+	// NOTE: Session validation is NOT performed for rollbacks
+	// Rollbacks must be accepted even if the game session has expired
+	// This is per GrooveTech specification
 
-	response, err := s.storage.ProcessTransaction(ctx, transaction)
-	if err != nil {
-		s.logger.Error("Failed to process rollback", zap.Error(err))
-		return &dto.GrooveRollbackResponse{
-			Success:       false,
-			TransactionID: req.TransactionID,
-			ErrorCode:     "ROLLBACK_FAILED",
-			ErrorMessage:  "Failed to process rollback",
+	// Check idempotency - look for existing rollback transaction
+	rollbackTransactionID := req.TransactionID + "_rollback"
+	existingRollback, err := s.storage.GetTransactionByID(ctx, rollbackTransactionID)
+	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+		s.logger.Error("Failed to check rollback idempotency", zap.Error(err))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
 		}, nil
 	}
 
-	s.logger.Info("Rollback processed successfully",
-		zap.String("transaction_id", response.TransactionID),
-		zap.String("new_balance", response.Balance.String()))
+	if existingRollback != nil {
+		s.logger.Info("Duplicate rollback transaction", zap.String("transaction_id", req.TransactionID))
+		// Get current balance for duplicate response
+		account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+		if err != nil {
+			s.logger.Error("Failed to get account for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackResponseOfficial{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
 
-	return &dto.GrooveRollbackResponse{
-		Success:       true,
-		TransactionID: response.TransactionID,
-		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		NewBalance:    response.Balance,
-		Status:        "completed",
+		userID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackResponseOfficial{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackResponseOfficial{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		// Return original response for duplicate
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:                 200,
+			Status:               "Success - duplicate request",
+			AccountTransactionID: existingRollback.AccountTransactionID,
+			Balance:              currentBalance,
+			BonusBalance:         decimal.Zero,
+			RealBalance:          currentBalance,
+			GameMode:             1,
+			Order:                "cash_money",
+			APIVersion:           "1.2",
+		}, nil
+	}
+
+	// Get account
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Error("Failed to get account", zap.Error(err))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Parse user ID
+	userID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Transaction Validation: Find original wager transaction
+	originalWager, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
+	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+		s.logger.Error("Failed to find original wager", zap.Error(err))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	if originalWager == nil {
+		s.logger.Error("Original wager not found", zap.String("transaction_id", req.TransactionID))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       102,
+			Status:     "Wager not found",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Verify rollback eligibility: Check if wager has already been rolled back
+	if originalWager.Status == "rolled_back" {
+		s.logger.Error("Wager already rolled back", zap.String("transaction_id", req.TransactionID))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       409,
+			Status:     "Transaction ID exists",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Verify rollback eligibility: Check if wager has a result transaction
+	// (This would require checking for result transactions, but for now we'll assume
+	// that if the wager exists and isn't rolled back, it's eligible for rollback)
+
+	// Restore player balance
+	rollbackAmount := req.RollbackAmount
+	if rollbackAmount.IsZero() {
+		rollbackAmount = originalWager.BetAmount
+	}
+
+	newBalance, err := s.storage.AddBalance(ctx, userID, rollbackAmount)
+	if err != nil {
+		s.logger.Error("Failed to restore balance", zap.Error(err))
+		return &dto.GrooveRollbackResponseOfficial{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Generate account transaction ID
+	accountTransactionID := uuid.New().String()
+
+	// Store rollback transaction
+	rollbackTransaction := &dto.GrooveTransaction{
+		TransactionID:        req.TransactionID + "_rollback",
+		AccountTransactionID: accountTransactionID,
+		AccountID:            req.AccountID,
+		GameSessionID:        req.GameSessionID,
+		RoundID:              req.RoundID,
+		GameID:               req.GameID,
+		BetAmount:            rollbackAmount,
+		Device:               req.Device,
+		FRBID:                "",
+		UserID:               userID,
+		CreatedAt:            time.Now(),
+	}
+
+	err = s.storage.StoreTransaction(ctx, rollbackTransaction)
+	if err != nil {
+		s.logger.Error("Failed to store rollback transaction", zap.Error(err))
+		// Don't fail the transaction if storage fails, but log it
+	}
+
+	// Update original wager status
+	originalWager.Status = "rolled_back"
+	err = s.storage.StoreTransaction(ctx, originalWager)
+	if err != nil {
+		s.logger.Error("Failed to update original wager status", zap.Error(err))
+		// Don't fail the transaction if storage fails, but log it
+	}
+
+	s.logger.Info("Rollback transaction processed successfully",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_transaction_id", accountTransactionID),
+		zap.String("rollback_amount", rollbackAmount.String()),
+		zap.String("new_balance", newBalance.String()))
+
+	return &dto.GrooveRollbackResponseOfficial{
+		Code:                 200,
+		Status:               "Success",
+		AccountTransactionID: accountTransactionID,
+		Balance:              newBalance,
+		BonusBalance:         decimal.Zero,
+		RealBalance:          newBalance,
+		GameMode:             1,
+		Order:                "cash_money",
+		APIVersion:           "1.2",
 	}, nil
 }
 
 // ProcessJackpot processes a jackpot transaction (Official GrooveTech API)
-func (s *GrooveServiceImpl) ProcessJackpot(ctx context.Context, req dto.GrooveJackpotRequest) (*dto.GrooveJackpotResponse, error) {
-	s.logger.Info("Processing jackpot",
-		zap.String("transaction_id", req.TransactionID),
-		zap.String("account_id", req.AccountID),
-		zap.String("amount", req.Amount.String()),
-		zap.String("jackpot_type", req.JackpotType))
+func (s *GrooveServiceImpl) ProcessJackpot(ctx context.Context, req dto.GrooveJackpotRequestOfficial) (*dto.GrooveJackpotResponseOfficial, error) {
+	s.logger.Info("Processing jackpot transaction", zap.String("transaction_id", req.TransactionID))
 
-	// Process the jackpot (credit)
-	transaction := dto.GrooveTransaction{
-		TransactionID: req.TransactionID,
-		AccountID:     req.AccountID,
-		GameSessionID: req.SessionID,
-		BetAmount:     req.Amount,
-		CreatedAt:     time.Now(),
-	}
-
-	response, err := s.storage.ProcessTransaction(ctx, transaction)
-	if err != nil {
-		s.logger.Error("Failed to process jackpot", zap.Error(err))
-		return &dto.GrooveJackpotResponse{
-			Success:       false,
-			TransactionID: req.TransactionID,
-			ErrorCode:     "JACKPOT_FAILED",
-			ErrorMessage:  "Failed to process jackpot",
+	// Check idempotency
+	existingTransaction, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
+	if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+		s.logger.Error("Failed to check transaction idempotency", zap.Error(err))
+		return &dto.GrooveJackpotResponseOfficial{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
 		}, nil
 	}
 
-	s.logger.Info("Jackpot processed successfully",
-		zap.String("transaction_id", response.TransactionID),
-		zap.String("new_balance", response.Balance.String()))
+	if existingTransaction != nil {
+		s.logger.Info("Duplicate jackpot transaction", zap.String("transaction_id", req.TransactionID))
+		// Get current balance for duplicate response
+		account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+		if err != nil {
+			s.logger.Error("Failed to get account for duplicate response", zap.Error(err))
+			return &dto.GrooveJackpotResponseOfficial{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
 
-	return &dto.GrooveJackpotResponse{
-		Success:       true,
-		TransactionID: response.TransactionID,
-		AccountID:     req.AccountID,
-		SessionID:     req.SessionID,
-		Amount:        req.Amount,
-		Currency:      req.Currency,
-		NewBalance:    response.Balance,
-		Status:        "completed",
+		userID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID for duplicate response", zap.Error(err))
+			return &dto.GrooveJackpotResponseOfficial{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance for duplicate response", zap.Error(err))
+			return &dto.GrooveJackpotResponseOfficial{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		// Return original response for duplicate
+		return &dto.GrooveJackpotResponseOfficial{
+			Code:         200,
+			Status:       "Success - duplicate request",
+			WalletTx:     existingTransaction.AccountTransactionID,
+			Balance:      currentBalance,
+			BonusWin:     decimal.Zero,
+			RealMoneyWin: existingTransaction.BetAmount,
+			BonusBalance: decimal.Zero,
+			RealBalance:  currentBalance,
+			GameMode:     1,
+			Order:        "cash_money",
+			APIVersion:   "1.2",
+		}, nil
+	}
+
+	// Get account - for jackpots, account might not exist yet
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Info("Account not found, creating new account for jackpot", zap.String("account_id", req.AccountID))
+		// For jackpots, we need to create the account if it doesn't exist
+		// This is because jackpots might not be related to rounds
+		// We need to get the user ID from the account ID
+		// For now, let's use a default user ID or handle this differently
+		s.logger.Error("Account not found for jackpot", zap.Error(err))
+		return &dto.GrooveJackpotResponseOfficial{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Parse user ID
+	userID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveJackpotResponseOfficial{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Add jackpot amount to balance
+	newBalance, err := s.storage.AddBalance(ctx, userID, req.Amount)
+	if err != nil {
+		s.logger.Error("Failed to add jackpot amount", zap.Error(err))
+		return &dto.GrooveJackpotResponseOfficial{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Generate account transaction ID
+	accountTransactionID := uuid.New().String()
+
+	// Store jackpot transaction
+	jackpotTransaction := &dto.GrooveTransaction{
+		TransactionID:        req.TransactionID,
+		AccountTransactionID: accountTransactionID,
+		AccountID:            req.AccountID,
+		GameSessionID:        req.GameSessionID,
+		RoundID:              req.RoundID,
+		GameID:               req.GameID,
+		BetAmount:            req.Amount,
+		Device:               "desktop", // Default device for jackpot
+		FRBID:                "",
+		UserID:               userID,
+		CreatedAt:            time.Now(),
+	}
+
+	err = s.storage.StoreTransaction(ctx, jackpotTransaction)
+	if err != nil {
+		s.logger.Error("Failed to store jackpot transaction", zap.Error(err))
+		// Don't fail the transaction if storage fails, but log it
+	}
+
+	s.logger.Info("Jackpot transaction processed successfully",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_transaction_id", accountTransactionID),
+		zap.String("jackpot_amount", req.Amount.String()),
+		zap.String("new_balance", newBalance.String()))
+
+	return &dto.GrooveJackpotResponseOfficial{
+		Code:         200,
+		Status:       "Success",
+		WalletTx:     accountTransactionID,
+		Balance:      newBalance,
+		BonusWin:     decimal.Zero,
+		RealMoneyWin: req.Amount,
+		BonusBalance: decimal.Zero,
+		RealBalance:  newBalance,
+		GameMode:     1,
+		Order:        "cash_money",
+		APIVersion:   "1.2",
 	}, nil
 }
 
@@ -875,7 +1293,7 @@ func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, re
 		s.logger.Info("GrooveTech account not found, creating new one", zap.String("user_id", userID.String()))
 
 		// Create new GrooveTech account
-		accountID := fmt.Sprintf("groove_%s", userID.String())
+		accountID := userID.String() // Use user ID as account ID for consistency
 		newAccount := dto.GrooveAccount{
 			AccountID:    accountID,
 			SessionID:    session.SessionID, // Use the new session ID
@@ -1146,4 +1564,428 @@ func (s *GrooveServiceImpl) GetTransactionByID(ctx context.Context, transactionI
 		zap.String("account_transaction_id", transaction.AccountTransactionID))
 
 	return transaction, nil
+}
+
+// ProcessRollbackOnResult processes a rollback on result transaction
+func (s *GrooveServiceImpl) ProcessRollbackOnResult(ctx context.Context, req dto.GrooveRollbackOnResultRequest) (*dto.GrooveRollbackOnResultResponse, error) {
+	s.logger.Info("Processing rollback on result transaction", zap.String("transaction_id", req.TransactionID))
+
+	// Check idempotency - look for existing rollback on result transaction
+	rollbackTransactionID := req.TransactionID + "_rollback_result"
+	existingTransaction, err := s.storage.GetTransactionByID(ctx, rollbackTransactionID)
+	if err != nil {
+		s.logger.Error("Failed to check transaction idempotency", zap.Error(err))
+		return &dto.GrooveRollbackOnResultResponse{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	if existingTransaction != nil {
+		s.logger.Info("Duplicate rollback on result transaction", zap.String("transaction_id", req.TransactionID))
+		// Get current balance for duplicate response
+		account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+		if err != nil {
+			s.logger.Error("Failed to get account for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackOnResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		userID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackOnResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackOnResultResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		// Return original response for duplicate
+		return &dto.GrooveRollbackOnResultResponse{
+			Code:                 200,
+			Status:               "Success - duplicate request",
+			AccountTransactionID: existingTransaction.AccountTransactionID,
+			Balance:              currentBalance,
+			BonusBalance:         decimal.Zero,
+			RealBalance:          currentBalance,
+			GameMode:             1,
+			Order:                "cash_money",
+			APIVersion:           "1.2",
+		}, nil
+	}
+
+	// Get account
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Error("Failed to get account", zap.Error(err))
+		return &dto.GrooveRollbackOnResultResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Parse user ID
+	userID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveRollbackOnResultResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Deduct the rollback amount from balance
+	newBalance, err := s.storage.DeductBalance(ctx, userID, req.Amount)
+	if err != nil {
+		s.logger.Error("Failed to deduct rollback amount", zap.Error(err))
+		return &dto.GrooveRollbackOnResultResponse{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Generate account transaction ID
+	accountTransactionID := uuid.New().String()
+
+	// Store rollback on result transaction
+	rollbackTransaction := &dto.GrooveTransaction{
+		TransactionID:        req.TransactionID,
+		AccountTransactionID: accountTransactionID,
+		AccountID:            req.AccountID,
+		GameSessionID:        req.GameSessionID,
+		RoundID:              req.RoundID,
+		GameID:               req.GameID,
+		BetAmount:            req.Amount,
+		Device:               req.Device,
+		FRBID:                "",
+		UserID:               userID,
+		CreatedAt:            time.Now(),
+	}
+
+	err = s.storage.StoreTransaction(ctx, rollbackTransaction)
+	if err != nil {
+		s.logger.Error("Failed to store rollback on result transaction", zap.Error(err))
+		// Don't fail the transaction if storage fails, but log it
+	}
+
+	s.logger.Info("Rollback on result transaction processed successfully",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_transaction_id", accountTransactionID),
+		zap.String("rollback_amount", req.Amount.String()),
+		zap.String("new_balance", newBalance.String()))
+
+	return &dto.GrooveRollbackOnResultResponse{
+		Code:                 200,
+		Status:               "Success",
+		AccountTransactionID: accountTransactionID,
+		Balance:              newBalance,
+		BonusBalance:         decimal.Zero,
+		RealBalance:          newBalance,
+		GameMode:             1,
+		Order:                "cash_money",
+		APIVersion:           "1.2",
+	}, nil
+}
+
+// ProcessRollbackOnRollback processes a rollback on rollback transaction
+func (s *GrooveServiceImpl) ProcessRollbackOnRollback(ctx context.Context, req dto.GrooveRollbackOnRollbackRequest) (*dto.GrooveRollbackOnRollbackResponse, error) {
+	s.logger.Info("Processing rollback on rollback transaction", zap.String("transaction_id", req.TransactionID))
+
+	// Check idempotency - look for existing rollback on rollback transaction
+	rollbackTransactionID := req.TransactionID + "_rollback_rollback"
+	existingTransaction, err := s.storage.GetTransactionByID(ctx, rollbackTransactionID)
+	if err != nil {
+		s.logger.Error("Failed to check transaction idempotency", zap.Error(err))
+		return &dto.GrooveRollbackOnRollbackResponse{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	if existingTransaction != nil {
+		s.logger.Info("Duplicate rollback on rollback transaction", zap.String("transaction_id", req.TransactionID))
+		// Get current balance for duplicate response
+		account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+		if err != nil {
+			s.logger.Error("Failed to get account for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackOnRollbackResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		userID, err := uuid.Parse(account.UserID)
+		if err != nil {
+			s.logger.Error("Failed to parse user ID for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackOnRollbackResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to get current balance for duplicate response", zap.Error(err))
+			return &dto.GrooveRollbackOnRollbackResponse{
+				Code:       1,
+				Status:     "Technical error",
+				APIVersion: "1.2",
+			}, nil
+		}
+
+		// Return original response for duplicate
+		return &dto.GrooveRollbackOnRollbackResponse{
+			Code:                 200,
+			Status:               "Success - duplicate request",
+			AccountTransactionID: existingTransaction.AccountTransactionID,
+			Balance:              currentBalance,
+			BonusBalance:         decimal.Zero,
+			RealBalance:          currentBalance,
+			GameMode:             1,
+			Order:                "cash_money",
+			APIVersion:           "1.2",
+		}, nil
+	}
+
+	// Get account
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Error("Failed to get account", zap.Error(err))
+		return &dto.GrooveRollbackOnRollbackResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Parse user ID
+	userID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveRollbackOnRollbackResponse{
+			Code:       110,
+			Status:     "Operation not allowed",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Add the rollback amount back to balance (reversing the previous rollback)
+	newBalance, err := s.storage.AddBalance(ctx, userID, req.RollbackAmount)
+	if err != nil {
+		s.logger.Error("Failed to add rollback amount", zap.Error(err))
+		return &dto.GrooveRollbackOnRollbackResponse{
+			Code:       1,
+			Status:     "Technical error",
+			APIVersion: "1.2",
+		}, nil
+	}
+
+	// Generate account transaction ID
+	accountTransactionID := uuid.New().String()
+
+	// Store rollback on rollback transaction
+	rollbackTransaction := &dto.GrooveTransaction{
+		TransactionID:        rollbackTransactionID,
+		AccountTransactionID: accountTransactionID,
+		AccountID:            req.AccountID,
+		GameSessionID:        req.GameSessionID,
+		RoundID:              req.RoundID,
+		GameID:               req.GameID,
+		BetAmount:            req.RollbackAmount,
+		Device:               req.Device,
+		FRBID:                "",
+		UserID:               userID,
+		Status:               "rollback_rollback",
+		CreatedAt:            time.Now(),
+	}
+
+	err = s.storage.StoreTransaction(ctx, rollbackTransaction)
+	if err != nil {
+		s.logger.Error("Failed to store rollback on rollback transaction", zap.Error(err))
+		// Don't fail the transaction if storage fails, but log it
+	}
+
+	s.logger.Info("Rollback on rollback transaction processed successfully",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("account_transaction_id", accountTransactionID),
+		zap.String("rollback_amount", req.RollbackAmount.String()),
+		zap.String("new_balance", newBalance.String()))
+
+	return &dto.GrooveRollbackOnRollbackResponse{
+		Code:                 200,
+		Status:               "Success",
+		AccountTransactionID: accountTransactionID,
+		Balance:              newBalance,
+		BonusBalance:         decimal.Zero,
+		RealBalance:          newBalance,
+		GameMode:             1,
+		Order:                "cash_money",
+		APIVersion:           "1.2",
+	}, nil
+}
+
+// ProcessWagerByBatch processes a wager by batch transaction (sportsbook)
+func (s *GrooveServiceImpl) ProcessWagerByBatch(ctx context.Context, req dto.GrooveWagerByBatchRequest) (*dto.GrooveWagerByBatchResponse, error) {
+	s.logger.Info("Processing wager by batch transaction", zap.Int("bet_count", len(req.Bets)))
+
+	// Get account
+	account, err := s.storage.GetAccountByAccountID(ctx, req.AccountID)
+	if err != nil {
+		s.logger.Error("Failed to get account", zap.Error(err))
+		return &dto.GrooveWagerByBatchResponse{
+			Status:  "Failed",
+			Code:    110,
+			Message: "Operation not allowed",
+		}, nil
+	}
+
+	// Parse user ID
+	userID, err := uuid.Parse(account.UserID)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID", zap.Error(err))
+		return &dto.GrooveWagerByBatchResponse{
+			Status:  "Failed",
+			Code:    110,
+			Message: "Operation not allowed",
+		}, nil
+	}
+
+	// Calculate total bet amount
+	totalBetAmount := decimal.Zero
+	for _, bet := range req.Bets {
+		totalBetAmount = totalBetAmount.Add(bet.Amount)
+	}
+
+	// Check if user has sufficient balance
+	currentBalance, err := s.storage.GetUserBalance(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get user balance", zap.Error(err))
+		return &dto.GrooveWagerByBatchResponse{
+			Status:  "Failed",
+			Code:    1,
+			Message: "Technical error",
+		}, nil
+	}
+
+	if currentBalance.LessThan(totalBetAmount) {
+		s.logger.Error("Insufficient funds for batch wager",
+			zap.String("current_balance", currentBalance.String()),
+			zap.String("required_amount", totalBetAmount.String()))
+		return &dto.GrooveWagerByBatchResponse{
+			Status:  "Failed",
+			Code:    1006,
+			Message: "Out of money",
+		}, nil
+	}
+
+	// Process all bets atomically
+	var betResults []dto.GrooveBatchBetResult
+	var finalBalance decimal.Decimal
+
+	// Deduct total amount from balance
+	finalBalance, err = s.storage.DeductBalance(ctx, userID, totalBetAmount)
+	if err != nil {
+		s.logger.Error("Failed to deduct batch amount", zap.Error(err))
+		return &dto.GrooveWagerByBatchResponse{
+			Status:  "Failed",
+			Code:    1,
+			Message: "Technical error",
+		}, nil
+	}
+
+	// Process each bet
+	for _, bet := range req.Bets {
+		// Check idempotency for each bet
+		existingTransaction, err := s.storage.GetTransactionByID(ctx, bet.TransactionID)
+		if err != nil && !strings.Contains(err.Error(), "no rows in result set") {
+			s.logger.Error("Failed to check bet idempotency", zap.Error(err))
+			return &dto.GrooveWagerByBatchResponse{
+				Status:  "Failed",
+				Code:    1,
+				Message: "Technical error",
+			}, nil
+		}
+
+		if existingTransaction != nil {
+			// Return original response for duplicate bet
+			betResults = append(betResults, dto.GrooveBatchBetResult{
+				ProviderTransactionID: bet.TransactionID,
+				TransactionID:         existingTransaction.AccountTransactionID,
+				BonusMoneyBet:         decimal.Zero,
+				RealMoneyBet:          bet.Amount,
+			})
+			continue
+		}
+
+		// Generate account transaction ID for this bet
+		accountTransactionID := uuid.New().String()
+
+		// Store bet transaction
+		betTransaction := &dto.GrooveTransaction{
+			TransactionID:        bet.TransactionID,
+			AccountTransactionID: accountTransactionID,
+			AccountID:            req.AccountID,
+			GameSessionID:        req.GameSessionID,
+			RoundID:              bet.RoundID,
+			GameID:               req.GameID,
+			BetAmount:            bet.Amount,
+			Device:               req.Device,
+			FRBID:                bet.FRBID,
+			UserID:               userID,
+			CreatedAt:            time.Now(),
+		}
+
+		err = s.storage.StoreTransaction(ctx, betTransaction)
+		if err != nil {
+			s.logger.Error("Failed to store bet transaction", zap.Error(err))
+			return &dto.GrooveWagerByBatchResponse{
+				Status:  "Failed",
+				Code:    1,
+				Message: "Technical error",
+			}, nil
+		}
+
+		betResults = append(betResults, dto.GrooveBatchBetResult{
+			ProviderTransactionID: bet.TransactionID,
+			TransactionID:         accountTransactionID,
+			BonusMoneyBet:         decimal.Zero,
+			RealMoneyBet:          bet.Amount,
+		})
+	}
+
+	s.logger.Info("Wager by batch transaction processed successfully",
+		zap.Int("bet_count", len(betResults)),
+		zap.String("total_amount", totalBetAmount.String()),
+		zap.String("final_balance", finalBalance.String()))
+
+	return &dto.GrooveWagerByBatchResponse{
+		Status:       "Success",
+		Code:         200,
+		Message:      "OK",
+		Bets:         betResults,
+		Balance:      finalBalance,
+		RealBalance:  finalBalance,
+		BonusBalance: decimal.Zero,
+	}, nil
 }

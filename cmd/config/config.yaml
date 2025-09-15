@@ -37,7 +37,7 @@ groove:
   exit_url: "https://tucanbit.vercel.app"
   history_url: "https://tucanbit.vercel.app/history"
   license_type: "Curacao"
-  signature_validation: true
+  signature_validation: false
   signature_secret: "test_key"
     redirect_url: http://localhost:8080/user/oauth/google/res
 oauth:
