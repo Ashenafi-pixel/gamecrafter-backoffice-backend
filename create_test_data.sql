@@ -17,16 +17,17 @@ VALUES (
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Create a test balance for the user
-INSERT INTO balances (id, user_id, currency_code, amount_units, created_at, updated_at)
+INSERT INTO balances (id, user_id, currency, real_money, bonus_money, updated_at)
 VALUES (
     gen_random_uuid(),
     'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid,
     'USD',
     1000.00,
-    NOW(),
+    0.00,
     NOW()
-) ON CONFLICT (user_id, currency_code) DO UPDATE SET
-    amount_units = 1000.00,
+) ON CONFLICT (user_id, currency) DO UPDATE SET
+    real_money = 1000.00,
+    bonus_money = 0.00,
     updated_at = NOW();
 
 -- Create a GrooveTech account for the test user
@@ -78,37 +79,38 @@ VALUES (
     last_activity = NOW();
 
 -- Verify the data was created correctly
-SELECT 
-    'groove_accounts' as table_name,
-    user_id,
-    account_id,
-    session_id,
-    balance,
-    status
-FROM groove_accounts 
-WHERE account_id = 'a5e168fb-168e-4183-84c5-d49038ce00b5'
+SELECT 'Verification Queries:' as info;
 
-UNION ALL
+-- Check user
+SELECT 'User created:' as status, id, username, email, status 
+FROM users 
+WHERE id = 'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid;
 
-SELECT 
-    'game_sessions' as table_name,
-    user_id::text,
-    session_id,
-    game_id,
-    device_type,
-    CASE WHEN is_active THEN 'active' ELSE 'inactive' END
-FROM game_sessions 
-WHERE session_id = 'Tucan_8b607aa6-9e17-440e-a33c-d6b86ebc4c83'
-
-UNION ALL
-
-SELECT 
-    'balances' as table_name,
-    user_id::text,
-    currency_code,
-    amount_units::text,
-    'USD',
-    'active'
+-- Check balance
+SELECT 'Balance created:' as status, user_id, currency, real_money, bonus_money 
 FROM balances 
 WHERE user_id = 'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid 
-AND currency_code = 'USD';
+AND currency = 'USD';
+
+-- Check GrooveTech account
+SELECT 'GrooveTech account created:' as status, user_id, account_id, session_id, balance, currency, status 
+FROM groove_accounts 
+WHERE account_id = 'a5e168fb-168e-4183-84c5-d49038ce00b5';
+
+-- Check game session
+SELECT 'Game session created:' as status, user_id, session_id, game_id, device_type, game_mode, is_active 
+FROM game_sessions 
+WHERE session_id = 'Tucan_8b607aa6-9e17-440e-a33c-d6b86ebc4c83';
+
+-- Final verification - check if account and session match
+SELECT 'Account-Session Match:' as status,
+    ga.account_id,
+    ga.session_id,
+    gs.session_id as game_session_id,
+    CASE 
+        WHEN ga.session_id = gs.session_id THEN 'MATCH ✅'
+        ELSE 'NO MATCH ❌'
+    END as match_status
+FROM groove_accounts ga
+LEFT JOIN game_sessions gs ON ga.session_id = gs.session_id
+WHERE ga.account_id = 'a5e168fb-168e-4183-84c5-d49038ce00b5';
