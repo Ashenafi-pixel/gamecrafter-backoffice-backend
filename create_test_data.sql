@@ -16,19 +16,12 @@ VALUES (
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Create a test balance for the user
-INSERT INTO balances (id, user_id, currency, real_money, bonus_money, updated_at)
-VALUES (
-    gen_random_uuid(),
-    'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid,
-    'USD',
-    1000.00,
-    0.00,
-    NOW()
-) ON CONFLICT (user_id, currency) DO UPDATE SET
-    real_money = 1000.00,
-    bonus_money = 0.00,
-    updated_at = NOW();
+-- Update existing balance for the user (using actual AWS schema)
+UPDATE balances 
+SET amount_units = 1000.00,
+    updated_at = NOW()
+WHERE user_id = 'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid 
+AND currency_code = 'USD';
 
 -- Create a GrooveTech account for the test user
 INSERT INTO groove_accounts (id, user_id, account_id, session_id, balance, currency, status, created_at, last_activity, updated_at)
@@ -87,10 +80,10 @@ FROM users
 WHERE id = 'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid;
 
 -- Check balance
-SELECT 'Balance created:' as status, user_id, currency, real_money, bonus_money 
+SELECT 'Balance updated:' as status, user_id, currency_code, amount_units, reserved_units 
 FROM balances 
 WHERE user_id = 'a5e168fb-168e-4183-84c5-d49038ce00b5'::uuid 
-AND currency = 'USD';
+AND currency_code = 'USD';
 
 -- Check GrooveTech account
 SELECT 'GrooveTech account created:' as status, user_id, account_id, session_id, balance, currency, status 
