@@ -414,13 +414,13 @@ func (rs *RetryService) createClaimCashbackOperation(ctx context.Context, op Ret
 func (rs *RetryService) createUpdateUserLevelOperation(ctx context.Context, op RetryableOperation) (func() error, error) {
 	// Extract user level data from operation data
 	userLevel := dto.UserLevel{
-		UserID:        op.UserID,
-		CurrentLevel:  int(op.Data["current_level"].(float64)),
-		TotalGGR:      decimal.RequireFromString(op.Data["total_ggr"].(string)),
-		TotalBets:     decimal.RequireFromString(op.Data["total_bets"].(string)),
-		TotalWins:     decimal.RequireFromString(op.Data["total_wins"].(string)),
-		LevelProgress: decimal.RequireFromString(op.Data["level_progress"].(string)),
-		CurrentTierID: uuid.MustParse(op.Data["current_tier_id"].(string)),
+		UserID:           op.UserID,
+		CurrentLevel:     int(op.Data["current_level"].(float64)),
+		TotalExpectedGGR: decimal.RequireFromString(op.Data["total_ggr"].(string)),
+		TotalBets:        decimal.RequireFromString(op.Data["total_bets"].(string)),
+		TotalWins:        decimal.RequireFromString(op.Data["total_wins"].(string)),
+		LevelProgress:    decimal.RequireFromString(op.Data["level_progress"].(string)),
+		CurrentTierID:    uuid.MustParse(op.Data["current_tier_id"].(string)),
 	}
 
 	// Return operation function

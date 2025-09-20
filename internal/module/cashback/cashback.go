@@ -97,13 +97,13 @@ func (s *CashbackService) InitializeUserLevel(ctx context.Context, userID uuid.U
 
 	// Create user level
 	userLevel := dto.UserLevel{
-		UserID:        userID,
-		CurrentLevel:  1,
+		UserID:           userID,
+		CurrentLevel:     1,
 		TotalExpectedGGR: decimal.Zero,
-		TotalBets:     decimal.Zero,
-		TotalWins:     decimal.Zero,
-		LevelProgress: decimal.Zero,
-		CurrentTierID: defaultTier.ID,
+		TotalBets:        decimal.Zero,
+		TotalWins:        decimal.Zero,
+		LevelProgress:    decimal.Zero,
+		CurrentTierID:    defaultTier.ID,
 	}
 
 	_, err = s.storage.CreateUserLevel(ctx, userLevel)
@@ -380,19 +380,19 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 
 		// Update earning status
 		updatedEarning := dto.CashbackEarning{
-			ID:              earning.ID,
-			UserID:          earning.UserID,
-			TierID:          earning.TierID,
-			EarningType:     earning.EarningType,
-			SourceBetID:     earning.SourceBetID,
+			ID:                earning.ID,
+			UserID:            earning.UserID,
+			TierID:            earning.TierID,
+			EarningType:       earning.EarningType,
+			SourceBetID:       earning.SourceBetID,
 			ExpectedGGRAmount: earning.ExpectedGGRAmount,
-			CashbackRate:    earning.CashbackRate,
-			EarnedAmount:    earning.EarnedAmount,
-			ClaimedAmount:   earning.ClaimedAmount.Add(claimAmount),
-			AvailableAmount: earning.AvailableAmount.Sub(claimAmount),
-			Status:          "claimed",
-			ExpiresAt:       earning.ExpiresAt,
-			ClaimedAt:       &time.Time{},
+			CashbackRate:      earning.CashbackRate,
+			EarnedAmount:      earning.EarnedAmount,
+			ClaimedAmount:     earning.ClaimedAmount.Add(claimAmount),
+			AvailableAmount:   earning.AvailableAmount.Sub(claimAmount),
+			Status:            "claimed",
+			ExpiresAt:         earning.ExpiresAt,
+			ClaimedAt:         &time.Time{},
 		}
 
 		_, err = s.storage.UpdateCashbackEarningStatus(ctx, updatedEarning)
@@ -549,19 +549,19 @@ func (s *CashbackService) CreateManualCashbackEarning(ctx context.Context, userI
 
 	// Create manual cashback earning
 	earning := dto.CashbackEarning{
-		ID:              uuid.New(),
-		UserID:          userID,
-		TierID:          uuid.New(), // Will be set by service based on user level
-		EarningType:     "manual",
-		SourceBetID:     nil,
+		ID:                uuid.New(),
+		UserID:            userID,
+		TierID:            uuid.New(), // Will be set by service based on user level
+		EarningType:       "manual",
+		SourceBetID:       nil,
 		ExpectedGGRAmount: amount,
-		CashbackRate:    decimal.NewFromFloat(0.05), // 5% default rate
-		EarnedAmount:    amount,
-		ClaimedAmount:   decimal.Zero,
-		AvailableAmount: amount,
-		Status:          "available",
-		ExpiresAt:       time.Now().AddDate(0, 0, 30), // 30 days expiry
-		CreatedAt:       time.Now(),
+		CashbackRate:      decimal.NewFromFloat(0.05), // 5% default rate
+		EarnedAmount:      amount,
+		ClaimedAmount:     decimal.Zero,
+		AvailableAmount:   amount,
+		Status:            "available",
+		ExpiresAt:         time.Now().AddDate(0, 0, 30), // 30 days expiry
+		CreatedAt:         time.Now(),
 	}
 
 	createdEarning, err := s.storage.CreateCashbackEarning(ctx, earning)

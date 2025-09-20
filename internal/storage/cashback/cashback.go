@@ -130,7 +130,7 @@ func (s *CashbackStorageImpl) CreateUserLevel(ctx context.Context, userLevel dto
 	err := s.db.GetPool().QueryRow(ctx, query,
 		userLevel.UserID,
 		userLevel.CurrentLevel,
-		userLevel.TotalGGR,
+		userLevel.TotalExpectedGGR,
 		userLevel.TotalBets,
 		userLevel.TotalWins,
 		userLevel.LevelProgress,
@@ -165,7 +165,7 @@ func (s *CashbackStorageImpl) GetUserLevel(ctx context.Context, userID uuid.UUID
 		&userLevel.ID,
 		&userLevel.UserID,
 		&userLevel.CurrentLevel,
-		&userLevel.TotalGGR,
+		&userLevel.TotalExpectedGGR,
 		&userLevel.TotalBets,
 		&userLevel.TotalWins,
 		&userLevel.LevelProgress,
@@ -205,7 +205,7 @@ func (s *CashbackStorageImpl) UpdateUserLevel(ctx context.Context, userLevel dto
 	err := s.db.GetPool().QueryRow(ctx, query,
 		userLevel.UserID,
 		userLevel.CurrentLevel,
-		userLevel.TotalGGR,
+		userLevel.TotalExpectedGGR,
 		userLevel.TotalBets,
 		userLevel.TotalWins,
 		userLevel.LevelProgress,
@@ -236,7 +236,7 @@ func (s *CashbackStorageImpl) createDefaultUserLevel(ctx context.Context, userID
 	defaultLevel := dto.UserLevel{
 		UserID:        userID,
 		CurrentLevel:  1,
-		TotalGGR:      decimal.Zero,
+		TotalExpectedGGR: decimal.Zero,
 		TotalBets:     decimal.Zero,
 		TotalWins:     decimal.Zero,
 		LevelProgress: decimal.Zero,
@@ -279,7 +279,7 @@ func (s *CashbackStorageImpl) GetCashbackTiers(ctx context.Context) ([]dto.Cashb
 			&tier.ID,
 			&tier.TierName,
 			&tier.TierLevel,
-			&tier.MinGGRRequired,
+			&tier.MinExpectedGGRRequired,
 			&tier.CashbackPercentage,
 			&tier.BonusMultiplier,
 			&dailyLimit,
@@ -346,7 +346,7 @@ func (s *CashbackStorageImpl) GetCashbackTierByLevel(ctx context.Context, level 
 		&tier.ID,
 		&tier.TierName,
 		&tier.TierLevel,
-		&tier.MinGGRRequired,
+		&tier.MinExpectedGGRRequired,
 		&tier.CashbackPercentage,
 		&tier.BonusMultiplier,
 		&dailyLimit,
@@ -409,7 +409,7 @@ func (s *CashbackStorageImpl) GetCashbackTierByGGR(ctx context.Context, ggr deci
 		&tier.ID,
 		&tier.TierName,
 		&tier.TierLevel,
-		&tier.MinGGRRequired,
+		&tier.MinExpectedGGRRequired,
 		&tier.CashbackPercentage,
 		&tier.BonusMultiplier,
 		&dailyLimit,
@@ -501,7 +501,7 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 	if userLevel.CurrentLevel < 5 {
 		nextTier, err := s.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel+1)
 		if err == nil {
-			nextTierGGR = nextTier.MinGGRRequired
+			nextTierGGR = nextTier.MinExpectedGGRRequired
 		}
 	}
 
@@ -509,7 +509,7 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 		UserID:            userID,
 		CurrentTier:       *tier,
 		LevelProgress:     userLevel.LevelProgress,
-		TotalGGR:          userLevel.TotalGGR,
+		TotalGGR:          userLevel.TotalExpectedGGR,
 		AvailableCashback: totalAvailable,
 		PendingCashback:   decimal.Zero,
 		TotalClaimed:      decimal.Zero,
@@ -563,7 +563,7 @@ func (s *CashbackStorageImpl) GetUserCashbackEarnings(ctx context.Context, userI
 			&earning.AvailableAmount,
 			&earning.ClaimedAmount,
 			&earning.CashbackRate,
-			&earning.GGRAmount,
+			&earning.ExpectedGGRAmount,
 			&earning.TierID,
 			&earning.Status,
 			&earning.ExpiresAt,
@@ -1132,7 +1132,7 @@ func (s *CashbackStorageImpl) GetAllCashbackTiers(ctx context.Context) ([]dto.Ca
 			&tier.ID,
 			&tier.TierName,
 			&tier.TierLevel,
-			&tier.MinGGRRequired,
+			&tier.MinExpectedGGRRequired,
 			&tier.CashbackPercentage,
 			&tier.BonusMultiplier,
 			&dailyLimit,
@@ -1205,7 +1205,7 @@ func (s *CashbackStorageImpl) GetCashbackTierByID(ctx context.Context, tierID uu
 		&tier.ID,
 		&tier.TierName,
 		&tier.TierLevel,
-		&tier.MinGGRRequired,
+		&tier.MinExpectedGGRRequired,
 		&tier.CashbackPercentage,
 		&tier.BonusMultiplier,
 		&dailyLimit,
@@ -1273,7 +1273,7 @@ func (s *CashbackStorageImpl) InitializeUserLevel(ctx context.Context, userID uu
 	userLevel := dto.UserLevel{
 		UserID:        userID,
 		CurrentLevel:  1,
-		TotalGGR:      decimal.Zero,
+		TotalExpectedGGR: decimal.Zero,
 		TotalBets:     decimal.Zero,
 		TotalWins:     decimal.Zero,
 		LevelProgress: decimal.Zero,

@@ -203,7 +203,7 @@ func (h *AdminDashboardHandler) UpdateCashbackTier(c *gin.Context) {
 		ID:                   tierID,
 		TierName:             updateRequest.TierName,
 		TierLevel:            0, // Will be set by service
-		MinGGRRequired:       updateRequest.MinGGRRequired,
+		MinExpectedGGRRequired: updateRequest.MinGGRRequired,
 		CashbackPercentage:   updateRequest.CashbackPercentage,
 		BonusMultiplier:      updateRequest.BonusMultiplier,
 		DailyCashbackLimit:   updateRequest.DailyCashbackLimit,

@@ -204,15 +204,15 @@ type TierDistribution struct {
 
 // LevelProgressionInfo represents detailed level progression information
 type LevelProgressionInfo struct {
-	UserID         uuid.UUID       `json:"user_id"`
-	CurrentLevel   int             `json:"current_level"`
-	CurrentTier    CashbackTier    `json:"current_tier"`
-	NextTier       *CashbackTier   `json:"next_tier,omitempty"`
-	TotalExpectedGGR decimal.Decimal `json:"total_expected_ggr"`
-	ProgressToNext   decimal.Decimal `json:"progress_to_next"`
+	UserID                 uuid.UUID       `json:"user_id"`
+	CurrentLevel           int             `json:"current_level"`
+	CurrentTier            CashbackTier    `json:"current_tier"`
+	NextTier               *CashbackTier   `json:"next_tier,omitempty"`
+	TotalExpectedGGR       decimal.Decimal `json:"total_expected_ggr"`
+	ProgressToNext         decimal.Decimal `json:"progress_to_next"`
 	ExpectedGGRToNextLevel decimal.Decimal `json:"expected_ggr_to_next_level"`
-	LastLevelUp    *time.Time      `json:"last_level_up"`
-	LevelProgress  decimal.Decimal `json:"level_progress"`
+	LastLevelUp            *time.Time      `json:"last_level_up"`
+	LevelProgress          decimal.Decimal `json:"level_progress"`
 }
 
 // LevelProgressionResult represents the result of level progression processing

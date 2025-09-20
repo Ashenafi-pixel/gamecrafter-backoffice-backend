@@ -255,15 +255,15 @@ func (s *LevelProgressionService) GetLevelProgressionInfo(ctx context.Context, u
 	}
 
 	progressionInfo := &dto.LevelProgressionInfo{
-		UserID:         userID,
-		CurrentLevel:   userLevel.CurrentLevel,
-		CurrentTier:    *currentTier,
-		NextTier:       nextTier,
-		TotalExpectedGGR: userLevel.TotalExpectedGGR,
-		ProgressToNext: progressToNext,
+		UserID:                 userID,
+		CurrentLevel:           userLevel.CurrentLevel,
+		CurrentTier:            *currentTier,
+		NextTier:               nextTier,
+		TotalExpectedGGR:       userLevel.TotalExpectedGGR,
+		ProgressToNext:         progressToNext,
 		ExpectedGGRToNextLevel: ggrToNext,
-		LastLevelUp:    userLevel.LastLevelUp,
-		LevelProgress:  userLevel.LevelProgress,
+		LastLevelUp:            userLevel.LastLevelUp,
+		LevelProgress:          userLevel.LevelProgress,
 	}
 
 	s.logger.Info("Level progression info retrieved",
