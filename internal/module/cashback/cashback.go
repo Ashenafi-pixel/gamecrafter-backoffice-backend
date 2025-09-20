@@ -99,7 +99,7 @@ func (s *CashbackService) InitializeUserLevel(ctx context.Context, userID uuid.U
 	userLevel := dto.UserLevel{
 		UserID:        userID,
 		CurrentLevel:  1,
-		TotalGGR:      decimal.Zero,
+		TotalExpectedGGR: decimal.Zero,
 		TotalBets:     decimal.Zero,
 		TotalWins:     decimal.Zero,
 		LevelProgress: decimal.Zero,
@@ -179,7 +179,7 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 			zap.String("house_edge", houseEdge.String()))
 	}
 
-	// Calculate expected GGR
+	// Calculate expected GGR (Expected Gross Gaming Revenue)
 	expectedGGR := bet.Amount.Mul(houseEdge)
 
 	// Get current cashback rate
@@ -200,17 +200,17 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 
 	// Create cashback earning
 	cashbackEarning := dto.CashbackEarning{
-		UserID:          bet.UserID,
-		TierID:          userLevel.CurrentTierID,
-		EarningType:     "bet",
-		SourceBetID:     &bet.BetID,
-		GGRAmount:       expectedGGR,
-		CashbackRate:    cashbackRate,
-		EarnedAmount:    earnedCashback,
-		ClaimedAmount:   decimal.Zero,
-		AvailableAmount: earnedCashback,
-		Status:          "available",
-		ExpiresAt:       time.Now().Add(30 * 24 * time.Hour), // 30 days
+		UserID:            bet.UserID,
+		TierID:            userLevel.CurrentTierID,
+		EarningType:       "bet",
+		SourceBetID:       &bet.BetID,
+		ExpectedGGRAmount: expectedGGR,
+		CashbackRate:      cashbackRate,
+		EarnedAmount:      earnedCashback,
+		ClaimedAmount:     decimal.Zero,
+		AvailableAmount:   earnedCashback,
+		Status:            "available",
+		ExpiresAt:         time.Now().Add(30 * 24 * time.Hour), // 30 days
 	}
 
 	// Use retry mechanism for critical operations
@@ -225,13 +225,13 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		"status":                bet.Status,
 		"cashback_earning":      cashbackEarning,
 		"updated_user_level": dto.UserLevel{
-			UserID:        bet.UserID,
-			CurrentLevel:  userLevel.CurrentLevel,
-			TotalGGR:      userLevel.TotalGGR.Add(expectedGGR),
-			TotalBets:     userLevel.TotalBets.Add(bet.Amount),
-			TotalWins:     userLevel.TotalWins.Add(bet.Payout),
-			LevelProgress: userLevel.LevelProgress,
-			CurrentTierID: userLevel.CurrentTierID,
+			UserID:           bet.UserID,
+			CurrentLevel:     userLevel.CurrentLevel,
+			TotalExpectedGGR: userLevel.TotalExpectedGGR.Add(expectedGGR),
+			TotalBets:        userLevel.TotalBets.Add(bet.Amount),
+			TotalWins:        userLevel.TotalWins.Add(bet.Payout),
+			LevelProgress:    userLevel.LevelProgress,
+			CurrentTierID:    userLevel.CurrentTierID,
 		},
 	}, func() error {
 		// Create cashback earning
@@ -242,13 +242,13 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 
 		// Update user level statistics
 		updatedUserLevel := dto.UserLevel{
-			UserID:        bet.UserID,
-			CurrentLevel:  userLevel.CurrentLevel,
-			TotalGGR:      userLevel.TotalGGR.Add(expectedGGR),
-			TotalBets:     userLevel.TotalBets.Add(bet.Amount),
-			TotalWins:     userLevel.TotalWins.Add(bet.Payout), // We use payout as win amount
-			LevelProgress: userLevel.LevelProgress,
-			CurrentTierID: userLevel.CurrentTierID,
+			UserID:           bet.UserID,
+			CurrentLevel:     userLevel.CurrentLevel,
+			TotalExpectedGGR: userLevel.TotalExpectedGGR.Add(expectedGGR),
+			TotalBets:        userLevel.TotalBets.Add(bet.Amount),
+			TotalWins:        userLevel.TotalWins.Add(bet.Payout), // We use payout as win amount
+			LevelProgress:    userLevel.LevelProgress,
+			CurrentTierID:    userLevel.CurrentTierID,
 		}
 
 		_, err = s.storage.UpdateUserLevel(ctx, updatedUserLevel)
@@ -385,7 +385,7 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 			TierID:          earning.TierID,
 			EarningType:     earning.EarningType,
 			SourceBetID:     earning.SourceBetID,
-			GGRAmount:       earning.GGRAmount,
+			ExpectedGGRAmount: earning.ExpectedGGRAmount,
 			CashbackRate:    earning.CashbackRate,
 			EarnedAmount:    earning.EarnedAmount,
 			ClaimedAmount:   earning.ClaimedAmount.Add(claimAmount),
@@ -554,7 +554,7 @@ func (s *CashbackService) CreateManualCashbackEarning(ctx context.Context, userI
 		TierID:          uuid.New(), // Will be set by service based on user level
 		EarningType:     "manual",
 		SourceBetID:     nil,
-		GGRAmount:       amount,
+		ExpectedGGRAmount: amount,
 		CashbackRate:    decimal.NewFromFloat(0.05), // 5% default rate
 		EarnedAmount:    amount,
 		ClaimedAmount:   decimal.Zero,
@@ -796,21 +796,29 @@ func (s *CashbackService) ManualRetryOperation(ctx context.Context, operationID 
 
 // extractGameVariantFromTransaction extracts game variant information from transaction context
 func (s *CashbackService) extractGameVariantFromTransaction(ctx context.Context, transactionID string) string {
-	// This method would typically query the groove_transactions table
-	// to get the game_id that was used in the original transaction
-	// For now, we'll return a placeholder that can be enhanced later
-
 	s.logger.Info("Extracting game variant from transaction",
 		zap.String("transaction_id", transactionID))
 
-	// TODO: Implement actual game variant extraction from groove_transactions table
-	// This would involve:
-	// 1. Querying groove_transactions table by transaction_id
-	// 2. Getting the game_id from the transaction metadata
-	// 3. Mapping game_id to game variant (slot, table, live, etc.)
+	// Get game information from GrooveTech transaction
+	gameID, gameType, err := s.grooveStorage.GetTransactionGameInfo(ctx, transactionID)
+	if err != nil {
+		s.logger.Warn("Failed to extract game variant from transaction",
+			zap.String("transaction_id", transactionID),
+			zap.Error(err))
+		return ""
+	}
 
-	// For now, return empty string to use default categorization
-	return ""
+	// Return the game ID as the variant for specific house edge lookup
+	// This allows us to have game-specific RTP configurations
+	gameVariant := fmt.Sprintf("%s_%s", gameType, gameID)
+
+	s.logger.Info("Extracted game variant from transaction",
+		zap.String("transaction_id", transactionID),
+		zap.String("game_id", gameID),
+		zap.String("game_type", gameType),
+		zap.String("game_variant", gameVariant))
+
+	return gameVariant
 }
 
 // CheckAndProcessLevelProgression checks and processes automatic level progression for a user

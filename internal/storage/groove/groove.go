@@ -63,6 +63,7 @@ type GrooveStorage interface {
 	StoreTransaction(ctx context.Context, transaction *dto.GrooveTransaction, transactionType string) error
 	GetTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
 	GetResultTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
+	GetTransactionGameInfo(ctx context.Context, transactionID string) (gameID, gameType string, err error)
 
 	// Balance synchronization and validation
 	ValidateBalanceSync(ctx context.Context, userID uuid.UUID) (*BalanceSyncStatus, error)
@@ -1105,4 +1106,32 @@ func (s *GrooveStorageImpl) GetBalanceDiscrepancies(ctx context.Context) ([]Bala
 		zap.Int("count", len(discrepancies)))
 
 	return discrepancies, nil
+}
+
+// GetTransactionGameInfo retrieves game information from a transaction
+func (s *GrooveStorageImpl) GetTransactionGameInfo(ctx context.Context, transactionID string) (gameID, gameType string, err error) {
+	s.logger.Info("Getting transaction game info", zap.String("transaction_id", transactionID))
+
+	query := `
+		SELECT game_id, game_type 
+		FROM groove_transactions 
+		WHERE client_transaction_id = $1 
+		ORDER BY created_at DESC 
+		LIMIT 1
+	`
+	
+	err = s.db.GetPool().QueryRow(ctx, query, transactionID).Scan(&gameID, &gameType)
+	if err != nil {
+		s.logger.Warn("Failed to get transaction game info",
+			zap.String("transaction_id", transactionID),
+			zap.Error(err))
+		return "", "", fmt.Errorf("failed to get transaction game info: %w", err)
+	}
+
+	s.logger.Info("Retrieved transaction game info",
+		zap.String("transaction_id", transactionID),
+		zap.String("game_id", gameID),
+		zap.String("game_type", gameType))
+
+	return gameID, gameType, nil
 }

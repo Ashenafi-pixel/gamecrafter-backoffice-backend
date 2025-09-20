@@ -9,53 +9,53 @@ import (
 
 // UserLevel represents a user's current level and progress
 type UserLevel struct {
-	ID            uuid.UUID       `json:"id" db:"id"`
-	UserID        uuid.UUID       `json:"user_id" db:"user_id"`
-	CurrentLevel  int             `json:"current_level" db:"current_level"`
-	TotalGGR      decimal.Decimal `json:"total_ggr" db:"total_ggr"`
-	TotalBets     decimal.Decimal `json:"total_bets" db:"total_bets"`
-	TotalWins     decimal.Decimal `json:"total_wins" db:"total_wins"`
-	LevelProgress decimal.Decimal `json:"level_progress" db:"level_progress"`
-	CurrentTierID uuid.UUID       `json:"current_tier_id" db:"current_tier_id"`
-	LastLevelUp   *time.Time      `json:"last_level_up" db:"last_level_up"`
-	CreatedAt     time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at" db:"updated_at"`
+	ID               uuid.UUID       `json:"id" db:"id"`
+	UserID           uuid.UUID       `json:"user_id" db:"user_id"`
+	CurrentLevel     int             `json:"current_level" db:"current_level"`
+	TotalExpectedGGR decimal.Decimal `json:"total_expected_ggr" db:"total_expected_ggr"`
+	TotalBets        decimal.Decimal `json:"total_bets" db:"total_bets"`
+	TotalWins        decimal.Decimal `json:"total_wins" db:"total_wins"`
+	LevelProgress    decimal.Decimal `json:"level_progress" db:"level_progress"`
+	CurrentTierID    uuid.UUID       `json:"current_tier_id" db:"current_tier_id"`
+	LastLevelUp      *time.Time      `json:"last_level_up" db:"last_level_up"`
+	CreatedAt        time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at" db:"updated_at"`
 }
 
 // CashbackTier represents a cashback tier configuration
 type CashbackTier struct {
-	ID                   uuid.UUID              `json:"id" db:"id"`
-	TierName             string                 `json:"tier_name" db:"tier_name"`
-	TierLevel            int                    `json:"tier_level" db:"tier_level"`
-	MinGGRRequired       decimal.Decimal        `json:"min_ggr_required" db:"min_ggr_required"`
-	CashbackPercentage   decimal.Decimal        `json:"cashback_percentage" db:"cashback_percentage"`
-	BonusMultiplier      decimal.Decimal        `json:"bonus_multiplier" db:"bonus_multiplier"`
-	DailyCashbackLimit   *decimal.Decimal       `json:"daily_cashback_limit" db:"daily_cashback_limit"`
-	WeeklyCashbackLimit  *decimal.Decimal       `json:"weekly_cashback_limit" db:"weekly_cashback_limit"`
-	MonthlyCashbackLimit *decimal.Decimal       `json:"monthly_cashback_limit" db:"monthly_cashback_limit"`
-	SpecialBenefits      map[string]interface{} `json:"special_benefits" db:"special_benefits"`
-	IsActive             bool                   `json:"is_active" db:"is_active"`
-	CreatedAt            time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time              `json:"updated_at" db:"updated_at"`
+	ID                     uuid.UUID              `json:"id" db:"id"`
+	TierName               string                 `json:"tier_name" db:"tier_name"`
+	TierLevel              int                    `json:"tier_level" db:"tier_level"`
+	MinExpectedGGRRequired decimal.Decimal        `json:"min_expected_ggr_required" db:"min_expected_ggr_required"`
+	CashbackPercentage     decimal.Decimal        `json:"cashback_percentage" db:"cashback_percentage"`
+	BonusMultiplier        decimal.Decimal        `json:"bonus_multiplier" db:"bonus_multiplier"`
+	DailyCashbackLimit     *decimal.Decimal       `json:"daily_cashback_limit" db:"daily_cashback_limit"`
+	WeeklyCashbackLimit    *decimal.Decimal       `json:"weekly_cashback_limit" db:"weekly_cashback_limit"`
+	MonthlyCashbackLimit   *decimal.Decimal       `json:"monthly_cashback_limit" db:"monthly_cashback_limit"`
+	SpecialBenefits        map[string]interface{} `json:"special_benefits" db:"special_benefits"`
+	IsActive               bool                   `json:"is_active" db:"is_active"`
+	CreatedAt              time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt              time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 // CashbackEarning represents a cashback earning record
 type CashbackEarning struct {
-	ID              uuid.UUID       `json:"id" db:"id"`
-	UserID          uuid.UUID       `json:"user_id" db:"user_id"`
-	TierID          uuid.UUID       `json:"tier_id" db:"tier_id"`
-	EarningType     string          `json:"earning_type" db:"earning_type"`
-	SourceBetID     *uuid.UUID      `json:"source_bet_id" db:"source_bet_id"`
-	GGRAmount       decimal.Decimal `json:"ggr_amount" db:"ggr_amount"`
-	CashbackRate    decimal.Decimal `json:"cashback_rate" db:"cashback_rate"`
-	EarnedAmount    decimal.Decimal `json:"earned_amount" db:"earned_amount"`
-	ClaimedAmount   decimal.Decimal `json:"claimed_amount" db:"claimed_amount"`
-	AvailableAmount decimal.Decimal `json:"available_amount" db:"available_amount"`
-	Status          string          `json:"status" db:"status"`
-	ExpiresAt       time.Time       `json:"expires_at" db:"expires_at"`
-	ClaimedAt       *time.Time      `json:"claimed_at" db:"claimed_at"`
-	CreatedAt       time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at" db:"updated_at"`
+	ID                uuid.UUID       `json:"id" db:"id"`
+	UserID            uuid.UUID       `json:"user_id" db:"user_id"`
+	TierID            uuid.UUID       `json:"tier_id" db:"tier_id"`
+	EarningType       string          `json:"earning_type" db:"earning_type"`
+	SourceBetID       *uuid.UUID      `json:"source_bet_id" db:"source_bet_id"`
+	ExpectedGGRAmount decimal.Decimal `json:"expected_ggr_amount" db:"expected_ggr_amount"`
+	CashbackRate      decimal.Decimal `json:"cashback_rate" db:"cashback_rate"`
+	EarnedAmount      decimal.Decimal `json:"earned_amount" db:"earned_amount"`
+	ClaimedAmount     decimal.Decimal `json:"claimed_amount" db:"claimed_amount"`
+	AvailableAmount   decimal.Decimal `json:"available_amount" db:"available_amount"`
+	Status            string          `json:"status" db:"status"`
+	ExpiresAt         time.Time       `json:"expires_at" db:"expires_at"`
+	ClaimedAt         *time.Time      `json:"claimed_at" db:"claimed_at"`
+	CreatedAt         time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at" db:"updated_at"`
 }
 
 // CashbackClaim represents a cashback claim request
@@ -208,9 +208,9 @@ type LevelProgressionInfo struct {
 	CurrentLevel   int             `json:"current_level"`
 	CurrentTier    CashbackTier    `json:"current_tier"`
 	NextTier       *CashbackTier   `json:"next_tier,omitempty"`
-	TotalGGR       decimal.Decimal `json:"total_ggr"`
-	ProgressToNext decimal.Decimal `json:"progress_to_next"`
-	GGRToNextLevel decimal.Decimal `json:"ggr_to_next_level"`
+	TotalExpectedGGR decimal.Decimal `json:"total_expected_ggr"`
+	ProgressToNext   decimal.Decimal `json:"progress_to_next"`
+	ExpectedGGRToNextLevel decimal.Decimal `json:"expected_ggr_to_next_level"`
 	LastLevelUp    *time.Time      `json:"last_level_up"`
 	LevelProgress  decimal.Decimal `json:"level_progress"`
 }

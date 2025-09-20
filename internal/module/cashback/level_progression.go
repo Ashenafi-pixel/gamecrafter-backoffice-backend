@@ -58,7 +58,7 @@ func (s *LevelProgressionService) CheckAndProcessLevelProgression(ctx context.Co
 	// Find the highest tier the user qualifies for
 	var highestQualifyingTier *dto.CashbackTier
 	for _, tier := range tiers {
-		if userLevel.TotalGGR.GreaterThanOrEqual(tier.MinGGRRequired) {
+		if userLevel.TotalExpectedGGR.GreaterThanOrEqual(tier.MinExpectedGGRRequired) {
 			if highestQualifyingTier == nil || tier.TierLevel > highestQualifyingTier.TierLevel {
 				highestQualifyingTier = &tier
 			}
@@ -66,9 +66,9 @@ func (s *LevelProgressionService) CheckAndProcessLevelProgression(ctx context.Co
 	}
 
 	if highestQualifyingTier == nil {
-		s.logger.Warn("No qualifying tier found for user", 
+		s.logger.Warn("No qualifying tier found for user",
 			zap.String("user_id", userID.String()),
-			zap.String("current_ggr", userLevel.TotalGGR.String()))
+			zap.String("current_expected_ggr", userLevel.TotalExpectedGGR.String()))
 		return userLevel, nil
 	}
 
@@ -79,8 +79,8 @@ func (s *LevelProgressionService) CheckAndProcessLevelProgression(ctx context.Co
 			zap.Int("current_level", userLevel.CurrentLevel),
 			zap.Int("new_level", highestQualifyingTier.TierLevel),
 			zap.String("new_tier", highestQualifyingTier.TierName),
-			zap.String("total_ggr", userLevel.TotalGGR.String()),
-			zap.String("required_ggr", highestQualifyingTier.MinGGRRequired.String()))
+			zap.String("total_expected_ggr", userLevel.TotalExpectedGGR.String()),
+			zap.String("required_expected_ggr", highestQualifyingTier.MinExpectedGGRRequired.String()))
 
 		// Process the level progression
 		updatedUserLevel, err := s.processLevelProgression(ctx, userLevel, highestQualifyingTier)
@@ -121,12 +121,12 @@ func (s *LevelProgressionService) processLevelProgression(ctx context.Context, u
 		// Find next tier for progress calculation
 		nextTier, err := s.storage.GetCashbackTierByLevel(ctx, newTier.TierLevel+1)
 		if err == nil && nextTier != nil {
-			// Calculate progress: (current_ggr - current_tier_min) / (next_tier_min - current_tier_min)
-			currentTierMin := newTier.MinGGRRequired
-			nextTierMin := nextTier.MinGGRRequired
-			progressNumerator := userLevel.TotalGGR.Sub(currentTierMin)
+			// Calculate progress: (current_expected_ggr - current_tier_min) / (next_tier_min - current_tier_min)
+			currentTierMin := newTier.MinExpectedGGRRequired
+			nextTierMin := nextTier.MinExpectedGGRRequired
+			progressNumerator := userLevel.TotalExpectedGGR.Sub(currentTierMin)
 			progressDenominator := nextTierMin.Sub(currentTierMin)
-			
+
 			if progressDenominator.GreaterThan(decimal.Zero) {
 				levelProgress = progressNumerator.Div(progressDenominator)
 				if levelProgress.GreaterThan(decimal.NewFromInt(1)) {
@@ -141,17 +141,17 @@ func (s *LevelProgressionService) processLevelProgression(ctx context.Context, u
 	// Update user level
 	now := time.Now()
 	updatedUserLevel := dto.UserLevel{
-		ID:            userLevel.ID,
-		UserID:        userLevel.UserID,
-		CurrentLevel:  newTier.TierLevel,
-		TotalGGR:      userLevel.TotalGGR,
-		TotalBets:     userLevel.TotalBets,
-		TotalWins:     userLevel.TotalWins,
-		LevelProgress: levelProgress,
-		CurrentTierID: newTier.ID,
-		LastLevelUp:   &now,
-		CreatedAt:     userLevel.CreatedAt,
-		UpdatedAt:     now,
+		ID:               userLevel.ID,
+		UserID:           userLevel.UserID,
+		CurrentLevel:     newTier.TierLevel,
+		TotalExpectedGGR: userLevel.TotalExpectedGGR,
+		TotalBets:        userLevel.TotalBets,
+		TotalWins:        userLevel.TotalWins,
+		LevelProgress:    levelProgress,
+		CurrentTierID:    newTier.ID,
+		LastLevelUp:      &now,
+		CreatedAt:        userLevel.CreatedAt,
+		UpdatedAt:        now,
 	}
 
 	// Save updated user level
@@ -236,15 +236,15 @@ func (s *LevelProgressionService) GetLevelProgressionInfo(ctx context.Context, u
 	var progressToNext decimal.Decimal
 	var ggrToNext decimal.Decimal
 	if nextTier != nil {
-		ggrToNext = nextTier.MinGGRRequired.Sub(userLevel.TotalGGR)
+		ggrToNext = nextTier.MinExpectedGGRRequired.Sub(userLevel.TotalExpectedGGR)
 		if ggrToNext.LessThanOrEqual(decimal.Zero) {
 			progressToNext = decimal.NewFromInt(1) // Already qualified
 		} else {
-			currentTierMin := currentTier.MinGGRRequired
-			nextTierMin := nextTier.MinGGRRequired
-			progressNumerator := userLevel.TotalGGR.Sub(currentTierMin)
+			currentTierMin := currentTier.MinExpectedGGRRequired
+			nextTierMin := nextTier.MinExpectedGGRRequired
+			progressNumerator := userLevel.TotalExpectedGGR.Sub(currentTierMin)
 			progressDenominator := nextTierMin.Sub(currentTierMin)
-			
+
 			if progressDenominator.GreaterThan(decimal.Zero) {
 				progressToNext = progressNumerator.Div(progressDenominator)
 				if progressToNext.GreaterThan(decimal.NewFromInt(1)) {
@@ -255,15 +255,15 @@ func (s *LevelProgressionService) GetLevelProgressionInfo(ctx context.Context, u
 	}
 
 	progressionInfo := &dto.LevelProgressionInfo{
-		UserID:           userID,
-		CurrentLevel:     userLevel.CurrentLevel,
-		CurrentTier:      *currentTier,
-		NextTier:         nextTier,
-		TotalGGR:         userLevel.TotalGGR,
-		ProgressToNext:   progressToNext,
-		GGRToNextLevel:   ggrToNext,
-		LastLevelUp:      userLevel.LastLevelUp,
-		LevelProgress:    userLevel.LevelProgress,
+		UserID:         userID,
+		CurrentLevel:   userLevel.CurrentLevel,
+		CurrentTier:    *currentTier,
+		NextTier:       nextTier,
+		TotalExpectedGGR: userLevel.TotalExpectedGGR,
+		ProgressToNext: progressToNext,
+		ExpectedGGRToNextLevel: ggrToNext,
+		LastLevelUp:    userLevel.LastLevelUp,
+		LevelProgress:  userLevel.LevelProgress,
 	}
 
 	s.logger.Info("Level progression info retrieved",
@@ -289,7 +289,7 @@ func (s *LevelProgressionService) ProcessBulkLevelProgression(ctx context.Contex
 
 		userLevel, err := s.CheckAndProcessLevelProgression(ctx, userID)
 		if err != nil {
-			s.logger.Error("Failed to process level progression for user", 
+			s.logger.Error("Failed to process level progression for user",
 				zap.String("user_id", userID.String()),
 				zap.Error(err))
 			result.Error = err.Error()
