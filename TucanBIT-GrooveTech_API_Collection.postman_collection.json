@@ -82,6 +82,36 @@
 			"value": "test_signature",
 			"type": "string",
 			"description": "HMAC-SHA256 signature for request validation"
+		},
+		{
+			"key": "wager_amount",
+			"value": "10.0",
+			"type": "string",
+			"description": "Wager amount for testing"
+		},
+		{
+			"key": "rollback_transaction_id",
+			"value": "rollback_tx_001",
+			"type": "string",
+			"description": "Rollback transaction ID for testing"
+		},
+		{
+			"key": "bet_id",
+			"value": "bet_001",
+			"type": "string",
+			"description": "Bet ID for testing"
+		},
+		{
+			"key": "operation_id",
+			"value": "op_001",
+			"type": "string",
+			"description": "Operation ID for retry operations"
+		},
+		{
+			"key": "session_id",
+			"value": "session_001",
+			"type": "string",
+			"description": "Session ID for game validation"
 		}
 	],
 	"item": [
@@ -3744,13 +3774,14 @@
 									}
 								],
 								"url": {
-									"raw": "{{base_url}}/admin/cashback/users/{{user_id}}",
+									"raw": "{{base_url}}/admin/cashback/dashboard/users/{{user_id}}",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
 										"admin",
 										"cashback",
+										"dashboard",
 										"users",
 										"{{user_id}}"
 									]
@@ -4263,6 +4294,1266 @@
 										"risksettings"
 									]
 								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Missing Cashback APIs",
+			"item": [
+				{
+					"name": "User Cashback Operations",
+					"item": [
+						{
+							"name": "Get Retryable Operations",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/cashback/retry-operations",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback",
+										"retry-operations"
+									]
+								},
+								"description": "Get list of operations that can be retried by the user."
+							}
+						},
+						{
+							"name": "Manual Retry Operation",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/cashback/retry-operations/{{operation_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback",
+										"retry-operations",
+										"{{operation_id}}"
+									]
+								},
+								"description": "Manually retry a specific operation."
+							}
+						},
+						{
+							"name": "Get Level Progression Info",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/cashback/level-progression",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback",
+										"level-progression"
+									]
+								},
+								"description": "Get user's level progression information and requirements."
+							}
+						}
+					]
+				},
+				{
+					"name": "Balance Synchronization",
+					"item": [
+						{
+							"name": "Validate Balance Sync",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/balance/validate-sync",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"balance",
+										"validate-sync"
+									]
+								},
+								"description": "Validate balance synchronization between systems."
+							}
+						},
+						{
+							"name": "Reconcile Balances",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"force_reconcile\": false,\n  \"currency_codes\": [\"USD\", \"ETH\"]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/user/balance/reconcile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"balance",
+										"reconcile"
+									]
+								},
+								"description": "Reconcile user balances across different systems."
+							}
+						}
+					]
+				},
+				{
+					"name": "Admin Cashback Dashboard",
+					"item": [
+						{
+							"name": "Get Dashboard Stats",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/dashboard",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"dashboard"
+									]
+								},
+								"description": "Get comprehensive dashboard statistics for admin."
+							}
+						},
+						{
+							"name": "Get Dashboard Analytics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/dashboard/analytics",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"dashboard",
+										"analytics"
+									]
+								},
+								"description": "Get detailed analytics for admin dashboard."
+							}
+						},
+						{
+							"name": "Get System Health",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/dashboard/health",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"dashboard",
+										"health"
+									]
+								},
+								"description": "Get system health status for cashback system."
+							}
+						},
+						{
+							"name": "Get User Cashback Details (Corrected URL)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/dashboard/users/{{user_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"dashboard",
+										"users",
+										"{{user_id}}"
+									]
+								},
+								"description": "Get detailed cashback information for a specific user."
+							}
+						},
+						{
+							"name": "Process Manual Cashback",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"amount\": 50.00,\n  \"reason\": \"Manual cashback adjustment\",\n  \"notes\": \"Compensation for technical issues\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/dashboard/manual-cashback",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"dashboard",
+										"manual-cashback"
+									]
+								},
+								"description": "Process manual cashback for a user."
+							}
+						}
+					]
+				},
+				{
+					"name": "Admin Cashback Management",
+					"item": [
+						{
+							"name": "Create Cashback Promotion",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"promotion_name\": \"Weekend Bonus\",\n  \"description\": \"Extra cashback for weekend players\",\n  \"bonus_percentage\": 2.0,\n  \"start_date\": \"2025-09-21T00:00:00Z\",\n  \"end_date\": \"2025-09-22T23:59:59Z\",\n  \"target_tiers\": [\"bronze\", \"silver\"],\n  \"max_bonus_amount\": 100.00\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/promotions",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"promotions"
+									]
+								},
+								"description": "Create a new cashback promotion."
+							}
+						},
+						{
+							"name": "Create Game House Edge",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"game_type\": \"plinko\",\n  \"game_variant\": \"standard\",\n  \"house_edge\": 0.03,\n  \"min_bet\": 0.1,\n  \"max_bet\": 500,\n  \"effective_from\": \"2025-09-21T00:00:00Z\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/house-edge",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"house-edge"
+									]
+								},
+								"description": "Create house edge configuration for a game type."
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Missing GrooveTech APIs",
+			"item": [
+				{
+					"name": "GrooveTech Health & Info",
+					"item": [
+						{
+							"name": "GrooveTech Health Check",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove/health",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"health"
+									]
+								},
+								"description": "Check GrooveTech service health status."
+							}
+						}
+					]
+				},
+				{
+					"name": "Official GrooveTech Transaction API",
+					"item": [
+						{
+							"name": "Get Account (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official?account_id={{account_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										}
+									]
+								},
+								"description": "Get account information using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Get Balance (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/balance?account_id={{account_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"balance"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										}
+									]
+								},
+								"description": "Get balance information using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Wager (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/wager?account_id={{account_id}}&transaction_id={{transaction_id}}&amount={{wager_amount}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"wager"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "amount",
+											"value": "{{wager_amount}}"
+										}
+									]
+								},
+								"description": "Process wager transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Result (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/result?account_id={{account_id}}&transaction_id={{transaction_id}}&amount={{result_amount}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"result"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "amount",
+											"value": "{{result_amount}}"
+										}
+									]
+								},
+								"description": "Process result transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Wager and Result (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/wager-and-result?account_id={{account_id}}&transaction_id={{transaction_id}}&wager_amount={{wager_amount}}&result_amount={{result_amount}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"wager-and-result"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "wager_amount",
+											"value": "{{wager_amount}}"
+										},
+										{
+											"key": "result_amount",
+											"value": "{{result_amount}}"
+										}
+									]
+								},
+								"description": "Process wager and result in single transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Rollback (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/rollback?account_id={{account_id}}&transaction_id={{transaction_id}}&amount={{rollback_amount}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"rollback"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "amount",
+											"value": "{{rollback_amount}}"
+										}
+									]
+								},
+								"description": "Process rollback transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Jackpot (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/jackpot?account_id={{account_id}}&transaction_id={{transaction_id}}&amount={{jackpot_amount}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"jackpot"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "amount",
+											"value": "{{jackpot_amount}}"
+										}
+									]
+								},
+								"description": "Process jackpot transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Rollback on Result (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/reversewin?account_id={{account_id}}&transaction_id={{transaction_id}}&win_transaction_id={{win_transaction_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"reversewin"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "win_transaction_id",
+											"value": "{{win_transaction_id}}"
+										}
+									]
+								},
+								"description": "Process rollback on result transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Rollback on Rollback (Official)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/groove-official/rollbackrollback?account_id={{account_id}}&transaction_id={{transaction_id}}&rollback_transaction_id={{rollback_transaction_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"rollbackrollback"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "transaction_id",
+											"value": "{{transaction_id}}"
+										},
+										{
+											"key": "rollback_transaction_id",
+											"value": "{{rollback_transaction_id}}"
+										}
+									]
+								},
+								"description": "Process rollback on rollback transaction using official GrooveTech API."
+							}
+						},
+						{
+							"name": "Process Wager by Batch (Official)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-Groove-Signature",
+										"value": "{{groove_signature}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"transactions\": [\n    {\n      \"transaction_id\": \"batch_tx_001\",\n      \"amount\": 10.0,\n      \"game_id\": \"{{game_id}}\"\n    },\n    {\n      \"transaction_id\": \"batch_tx_002\",\n      \"amount\": 15.0,\n      \"game_id\": \"{{game_id}}\"\n    }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/groove-official/wagerbybatch",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove-official",
+										"wagerbybatch"
+									]
+								},
+								"description": "Process multiple wager transactions in batch using official GrooveTech API."
+							}
+						}
+					]
+				},
+				{
+					"name": "Legacy GrooveTech API",
+					"item": [
+						{
+							"name": "Debit Transaction (Legacy)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"amount\": 10.0,\n  \"game_id\": \"{{game_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/groove/legacy/debit",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"legacy",
+										"debit"
+									]
+								},
+								"description": "Process debit transaction using legacy GrooveTech API."
+							}
+						},
+						{
+							"name": "Credit Transaction (Legacy)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"amount\": 15.0,\n  \"game_id\": \"{{game_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/groove/legacy/credit",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"legacy",
+										"credit"
+									]
+								},
+								"description": "Process credit transaction using legacy GrooveTech API."
+							}
+						},
+						{
+							"name": "Bet Transaction (Legacy)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"amount\": 10.0,\n  \"game_id\": \"{{game_id}}\",\n  \"round_id\": \"{{round_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/groove/legacy/bet",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"legacy",
+										"bet"
+									]
+								},
+								"description": "Process bet transaction using legacy GrooveTech API."
+							}
+						},
+						{
+							"name": "Win Transaction (Legacy)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"amount\": 20.0,\n  \"game_id\": \"{{game_id}}\",\n  \"round_id\": \"{{round_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/groove/legacy/win",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"legacy",
+										"win"
+									]
+								},
+								"description": "Process win transaction using legacy GrooveTech API."
+							}
+						},
+						{
+							"name": "Get Transaction History (Legacy)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/groove/legacy/transactions?account_id={{account_id}}&limit=50",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"groove",
+										"legacy",
+										"transactions"
+									],
+									"query": [
+										{
+											"key": "account_id",
+											"value": "{{account_id}}"
+										},
+										{
+											"key": "limit",
+											"value": "50"
+										}
+									]
+								},
+								"description": "Get transaction history using legacy GrooveTech API."
+							}
+						}
+					]
+				},
+				{
+					"name": "Game Launch API",
+					"item": [
+						{
+							"name": "Launch Game",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"game_id\": \"{{game_id}}\",\n  \"currency\": \"USD\",\n  \"language\": \"en\",\n  \"return_url\": \"https://example.com/return\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/groove/launch-game",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"groove",
+										"launch-game"
+									]
+								},
+								"description": "Launch a GrooveTech game session."
+							}
+						},
+						{
+							"name": "Validate Game Session",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/groove/validate-session/{{session_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"groove",
+										"validate-session",
+										"{{session_id}}"
+									]
+								},
+								"description": "Validate a game session."
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Missing Betting APIs",
+			"item": [
+				{
+					"name": "StreetKings Betting",
+					"item": [
+						{
+							"name": "Get StreetKings Bet History",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/streetkings/bets?page=1&limit=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"streetkings",
+										"bets"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get StreetKings betting history for the user."
+							}
+						}
+					]
+				},
+				{
+					"name": "CryptoKings Betting",
+					"item": [
+						{
+							"name": "Set CryptoKings Config (Admin)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"min_bet\": 1.0,\n  \"max_bet\": 1000.0,\n  \"house_edge\": 0.02,\n  \"price_update_interval\": 30,\n  \"is_active\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/cryptokings/configs",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"cryptokings",
+										"configs"
+									]
+								},
+								"description": "Set CryptoKings game configuration (Admin only)."
+							}
+						},
+						{
+							"name": "Place CryptoKings Bet",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"crypto_type\": \"BTC\",\n  \"bet_amount\": 10.0,\n  \"prediction\": \"up\",\n  \"duration\": 60\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/cryptokings",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"cryptokings"
+									]
+								},
+								"description": "Place a CryptoKings bet."
+							}
+						},
+						{
+							"name": "Get CryptoKings Bet History",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/cryptokings?page=1&limit=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"cryptokings"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get CryptoKings betting history for the user."
+							}
+						},
+						{
+							"name": "Get CryptoKings Current Price",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/cryptokings/price?crypto_type=BTC",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"cryptokings",
+										"price"
+									],
+									"query": [
+										{
+											"key": "crypto_type",
+											"value": "BTC"
+										}
+									]
+								},
+								"description": "Get current cryptocurrency price for CryptoKings."
+							}
+						}
+					]
+				},
+				{
+					"name": "QuickHustles Betting",
+					"item": [
+						{
+							"name": "Place QuickHustle Bet",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"bet_amount\": 5.0,\n  \"game_type\": \"card_selection\",\n  \"selected_cards\": [\"A\", \"K\", \"Q\"]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/quickhustles",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"quickhustles"
+									]
+								},
+								"description": "Place a QuickHustle bet."
+							}
+						},
+						{
+							"name": "User Select Card",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"bet_id\": \"{{bet_id}}\",\n  \"selected_card\": \"A\",\n  \"position\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/quickhustles/selects",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"quickhustles",
+										"selects"
+									]
+								},
+								"description": "User selects a card in QuickHustle game."
+							}
+						},
+						{
+							"name": "Get QuickHustle Bet History",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/quickhustles?page=1&limit=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"quickhustles"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get QuickHustle betting history for the user."
+							}
+						}
+					]
+				},
+				{
+					"name": "Roll Da Dice Betting",
+					"item": [
+						{
+							"name": "Create Roll Da Dice",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"bet_amount\": 10.0,\n  \"dice_count\": 2,\n  \"target_number\": 7,\n  \"game_type\": \"sum\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/rolldadices",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"rolldadices"
+									]
+								},
+								"description": "Create a Roll Da Dice bet."
 							}
 						}
 					]
