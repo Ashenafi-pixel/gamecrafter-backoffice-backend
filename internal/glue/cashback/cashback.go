@@ -16,6 +16,7 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	public := r.Group("/cashback")
 	{
 		public.GET("/tiers", handler.GetCashbackTiers)
+		public.GET("/house-edge", handler.GetGameHouseEdge)
 	}
 
 	// User routes (authentication required)
@@ -26,6 +27,21 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		user.POST("/claim", handler.ClaimCashback)
 		user.GET("/earnings", handler.GetUserCashbackEarnings)
 		user.GET("/claims", handler.GetUserCashbackClaims)
+
+		// Retry operations routes
+		user.GET("/retry-operations", handler.GetRetryableOperations)
+		user.POST("/retry-operations/:operation_id", handler.ManualRetryOperation)
+
+		// Level progression routes
+		user.GET("/level-progression", handler.GetLevelProgressionInfo)
+	}
+
+	// Balance synchronization routes (authentication required)
+	balance := r.Group("/user/balance")
+	balance.Use(middleware.Auth())
+	{
+		balance.GET("/validate-sync", handler.ValidateBalanceSync)
+		balance.POST("/reconcile", handler.ReconcileBalances)
 	}
 
 	// Admin routes (admin authentication required)
@@ -37,6 +53,20 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		admin.POST("/tiers", handler.CreateCashbackTier)
 		admin.PUT("/tiers/:id", handler.UpdateCashbackTier)
 		admin.POST("/promotions", handler.CreateCashbackPromotion)
+		admin.POST("/house-edge", handler.CreateGameHouseEdge)
+
+		// Admin Dashboard routes
+		admin.GET("/dashboard", handler.GetDashboardStats)
+		admin.GET("/dashboard/analytics", handler.GetCashbackAnalytics)
+		admin.GET("/dashboard/health", handler.GetSystemHealth)
+		admin.GET("/dashboard/users/:user_id", handler.GetUserCashbackDetails)
+		admin.POST("/dashboard/manual-cashback", handler.ProcessManualCashback)
+
+		// Admin Retry Operations routes
+		admin.POST("/retry-failed-operations", handler.RetryFailedOperations)
+
+		// Admin Level Progression routes
+		admin.POST("/bulk-level-progression", handler.ProcessBulkLevelProgression)
 	}
 
 	log.Info("Cashback routes initialized successfully")

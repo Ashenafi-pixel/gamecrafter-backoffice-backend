@@ -57,17 +57,23 @@ type GrooveService interface {
 	GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error)
 }
 
+// CashbackService interface for processing cashback
+type CashbackService interface {
+	ProcessBetCashback(ctx context.Context, bet dto.Bet) error
+}
+
 type GrooveServiceImpl struct {
 	storage            groove.GrooveStorage
 	gameSessionStorage groove.GameSessionStorage
-	cashbackService    interface{} // Will be properly typed when integrated
+	cashbackService    CashbackService
 	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
 		storage:            storage,
 		gameSessionStorage: gameSessionStorage,
+		cashbackService:    cashbackService,
 		logger:             logger,
 	}
 }
@@ -433,9 +439,10 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 		}, nil
 	}
 
-	// Check idempotency - if transaction already exists, return original response
-	existingTransaction, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
-	if err == nil && existingTransaction != nil {
+	// Check idempotency - if RESULT transaction already exists, return original response
+	// Note: We don't check for wager transactions here since wager and result use the same transaction ID
+	existingResultTransaction, err := s.storage.GetResultTransactionByID(ctx, req.TransactionID)
+	if err == nil && existingResultTransaction != nil {
 		s.logger.Info("Duplicate result transaction found", zap.String("transaction_id", req.TransactionID))
 
 		// Get current balance
@@ -467,7 +474,7 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 			AccountID:     req.AccountID,
 			SessionID:     req.GameSessionID,
 			Amount:        req.Result,
-			WalletTx:      existingTransaction.AccountTransactionID,
+			WalletTx:      existingResultTransaction.AccountTransactionID,
 			Balance:       currentBalance,
 			BonusWin:      decimal.Zero, // We don't use bonuses
 			RealMoneyWin:  req.Result,
@@ -512,10 +519,13 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 			CreatedAt:     time.Now(),
 		}
 
-		err = s.storage.StoreTransaction(ctx, &transaction)
+		err = s.storage.StoreTransaction(ctx, &transaction, "result")
 		if err != nil {
 			s.logger.Error("Failed to store transaction", zap.Error(err))
 		}
+
+		// Process cashback for zero result (player lost everything)
+		s.processResultCashback(ctx, req, account.UserID)
 
 		return &dto.GrooveResultResponse{
 			Code:         200,
@@ -564,7 +574,7 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 		CreatedAt:     time.Now(),
 	}
 
-	err = s.storage.StoreTransaction(ctx, &transaction)
+	err = s.storage.StoreTransaction(ctx, &transaction, "result")
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 	}
@@ -573,6 +583,9 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("result", req.Result.String()),
 		zap.String("new_balance", newBalance.String()))
+
+	// Process cashback after result is known for accurate GGR calculation
+	s.processResultCashback(ctx, req, account.UserID)
 
 	return &dto.GrooveResultResponse{
 		Code:          200,
@@ -787,7 +800,7 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 		Status:               "completed",
 	}
 
-	err = s.storage.StoreTransaction(ctx, &transaction)
+	err = s.storage.StoreTransaction(ctx, &transaction, "wager")
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 	}
@@ -977,7 +990,7 @@ func (s *GrooveServiceImpl) ProcessRollback(ctx context.Context, req dto.GrooveR
 		CreatedAt:            time.Now(),
 	}
 
-	err = s.storage.StoreTransaction(ctx, rollbackTransaction)
+	err = s.storage.StoreTransaction(ctx, rollbackTransaction, "rollback")
 	if err != nil {
 		s.logger.Error("Failed to store rollback transaction", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
@@ -985,7 +998,7 @@ func (s *GrooveServiceImpl) ProcessRollback(ctx context.Context, req dto.GrooveR
 
 	// Update original wager status
 	originalWager.Status = "rolled_back"
-	err = s.storage.StoreTransaction(ctx, originalWager)
+	err = s.storage.StoreTransaction(ctx, originalWager, "wager")
 	if err != nil {
 		s.logger.Error("Failed to update original wager status", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
@@ -1130,7 +1143,7 @@ func (s *GrooveServiceImpl) ProcessJackpot(ctx context.Context, req dto.GrooveJa
 		CreatedAt:            time.Now(),
 	}
 
-	err = s.storage.StoreTransaction(ctx, jackpotTransaction)
+	err = s.storage.StoreTransaction(ctx, jackpotTransaction, "jackpot")
 	if err != nil {
 		s.logger.Error("Failed to store jackpot transaction", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
@@ -1519,14 +1532,16 @@ func (s *GrooveServiceImpl) ProcessWagerTransaction(ctx context.Context, req dto
 		CreatedAt:            time.Now(),
 	}
 
-	err = s.storage.StoreTransaction(ctx, transaction)
+	err = s.storage.StoreTransaction(ctx, transaction, "wager")
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
 	}
 
-	// Process cashback for this bet
-	s.processBetCashback(ctx, req)
+	// Cashback will be processed after result is known for accurate GGR calculation
+	s.logger.Info("Wager processed - cashback will be calculated after result",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("user_id", req.UserID.String()))
 
 	s.logger.Info("Wager transaction processed successfully",
 		zap.String("transaction_id", req.TransactionID),
@@ -1684,7 +1699,7 @@ func (s *GrooveServiceImpl) ProcessRollbackOnResult(ctx context.Context, req dto
 		CreatedAt:            time.Now(),
 	}
 
-	err = s.storage.StoreTransaction(ctx, rollbackTransaction)
+	err = s.storage.StoreTransaction(ctx, rollbackTransaction, "rollback")
 	if err != nil {
 		s.logger.Error("Failed to store rollback on result transaction", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
@@ -1824,7 +1839,7 @@ func (s *GrooveServiceImpl) ProcessRollbackOnRollback(ctx context.Context, req d
 		CreatedAt:            time.Now(),
 	}
 
-	err = s.storage.StoreTransaction(ctx, rollbackTransaction)
+	err = s.storage.StoreTransaction(ctx, rollbackTransaction, "rollback")
 	if err != nil {
 		s.logger.Error("Failed to store rollback on rollback transaction", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
@@ -1960,7 +1975,7 @@ func (s *GrooveServiceImpl) ProcessWagerByBatch(ctx context.Context, req dto.Gro
 			CreatedAt:            time.Now(),
 		}
 
-		err = s.storage.StoreTransaction(ctx, betTransaction)
+		err = s.storage.StoreTransaction(ctx, betTransaction, "wager")
 		if err != nil {
 			s.logger.Error("Failed to store bet transaction", zap.Error(err))
 			return &dto.GrooveWagerByBatchResponse{
@@ -2001,59 +2016,119 @@ func (s *GrooveServiceImpl) processBetCashback(ctx context.Context, req dto.Groo
 		zap.String("user_id", req.UserID.String()),
 		zap.String("bet_amount", req.BetAmount.String()))
 
-	// Create a bet DTO for cashback processing
-	bet := dto.Bet{
-		BetID:     uuid.New(), // Generate new UUID for cashback tracking
-		UserID:    req.UserID,
-		Amount:    req.BetAmount,
-		Payout:    decimal.Zero, // Will be updated when result is processed
-		Currency:  "USD",
-		GameType:  "groovetech",
-		GameID:    req.GameID,
-		RoundID:   req.RoundID,
-		CreatedAt: time.Now(),
-	}
-
-	// Process cashback asynchronously to avoid blocking the main transaction
-	go func() {
-		// Create a new context for the background processing
-		bgCtx := context.Background()
-		
-		// Initialize cashback service
-		cashbackStorage := s.getCashbackStorage()
-		if cashbackStorage == nil {
-			s.logger.Error("Cashback storage not available")
-			return
-		}
-		
-		cashbackService := s.getCashbackService(cashbackStorage)
-		if cashbackService == nil {
-			s.logger.Error("Cashback service not available")
-			return
+	// Process cashback for the bet
+	if s.cashbackService != nil {
+		// Create a bet DTO for cashback processing
+		bet := dto.Bet{
+			BetID:               uuid.New(),
+			RoundID:             uuid.New(),
+			UserID:              req.UserID,
+			ClientTransactionID: req.TransactionID,
+			Amount:              req.BetAmount,
+			Currency:            "USD",
+			Timestamp:           time.Now(),
+			Payout:              decimal.Zero,
+			CashOutMultiplier:   decimal.Zero,
+			Status:              "completed",
 		}
 
-		// Process the cashback
-		err := cashbackService.ProcessBetCashback(bgCtx, bet)
+		// Process the bet for cashback
+		err := s.cashbackService.ProcessBetCashback(ctx, bet)
 		if err != nil {
-			s.logger.Error("Failed to process cashback",
+			s.logger.Error("Failed to process cashback for GrooveTech bet",
 				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", req.UserID.String()),
 				zap.Error(err))
 		} else {
-			s.logger.Info("Cashback processed successfully",
+			s.logger.Info("Cashback processed successfully for GrooveTech bet",
 				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", req.UserID.String()),
 				zap.String("bet_amount", req.BetAmount.String()))
 		}
-	}()
+	} else {
+		s.logger.Warn("Cashback service not available - skipping cashback processing",
+			zap.String("transaction_id", req.TransactionID))
+	}
 }
 
-// getCashbackStorage returns the cashback storage instance
-func (s *GrooveServiceImpl) getCashbackStorage() interface{} {
-	// Return the cashback service if available
-	return s.cashbackService
-}
+// processResultCashback processes cashback after result is known for accurate GGR calculation
+func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.GrooveResultRequest, userIDStr string) {
+	s.logger.Info("Processing result-based cashback",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("user_id", userIDStr),
+		zap.String("result_amount", req.Result.String()))
 
-// getCashbackService returns the cashback service instance
-func (s *GrooveServiceImpl) getCashbackService(storage interface{}) interface{} {
-	// Return the cashback service if available
-	return s.cashbackService
+	// Parse user ID
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		s.logger.Error("Failed to parse user ID for cashback processing", zap.Error(err))
+		return
+	}
+
+	// Get the original wager transaction to calculate net loss
+	wagerTransaction, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
+	if err != nil {
+		s.logger.Error("Failed to get wager transaction for cashback calculation", zap.Error(err))
+		return
+	}
+
+	if wagerTransaction == nil {
+		s.logger.Warn("No wager transaction found for result - skipping cashback",
+			zap.String("transaction_id", req.TransactionID))
+		return
+	}
+
+	// Calculate net loss (bet amount - winnings)
+	betAmount := wagerTransaction.BetAmount
+	winAmount := req.Result
+	netLoss := betAmount.Sub(winAmount)
+
+	s.logger.Info("Calculating cashback based on net loss",
+		zap.String("bet_amount", betAmount.String()),
+		zap.String("win_amount", winAmount.String()),
+		zap.String("net_loss", netLoss.String()))
+
+	// Only process cashback if there's a net loss (player lost money)
+	if netLoss.LessThanOrEqual(decimal.Zero) {
+		s.logger.Info("No net loss - skipping cashback processing",
+			zap.String("transaction_id", req.TransactionID),
+			zap.String("net_loss", netLoss.String()))
+		return
+	}
+
+	// Process cashback for the net loss
+	if s.cashbackService != nil {
+		// Create a bet DTO for cashback processing based on net loss
+		bet := dto.Bet{
+			BetID:               uuid.New(),
+			RoundID:             uuid.New(),
+			UserID:              userID,
+			ClientTransactionID: req.TransactionID,
+			Amount:              netLoss, // Use net loss instead of bet amount
+			Currency:            "USD",
+			Timestamp:           time.Now(),
+			Payout:              winAmount, // Actual winnings
+			CashOutMultiplier:   decimal.Zero,
+			Status:              "completed",
+		}
+
+		// Process the bet for cashback
+		err := s.cashbackService.ProcessBetCashback(ctx, bet)
+		if err != nil {
+			s.logger.Error("Failed to process result-based cashback",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", userID.String()),
+				zap.String("net_loss", netLoss.String()),
+				zap.Error(err))
+		} else {
+			s.logger.Info("Result-based cashback processed successfully",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", userID.String()),
+				zap.String("net_loss", netLoss.String()),
+				zap.String("cashback_based_on", "net_loss"))
+		}
+	} else {
+		s.logger.Warn("Cashback service not available - skipping result-based cashback processing",
+			zap.String("transaction_id", req.TransactionID))
+	}
 }

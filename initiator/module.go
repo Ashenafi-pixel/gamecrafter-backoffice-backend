@@ -71,6 +71,7 @@ type Module struct {
 	Agent                 module.Agent
 	OTP                   otp.OTPModule
 	Cashback              *cashback.CashbackService
+	CashbackKafkaConsumer *cashback.CashbackKafkaConsumer
 	Groove                groove.GrooveService
 	Email                 email.EmailService
 	Redis                 *redis.RedisOTP
@@ -189,13 +190,14 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		),
 
 		// Initialize the sports service module with the logger
-		SportsService: sportsservice.Init(log, spApiKey, apiSecret, persistence.Sports, persistence.BalanageLogs, persistence.OperationalGroup, persistence.OperationalGroupType),
-		RiskSettings:  risksettings.Init(persistence.RiskSettings, log),
-		Agent:         agentModule,
-		OTP:           otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
-		Cashback:      cashback.NewCashbackService(persistence.Cashback, log),
-		Groove:        groove.NewGrooveService(persistence.Groove, persistence.GameSession, log),
-		Email:         emailService,
-		Redis:         redis,
+		SportsService:         sportsservice.Init(log, spApiKey, apiSecret, persistence.Sports, persistence.BalanageLogs, persistence.OperationalGroup, persistence.OperationalGroupType),
+		RiskSettings:          risksettings.Init(persistence.RiskSettings, log),
+		Agent:                 agentModule,
+		OTP:                   otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
+		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, log),
+		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, log), kafka, log),
+		Groove:                groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, log), log),
+		Email:                 emailService,
+		Redis:                 redis,
 	}
 }

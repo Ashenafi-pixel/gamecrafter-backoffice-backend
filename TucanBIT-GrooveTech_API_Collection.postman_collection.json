@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "tucanbit-groovetech-api-collection",
 		"name": "TucanBIT GrooveTech API Collection",
-		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, and Edge Cases",
+		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), and Edge Cases",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -3062,6 +3062,1212 @@
 					]
 				}
 			]
+		},
+		{
+			"name": "Cashback & User Level System",
+			"item": [
+				{
+					"name": "Public Cashback APIs",
+					"item": [
+						{
+							"name": "Get Cashback Tiers",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/cashback/tiers",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"cashback",
+										"tiers"
+									]
+								},
+								"description": "Get all available cashback tiers with their requirements and benefits."
+							},
+							"response": [
+								{
+									"name": "Successful Response",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/cashback/tiers",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"cashback",
+												"tiers"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "[\n  {\n    \"id\": \"199dae9d-f784-4e20-9b77-46d7f2112229\",\n    \"tier_name\": \"Bronze\",\n    \"tier_level\": 1,\n    \"min_ggr_required\": \"0\",\n    \"cashback_percentage\": \"0.5\",\n    \"bonus_multiplier\": \"1\",\n    \"daily_cashback_limit\": \"50\",\n    \"weekly_cashback_limit\": null,\n    \"monthly_cashback_limit\": null,\n    \"special_benefits\": {},\n    \"is_active\": true,\n    \"created_at\": \"2025-09-12T14:07:21.477098+03:00\",\n    \"updated_at\": \"2025-09-12T14:07:21.477098+03:00\"\n  },\n  {\n    \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"tier_name\": \"Silver\",\n    \"tier_level\": 2,\n    \"min_ggr_required\": \"1000\",\n    \"cashback_percentage\": \"1.0\",\n    \"bonus_multiplier\": \"1.2\",\n    \"daily_cashback_limit\": \"100\",\n    \"weekly_cashback_limit\": \"500\",\n    \"monthly_cashback_limit\": \"2000\",\n    \"special_benefits\": {\n      \"priority_support\": true\n    },\n    \"is_active\": true,\n    \"created_at\": \"2025-09-12T14:07:21.477098+03:00\",\n    \"updated_at\": \"2025-09-12T14:07:21.477098+03:00\"\n  }\n]"
+								}
+							]
+						},
+						{
+							"name": "Get House Edge by Game Type",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/cashback/house-edge?game_type=groovetech",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"cashback",
+										"house-edge"
+									],
+									"query": [
+										{
+											"key": "game_type",
+											"value": "groovetech",
+											"description": "Game type (groovetech, plinko, crash, etc.)"
+										},
+										{
+											"key": "game_variant",
+											"value": "",
+											"description": "Optional game variant",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get house edge configuration for a specific game type."
+							},
+							"response": [
+								{
+									"name": "GrooveTech House Edge",
+									"originalRequest": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{base_url}}/cashback/house-edge?game_type=groovetech",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"cashback",
+												"house-edge"
+											],
+											"query": [
+												{
+													"key": "game_type",
+													"value": "groovetech"
+												}
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"id\": \"c86a1677-bb0f-4cd2-970d-100350bba41c\",\n  \"game_type\": \"groovetech\",\n  \"game_variant\": null,\n  \"house_edge\": \"0.02\",\n  \"min_bet\": \"0.1\",\n  \"max_bet\": \"1000\",\n  \"is_active\": true,\n  \"effective_from\": \"2025-09-16T23:15:12.919831+03:00\",\n  \"effective_until\": null,\n  \"created_at\": \"0001-01-01T00:00:00Z\",\n  \"updated_at\": \"0001-01-01T00:00:00Z\"\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "User Cashback APIs",
+					"item": [
+						{
+							"name": "Get User Cashback Summary",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/cashback",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback"
+									]
+								},
+								"description": "Get user's current cashback status, tier, and available cashback amount."
+							},
+							"response": [
+								{
+									"name": "Successful Response",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{access_token}}"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/user/cashback",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"user",
+												"cashback"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n  \"current_tier\": {\n    \"id\": \"199dae9d-f784-4e20-9b77-46d7f2112229\",\n    \"tier_name\": \"Bronze\",\n    \"tier_level\": 1,\n    \"min_ggr_required\": \"0\",\n    \"cashback_percentage\": \"0.5\",\n    \"bonus_multiplier\": \"1\",\n    \"daily_cashback_limit\": \"50\",\n    \"weekly_cashback_limit\": null,\n    \"monthly_cashback_limit\": null,\n    \"special_benefits\": {},\n    \"is_active\": true,\n    \"created_at\": \"2025-09-12T14:07:21.477098+03:00\",\n    \"updated_at\": \"2025-09-12T14:07:21.477098+03:00\"\n  },\n  \"level_progress\": \"0\",\n  \"total_ggr\": \"2.4\",\n  \"available_cashback\": \"0\",\n  \"pending_cashback\": \"0\",\n  \"total_claimed\": \"0\",\n  \"next_tier_ggr\": \"1000\",\n  \"daily_limit\": \"50\",\n  \"weekly_limit\": null,\n  \"monthly_limit\": null,\n  \"special_benefits\": {}\n}"
+								}
+							]
+						},
+						{
+							"name": "Claim Cashback",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"amount\": \"5.50\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/user/cashback/claim",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback",
+										"claim"
+									]
+								},
+								"description": "Claim available cashback amount. Amount will be credited to user's balance."
+							},
+							"response": [
+								{
+									"name": "Successful Claim",
+									"originalRequest": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{access_token}}"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"amount\": \"5.50\"\n}"
+										},
+										"url": {
+											"raw": "{{base_url}}/user/cashback/claim",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"user",
+												"cashback",
+												"claim"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"claim_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"amount\": \"5.50\",\n  \"net_amount\": \"5.50\",\n  \"processing_fee\": \"0\",\n  \"status\": \"completed\",\n  \"message\": \"Cashback claim processed successfully\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Get User Cashback Earnings",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/cashback/earnings",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback",
+										"earnings"
+									]
+								},
+								"description": "Get user's cashback earnings history."
+							},
+							"response": [
+								{
+									"name": "Feature Not Implemented",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{access_token}}"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/user/cashback/earnings",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"user",
+												"cashback",
+												"earnings"
+											]
+										}
+									},
+									"status": "Not Implemented",
+									"code": 501,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 501,\n  \"message\": \"Feature not implemented yet\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Get User Cashback Claims",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/cashback/claims",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"cashback",
+										"claims"
+									]
+								},
+								"description": "Get user's cashback claims history."
+							},
+							"response": [
+								{
+									"name": "Feature Not Implemented",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{access_token}}"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/user/cashback/claims",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"user",
+												"cashback",
+												"claims"
+											]
+										}
+									},
+									"status": "Not Implemented",
+									"code": 501,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"code\": 501,\n  \"message\": \"Feature not implemented yet\"\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Balance Synchronization APIs",
+					"item": [
+						{
+							"name": "Validate Balance Synchronization",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/balance/validate-sync",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"balance",
+										"validate-sync"
+									]
+								},
+								"description": "Validate if user balances are synchronized between main and GrooveTech systems."
+							},
+							"response": [
+								{
+									"name": "Balances Synchronized",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{access_token}}"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/user/balance/validate-sync",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"user",
+												"balance",
+												"validate-sync"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n  \"main_balance\": \"255\",\n  \"groove_balance\": \"255\",\n  \"is_synchronized\": true,\n  \"discrepancy\": \"0\",\n  \"last_sync_time\": \"2025-09-16T23:13:35.226609+03:00\",\n  \"last_validation_time\": \"2025-09-16T23:18:45.463734749+03:00\"\n}"
+								}
+							]
+						},
+						{
+							"name": "Reconcile Balances",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/user/balance/reconcile",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"user",
+										"balance",
+										"reconcile"
+									]
+								},
+								"description": "Reconcile user balances between main and GrooveTech systems."
+							},
+							"response": [
+								{
+									"name": "Successful Reconciliation",
+									"originalRequest": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{access_token}}"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/user/balance/reconcile",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"user",
+												"balance",
+												"reconcile"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"message\": \"Balances reconciled successfully\",\n  \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\"\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Admin Cashback APIs",
+					"item": [
+						{
+							"name": "Get Cashback Statistics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/stats",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"stats"
+									]
+								},
+								"description": "Get comprehensive cashback system statistics for admin dashboard."
+							},
+							"response": [
+								{
+									"name": "Admin Statistics",
+									"originalRequest": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer {{admin_access_token}}"
+											}
+										],
+										"url": {
+											"raw": "{{base_url}}/admin/cashback/stats",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"admin",
+												"cashback",
+												"stats"
+											]
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"_postman_previewlanguage": "json",
+									"header": [
+										{
+											"key": "Content-Type",
+											"value": "application/json"
+										}
+									],
+									"cookie": [],
+									"body": "{\n  \"total_users\": 1250,\n  \"active_users_today\": 89,\n  \"total_ggr_today\": \"12500.50\",\n  \"total_cashback_paid\": \"1875.25\",\n  \"pending_cashback\": \"125.75\",\n  \"tier_distribution\": {\n    \"bronze\": 850,\n    \"silver\": 300,\n    \"gold\": 80,\n    \"platinum\": 20\n  },\n  \"daily_cashback_limit_reached\": 12,\n  \"system_health\": \"healthy\"\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Admin Cashback Management",
+					"item": [
+						{
+							"name": "Create Cashback Tier",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tier_name\": \"Diamond\",\n  \"min_ggr\": 10000.00,\n  \"cashback_percentage\": 8.0,\n  \"daily_limit\": 500.00,\n  \"description\": \"Diamond tier for high rollers\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/tiers",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"tiers"
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Cashback Tier",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"tier_name\": \"Diamond Plus\",\n  \"min_ggr\": 15000.00,\n  \"cashback_percentage\": 10.0,\n  \"daily_limit\": 750.00,\n  \"description\": \"Diamond Plus tier for VIP players\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/tiers/{{tier_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"tiers",
+										"{{tier_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Cashback Tier",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"id\": \"{{tier_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/tiers/{{tier_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"tiers",
+										"{{tier_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get User Cashback Details",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/users/{{user_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"users",
+										"{{user_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Process Manual Cashback",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"amount\": 50.00,\n  \"reason\": \"Manual cashback adjustment\",\n  \"notes\": \"Compensation for technical issues\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/manual",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"manual"
+									]
+								}
+							}
+						},
+						{
+							"name": "Bulk Level Progression",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  \"{{user_id}}\",\n  \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n  \"b6f279gc-279f-5294-95d6-f03549df11c6\"\n]"
+								},
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/bulk-level-progression",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"bulk-level-progression"
+									]
+								}
+							}
+						},
+						{
+							"name": "Retry Failed Operations",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/admin/cashback/retry-failed-operations",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"admin",
+										"cashback",
+										"retry-failed-operations"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "User Management APIs",
+					"item": [
+						{
+							"name": "Admin Login",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"login_id\": \"admin@tucanbit.com\",\n  \"password\": \"AdminPass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"login"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Users (Admin)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"page\": 1,\n  \"per_page\": 20,\n  \"search\": \"\",\n  \"status\": \"active\",\n  \"sort_by\": \"created_at\",\n  \"sort_order\": \"desc\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/users",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users"
+									]
+								}
+							}
+						},
+						{
+							"name": "Admin Update User Profile",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\",\n  \"status\": \"active\",\n  \"notes\": \"Updated by admin\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/users",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users"
+									]
+								}
+							}
+						},
+						{
+							"name": "Admin Reset User Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"new_password\": \"NewSecurePass123!\",\n  \"reason\": \"Password reset requested by user\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/users/password",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										"password"
+									]
+								}
+							}
+						},
+						{
+							"name": "Admin Register Player",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"phone\": \"+1987654321\",\n  \"password\": \"PlayerPass123!\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"is_admin\": false\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/players/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"players",
+										"register"
+									]
+								}
+							}
+						},
+						{
+							"name": "Block User Account",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"reason\": \"Violation of terms of service\",\n  \"block_duration\": \"permanent\",\n  \"notes\": \"Multiple violations detected\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/users/block",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										"block"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Blocked Accounts",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/admin/users/blocked?page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"users",
+										"blocked"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Admins",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/admins?page=1&per_page=20",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admins"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Signup Bonus",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"is_active\": true,\n  \"description\": \"Welcome bonus for new players\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/signup-bonus",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"signup-bonus"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Signup Bonus",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/admin/signup-bonus",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"signup-bonus"
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Referral Bonus",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"referrer_bonus\": 50.00,\n  \"referee_bonus\": 25.00,\n  \"currency\": \"USD\",\n  \"is_active\": true,\n  \"description\": \"Referral bonus program\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/referral-bonus",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"referral-bonus"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Referral Bonus",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/admin/referral-bonus",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"referral-bonus"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Configuration Management APIs",
+					"item": [
+						{
+							"name": "Get Risk Settings",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/admin/risksettings",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"risksettings"
+									]
+								}
+							}
+						},
+						{
+							"name": "Set Risk Settings",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{admin_access_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"max_bet_amount\": 1000.00,\n  \"max_daily_loss\": 5000.00,\n  \"max_session_duration\": 240,\n  \"cooling_off_period\": 24,\n  \"self_exclusion_periods\": [\"24h\", \"7d\", \"30d\", \"permanent\"],\n  \"deposit_limits\": {\n    \"daily\": 2000.00,\n    \"weekly\": 10000.00,\n    \"monthly\": 50000.00\n  },\n  \"loss_limits\": {\n    \"daily\": 1000.00,\n    \"weekly\": 5000.00,\n    \"monthly\": 20000.00\n  }\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/admin/risksettings",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"admin",
+										"risksettings"
+									]
+								}
+							}
+						}
+					]
+				}
+			]
 		}
 	],
 	"event": [
@@ -3082,92 +4288,6 @@
 					""
 				]
 			}
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:8080",
-			"type": "string",
-			"description": "Base URL for TucanBIT API"
-		},
-		{
-			"key": "access_token",
-			"value": "",
-			"type": "string",
-			"description": "JWT access token from login"
-		},
-		{
-			"key": "user_id",
-			"value": "a5e168fb-168e-4183-84c5-d49038ce00b5",
-			"type": "string",
-			"description": "User ID from login response"
-		},
-		{
-			"key": "account_id",
-			"value": "a25375ec-f4b7-401a-98b3-e924f4373850",
-			"type": "string",
-			"description": "GrooveTech account ID"
-		},
-		{
-			"key": "session_id",
-			"value": "",
-			"type": "string",
-			"description": "Game session ID from game launch"
-		},
-		{
-			"key": "round_id",
-			"value": "round_123",
-			"type": "string",
-			"description": "Game round ID"
-		},
-		{
-			"key": "transaction_id",
-			"value": "txn_456",
-			"type": "string",
-			"description": "Unique transaction ID"
-		},
-		{
-			"key": "email",
-			"value": "testuser@example.com",
-			"type": "string",
-			"description": "Email for new user registration"
-		},
-		{
-			"key": "otp_id",
-			"value": "",
-			"type": "string",
-			"description": "OTP ID from registration response"
-		},
-		{
-			"key": "otp_code",
-			"value": "",
-			"type": "string",
-			"description": "OTP code retrieved from Redis"
-		},
-		{
-			"key": "temp_user_id",
-			"value": "",
-			"type": "string",
-			"description": "Temporary user ID from registration"
-		},
-		{
-			"key": "new_user_access_token",
-			"value": "",
-			"type": "string",
-			"description": "Access token for new user"
-		},
-		{
-			"key": "new_user_account_id",
-			"value": "",
-			"type": "string",
-			"description": "GrooveTech account ID for new user"
-		},
-		{
-			"key": "new_user_session_id",
-			"value": "",
-			"type": "string",
-			"description": "Game session ID for new user"
 		}
 	]
 }

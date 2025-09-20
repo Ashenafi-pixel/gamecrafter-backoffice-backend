@@ -13,6 +13,29 @@ import (
 	"go.uber.org/zap"
 )
 
+// BalanceSyncStatus represents the synchronization status of user balances
+type BalanceSyncStatus struct {
+	UserID             uuid.UUID       `json:"user_id"`
+	MainBalance        decimal.Decimal `json:"main_balance"`
+	GrooveBalance      decimal.Decimal `json:"groove_balance"`
+	IsSynchronized     bool            `json:"is_synchronized"`
+	Discrepancy        decimal.Decimal `json:"discrepancy"`
+	LastSyncTime       *time.Time      `json:"last_sync_time"`
+	LastValidationTime time.Time       `json:"last_validation_time"`
+}
+
+// BalanceDiscrepancy represents a balance discrepancy found in the system
+type BalanceDiscrepancy struct {
+	UserID              uuid.UUID       `json:"user_id"`
+	Username            string          `json:"username"`
+	Email               string          `json:"email"`
+	MainBalance         decimal.Decimal `json:"main_balance"`
+	GrooveBalance       decimal.Decimal `json:"groove_balance"`
+	Discrepancy         decimal.Decimal `json:"discrepancy"`
+	LastActivity        *time.Time      `json:"last_activity"`
+	DiscrepancyDetected time.Time       `json:"discrepancy_detected"`
+}
+
 type GrooveStorage interface {
 	// Account operations
 	CreateAccount(ctx context.Context, account dto.GrooveAccount, userID uuid.UUID) (*dto.GrooveAccount, error)
@@ -37,8 +60,14 @@ type GrooveStorage interface {
 	AddBalance(ctx context.Context, userID uuid.UUID, amount decimal.Decimal) (decimal.Decimal, error)
 
 	// Transaction storage for idempotency
-	StoreTransaction(ctx context.Context, transaction *dto.GrooveTransaction) error
+	StoreTransaction(ctx context.Context, transaction *dto.GrooveTransaction, transactionType string) error
 	GetTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
+	GetResultTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
+
+	// Balance synchronization and validation
+	ValidateBalanceSync(ctx context.Context, userID uuid.UUID) (*BalanceSyncStatus, error)
+	ReconcileBalances(ctx context.Context, userID uuid.UUID) error
+	GetBalanceDiscrepancies(ctx context.Context) ([]BalanceDiscrepancy, error)
 
 	// User profile operations
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
@@ -298,7 +327,7 @@ func (s *GrooveStorageImpl) ProcessWagerTransaction(ctx context.Context, req dto
 		CreatedAt:            time.Now(),
 	}
 
-	err = s.StoreTransaction(ctx, transaction)
+	err = s.StoreTransaction(ctx, transaction, "wager")
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		// Don't fail the transaction if storage fails, but log it
@@ -742,10 +771,11 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 }
 
 // StoreTransaction stores a transaction for idempotency checks
-func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *dto.GrooveTransaction) error {
+func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *dto.GrooveTransaction, transactionType string) error {
 	s.logger.Info("Storing transaction",
 		zap.String("transaction_id", transaction.TransactionID),
-		zap.String("account_transaction_id", transaction.AccountTransactionID))
+		zap.String("account_transaction_id", transaction.AccountTransactionID),
+		zap.String("transaction_type", transactionType))
 
 	// Store transaction metadata in JSONB format according to existing table structure
 	metadata := map[string]interface{}{
@@ -764,14 +794,15 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (transaction_id) DO NOTHING
 	`, transaction.TransactionID, transaction.AccountID, transaction.GameSessionID,
-		transaction.BetAmount, "USD", "wager", "completed", metadata)
+		transaction.BetAmount, "USD", transactionType, "completed", metadata)
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		return fmt.Errorf("failed to store transaction: %w", err)
 	}
 
 	s.logger.Info("Transaction stored successfully",
-		zap.String("transaction_id", transaction.TransactionID))
+		zap.String("transaction_id", transaction.TransactionID),
+		zap.String("transaction_type", transactionType))
 
 	return nil
 }
@@ -834,4 +865,227 @@ func (s *GrooveStorageImpl) GetTransactionByID(ctx context.Context, transactionI
 		zap.String("account_transaction_id", transaction.AccountTransactionID))
 
 	return &transaction, nil
+}
+
+// GetResultTransactionByID retrieves a RESULT transaction by its ID (not wager transactions)
+func (s *GrooveStorageImpl) GetResultTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error) {
+	s.logger.Info("Getting result transaction by ID", zap.String("transaction_id", transactionID))
+
+	var transaction dto.GrooveTransaction
+	var metadata map[string]interface{}
+
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT transaction_id, account_id, session_id, amount, metadata, created_at
+		FROM groove_transactions
+		WHERE transaction_id = $1 AND type = 'result'
+	`, transactionID).Scan(
+		&transaction.TransactionID,
+		&transaction.AccountID,
+		&transaction.GameSessionID,
+		&transaction.BetAmount,
+		&metadata,
+		&transaction.CreatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			s.logger.Info("Result transaction not found", zap.String("transaction_id", transactionID))
+			return nil, nil
+		}
+		s.logger.Error("Failed to get result transaction by ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to get result transaction by ID: %w", err)
+	}
+
+	// Extract data from metadata
+	if metadata != nil {
+		if accountTxnID, ok := metadata["account_transaction_id"].(string); ok {
+			transaction.AccountTransactionID = accountTxnID
+		}
+		if roundID, ok := metadata["round_id"].(string); ok {
+			transaction.RoundID = roundID
+		}
+		if gameID, ok := metadata["game_id"].(string); ok {
+			transaction.GameID = gameID
+		}
+		if device, ok := metadata["device"].(string); ok {
+			transaction.Device = device
+		}
+		if frbid, ok := metadata["frbid"].(string); ok {
+			transaction.FRBID = frbid
+		}
+		if userIDStr, ok := metadata["user_id"].(string); ok {
+			userID, err := uuid.Parse(userIDStr)
+			if err == nil {
+				transaction.UserID = userID
+			}
+		}
+	}
+
+	s.logger.Info("Result transaction retrieved successfully",
+		zap.String("transaction_id", transactionID),
+		zap.String("account_transaction_id", transaction.AccountTransactionID))
+
+	return &transaction, nil
+}
+
+// ValidateBalanceSync validates if user balances are synchronized between main and GrooveTech systems
+func (s *GrooveStorageImpl) ValidateBalanceSync(ctx context.Context, userID uuid.UUID) (*BalanceSyncStatus, error) {
+	s.logger.Info("Validating balance synchronization", zap.String("user_id", userID.String()))
+
+	// Get main balance (source of truth)
+	mainBalance, err := s.GetUserBalance(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get main balance", zap.Error(err))
+		return nil, fmt.Errorf("failed to get main balance: %w", err)
+	}
+
+	// Get GrooveTech account balance
+	grooveAccount, err := s.GetAccountByUserID(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get GrooveTech account", zap.Error(err))
+		return nil, fmt.Errorf("failed to get GrooveTech account: %w", err)
+	}
+
+	grooveBalance := grooveAccount.Balance
+
+	// Calculate discrepancy
+	discrepancy := mainBalance.Sub(grooveBalance)
+	isSynchronized := discrepancy.Abs().LessThan(decimal.NewFromFloat(0.01)) // Allow 1 cent tolerance
+
+	// Get last activity time from GrooveTech account
+	var lastSyncTime *time.Time
+	if !grooveAccount.LastActivity.IsZero() {
+		lastSyncTime = &grooveAccount.LastActivity
+	}
+
+	status := &BalanceSyncStatus{
+		UserID:             userID,
+		MainBalance:        mainBalance,
+		GrooveBalance:      grooveBalance,
+		IsSynchronized:     isSynchronized,
+		Discrepancy:        discrepancy,
+		LastSyncTime:       lastSyncTime,
+		LastValidationTime: time.Now(),
+	}
+
+	s.logger.Info("Balance synchronization validation completed",
+		zap.String("user_id", userID.String()),
+		zap.String("main_balance", mainBalance.String()),
+		zap.String("groove_balance", grooveBalance.String()),
+		zap.String("discrepancy", discrepancy.String()),
+		zap.Bool("is_synchronized", isSynchronized))
+
+	return status, nil
+}
+
+// ReconcileBalances synchronizes GrooveTech account balance with main balance
+func (s *GrooveStorageImpl) ReconcileBalances(ctx context.Context, userID uuid.UUID) error {
+	s.logger.Info("Reconciling balances", zap.String("user_id", userID.String()))
+
+	// Start transaction
+	tx, err := s.db.GetPool().Begin(ctx)
+	if err != nil {
+		s.logger.Error("Failed to begin transaction", zap.Error(err))
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Get main balance (source of truth)
+	var mainBalance decimal.Decimal
+	err = tx.QueryRow(ctx, `
+		SELECT COALESCE(amount_units, 0) 
+		FROM balances 
+		WHERE user_id = $1 AND currency_code = 'USD'
+	`, userID).Scan(&mainBalance)
+	if err != nil {
+		s.logger.Error("Failed to get main balance", zap.Error(err))
+		return fmt.Errorf("failed to get main balance: %w", err)
+	}
+
+	// Update GrooveTech account balance to match main balance
+	result, err := tx.Exec(ctx, `
+		UPDATE groove_accounts 
+		SET balance = $2, last_activity = NOW()
+		WHERE user_id = $1
+	`, userID, mainBalance)
+	if err != nil {
+		s.logger.Error("Failed to update GrooveTech balance", zap.Error(err))
+		return fmt.Errorf("failed to update GrooveTech balance: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		s.logger.Warn("No GrooveTech account found for user", zap.String("user_id", userID.String()))
+		return fmt.Errorf("no GrooveTech account found for user")
+	}
+
+	// Commit transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		s.logger.Error("Failed to commit transaction", zap.Error(err))
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.Info("Balance reconciliation completed successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("main_balance", mainBalance.String()))
+
+	return nil
+}
+
+// GetBalanceDiscrepancies finds all users with balance discrepancies
+func (s *GrooveStorageImpl) GetBalanceDiscrepancies(ctx context.Context) ([]BalanceDiscrepancy, error) {
+	s.logger.Info("Getting balance discrepancies")
+
+	query := `
+		SELECT 
+			u.id as user_id,
+			u.username,
+			u.email,
+			COALESCE(b.amount_units, 0) as main_balance,
+			COALESCE(ga.balance, 0) as groove_balance,
+			COALESCE(b.amount_units, 0) - COALESCE(ga.balance, 0) as discrepancy,
+			ga.last_activity
+		FROM users u
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
+		LEFT JOIN groove_accounts ga ON u.id = ga.user_id
+		WHERE ga.user_id IS NOT NULL
+		AND ABS(COALESCE(b.amount_units, 0) - COALESCE(ga.balance, 0)) > 0.01
+		ORDER BY ABS(COALESCE(b.amount_units, 0) - COALESCE(ga.balance, 0)) DESC`
+
+	rows, err := s.db.GetPool().Query(ctx, query)
+	if err != nil {
+		s.logger.Error("Failed to get balance discrepancies", zap.Error(err))
+		return nil, fmt.Errorf("failed to get balance discrepancies: %w", err)
+	}
+	defer rows.Close()
+
+	var discrepancies []BalanceDiscrepancy
+	for rows.Next() {
+		var discrepancy BalanceDiscrepancy
+		var lastActivity *time.Time
+
+		err := rows.Scan(
+			&discrepancy.UserID,
+			&discrepancy.Username,
+			&discrepancy.Email,
+			&discrepancy.MainBalance,
+			&discrepancy.GrooveBalance,
+			&discrepancy.Discrepancy,
+			&lastActivity,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan discrepancy", zap.Error(err))
+			continue
+		}
+
+		discrepancy.LastActivity = lastActivity
+		discrepancy.DiscrepancyDetected = time.Now()
+
+		discrepancies = append(discrepancies, discrepancy)
+	}
+
+	s.logger.Info("Balance discrepancies retrieved successfully",
+		zap.Int("count", len(discrepancies)))
+
+	return discrepancies, nil
 }

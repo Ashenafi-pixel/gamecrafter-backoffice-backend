@@ -15,15 +15,15 @@ import (
 	gormadapter "github.com/casbin/gorm-adapter/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
 	"github.com/tucanbit/platform"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
-	_ "github.com/lib/pq"
-	"github.com/spf13/viper"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 )
 
@@ -79,12 +79,26 @@ func Initiate() {
 	logger.Info("initializing platform layer")
 	platformInstance := platform.InitPlatform(context.Background(), lgr)
 	logger.Info("done initializing platform layer")
-	
+
 	// Now initialize persistence with Redis
 	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP))
 	userBalanceWs := utils.InitUserws(logger, persistence.Balance)
-	
+
 	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, platformInstance.Redis.(*redis.RedisOTP), platformInstance.Pisi)
+
+	// Start cashback Kafka consumer for real-time bet processing
+	if module.CashbackKafkaConsumer != nil {
+		logger.Info("Starting cashback Kafka consumer")
+		if err := module.CashbackKafkaConsumer.StartConsumer(context.Background()); err != nil {
+			logger.Error("Failed to start cashback Kafka consumer", zap.Error(err))
+		} else {
+			logger.Info("Cashback Kafka consumer started successfully")
+		}
+
+		// Start expired cashback processing job
+		go module.CashbackKafkaConsumer.ProcessExpiredCashbackJob(context.Background())
+		logger.Info("Expired cashback processing job started")
+	}
 
 	logger.Info("done initializing module layer")
 
