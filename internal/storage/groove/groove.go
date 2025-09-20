@@ -547,19 +547,23 @@ func (s *GrooveStorageImpl) EndGameSession(ctx context.Context, sessionID string
 func (s *GrooveStorageImpl) GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
 	s.logger.Info("Getting user balance", zap.String("user_id", userID.String()))
 
-	// Get balance from main balances table (source of truth)
-	query := `SELECT amount_units FROM balances WHERE user_id = $1 AND currency_code = 'USD' LIMIT 1`
+	// Get balance from main balances table (source of truth) - using amount_cents
+	query := `SELECT amount_cents FROM balances WHERE user_id = $1 AND currency_code = 'USD' LIMIT 1`
 
-	var balance decimal.Decimal
-	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&balance)
+	var balanceCents int64
+	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&balanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get user balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to get user balance: %w", err)
 	}
 
+	// Convert cents to dollars
+	balance := decimal.NewFromInt(balanceCents).Div(decimal.NewFromInt(100))
+
 	s.logger.Info("User balance retrieved successfully",
 		zap.String("user_id", userID.String()),
-		zap.String("balance", balance.String()))
+		zap.String("balance_cents", fmt.Sprintf("%d", balanceCents)),
+		zap.String("balance_dollars", balance.String()))
 
 	return balance, nil
 }
@@ -638,17 +642,20 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	}
 	defer tx.Rollback(ctx)
 
-	// Get current balance from main balances table
-	var currentBalance decimal.Decimal
+	// Get current balance from main balances table - using amount_cents
+	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(amount_units, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
 		WHERE user_id = $1 AND currency_code = 'USD'
-	`, userID).Scan(&currentBalance)
+	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to get current balance: %w", err)
 	}
+
+	// Convert cents to dollars
+	currentBalance := decimal.NewFromInt(currentBalanceCents).Div(decimal.NewFromInt(100))
 
 	// Check if sufficient funds
 	if currentBalance.LessThan(amount) {
@@ -660,16 +667,18 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 
 	// Calculate new balance
 	newBalance := currentBalance.Sub(amount)
+	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table
+	// Update main balances table - using amount_cents
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_units, updated_at)
-		VALUES ($1, 'USD', $2, NOW())
+		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		VALUES ($1, 'USD', $2, $3, NOW())
 		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
-			amount_units = $2,
+			amount_cents = $2,
+			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalance)
+	`, userID, newBalanceCents, newBalance)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -715,30 +724,35 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	}
 	defer tx.Rollback(ctx)
 
-	// Get current balance from main balances table
-	var currentBalance decimal.Decimal
+	// Get current balance from main balances table - using amount_cents
+	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(amount_units, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
 		WHERE user_id = $1 AND currency_code = 'USD'
-	`, userID).Scan(&currentBalance)
+	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to get current balance: %w", err)
 	}
 
+	// Convert cents to dollars
+	currentBalance := decimal.NewFromInt(currentBalanceCents).Div(decimal.NewFromInt(100))
+
 	// Calculate new balance
 	newBalance := currentBalance.Add(amount)
+	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table
+	// Update main balances table - using amount_cents
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_units, updated_at)
-		VALUES ($1, 'USD', $2, NOW())
+		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		VALUES ($1, 'USD', $2, $3, NOW())
 		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
-			amount_units = $2,
+			amount_cents = $2,
+			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalance)
+	`, userID, newBalanceCents, newBalance)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -989,17 +1003,20 @@ func (s *GrooveStorageImpl) ReconcileBalances(ctx context.Context, userID uuid.U
 	}
 	defer tx.Rollback(ctx)
 
-	// Get main balance (source of truth)
-	var mainBalance decimal.Decimal
+	// Get main balance (source of truth) - using amount_cents
+	var mainBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(amount_units, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
 		WHERE user_id = $1 AND currency_code = 'USD'
-	`, userID).Scan(&mainBalance)
+	`, userID).Scan(&mainBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get main balance", zap.Error(err))
 		return fmt.Errorf("failed to get main balance: %w", err)
 	}
+
+	// Convert cents to dollars
+	mainBalance := decimal.NewFromInt(mainBalanceCents).Div(decimal.NewFromInt(100))
 
 	// Update GrooveTech account balance to match main balance
 	result, err := tx.Exec(ctx, `
