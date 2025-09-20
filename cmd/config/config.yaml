@@ -24,7 +24,7 @@ aws:
 google:
   smtp:
     password: drki dvog hvgk adjx
-    from: alazarbeyene99@gmail.com 
+    from: ashenafialemu66@gmail.com 
   oauth:
     client_id: 290465420820-dt8oe9om2hbsbdno7nl0mtfunpr6cg1g.apps.googleusercontent.com
     client_secret: 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
@@ -32,10 +32,10 @@ google:
 groove:
   operator_id: "3818"
   api_domain: "https://routerstg.groovegaming.com"
-  api_key: "your_groove_api_key_here"
-  home_url: "https://tucanbit.vercel.app"
-  exit_url: "https://tucanbit.vercel.app"
-  history_url: "https://tucanbit.vercel.app/history"
+  api_key: "our_groove_api_key_here"
+  home_url: "https://tucanbit.tv"
+  exit_url: "https://tucanbit.tv"
+  history_url: "https://tucanbit.tv"
   license_type: "Curacao"
   signature_validation: false
   signature_secret: "test_key"
