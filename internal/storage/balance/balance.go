@@ -16,6 +16,50 @@ import (
 	"go.uber.org/zap"
 )
 
+// convertDBBalanceToDTO safely converts a database Balance to DTO Balance, handling null values
+func convertDBBalanceToDTO(dbBalance db.Balance) dto.Balance {
+	// Handle null values properly
+	var amountCents int64
+	if dbBalance.AmountCents.Valid {
+		amountCents = dbBalance.AmountCents.Int64
+	}
+
+	var amountUnits decimal.Decimal
+	if dbBalance.AmountUnits.Valid {
+		amountUnits = dbBalance.AmountUnits.Decimal
+	} else {
+		amountUnits = decimal.Zero
+	}
+
+	var reservedCents int64
+	if dbBalance.ReservedCents.Valid {
+		reservedCents = dbBalance.ReservedCents.Int64
+	}
+
+	var reservedUnits decimal.Decimal
+	if dbBalance.ReservedUnits.Valid {
+		reservedUnits = dbBalance.ReservedUnits.Decimal
+	} else {
+		reservedUnits = decimal.Zero
+	}
+
+	var updateAt time.Time
+	if dbBalance.UpdatedAt.Valid {
+		updateAt = dbBalance.UpdatedAt.Time
+	}
+
+	return dto.Balance{
+		ID:            dbBalance.ID,
+		UserId:        dbBalance.UserID,
+		CurrencyCode:  dbBalance.CurrencyCode,
+		AmountCents:   amountCents,
+		AmountUnits:   amountUnits,
+		ReservedCents: reservedCents,
+		ReservedUnits: reservedUnits,
+		UpdateAt:      updateAt,
+	}
+}
+
 type balance struct {
 	db  *persistencedb.PersistenceDB
 	log *zap.Logger
@@ -43,16 +87,7 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 		err = errors.ErrUnableTocreate.Wrap(err, "unable to create balance ", zap.Any("user", createBalanceReq))
 		return dto.Balance{}, err
 	}
-	return dto.Balance{
-		ID:            blc.ID,
-		UserId:        blc.UserID,
-		CurrencyCode:  blc.CurrencyCode,
-		AmountCents:   blc.AmountCents.Int64,
-		AmountUnits:   blc.AmountUnits.Decimal,
-		ReservedCents: blc.ReservedCents.Int64,
-		ReservedUnits: blc.ReservedUnits.Decimal,
-		UpdateAt:      blc.UpdatedAt.Time,
-	}, nil
+	return convertDBBalanceToDTO(blc), nil
 }
 
 func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto.Balance) (dto.Balance, bool, error) {
@@ -69,16 +104,7 @@ func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto
 		return dto.Balance{}, false, nil
 	}
 
-	return dto.Balance{
-		ID:            blc.ID,
-		UserId:        blc.UserID,
-		CurrencyCode:  blc.CurrencyCode,
-		AmountCents:   blc.AmountCents.Int64,
-		AmountUnits:   blc.AmountUnits.Decimal,
-		ReservedCents: blc.ReservedCents.Int64,
-		ReservedUnits: blc.ReservedUnits.Decimal,
-		UpdateAt:      blc.UpdatedAt.Time,
-	}, true, nil
+	return convertDBBalanceToDTO(blc), true, nil
 
 }
 
@@ -98,16 +124,7 @@ func (b *balance) UpdateBalance(ctx context.Context, updatedBalance dto.Balance)
 		err = errors.ErrUnableTocreate.Wrap(err, err.Error())
 		return dto.Balance{}, err
 	}
-	return dto.Balance{
-		ID:            ubalance.ID,
-		UserId:        ubalance.UserID,
-		CurrencyCode:  ubalance.CurrencyCode,
-		AmountCents:   ubalance.AmountCents.Int64,
-		AmountUnits:   ubalance.AmountUnits.Decimal,
-		ReservedCents: ubalance.ReservedCents.Int64,
-		ReservedUnits: ubalance.ReservedUnits.Decimal,
-		UpdateAt:      ubalance.UpdatedAt.Time,
-	}, err
+	return convertDBBalanceToDTO(ubalance), err
 }
 
 func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]dto.Balance, error) {
@@ -119,16 +136,7 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 		return []dto.Balance{}, err
 	}
 	for _, userBalance := range userBalances {
-		balances = append(balances, dto.Balance{
-			ID:            userBalance.ID,
-			UserId:        userBalance.UserID,
-			CurrencyCode:  userBalance.CurrencyCode,
-			AmountCents:   userBalance.AmountCents.Int64,
-			AmountUnits:   userBalance.AmountUnits.Decimal,
-			ReservedCents: userBalance.ReservedCents.Int64,
-			ReservedUnits: userBalance.ReservedUnits.Decimal,
-			UpdateAt:      userBalance.UpdatedAt.Time,
-		})
+		balances = append(balances, convertDBBalanceToDTO(userBalance))
 	}
 	return balances, nil
 }
@@ -195,16 +203,7 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		}
 	}
 
-	return dto.Balance{
-		ID:            blnc.ID,
-		UserId:        blnc.UserID,
-		CurrencyCode:  blnc.CurrencyCode,
-		AmountCents:   blnc.AmountCents.Int64,
-		AmountUnits:   blnc.AmountUnits.Decimal,
-		ReservedCents: blnc.ReservedCents.Int64,
-		ReservedUnits: blnc.ReservedUnits.Decimal,
-		UpdateAt:      blnc.UpdatedAt.Time,
-	}, nil
+	return convertDBBalanceToDTO(blnc), nil
 }
 
 func (b *balance) SaveManualFunds(ctx context.Context, fund dto.ManualFundReq) (dto.ManualFundRes, error) {
