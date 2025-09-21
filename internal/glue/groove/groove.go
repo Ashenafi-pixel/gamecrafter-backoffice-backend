@@ -28,27 +28,27 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 	}
 
 	// Official GrooveTech Transaction API routes with signature validation
-	// These match the exact specification from GrooveTech documentation
+	// Unified endpoint that handles all operations based on 'request' query parameter
 	officialGroup := grp.Group("/groove-official")
 	{
 		// Get security key for signature validation
 		securityKey := "test_key" // This should come from config in production
 
-		// Authentication & Information Requests
-		officialGroup.GET("", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.GetAccountOfficial)         // Get Account
-		officialGroup.GET("/balance", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.GetBalanceOfficial) // Get Balance
-
-		// Financial Transactions
-		officialGroup.GET("/wager", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessWagerOfficial)                         // Wager
-		officialGroup.GET("/result", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessResultOfficial)                       // Result
-		officialGroup.GET("/wager-and-result", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessWagerAndResultOfficial)     // Wager and Result
-		officialGroup.GET("/rollback", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessRollbackOfficial)                   // Rollback
-		officialGroup.GET("/jackpot", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessJackpotOfficial)                     // Jackpot
-		officialGroup.GET("/reversewin", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessRollbackOnResultOfficial)         // Rollback on Result
-		officialGroup.GET("/rollbackrollback", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessRollbackOnRollbackOfficial) // Rollback on Rollback
-
-		// Sportsbook - Wager by Batch (POST method)
-		officialGroup.POST("/wagerbybatch", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessWagerByBatchOfficial) // Wager by Batch
+		// Unified GrooveTech endpoint - handles all operations via 'request' parameter
+		// GET /groove-official?request=getaccount&accountid=...&gamesessionid=...&device=desktop&apiversion=1.2
+		// GET /groove-official?request=getbalance&accountid=...&gamesessionid=...&device=desktop&nogsgameid=82695&apiversion=1.2
+		// GET /groove-official?request=wager&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid=...&transactionid=...
+		// GET /groove-official?request=result&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&result=15.0&roundid=...&transactionid=...
+		// GET /groove-official?request=wagerAndResult&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid=...&transactionid=...
+		// GET /groove-official?request=rollback&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&rollbackamount=10.0&roundid=...&transactionid=...
+		// GET /groove-official?request=jackpot&accountid=...&gamesessionid=...&gameid=82695&apiversion=1.2&amount=25.0&roundid=...&transactionid=...
+		// GET /groove-official?request=reversewin&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&amount=10.0&roundid=...&transactionid=...
+		// GET /groove-official?request=rollbackrollback&accountid=...&gamesessionid=...&device=desktop&gameid=82695&rollbackAmount=5.0&roundid=...&transactionid=...
+		officialGroup.GET("", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessGrooveOfficialRequest) // Unified GrooveTech Handler
+		
+		// POST endpoint for batch operations
+		// POST /groove-official?request=wagerbybatch&accountid=...&gamesessionid=...&device=desktop&apiversion=1.2
+		officialGroup.POST("", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessGrooveOfficialRequest) // Unified GrooveTech Handler for POST
 	}
 
 	// Legacy GrooveTech API routes (for backward compatibility)

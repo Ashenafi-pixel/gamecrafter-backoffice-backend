@@ -637,3 +637,75 @@ func (h *GrooveHandler) ProcessWagerByBatchOfficial(c *gin.Context) {
 	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
 	officialHandler.ProcessWagerByBatch(c)
 }
+
+// ProcessGrooveOfficialRequest - Unified GrooveTech Official API Handler
+// Handles all GrooveTech operations via 'request' query parameter
+// GET /groove-official?request=getaccount&accountid=...&gamesessionid=...&device=desktop&apiversion=1.2
+// GET /groove-official?request=getbalance&accountid=...&gamesessionid=...&device=desktop&nogsgameid=82695&apiversion=1.2
+// GET /groove-official?request=wager&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&roundid=...&transactionid=...
+// GET /groove-official?request=result&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&result=15.0&roundid=...&transactionid=...
+// GET /groove-official?request=wagerAndResult&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&betamount=10.0&result=15.0&roundid=...&transactionid=...
+// GET /groove-official?request=rollback&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&rollbackamount=10.0&roundid=...&transactionid=...
+// GET /groove-official?request=jackpot&accountid=...&gamesessionid=...&gameid=82695&apiversion=1.2&amount=25.0&roundid=...&transactionid=...
+// GET /groove-official?request=reversewin&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&amount=10.0&roundid=...&transactionid=...
+// GET /groove-official?request=rollbackrollback&accountid=...&gamesessionid=...&device=desktop&gameid=82695&rollbackAmount=5.0&roundid=...&transactionid=...
+// POST /groove-official?request=wagerbybatch&accountid=...&gamesessionid=...&device=desktop&apiversion=1.2
+func (h *GrooveHandler) ProcessGrooveOfficialRequest(c *gin.Context) {
+	h.logger.Info("Processing unified GrooveTech Official request")
+
+	// Get the request type from query parameters
+	requestType := c.Query("request")
+	if requestType == "" {
+		h.logger.Error("Missing 'request' parameter")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Missing required parameter: request",
+			"message": "The 'request' parameter is required to specify the operation type",
+		})
+		return
+	}
+
+	h.logger.Info("GrooveTech request type", zap.String("request", requestType))
+
+	// Delegate to GrooveOfficialHandler based on request type
+	officialHandler := NewGrooveOfficialHandler(h.grooveService, h.logger)
+
+	switch requestType {
+	case "getaccount":
+		h.logger.Info("Routing to GetAccountOfficial")
+		officialHandler.GetAccount(c)
+	case "getbalance":
+		h.logger.Info("Routing to GetBalanceOfficial")
+		officialHandler.GetBalance(c)
+	case "wager":
+		h.logger.Info("Routing to ProcessWagerOfficial")
+		officialHandler.ProcessWager(c)
+	case "result":
+		h.logger.Info("Routing to ProcessResultOfficial")
+		officialHandler.ProcessResult(c)
+	case "wagerAndResult":
+		h.logger.Info("Routing to ProcessWagerAndResultOfficial")
+		officialHandler.ProcessWagerAndResult(c)
+	case "rollback":
+		h.logger.Info("Routing to ProcessRollbackOfficial")
+		officialHandler.ProcessRollback(c)
+	case "jackpot":
+		h.logger.Info("Routing to ProcessJackpotOfficial")
+		officialHandler.ProcessJackpot(c)
+	case "reversewin":
+		h.logger.Info("Routing to ProcessRollbackOnResultOfficial")
+		officialHandler.ProcessRollbackOnResult(c)
+	case "rollbackrollback":
+		h.logger.Info("Routing to ProcessRollbackOnRollbackOfficial")
+		officialHandler.ProcessRollbackOnRollback(c)
+	case "wagerbybatch":
+		h.logger.Info("Routing to ProcessWagerByBatchOfficial")
+		officialHandler.ProcessWagerByBatch(c)
+	default:
+		h.logger.Error("Unknown request type", zap.String("request", requestType))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request type",
+			"message": "The 'request' parameter must be one of: getaccount, getbalance, wager, result, wagerAndResult, rollback, jackpot, reversewin, rollbackrollback, wagerbybatch",
+		})
+		return
+	}
+}
