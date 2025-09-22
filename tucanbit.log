@@ -1,24 +1,867 @@
 nohup: ignoring input
 Starting TucanBIT Online Casino application...
 This is API documentation for TucanBIT online casino
-2025/09/02 22:27:53 Initializing application components
+2025/09/21 17:14:14 Initializing application components
 Initializing application components
-2025-09-02T22:27:53.041+0300	INFO	initiator/initiator.go:39	Logger initialized successfully
-2025-09-02T22:27:53.041+0300	INFO	initiator/initiator.go:42	initializing config 
-2025-09-02T22:27:53.042+0300	INFO	initiator/config.go:35	Configuration loaded	{"app.jwt_secret": "tokensecrethere", "auth.jwt_secret": "tokensecrethere", "smtp.host": "smtp.gmail.com", "smtp.port": 465, "smtp.username": "ashenafialemu66@gmail.com", "smtp.from": "noreply@tucanbit.com", "smtp.use_tls": true}
-2025-09-02T22:27:53.042+0300	INFO	initiator/initiator.go:48	initializing config completed
-2025-09-02T22:27:53.042+0300	INFO	initiator/initiator.go:51	initializing database connect
-2025-09-02T22:27:53.042+0300	INFO	initiator/db.go:17	Attempting to connect to database	{"connection_string": "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"}
-2025-09-02T22:27:53.050+0300	INFO	initiator/initiator.go:53	database connection initialized
-2025-09-02T22:27:53.050+0300	INFO	initiator/initiator.go:58	initializing persistence layer 
-2025-09-02T22:27:53.050+0300	INFO	initiator/initiator.go:60	done initializing persistence layer
-2025-09-02T22:27:53.050+0300	INFO	initiator/initiator.go:67	initializing module layer
-2025-09-02T22:27:53.100+0300	INFO	initiator/initiator.go:79	initializing platform layer
-%4|1756841273.101|CONFWARN|rdkafka#producer-1| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
-%3|1756841273.102|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
-%4|1756841273.104|CONFWARN|rdkafka#consumer-2| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
-%3|1756841273.105|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
-{"level":"error","ts":1756841273.1057787,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-02T22:27:53+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
-{"level":"error","ts":1756841273.1059666,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-02T22:27:53+03:00","error":"1/1 brokers are down","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
-{"level":"error","ts":1756841273.1733527,"caller":"redis/redis_otp.go:35","msg":"failed to connect to Redis","time":"2025-09-02T22:27:53+03:00","error":"server error.redis client error: failed to connect to Redis, cause: dial tcp 127.0.0.1:63790: connect: connection refused","errorVerbose":"server error.redis client error: failed to connect to Redis, cause: dial tcp 127.0.0.1:63790: connect: connection refused\n at github.com/tucanbit/platform/redis.NewRedisOTP()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/redis/redis_otp.go:34\n at github.com/tucanbit/platform.InitPlatform()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/platform.go:69\n at github.com/tucanbit/initiator.Initiate()\n\t/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:80\n at main.main()\n\t/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16\n at runtime.main()\n\t/snap/go/10938/src/runtime/proc.go:283\n at runtime.goexit()\n\t/snap/go/10938/src/runtime/asm_amd64.s:1700","stacktrace":"github.com/tucanbit/platform/redis.NewRedisOTP\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/redis/redis_otp.go:35\ngithub.com/tucanbit/platform.InitPlatform\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/platform.go:69\ngithub.com/tucanbit/initiator.Initiate\n\t/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:80\nmain.main\n\t/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16\nruntime.main\n\t/snap/go/10938/src/runtime/proc.go:283"}
-{"level":"fatal","ts":1756841273.173541,"caller":"platform/platform.go:79","msg":"Failed to initialize Redis client","time":"2025-09-02T22:27:53+03:00","error":"server error.redis client error: failed to connect to Redis, cause: dial tcp 127.0.0.1:63790: connect: connection refused","errorVerbose":"server error.redis client error: failed to connect to Redis, cause: dial tcp 127.0.0.1:63790: connect: connection refused\n at github.com/tucanbit/platform/redis.NewRedisOTP()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/redis/redis_otp.go:34\n at github.com/tucanbit/platform.InitPlatform()\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/platform.go:69\n at github.com/tucanbit/initiator.Initiate()\n\t/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:80\n at main.main()\n\t/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16\n at runtime.main()\n\t/snap/go/10938/src/runtime/proc.go:283\n at runtime.goexit()\n\t/snap/go/10938/src/runtime/asm_amd64.s:1700","stacktrace":"github.com/tucanbit/platform.InitPlatform\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/platform.go:79\ngithub.com/tucanbit/initiator.Initiate\n\t/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:80\nmain.main\n\t/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16\nruntime.main\n\t/snap/go/10938/src/runtime/proc.go:283"}
+2025-09-21T17:14:14.917+0300	INFO	initiator/initiator.go:39	Logger initialized successfully
+2025-09-21T17:14:14.917+0300	INFO	initiator/initiator.go:42	initializing config 
+2025-09-21T17:14:14.918+0300	INFO	initiator/config.go:35	Configuration loaded	{"app.jwt_secret": "tokensecrethere", "auth.jwt_secret": "tokensecrethere", "smtp.host": "smtp.gmail.com", "smtp.port": 465, "smtp.username": "ashenafialemu66@gmail.com", "smtp.from": "noreply@tucanbit.com", "smtp.use_tls": true}
+2025-09-21T17:14:14.918+0300	INFO	initiator/initiator.go:48	initializing config completed
+2025-09-21T17:14:14.918+0300	INFO	initiator/initiator.go:51	initializing database connect
+2025-09-21T17:14:14.918+0300	INFO	initiator/db.go:17	Attempting to connect to database	{"connection_string": "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"}
+2025-09-21T17:14:14.948+0300	INFO	initiator/initiator.go:53	database connection initialized
+2025-09-21T17:14:14.948+0300	INFO	initiator/initiator.go:58	initializing persistence layer 
+2025-09-21T17:14:14.948+0300	INFO	initiator/initiator.go:60	done initializing persistence layer
+2025-09-21T17:14:14.948+0300	INFO	initiator/initiator.go:67	initializing module layer
+2025-09-21T17:14:15.150+0300	INFO	initiator/initiator.go:79	initializing platform layer
+%4|1758464055.159|CONFWARN|rdkafka#producer-1| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1758464055.162|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 3ms in state CONNECT)
+%4|1758464055.176|CONFWARN|rdkafka#consumer-2| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1758464055.177|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+{"level":"error","ts":1758464055.177373,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:15+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+{"level":"error","ts":1758464055.177592,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:15+03:00","error":"1/1 brokers are down","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+{"level":"info","ts":1758464055.1954293,"caller":"redis/redis_otp.go:52","msg":"Successfully loaded existing RSA keys from project files","time":"2025-09-21T17:14:15+03:00"}
+{"level":"info","ts":1758464055.1956303,"caller":"redis/redis_otp.go:55","msg":"Redis OTP client initialized successfully","time":"2025-09-21T17:14:15+03:00","redis_addr":"localhost:63790","key_prefix":"tucanbit:","otp_ttl":300}
+2025-09-21T17:14:15.195+0300	INFO	initiator/initiator.go:81	done initializing platform layer
+2025-09-21T17:14:15.293+0300	INFO	agent/agent.go:53	Agent callback cron started
+2025-09-21T17:14:15.311+0300	INFO	user/user.go:144	Session monitoring service started
+2025-09-21T17:14:15.311+0300	INFO	user/user.go:1723	Starting session monitoring service
+{"level":"info","ts":1758464055.334569,"caller":"kafka/kafka.go:96","msg":"Registered Kafka event handler","time":"2025-09-21T17:14:15+03:00","event_type":"lottery.draw.sync"}
+2025-09-21T17:14:15.334+0300	INFO	initiator/initiator.go:91	Starting cashback Kafka consumer
+2025-09-21T17:14:15.335+0300	INFO	cashback/kafka_consumer.go:50	Starting cashback Kafka consumer
+{"level":"info","ts":1758464055.3350532,"caller":"kafka/kafka.go:96","msg":"Registered Kafka event handler","time":"2025-09-21T17:14:15+03:00","event_type":"bet.completed"}
+{"level":"info","ts":1758464055.3350978,"caller":"kafka/kafka.go:96","msg":"Registered Kafka event handler","time":"2025-09-21T17:14:15+03:00","event_type":"bet.won"}
+{"level":"info","ts":1758464055.3351243,"caller":"kafka/kafka.go:96","msg":"Registered Kafka event handler","time":"2025-09-21T17:14:15+03:00","event_type":"bet.lost"}
+2025-09-21T17:14:15.335+0300	INFO	cashback/kafka_consumer.go:60	Cashback Kafka consumer started successfully
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:95	Cashback Kafka consumer started successfully
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:100	Expired cashback processing job started
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:103	done initializing module layer
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:107	initializing handler layer 
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:109	done initializing handler layer
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:111	initializing http server
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+2025-09-21T17:14:15.335+0300	INFO	cashback/kafka_consumer.go:129	Starting expired cashback processing job
+[GIN-debug] GET    /swagger/*any             --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (4 handlers)
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:119	done initializing server
+2025-09-21T17:14:15.335+0300	INFO	initiator/initiator.go:122	initializing route
+[GIN-debug] POST   /register                 --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateUserRegistration-fm (6 handlers)
+[GIN-debug] GET    /verify                   --> github.com/tucanbit/internal/glue/user.UserHandler.ServeVerificationPage-fm (6 handlers)
+[GIN-debug] POST   /register/complete        --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteUserRegistration-fm (6 handlers)
+[GIN-debug] POST   /register/resend-verification --> github.com/tucanbit/internal/glue/user.UserHandler.ResendVerificationEmail-fm (6 handlers)
+[GIN-debug] POST   /login                    --> github.com/tucanbit/internal/glue/user.UserHandler.Login-fm (6 handlers)
+[GIN-debug] GET    /api/user/profile         --> github.com/tucanbit/internal/glue/user.UserHandler.GetProfile-fm (7 handlers)
+[GIN-debug] POST   /api/user/profile/picture --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateProfilePicture-fm (7 handlers)
+[GIN-debug] PATCH  /api/user/password        --> github.com/tucanbit/internal/glue/user.UserHandler.ChangePassword-fm (7 handlers)
+[GIN-debug] POST   /api/user/password/forget --> github.com/tucanbit/internal/glue/user.UserHandler.ForgetPassword-fm (6 handlers)
+[GIN-debug] POST   /api/user/password/forget/verify --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyResetPassword-fm (6 handlers)
+[GIN-debug] POST   /api/user/password/reset  --> github.com/tucanbit/internal/glue/user.UserHandler.ResetPassword-fm (6 handlers)
+[GIN-debug] POST   /api/user/profile         --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateProfile-fm (7 handlers)
+[GIN-debug] POST   /api/user/profile/confirm --> github.com/tucanbit/internal/glue/user.UserHandler.ConfirmUpdateProfile-fm (7 handlers)
+[GIN-debug] GET    /user/oauth/google        --> github.com/tucanbit/internal/glue/user.UserHandler.HandleGoogleOauthReq-fm (6 handlers)
+[GIN-debug] GET    /user/oauth/google/res    --> github.com/tucanbit/internal/glue/user.UserHandler.HandleGoogleOauthRes-fm (5 handlers)
+[GIN-debug] GET    /user/oauth/facebook      --> github.com/tucanbit/internal/glue/user.UserHandler.FacebookLoginReq-fm (6 handlers)
+[GIN-debug] GET    /user/oauth/facebook/res  --> github.com/tucanbit/internal/glue/user.UserHandler.HandleFacebookOauthRes-fm (5 handlers)
+[GIN-debug] POST   /api/admin/users/block    --> github.com/tucanbit/internal/glue/user.UserHandler.BlockAccount-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users/block/accounts --> github.com/tucanbit/internal/glue/user.UserHandler.GetBlockedAccount-fm (8 handlers)
+[GIN-debug] POST   /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.AddIpFilter-fm (8 handlers)
+[GIN-debug] GET    /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.GetIpFilter-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/users          --> github.com/tucanbit/internal/glue/user.UserHandler.AdminUpdateProfile-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users/password --> github.com/tucanbit/internal/glue/user.UserHandler.AdminResetUsersPassword-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users          --> github.com/tucanbit/internal/glue/user.UserHandler.GetUsers-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.RemoveIPFilter-fm (8 handlers)
+[GIN-debug] GET    /api/user/referral        --> github.com/tucanbit/internal/glue/user.UserHandler.GetMyReferalCodes-fm (6 handlers)
+[GIN-debug] GET    /api/user/referral/users  --> github.com/tucanbit/internal/glue/user.UserHandler.GetMyRefferedUsersAndPoints-fm (6 handlers)
+[GIN-debug] GET    /api/admin/referrals      --> github.com/tucanbit/internal/glue/user.UserHandler.GetCurrentReferralMultiplier-fm (8 handlers)
+[GIN-debug] POST   /api/admin/referrals      --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateReferralMultiplier-fm (8 handlers)
+[GIN-debug] POST   /api/admin/referrals/users --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateUsersPointsForReferrances-fm (8 handlers)
+[GIN-debug] GET    /api/admin/referrals/users --> github.com/tucanbit/internal/glue/user.UserHandler.GetAdminAssignedPoints-fm (8 handlers)
+[GIN-debug] GET    /api/users/points         --> github.com/tucanbit/internal/glue/user.UserHandler.GetUserPoints-fm (6 handlers)
+[GIN-debug] POST   /api/admin/players/register --> github.com/tucanbit/internal/glue/user.UserHandler.AdminRegisterPlayer-fm (7 handlers)
+[GIN-debug] POST   /api/admin/login          --> github.com/tucanbit/internal/glue/user.UserHandler.AdminLogin-fm (6 handlers)
+[GIN-debug] GET    /api/admins               --> github.com/tucanbit/internal/glue/user.UserHandler.GetAdmins-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/signup/bonus   --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateSignupBonus-fm (7 handlers)
+[GIN-debug] GET    /api/admin/signup/bonus   --> github.com/tucanbit/internal/glue/user.UserHandler.GetSignupBonus-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/referral/bonus/config --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateReferralBonus-fm (8 handlers)
+[GIN-debug] GET    /api/admin/referral/bonus/config --> github.com/tucanbit/internal/glue/user.UserHandler.GetReferralBonus-fm (8 handlers)
+[GIN-debug] POST   /refresh                  --> github.com/tucanbit/internal/glue/user.UserHandler.RefreshToken-fm (6 handlers)
+[GIN-debug] POST   /api/user/verify          --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyUser-fm (5 handlers)
+[GIN-debug] POST   /api/user/resend/verification/otp --> github.com/tucanbit/internal/glue/user.UserHandler.ReSendVerificationOTP-fm (5 handlers)
+[GIN-debug] POST   /api/user/otp             --> github.com/tucanbit/internal/glue/user.UserHandler.GetOtp-fm (5 handlers)
+2025-09-21T17:14:15.336+0300	INFO	user/enterprise_registration.go:18	🔧 Initializing enterprise registration routes...
+2025-09-21T17:14:15.336+0300	INFO	user/enterprise_registration.go:54	🔧 Registering enterprise registration routes...	{"route_count": 4}
+[GIN-debug] POST   /api/enterprise/register  --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateEnterpriseRegistration-fm (5 handlers)
+[GIN-debug] POST   /api/enterprise/register/complete --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteEnterpriseRegistration-fm (5 handlers)
+[GIN-debug] GET    /api/enterprise/register/status/:user_id --> github.com/tucanbit/internal/glue/user.UserHandler.GetEnterpriseRegistrationStatus-fm (5 handlers)
+[GIN-debug] POST   /api/enterprise/register/resend --> github.com/tucanbit/internal/glue/user.UserHandler.ResendEnterpriseVerificationEmail-fm (5 handlers)
+2025-09-21T17:14:15.337+0300	INFO	user/enterprise_registration.go:56	Enterprise registration routes initialized successfully
+[GIN-debug] POST   /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.CreateOperationalGroup-fm (8 handlers)
+[GIN-debug] GET    /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.GetOperationalGroups-fm (8 handlers)
+%3|1758464055.337|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:[GIN-debug] POST   /api/admin/operationalgrouptype --> github.com/tucanbit/internal/handler.OperationalGroupType.CreateOperationalGroupType-fm (8 handlers)
+[GIN-debug] GET    /api/operationaltypes     --> github.com/tucanbit/internal/handler.OperationalGroupType.GetOperationalGroupTypes-fm (6 handlers)
+[GIN-debug] GET    /api/admin/operationalgrouptype/:groupID --> github.com/tucanbit/internal/handler.OperationalGroupType.GetOperationalGroupTypesByGroupID-fm (8 handlers)
+9093 failed: Connection refused (after 0ms in state CONNECT)
+%4|1758464055.337|CONFWARN|rdkafka#consumer-3| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+[GIN-debug] GET    /api/operations/definitions --> github.com/tucanbit/internal/handler.OperationsDefinition.GetOperationsDefinitions-fm (6 handlers)
+[GIN-debug] GET    /api/balance              --> github.com/tucanbit/internal/handler.Balance.GetUserBalances-fm (7 handlers)
+[GIN-debug] POST   /api/balance/exchange     --> github.com/tucanbit/internal/handler.Balance.ExchangeBalance-fm (7 handlers)
+[GIN-debug] POST   /api/admin/players/funding --> github.com/tucanbit/internal/handler.Balance.ManualFunding-fm (7 handlers)
+[GIN-debug] GET    /api/admin/balance/log/funds --> github.com/tucanbit/internal/handler.Balance.GetManualFundLogs-fm (8 handlers)
+[GIN-debug] PATCH  /api/wallet/credit        --> github.com/tucanbit/internal/handler.Balance.CreditWallet-fm (5 handlers)
+[GIN-debug] GET    /api/balance/logs         --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogs-fm (6 handlers)
+[GIN-debug] GET    /api/balance/logs/:id     --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogByID-fm (6 handlers)
+[GIN-debug] GET    /api/admin/balance/logs   --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogsForAdmin-fm (8 handlers)
+[GIN-debug] POST   /api/conversion/rate      --> github.com/tucanbit/internal/handler.Exchange.GetExcahnge-fm (5 handlers)
+[GIN-debug] GET    /api/currencies           --> github.com/tucanbit/internal/handler.Exchange.GetAvailableCurrencies-fm (5 handlers)
+[GIN-debug] GET    /ws                       --> github.com/tucanbit/internal/handler.WS.HandleWS-fm (5 handlers)
+{"level":"error","ts":1758464055.3377259,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:15+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+[GIN-debug] GET    /ws/single/player         --> github.com/tucanbit/internal/handler.WS.SinglePlayerStreamWS-fm (5 handlers)
+[GIN-debug] GET    /ws/level/player          --> github.com/tucanbit/internal/handler.WS.PlayerLevelWS-fm (5 handlers)
+[GIN-debug] GET    /ws/notify                --> github.com/tucanbit/internal/handler.WS.NotificationWS-fm (5 handlers)
+[GIN-debug] GET    /ws/session               --> github.com/tucanbit/internal/handler.WS.SessionWS-fm (5 handlers)
+{"level":"error","ts":1758464055.337865,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:15+03:00","error":"1/1 brokers are down","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+[GIN-debug] GET    /ws/player/level/progress --> github.com/tucanbit/internal/handler.WS.PlayerProgressBarWS-fm (5 handlers)
+[GIN-debug] GET    /ws/squads/progress       --> github.com/tucanbit/internal/handler.WS.InitiateTriggerSquadsProgressBar-fm (5 handlers)
+[GIN-debug] GET    /ws/balance/player        --> github.com/tucanbit/internal/handler.WS.UserBalanceWS-fm (5 handlers)
+[GIN-debug] GET    /api/game/round           --> github.com/tucanbit/internal/handler.Bet.GetOpenRound-fm (6 handlers)
+[GIN-debug] POST   /api/game/place-bet       --> github.com/tucanbit/internal/handler.Bet.PlaceBet-fm (7 handlers)
+[GIN-debug] POST   /api/game/cash-out        --> github.com/tucanbit/internal/handler.Bet.CashOut-fm (7 handlers)
+[GIN-debug] GET    /api/admin/game/history   --> github.com/tucanbit/internal/handler.Bet.GetBetHistory-fm (8 handlers)
+[GIN-debug] POST   /api/game/cancel          --> github.com/tucanbit/internal/handler.Bet.CancelBet-fm (8 handlers)
+[GIN-debug] GET    /api/game/leaders         --> github.com/tucanbit/internal/handler.Bet.GetLeaders-fm (7 handlers)
+[GIN-debug] GET    /api/user/game/history    --> github.com/tucanbit/internal/handler.Bet.GetMyBetHistory-fm (7 handlers)
+[GIN-debug] GET    /api/admin/failed/rounds  --> github.com/tucanbit/internal/handler.Bet.GetAllFailedRounds-fm (7 handlers)
+[GIN-debug] POST   /api/admin/failed/rounds  --> github.com/tucanbit/internal/handler.Bet.ManualRefundFailedRound-fm (8 handlers)
+[GIN-debug] GET    /api/plinko/config        --> github.com/tucanbit/internal/handler.Bet.GetPlinkoGameConfig-fm (5 handlers)
+[GIN-debug] POST   /api/plinko/drop          --> github.com/tucanbit/internal/handler.Bet.PlacePlinkoBet-fm (6 handlers)
+[GIN-debug] GET    /api/plinko/history       --> github.com/tucanbit/internal/handler.Bet.GetUserPlinkoBetHistory-fm (6 handlers)
+[GIN-debug] GET    /api/plinko/stats         --> github.com/tucanbit/internal/handler.Bet.GetPlinkoGameStats-fm (6 handlers)
+[GIN-debug] POST   /api/admin/football/leagues --> github.com/tucanbit/internal/handler.Bet.CreateLeague-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/leagues --> github.com/tucanbit/internal/handler.Bet.GetLeagues-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/clubs --> github.com/tucanbit/internal/handler.Bet.CreateClub-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/clubs --> github.com/tucanbit/internal/handler.Bet.GetClubs-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/football/configs --> github.com/tucanbit/internal/handler.Bet.UpdateFootballCardMultiplierValue-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/configs --> github.com/tucanbit/internal/handler.Bet.GetFootballCardMultiplier-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/rounds --> github.com/tucanbit/internal/handler.Bet.CreateFootballMatchRound-fm (8 handlers)
+[GIN-debug] GET    /api/admin/football/rounds --> github.com/tucanbit/internal/handler.Bet.GetFootballMatchRounds-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/matches --> github.com/tucanbit/internal/handler.Bet.CreateFootballMatch-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/rounds/mathces --> github.com/tucanbit/internal/handler.Bet.GetFootballRoundMatchs-fm (8 handlers)
+[GIN-debug] GET    /api/football/rounds/current --> github.com/tucanbit/internal/handler.Bet.GetCurrentFootballRound-fm (5 handlers)
+[GIN-debug] PATCH  /api/admin/football/rounds/matches --> github.com/tucanbit/internal/handler.Bet.CloseFootballMatch-fm (8 handlers)
+[GIN-debug] POST   /api/admin/football/rounds/prices --> github.com/tucanbit/internal/handler.Bet.UpdateFootballRoundPrice-fm (8 handlers)
+[GIN-debug] GET    /api/football/rounds/prices --> github.com/tucanbit/internal/handler.Bet.GetFootballRoundPrice-fm (6 handlers)
+[GIN-debug] POST   /api/football/rounds/bets --> github.com/tucanbit/internal/handler.Bet.PleceBetOnFootballRound-fm (6 handlers)
+[GIN-debug] GET    /api/football/rounds/bets --> github.com/tucanbit/internal/handler.Bet.GetUserFootballBets-fm (6 handlers)
+[GIN-debug] POST   /api/streetkings/bets     --> github.com/tucanbit/internal/handler.Bet.CreateStreetKingsGame-fm (6 handlers)
+[GIN-debug] POST   /api/streetkings/bets/cashout --> github.com/tucanbit/internal/handler.Bet.CashOutStreetKingsBet-fm (6 handlers)
+[GIN-debug] GET    /api/streetkings/bets     --> github.com/tucanbit/internal/handler.Bet.GetStreetkingHistory-fm (6 handlers)
+[GIN-debug] POST   /api/admin/cryptokings/configs --> github.com/tucanbit/internal/handler.Bet.SetCrytoKingsConfig-fm (8 handlers)
+[GIN-debug] POST   /api/cryptokings          --> github.com/tucanbit/internal/handler.Bet.PlaceCryptoKingsBet-fm (6 handlers)
+[GIN-debug] GET    /api/cryptokings          --> github.com/tucanbit/internal/handler.Bet.GetCryptoKingsBetHistory-fm (6 handlers)
+[GIN-debug] GET    /api/cryptokings/price    --> github.com/tucanbit/internal/handler.Bet.GetCryptoKingsCurrentCryptoPrice-fm (6 handlers)
+[GIN-debug] POST   /api/quickhustles         --> github.com/tucanbit/internal/handler.Bet.PlaceQuickHustleBet-fm (6 handlers)
+[GIN-debug] POST   /api/quickhustles/selects --> github.com/tucanbit/internal/handler.Bet.UserSelectCard-fm (6 handlers)
+[GIN-debug] GET    /api/quickhustles         --> github.com/tucanbit/internal/handler.Bet.GetQuickHustleBetHistory-fm (6 handlers)
+[GIN-debug] POST   /api/rolldadices          --> github.com/tucanbit/internal/handler.Bet.CreateRollDaDice-fm (6 handlers)
+[GIN-debug] GET    /api/rolldadices          --> github.com/tucanbit/internal/handler.Bet.GetRollDaDiceHistory-fm (6 handlers)
+[GIN-debug] GET    /api/scratchcards/price   --> github.com/tucanbit/internal/handler.Bet.GetScratchGamePrice-fm (6 handlers)
+[GIN-debug] POST   /api/scratchcards         --> github.com/tucanbit/internal/handler.Bet.PlaceScratchCardBet-fm (6 handlers)
+[GIN-debug] GET    /api/scratchcards         --> github.com/tucanbit/internal/handler.Bet.GetUserScratchCardBetHistories-fm (6 handlers)
+[GIN-debug] GET    /api/spinningwheels/price --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelPrice-fm (6 handlers)
+[GIN-debug] POST   /api/spinningwheels       --> github.com/tucanbit/internal/handler.Bet.PlaceSpinningWheelBet-fm (6 handlers)
+[GIN-debug] GET    /api/spinningwheels       --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelUserBetHistory-fm (6 handlers)
+[GIN-debug] GET    /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.GetGames-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.UpdateGame-fm (7 handlers)
+[GIN-debug] POST   /api/admin/games/disable  --> github.com/tucanbit/internal/handler.Bet.DisableAllGames-fm (7 handlers)
+[GIN-debug] GET    /api/admin/games/available --> github.com/tucanbit/internal/handler.Bet.GetAvailableGames-fm (7 handlers)
+[GIN-debug] DELETE /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.DeleteGame-fm (7 handlers)
+[GIN-debug] POST   /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.AddGame-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/games/status   --> github.com/tucanbit/internal/handler.Bet.UpdateGameStatus-fm (7 handlers)
+[GIN-debug] POST   /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.CreateSpinningWheelMysteries-fm (7 handlers)
+[GIN-debug] GET    /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelMysteries-fm (7 handlers)
+[GIN-debug] DELETE /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.DeleteSpinningWheelMystery-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.UpdateSpinningWheelMystery-fm (7 handlers)
+[GIN-debug] POST   /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.CreateSpinningWheelConfig-fm (7 handlers)
+[GIN-debug] GET    /api/spinningwheels/configs --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelConfigs-fm (6 handlers)
+[GIN-debug] DELETE /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.DeleteSpinningWheelConfig-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.UpdateSpinningWheelConfig-fm (7 handlers)
+[GIN-debug] POST   /api/admin/bets/icons     --> github.com/tucanbit/internal/handler.Bet.UpdateBetIcon-fm (7 handlers)
+[GIN-debug] GET    /api/scratchcard/configs  --> github.com/tucanbit/internal/handler.Bet.GetScratchCardsConfig-fm (7 handlers)
+[GIN-debug] PUT    /api/scratchcard/configs  --> github.com/tucanbit/internal/handler.Bet.UpdateScratchGameConfig-fm (7 handlers)
+[GIN-debug] POST   /api/admin/levels         --> github.com/tucanbit/internal/handler.Bet.CreateLevel-fm (7 handlers)
+[GIN-debug] GET    /api/levels               --> github.com/tucanbit/internal/handler.Bet.GetLevels-fm (7 handlers)
+[GIN-debug] POST   /api/admin/levels/requirements --> github.com/tucanbit/internal/handler.Bet.CreateLevelRequirements-fm (7 handlers)
+[GIN-debug] PUT    /api/admin/levels/requirements --> github.com/tucanbit/internal/handler.Bet.UpdateLevelRequirement-fm (7 handlers)
+[GIN-debug] GET    /api/users/level          --> github.com/tucanbit/internal/handler.Bet.GetUserLevel-fm (6 handlers)
+[GIN-debug] POST   /api/test/fake/transaction --> github.com/tucanbit/internal/handler.Bet.AddFakeBalanceLog-fm (6 handlers)
+[GIN-debug] POST   /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.CreateLootBox-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.UpdateLootBox-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/lootboxes/:id  --> github.com/tucanbit/internal/handler.Bet.DeleteLootBox-fm (8 handlers)
+[GIN-debug] GET    /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.GetLootBox-fm (8 handlers)
+[GIN-debug] GET    /api/bet/lootboxes        --> github.com/tucanbit/internal/handler.Bet.PlaceLootBoxBet-fm (6 handlers)
+[GIN-debug] POST   /api/bet/lootboxes/select --> github.com/tucanbit/internal/handler.Bet.SelectLootBox-fm (6 handlers)
+[GIN-debug] POST   /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.CreateDepartement-fm (8 handlers)
+[GIN-debug] GET    /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.GetDepartement-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.UpdateDepartment-fm (8 handlers)
+[GIN-debug] POST   /api/admin/departments/assign --> github.com/tucanbit/internal/handler.Departements.AssignUserToDepartment-fm (8 handlers)
+[GIN-debug] GET    /api/admin/performance/financial --> github.com/tucanbit/internal/handler.Performance.GetFinancialMetrics-fm (8 handlers)
+[GIN-debug] GET    /api/admin/performance/game --> github.com/tucanbit/internal/handler.Performance.GameMatrics-fm (8 handlers)
+[GIN-debug] GET    /api/admin/permissions    --> github.com/tucanbit/internal/handler.Authz.GetPermissions-fm (7 handlers)
+[GIN-debug] POST   /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.CreateRole-fm (8 handlers)
+[GIN-debug] GET    /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.GetRoles-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.UpdateRolePermissions-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.RemoveRole-fm (8 handlers)
+[GIN-debug] POST   /api/admin/users/roles    --> github.com/tucanbit/internal/handler.Authz.AssignRoleToUser-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/users/roles    --> github.com/tucanbit/internal/handler.Authz.RevokeUserRole-fm (8 handlers)
+[GIN-debug] GET    /api/admin/roles/:id/users --> github.com/tucanbit/internal/handler.Authz.GetRoleUsers-fm (8 handlers)
+[GIN-debug] GET    /api/admin/users/:id/roles --> github.com/tucanbit/internal/handler.Authz.GetUserRoles-fm (8 handlers)
+[GIN-debug] POST   /api/wallet/connect       --> github.com/tucanbit/internal/handler.Authz.ConnectWallet-fm (7 handlers)
+[GIN-debug] DELETE /api/wallet/disconnect/:connection_id --> github.com/tucanbit/internal/handler.Authz.DisconnectWallet-fm (7 handlers)
+[GIN-debug] GET    /api/wallet/list          --> github.com/tucanbit/internal/handler.Authz.GetUserWallets-fm (7 handlers)
+[GIN-debug] POST   /api/wallet/challenge     --> github.com/tucanbit/internal/handler.Authz.CreateWalletChallenge-fm (6 handlers)
+[GIN-debug] POST   /api/wallet/verify        --> github.com/tucanbit/internal/handler.Authz.VerifyWalletChallenge-fm (6 handlers)
+[GIN-debug] POST   /api/wallet/login         --> github.com/tucanbit/internal/handler.Authz.LoginWithWallet-fm (6 handlers)
+[GIN-debug] POST   /api/wallet/test-signature --> github.com/tucanbit/internal/handler.Authz.TestWalletSignature-fm (6 handlers)
+[GIN-debug] POST   /api/admin/logs           --> github.com/tucanbit/internal/handler.SystemLogs.GetSystemLogs-fm (8 handlers)
+[GIN-debug] GET    /api/admin/logs/modules   --> github.com/tucanbit/internal/handler.SystemLogs.GetAvailableLogModules-fm (8 handlers)
+[GIN-debug] POST   /api/admin/companies      --> github.com/tucanbit/internal/handler.Company.CreateCompany-fm (8 handlers)
+[GIN-debug] GET    /api/admin/companies      --> github.com/tucanbit/internal/handler.Company.GetCompanies-fm (8 handlers)
+[GIN-debug] GET    /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.GetCompanyByID-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.UpdateCompany-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.DeleteCompany-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/companies/:id/add-ip --> github.com/tucanbit/internal/handler.Company.AddIP-fm (8 handlers)
+[GIN-debug] GET    /api/admin/report/daily   --> github.com/tucanbit/internal/handler.Report.GetDailyReport-fm (8 handlers)
+[GIN-debug] POST   /api/squads               --> github.com/tucanbit/internal/handler.Squads.CreateSquad-fm (6 handlers)
+[GIN-debug] GET    /api/squads               --> github.com/tucanbit/internal/handler.Squads.GetMySquads-fm (6 handlers)
+[GIN-debug] GET    /api/squads/own           --> github.com/tucanbit/internal/handler.Squads.GetMyOwnSquads-fm (6 handlers)
+[GIN-debug] GET    /api/squads/type          --> github.com/tucanbit/internal/handler.Squads.GetSquadsByType-fm (6 handlers)
+[GIN-debug] GET    /api/squads/name          --> github.com/tucanbit/internal/handler.Squads.GetSquadByName-fm (6 handlers)
+[GIN-debug] PUT    /api/squads/own           --> github.com/tucanbit/internal/handler.Squads.UpdateSquadHandle-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/delete        --> github.com/tucanbit/internal/handler.Squads.DeleteSquad-fm (6 handlers)
+[GIN-debug] POST   /api/squads/members       --> github.com/tucanbit/internal/handler.Squads.CreateSquadMember-fm (6 handlers)
+[GIN-debug] GET    /api/squads/members/bysquadid --> github.com/tucanbit/internal/handler.Squads.GetSquadMembersBySquadID-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/members/:member_id --> github.com/tucanbit/internal/handler.Squads.DeleteSquadMember-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/members/all   --> github.com/tucanbit/internal/handler.Squads.DeleteSquadMembersBySquadID-fm (6 handlers)
+[GIN-debug] GET    /api/squads/earns         --> github.com/tucanbit/internal/handler.Squads.GetSquadEarns-fm (6 handlers)
+[GIN-debug] GET    /api/my/squads/earns      --> github.com/tucanbit/internal/handler.Squads.GetMySquadEarns-fm (6 handlers)
+[GIN-debug] GET    /api/squads/total/earns   --> github.com/tucanbit/internal/handler.Squads.GetSquadTotalEarns-fm (6 handlers)
+[GIN-debug] GET    /api/squads/members/earnings --> github.com/tucanbit/internal/handler.Squads.GetSquadMembersEarnings-fm (6 handlers)
+[GIN-debug] GET    /api/squads/tournament/ranking --> github.com/tucanbit/internal/handler.Squads.GetTornamentStyleRanking-fm (6 handlers)
+[GIN-debug] POST   /api/admins/tournaments   --> github.com/tucanbit/internal/handler.Squads.CreateTournaments-fm (8 handlers)
+[GIN-debug] GET    /api/tournaments          --> github.com/tucanbit/internal/handler.Squads.GetTornamentStyles-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/:squad_id/members/leave --> github.com/tucanbit/internal/handler.Squads.LeaveSquad-fm (6 handlers)
+[GIN-debug] POST   /api/squads/:squad_id/members/join --> github.com/tucanbit/internal/handler.Squads.JoinSquad-fm (6 handlers)
+[GIN-debug] GET    /api/squads/waitlist      --> github.com/tucanbit/internal/handler.Squads.GetSquadWaitlist-fm (6 handlers)
+[GIN-debug] DELETE /api/squads/waitlist/remove --> github.com/tucanbit/internal/handler.Squads.RemoveWaitingSquadWaitingUser-fm (6 handlers)
+[GIN-debug] POST   /api/squads/waitlist/approve --> github.com/tucanbit/internal/handler.Squads.ApproveWaitingSquadMember-fm (6 handlers)
+[GIN-debug] POST   /api/notifications        --> github.com/tucanbit/internal/handler.Notification.CreateNotification-fm (6 handlers)
+[GIN-debug] GET    /api/notifications        --> github.com/tucanbit/internal/handler.Notification.GetUserNotifications-fm (6 handlers)
+[GIN-debug] PATCH  /api/notifications/:id/mark-read --> github.com/tucanbit/internal/handler.Notification.MarkNotificationRead-fm (6 handlers)
+[GIN-debug] PATCH  /api/notifications/mark-all-read --> github.com/tucanbit/internal/handler.Notification.MarkAllNotificationsRead-fm (6 handlers)
+[GIN-debug] DELETE /api/notifications/:id    --> github.com/tucanbit/internal/handler.Notification.DeleteNotification-fm (6 handlers)
+[GIN-debug] GET    /api/admin/adds/services  --> github.com/tucanbit/internal/handler.Adds.GetAddsServices-fm (8 handlers)
+[GIN-debug] POST   /api/admin/adds/services  --> github.com/tucanbit/internal/handler.Adds.SaveAddsService-fm (8 handlers)
+[GIN-debug] POST   /api/adds/signin          --> github.com/tucanbit/internal/handler.Adds.SignIn-fm (5 handlers)
+[GIN-debug] POST   /api/adds/balance/update  --> github.com/tucanbit/internal/handler.Adds.UpdateBalance-fm (6 handlers)
+[GIN-debug] GET    /api/admin/banners        --> github.com/tucanbit/internal/handler.Banner.GetAllBanners-fm (8 handlers)
+[GIN-debug] POST   /api/admin/banners        --> github.com/tucanbit/internal/handler.Banner.CreateBanner-fm (8 handlers)
+[GIN-debug] GET    /api/admin/banners/display --> github.com/tucanbit/internal/handler.Banner.GetBannerByPage-fm (8 handlers)
+[GIN-debug] POST   /api/admin/banners/upload --> github.com/tucanbit/internal/handler.Banner.UploadBannerImage-fm (8 handlers)
+[GIN-debug] PATCH  /api/admin/banners/:id    --> github.com/tucanbit/internal/handler.Banner.UpdateBanner-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/banners/:id    --> github.com/tucanbit/internal/handler.Banner.DeleteBanner-fm (8 handlers)
+[GIN-debug] POST   /admin/lottery/service    --> github.com/tucanbit/internal/handler.Lottery.CreateLotteryService-fm (8 handlers)
+[GIN-debug] POST   /admin/lottery/request    --> github.com/tucanbit/internal/handler.Lottery.CreateLotteryRequest-fm (8 handlers)
+[GIN-debug] POST   /lottery/verify/deduct/balance --> github.com/tucanbit/internal/handler.Lottery.CheckUserBalanceAndDeductBalance-fm (6 handlers)
+[GIN-debug] POST   /api/sports/signin        --> github.com/tucanbit/internal/handler.SportsService.SignIn-fm (5 handlers)
+[GIN-debug] POST   /api/sports/placebet      --> github.com/tucanbit/internal/handler.SportsService.PlaceBet-fm (7 handlers)
+[GIN-debug] POST   /api/sports/awardwinnings --> github.com/tucanbit/internal/handler.SportsService.AwardWinnings-fm (7 handlers)
+[GIN-debug] GET    /api/admin/risk/settings  --> github.com/tucanbit/internal/handler.RiskSettings.GetRiskSettings-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/risk/settings  --> github.com/tucanbit/internal/handler.RiskSettings.SetRiskSettings-fm (8 handlers)
+[GIN-debug] POST   /api/agent/links          --> github.com/tucanbit/internal/handler.Agent.CreateAgentReferralLink-fm (5 handlers)
+[GIN-debug] GET    /api/admin/agent/referrals --> github.com/tucanbit/internal/handler.Agent.GetAgentReferrals-fm (8 handlers)
+[GIN-debug] GET    /api/admin/agent/stats    --> github.com/tucanbit/internal/handler.Agent.GetReferralStats-fm (8 handlers)
+[GIN-debug] POST   /api/admin/agent/providers --> github.com/tucanbit/internal/handler.Agent.CreateAgentProvider-fm (8 handlers)
+[GIN-debug] POST   /api/otp/email-verification --> github.com/tucanbit/internal/handler.OTP.CreateEmailVerification-fm (5 handlers)
+[GIN-debug] POST   /api/otp/verify           --> github.com/tucanbit/internal/handler.OTP.VerifyOTP-fm (5 handlers)
+[GIN-debug] POST   /api/otp/resend           --> github.com/tucanbit/internal/handler.OTP.ResendOTP-fm (5 handlers)
+[GIN-debug] GET    /api/otp/:otp_id          --> github.com/tucanbit/internal/handler.OTP.GetOTPInfo-fm (5 handlers)
+[GIN-debug] DELETE /api/otp/:otp_id/invalidate --> github.com/tucanbit/internal/handler.OTP.InvalidateOTP-fm (5 handlers)
+[GIN-debug] POST   /api/otp/cleanup          --> github.com/tucanbit/internal/handler.OTP.CleanupExpiredOTPs-fm (5 handlers)
+[GIN-debug] GET    /api/otp/stats            --> github.com/tucanbit/internal/handler.OTP.GetOTPStats-fm (5 handlers)
+2025-09-21T17:14:15.342+0300	INFO	cashback/cashback.go:13	Initializing cashback routes
+[GIN-debug] GET    /cashback/tiers           --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackTiers-fm (4 handlers)
+[GIN-debug] GET    /cashback/house-edge      --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetGameHouseEdge-fm (4 handlers)
+[GIN-debug] GET    /user/cashback            --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackSummary-fm (5 handlers)
+[GIN-debug] POST   /user/cashback/claim      --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback-fm (5 handlers)
+[GIN-debug] GET    /user/cashback/earnings   --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackEarnings-fm (5 handlers)
+[GIN-debug] GET    /user/cashback/claims     --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackClaims-fm (5 handlers)
+[GIN-debug] GET    /user/cashback/retry-operations --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetRetryableOperations-fm (5 handlers)
+[GIN-debug] POST   /user/cashback/retry-operations/:operation_id --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ManualRetryOperation-fm (5 handlers)
+[GIN-debug] GET    /user/cashback/level-progression --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetLevelProgressionInfo-fm (5 handlers)
+[GIN-debug] GET    /user/balance/validate-sync --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ValidateBalanceSync-fm (5 handlers)
+[GIN-debug] POST   /user/balance/reconcile   --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ReconcileBalances-fm (5 handlers)
+[GIN-debug] GET    /admin/cashback/stats     --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackStats-fm (6 handlers)
+[GIN-debug] POST   /admin/cashback/tiers     --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).CreateCashbackTier-fm (6 handlers)
+[GIN-debug] PUT    /admin/cashback/tiers/:id --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).UpdateCashbackTier-fm (6 handlers)
+[GIN-debug] POST   /admin/cashback/promotions --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).CreateCashbackPromotion-fm (6 handlers)
+[GIN-debug] POST   /admin/cashback/house-edge --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).CreateGameHouseEdge-fm (6 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetDashboardStats-fm (6 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard/analytics --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackAnalytics-fm (6 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard/health --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetSystemHealth-fm (6 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard/users/:user_id --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackDetails-fm (6 handlers)
+[GIN-debug] POST   /admin/cashback/dashboard/manual-cashback --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ProcessManualCashback-fm (6 handlers)
+[GIN-debug] POST   /admin/cashback/retry-failed-operations --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).RetryFailedOperations-fm (6 handlers)
+[GIN-debug] POST   /admin/cashback/bulk-level-progression --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ProcessBulkLevelProgression-fm (6 handlers)
+2025-09-21T17:14:15.342+0300	INFO	cashback/cashback.go:72	Cashback routes initialized successfully
+2025-09-21T17:14:15.343+0300	INFO	groove/groove.go:16	Initializing GrooveTech Transaction API routes
+[GIN-debug] GET    /groove/account           --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetAccount-fm (4 handlers)
+[GIN-debug] GET    /groove/balance           --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetBalance-fm (4 handlers)
+[GIN-debug] GET    /groove/health            --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).HealthCheck-fm (4 handlers)
+[GIN-debug] GET    /groove-official          --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest-fm (5 handlers)
+[GIN-debug] POST   /groove-official          --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest-fm (5 handlers)
+[GIN-debug] POST   /groove/legacy/debit      --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).DebitTransaction-fm (4 handlers)
+[GIN-debug] POST   /groove/legacy/credit     --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).CreditTransaction-fm (4 handlers)
+[GIN-debug] POST   /groove/legacy/bet        --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).BetTransaction-fm (4 handlers)
+[GIN-debug] POST   /groove/legacy/win        --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).WinTransaction-fm (4 handlers)
+[GIN-debug] GET    /groove/legacy/transactions --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetTransactionHistory-fm (4 handlers)
+[GIN-debug] GET    /groove                   --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessWagerAndResultOfficial-fm (5 handlers)
+[GIN-debug] POST   /api/groove/launch-game   --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).LaunchGame-fm (4 handlers)
+[GIN-debug] GET    /api/groove/validate-session/:sessionId --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ValidateGameSession-fm (4 handlers)
+2025-09-21T17:14:15.343+0300	INFO	groove/groove.go:107	GrooveTech Transaction API routes initialized successfully
+2025-09-21T17:14:15.343+0300	INFO	initiator/initiator.go:124	done initializing route
+2025-09-21T17:14:15.343+0300	INFO	initiator/initiator.go:126	Server configuration	{"host": "0.0.0.0", "port": 8080}
+2025-09-21T17:14:15.343+0300	INFO	initiator/initiator.go:131	initializing server
+2025-09-21T17:14:15.343+0300	INFO	initiator/initiator.go:145	http server listening on port : 8080
+%3|1758464056.159|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
+%3|1758464056.176|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
+{"level":"error","ts":1758464056.1767259,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:16+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464056.336|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
+{"level":"error","ts":1758464056.3368318,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:16+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:14:25.426+0300	INFO	groove/groove.go:471	Processing game launch request
+2025-09-21T17:14:25.426+0300	INFO	groove/groove.go:1287	Launching game	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "device_type": "", "game_mode": ""}
+2025-09-21T17:14:25.438+0300	ERROR	groove/groove.go:1296	Failed to create game session	{"error": "failed to create game session: ERROR: new row for relation \"game_sessions\" violates check constraint \"game_sessions_device_type_check\" (SQLSTATE 23514)"}
+github.com/tucanbit/internal/module/groove.(*GrooveServiceImpl).LaunchGame
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/groove/groove.go:1296
+github.com/tucanbit/internal/handler/groove.(*GrooveHandler).LaunchGame
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove.go:527
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-09-21T17:14:25.438+0300	ERROR	groove/groove.go:529	Failed to launch game	{"error": "failed to create game session: ERROR: new row for relation \"game_sessions\" violates check constraint \"game_sessions_device_type_check\" (SQLSTATE 23514)"}
+github.com/tucanbit/internal/handler/groove.(*GrooveHandler).LaunchGame
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove.go:529
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-09-21T17:14:25.438+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 500, "method": "POST", "path": "/api/groove/launch-game", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00020747563333333333}
+%3|1758464086.159|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464087.176|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464087.1767712,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:47+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464087.336|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464087.3367217,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:14:47+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:15:15.014+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464116.162|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464117.336|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464117.3368073,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:15:17+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464118.176|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464118.1767244,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:15:18+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464146.163|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464148.176|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464148.1770859,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:15:48+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464148.336|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464148.3369918,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:15:48+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:16:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464176.164|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464178.176|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464178.1772852,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:16:18+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464178.337|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464178.3374329,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:16:18+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464206.165|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-09-21T17:16:47.204+0300	INFO	user/user.go:773	User data from database	{"username": "ashenafi_alemu", "email": "ashenafialemu9898@gmail.com", "userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:47.205+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0025707710166666667}
+%3|1758464208.178|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464208.1782448,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:16:48+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464208.338|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464208.3394322,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:16:48+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:16:53.480+0300	INFO	groove/groove.go:471	Processing game launch request
+2025-09-21T17:16:53.480+0300	INFO	groove/groove.go:1287	Launching game	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "device_type": "desktop", "game_mode": "real"}
+2025-09-21T17:16:53.490+0300	INFO	groove/groove.go:123	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:53.490+0300	INFO	groove/groove.go:138	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:53.495+0300	INFO	groove/groove.go:169	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:53.495+0300	INFO	groove/groove.go:131	Account retrieved successfully by user ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:53.496+0300	INFO	groove/groove.go:215	Updating GrooveTech account	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:53.501+0300	INFO	groove/groove.go:239	GrooveTech account updated successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:16:53.501+0300	INFO	groove/groove.go:1348	GrooveTech account updated with new session	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "session_id": "Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f7486"}
+2025-09-21T17:16:53.502+0300	INFO	groove/groove.go:1369	GrooveTech API URL constructed	{"groove_url": "https://routerstg.groovegaming.com/game/?accountid=a5e168fb-168e-4183-84c5-d49038ce00b5&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f7486&homeurl=https://tucanbit.vercel.app&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.vercel.app/history&exitUrl=https://tucanbit.vercel.app", "note": "Actual GrooveTech API call not implemented yet - credentials needed"}
+2025-09-21T17:16:53.507+0300	INFO	groove/groove.go:1384	Game launched successfully	{"session_id": "Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f7486", "game_url": "https://routerstg.groovegaming.com/game/?accountid=a5e168fb-168e-4183-84c5-d49038ce00b5&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f7486&homeurl=https://tucanbit.vercel.app&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.vercel.app/history&exitUrl=https://tucanbit.vercel.app"}
+2025-09-21T17:16:53.507+0300	INFO	groove/groove.go:534	Game launched successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "session_id": "Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f7486"}
+2025-09-21T17:16:53.507+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/api/groove/launch-game", "ip": "::1", "query": {}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0004521057666666667}
+2025-09-21T17:17:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464236.166|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-09-21T17:17:16.582+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "GET", "path": "/groove-official/balance", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gamesessionid":["Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f748"],"nogsgameid":["82695"],"request":["getbalance"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.00000063355}
+%3|1758464239.177|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464239.177578,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:17:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464239.338|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464239.338593,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:17:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:17:26.859+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
+2025-09-21T17:17:26.859+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "getbalance"}
+2025-09-21T17:17:26.859+0300	INFO	groove/groove.go:677	Routing to GetBalanceOfficial
+2025-09-21T17:17:26.859+0300	INFO	groove/groove_official.go:204	GrooveTech Get Balance request
+2025-09-21T17:17:26.859+0300	INFO	groove/groove.go:1397	Validating game session	{"session_id": "Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f748"}
+2025-09-21T17:17:26.864+0300	ERROR	groove/groove.go:1401	Failed to validate game session	{"error": "failed to get game session: no rows in result set"}
+github.com/tucanbit/internal/module/groove.(*GrooveServiceImpl).ValidateGameSession
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/groove/groove.go:1401
+github.com/tucanbit/internal/handler/groove.(*GrooveOfficialHandler).GetBalance
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove_official.go:276
+github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove.go:678
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/groove.Init.GrooveSignatureMiddlewareOptional.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/groove_signature.go:63
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-09-21T17:17:26.864+0300	ERROR	groove/groove_official.go:278	Failed to validate game session	{"error": "failed to get game session: no rows in result set"}
+github.com/tucanbit/internal/handler/groove.(*GrooveOfficialHandler).GetBalance
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove_official.go:278
+github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove.go:678
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/groove.Init.GrooveSignatureMiddlewareOptional.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/groove_signature.go:63
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-09-21T17:17:26.864+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gamesessionid":["Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f748"],"nogsgameid":["82695"],"request":["getbalance"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0000939617}
+%3|1758464266.166|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464269.177|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464269.178062,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:17:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464269.338|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464269.3390617,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:17:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:17:52.600+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
+2025-09-21T17:17:52.600+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "getbalance"}
+2025-09-21T17:17:52.600+0300	INFO	groove/groove.go:677	Routing to GetBalanceOfficial
+2025-09-21T17:17:52.600+0300	INFO	groove/groove_official.go:204	GrooveTech Get Balance request
+2025-09-21T17:17:52.601+0300	INFO	groove/groove.go:1397	Validating game session	{"session_id": "Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f748"}
+2025-09-21T17:17:52.602+0300	ERROR	groove/groove.go:1401	Failed to validate game session	{"error": "failed to get game session: no rows in result set"}
+github.com/tucanbit/internal/module/groove.(*GrooveServiceImpl).ValidateGameSession
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/groove/groove.go:1401
+github.com/tucanbit/internal/handler/groove.(*GrooveOfficialHandler).GetBalance
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove_official.go:276
+github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove.go:678
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/groove.Init.GrooveSignatureMiddlewareOptional.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/groove_signature.go:63
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-09-21T17:17:52.602+0300	ERROR	groove/groove_official.go:278	Failed to validate game session	{"error": "failed to get game session: no rows in result set"}
+github.com/tucanbit/internal/handler/groove.(*GrooveOfficialHandler).GetBalance
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove_official.go:278
+github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/groove/groove.go:678
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/glue/groove.Init.GrooveSignatureMiddlewareOptional.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/groove_signature.go:63
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.CORS.func3
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/tucanbit/initiator.Initiate.GinLogger.func2
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
+github.com/gin-gonic/gin.(*Context).Next
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
+github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
+github.com/gin-gonic/gin.(*Engine).ServeHTTP
+	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
+net/http.serverHandler.ServeHTTP
+	/snap/go/10938/src/net/http/server.go:3301
+net/http.(*conn).serve
+	/snap/go/10938/src/net/http/server.go:2102
+2025-09-21T17:17:52.602+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gamesessionid":["Tucan_b20131c3-9abe-42b7-a5a7-0dbf187f748"],"nogsgameid":["82695"],"request":["getbalance"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.000041335566666666664}
+2025-09-21T17:18:01.792+0300	INFO	user/user.go:773	User data from database	{"username": "ashenafi_alemu", "email": "ashenafialemu9898@gmail.com", "userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:01.792+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/login", "ip": "::1", "query": {}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0030670082}
+2025-09-21T17:18:15.003+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464296.167|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464299.339|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464299.3395436,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:18:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464300.177|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464300.1778145,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:18:20+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:18:21.549+0300	INFO	groove/groove.go:471	Processing game launch request
+2025-09-21T17:18:21.549+0300	INFO	groove/groove.go:1287	Launching game	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "device_type": "desktop", "game_mode": "real"}
+2025-09-21T17:18:21.557+0300	INFO	groove/groove.go:123	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:21.557+0300	INFO	groove/groove.go:138	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:21.560+0300	INFO	groove/groove.go:169	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:21.561+0300	INFO	groove/groove.go:131	Account retrieved successfully by user ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:21.561+0300	INFO	groove/groove.go:215	Updating GrooveTech account	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:21.563+0300	INFO	groove/groove.go:239	GrooveTech account updated successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:21.563+0300	INFO	groove/groove.go:1348	GrooveTech account updated with new session	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "session_id": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"}
+2025-09-21T17:18:21.563+0300	INFO	groove/groove.go:1369	GrooveTech API URL constructed	{"groove_url": "https://routerstg.groovegaming.com/game/?accountid=a5e168fb-168e-4183-84c5-d49038ce00b5&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3&homeurl=https://tucanbit.vercel.app&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.vercel.app/history&exitUrl=https://tucanbit.vercel.app", "note": "Actual GrooveTech API call not implemented yet - credentials needed"}
+2025-09-21T17:18:21.567+0300	INFO	groove/groove.go:1384	Game launched successfully	{"session_id": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3", "game_url": "https://routerstg.groovegaming.com/game/?accountid=a5e168fb-168e-4183-84c5-d49038ce00b5&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3&homeurl=https://tucanbit.vercel.app&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.vercel.app/history&exitUrl=https://tucanbit.vercel.app"}
+2025-09-21T17:18:21.567+0300	INFO	groove/groove.go:534	Game launched successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "session_id": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"}
+2025-09-21T17:18:21.567+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/api/groove/launch-game", "ip": "::1", "query": {}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.00030257711666666667}
+2025-09-21T17:18:42.578+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
+2025-09-21T17:18:42.578+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "getbalance"}
+2025-09-21T17:18:42.578+0300	INFO	groove/groove.go:677	Routing to GetBalanceOfficial
+2025-09-21T17:18:42.578+0300	INFO	groove/groove_official.go:204	GrooveTech Get Balance request
+2025-09-21T17:18:42.578+0300	INFO	groove/groove.go:1397	Validating game session	{"session_id": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"}
+2025-09-21T17:18:42.580+0300	INFO	groove/groove.go:123	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:42.580+0300	INFO	groove/groove.go:138	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:42.581+0300	INFO	groove/groove.go:169	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:42.581+0300	INFO	groove/groove.go:131	Account retrieved successfully by user ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:42.581+0300	INFO	groove/groove.go:1483	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:42.581+0300	INFO	groove/groove.go:549	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:18:42.584+0300	INFO	groove/groove.go:564	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance_cents": "9500", "balance_dollars": "95"}
+2025-09-21T17:18:42.584+0300	INFO	groove/groove.go:1492	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance": "95"}
+2025-09-21T17:18:42.584+0300	INFO	groove/groove_official.go:320	Balance retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "gamesessionid": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3", "real_balance": "95"}
+2025-09-21T17:18:42.584+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"nogsgameid":["82695"],"request":["getbalance"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.00010592118333333333}
+%3|1758464326.168|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464329.339|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464329.3395844,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:18:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464331.178|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464331.1790478,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:18:51+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:19:01.364+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "GET", "path": "/groove-official/wager", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"betamount":["10.0"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"request":["wager"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0000008174666666666667}
+2025-09-21T17:19:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+2025-09-21T17:19:15.323+0300	INFO	user/user.go:1747	Found expiring sessions	{"count": 0}
+%3|1758464356.170|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+2025-09-21T17:19:17.259+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
+2025-09-21T17:19:17.259+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "wager"}
+2025-09-21T17:19:17.259+0300	INFO	groove/groove.go:680	Routing to ProcessWagerOfficial
+2025-09-21T17:19:17.259+0300	INFO	groove/groove_official.go:341	GrooveTech Wager request
+2025-09-21T17:19:17.259+0300	INFO	groove/groove.go:1397	Validating game session	{"session_id": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"}
+2025-09-21T17:19:17.261+0300	INFO	groove/groove.go:123	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.261+0300	INFO	groove/groove.go:138	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.262+0300	INFO	groove/groove.go:169	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.262+0300	INFO	groove/groove.go:131	Account retrieved successfully by user ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.262+0300	INFO	groove/groove.go:1483	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.262+0300	INFO	groove/groove.go:549	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.263+0300	INFO	groove/groove.go:564	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance_cents": "9500", "balance_dollars": "95"}
+2025-09-21T17:19:17.263+0300	INFO	groove/groove.go:1492	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance": "95"}
+2025-09-21T17:19:17.263+0300	INFO	groove/groove.go:1568	Getting transaction by ID	{"transaction_id": "test_tx_001"}
+2025-09-21T17:19:17.263+0300	INFO	groove/groove.go:827	Getting transaction by ID	{"transaction_id": "test_tx_001"}
+2025-09-21T17:19:17.274+0300	INFO	groove/groove.go:878	Transaction retrieved successfully	{"transaction_id": "test_tx_001", "account_transaction_id": "TXN_test_tx__1757867664"}
+2025-09-21T17:19:17.274+0300	INFO	groove/groove.go:1581	Transaction retrieved successfully	{"transaction_id": "test_tx_001", "account_transaction_id": "TXN_test_tx__1757867664"}
+2025-09-21T17:19:17.274+0300	INFO	groove/groove_official.go:517	Duplicate transaction found	{"transaction_id": "test_tx_001"}
+2025-09-21T17:19:17.274+0300	INFO	groove/groove.go:1483	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.274+0300	INFO	groove/groove.go:549	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:17.275+0300	INFO	groove/groove.go:564	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance_cents": "9500", "balance_dollars": "95"}
+2025-09-21T17:19:17.275+0300	INFO	groove/groove.go:1492	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance": "95"}
+2025-09-21T17:19:17.276+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"betamount":["10.0"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"request":["wager"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.00028337578333333336}
+%3|1758464359.339|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464359.3399365,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:19:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464361.179|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464361.1795824,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:19:21+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:19:31.612+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "6fa27a4d-5f0d-481e-920d-7345ba0d8077"}
+2025-09-21T17:19:31.772+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "GET", "path": "/groove-official/result", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"gamestatus":["completed"],"request":["result"],"result":["15.0"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0000010538666666666666}
+2025-09-21T17:19:38.087+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 401, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"gamestatus":["completed"],"request":["result"],"result":["15.0"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.00004532865}
+%3|1758464386.173|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464389.340|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464389.340451,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:19:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:19:52.158+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
+2025-09-21T17:19:52.158+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "result"}
+2025-09-21T17:19:52.159+0300	INFO	groove/groove.go:683	Routing to ProcessResultOfficial
+2025-09-21T17:19:52.159+0300	INFO	groove/groove_official.go:574	GrooveTech Result request
+2025-09-21T17:19:52.159+0300	INFO	groove/groove.go:417	Processing result transaction	{"transaction_id": "test_tx_001", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "result": "15", "game_status": "completed"}
+2025-09-21T17:19:52.160+0300	INFO	groove/groove.go:1397	Validating game session	{"session_id": "Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"}
+2025-09-21T17:19:52.161+0300	INFO	groove/groove.go:177	Getting GrooveTech account by ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:52.163+0300	INFO	groove/groove.go:202	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:19:52.163+0300	INFO	groove/groove.go:887	Getting result transaction by ID	{"transaction_id": "test_tx_001"}
+2025-09-21T17:19:52.164+0300	INFO	groove/groove.go:906	Result transaction not found	{"transaction_id": "test_tx_001"}
+2025-09-21T17:19:52.165+0300	INFO	groove/groove.go:716	Adding balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "15"}
+2025-09-21T17:19:52.175+0300	INFO	groove/groove.go:780	Balance added successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "15", "new_balance": "110"}
+2025-09-21T17:19:52.175+0300	INFO	groove/groove.go:790	Storing transaction	{"transaction_id": "test_tx_001", "account_transaction_id": "", "transaction_type": "result"}
+2025-09-21T17:19:52.177+0300	INFO	groove/groove.go:818	Transaction stored successfully	{"transaction_id": "test_tx_001", "transaction_type": "result"}
+2025-09-21T17:19:52.177+0300	INFO	groove/groove.go:582	Result transaction processed successfully	{"transaction_id": "test_tx_001", "result": "15", "new_balance": "110"}
+2025-09-21T17:19:52.177+0300	INFO	groove/groove.go:2056	Processing result-based cashback	{"transaction_id": "test_tx_001", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "result_amount": "15"}
+2025-09-21T17:19:52.177+0300	INFO	groove/groove.go:827	Getting transaction by ID	{"transaction_id": "test_tx_001"}
+2025-09-21T17:19:52.178+0300	INFO	groove/groove.go:878	Transaction retrieved successfully	{"transaction_id": "test_tx_001", "account_transaction_id": "TXN_test_tx__1757867664"}
+%3|1758464392.178|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+2025-09-21T17:19:52.178+0300	INFO	groove/groove.go:2086	Calculating cashback based on net loss	{"bet_amount": "10", "win_amount": "15", "net_loss": "-5"}
+2025-09-21T17:19:52.179+0300	INFO	groove/groove.go:2093	No net loss - skipping cashback processing	{"transaction_id": "test_tx_001", "net_loss": "-5"}
+2025-09-21T17:19:52.179+0300	INFO	groove/groove_official.go:672	Result processed successfully	{"transaction_id": "test_tx_001", "result": "15", "balance": "110"}
+{"level":"error","ts":1758464392.1791525,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:19:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:19:52.179+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"gamestatus":["completed"],"request":["result"],"result":["15.0"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0003469871}
+2025-09-21T17:20:06.637+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "GET", "path": "/groove-official/rollback", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"request":["rollback"],"rollbackamount":["10.0"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0000011907166666666666}
+2025-09-21T17:20:12.131+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 401, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"request":["rollback"],"rollbackamount":["10.0"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.0000021782666666666666}
+2025-09-21T17:20:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464416.174|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464419.340|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464419.340436,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:20:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464422.179|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464422.1793697,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:20:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:20:22.755+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
+2025-09-21T17:20:22.755+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "rollback"}
+2025-09-21T17:20:22.755+0300	INFO	groove/groove.go:689	Routing to ProcessRollbackOfficial
+2025-09-21T17:20:22.755+0300	INFO	groove/groove_official.go:785	GrooveTech Official Rollback request
+2025-09-21T17:20:22.755+0300	INFO	groove/groove.go:838	Processing rollback transaction	{"transaction_id": "test_tx_001"}
+2025-09-21T17:20:22.755+0300	INFO	groove/groove.go:827	Getting transaction by ID	{"transaction_id": "test_tx_001_rollback"}
+2025-09-21T17:20:22.759+0300	INFO	groove/groove.go:846	Transaction not found	{"transaction_id": "test_tx_001_rollback"}
+2025-09-21T17:20:22.759+0300	INFO	groove/groove.go:177	Getting GrooveTech account by ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:20:22.760+0300	INFO	groove/groove.go:202	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
+2025-09-21T17:20:22.760+0300	INFO	groove/groove.go:827	Getting transaction by ID	{"transaction_id": "test_tx_001"}
+2025-09-21T17:20:22.761+0300	INFO	groove/groove.go:878	Transaction retrieved successfully	{"transaction_id": "test_tx_001", "account_transaction_id": "TXN_test_tx__1757867664"}
+2025-09-21T17:20:22.761+0300	INFO	groove/groove.go:716	Adding balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "10"}
+2025-09-21T17:20:22.765+0300	INFO	groove/groove.go:780	Balance added successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "10", "new_balance": "120"}
+2025-09-21T17:20:22.765+0300	INFO	groove/groove.go:790	Storing transaction	{"transaction_id": "test_tx_001_rollback", "account_transaction_id": "b25b182b-06eb-4fcd-8641-8c1396b761ec", "transaction_type": "rollback"}
+2025-09-21T17:20:22.769+0300	INFO	groove/groove.go:818	Transaction stored successfully	{"transaction_id": "test_tx_001_rollback", "transaction_type": "rollback"}
+2025-09-21T17:20:22.769+0300	INFO	groove/groove.go:790	Storing transaction	{"transaction_id": "test_tx_001", "account_transaction_id": "TXN_test_tx__1757867664", "transaction_type": "wager"}
+2025-09-21T17:20:22.770+0300	INFO	groove/groove.go:818	Transaction stored successfully	{"transaction_id": "test_tx_001", "transaction_type": "wager"}
+2025-09-21T17:20:22.770+0300	INFO	groove/groove.go:1007	Rollback transaction processed successfully	{"transaction_id": "test_tx_001", "account_transaction_id": "b25b182b-06eb-4fcd-8641-8c1396b761ec", "rollback_amount": "10", "new_balance": "120"}
+2025-09-21T17:20:22.770+0300	INFO	groove/groove_official.go:866	Rollback processed successfully	{"transaction_id": "b25b182b-06eb-4fcd-8641-8c1396b761ec", "new_balance": "120"}
+2025-09-21T17:20:22.771+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_71c92359-4594-41cc-8e9c-a913ead10cb3"],"request":["rollback"],"rollbackamount":["10.0"],"roundid":["test_round_001"],"transactionid":["test_tx_001"]}, "user-agent": "PostmanRuntime/7.46.0", "latency": 0.00026410876666666666}
+%3|1758464446.175|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464449.340|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464449.340535,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:20:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464452.179|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464452.17947,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:20:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:21:15.003+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464476.176|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464479.340|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464479.3407133,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:21:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464482.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464482.1806836,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:21:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464506.177|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464509.340|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464509.3413012,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:21:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464512.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464512.1808362,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:21:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:22:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464536.177|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464539.340|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464539.341302,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:22:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464543.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464543.1812139,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:22:23+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464566.178|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464569.341|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464569.3414936,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:22:49+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464574.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464574.181098,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:22:54+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:23:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464596.179|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464599.341|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464599.341909,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:23:19+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464604.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464604.1811705,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:23:24+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464626.180|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464630.338|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464630.338378,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:23:50+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464635.179|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464635.1793182,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:23:55+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:24:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+2025-09-21T17:24:15.313+0300	INFO	user/user.go:1747	Found expiring sessions	{"count": 0}
+%3|1758464656.181|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464660.339|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464660.3393853,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:24:20+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464665.179|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464665.1796496,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:24:25+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464686.182|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464691.341|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464691.342287,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:24:51+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464695.179|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464695.1799247,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:24:55+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:25:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+2025-09-21T17:25:15.505+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "2850bda6-5e0f-4e27-85cc-d33327795666"}
+%3|1758464716.183|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464722.341|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464722.3418024,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:25:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464725.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464725.1803515,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:25:25+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464746.183|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464752.342|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464752.3422983,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:25:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464755.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464755.180446,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:25:55+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:26:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464776.184|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464782.342|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464782.342754,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:26:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464785.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464785.1812642,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:26:25+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464806.185|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464812.342|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464812.3428001,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:26:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464815.180|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464815.1812792,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:26:55+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:27:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464836.186|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464842.342|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464842.3427963,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:27:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464845.181|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464845.1815786,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:27:25+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464866.187|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464872.342|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464872.3429341,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:27:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464875.181|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464875.1817765,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:27:55+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:28:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758464896.187|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464902.342|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464902.3433077,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:28:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464906.183|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464906.18357,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:28:26+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464926.188|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464932.343|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464932.3438282,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:28:52+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464936.183|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464936.1838324,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:28:56+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:29:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+2025-09-21T17:29:15.315+0300	INFO	user/user.go:1747	Found expiring sessions	{"count": 0}
+%3|1758464956.189|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464962.343|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464962.3439336,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:29:22+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464966.184|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758464966.1843784,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:29:26+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464986.190|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758464993.344|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464993.344522,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:29:53+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758464997.183|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758464997.183787,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:29:57+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:30:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758465016.193|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465023.344|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465023.3446064,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:30:23+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465027.183|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465027.1839697,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:30:27+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465046.194|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465054.343|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758465054.3441617,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:30:54+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465058.183|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758465058.1842766,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:30:58+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:31:03.958+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "2f1110f0-a5e8-4e8f-ba59-fb3788c18399"}
+2025-09-21T17:31:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758465076.194|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465084.344|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465084.344575,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:31:24+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465089.183|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+{"level":"error","ts":1758465089.1841054,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:31:29+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465106.195|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465114.345|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465114.3456378,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:31:54+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465119.184|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465119.1852787,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:31:59+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:32:15.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758465136.196|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465144.345|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465144.3455772,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:32:24+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465149.185|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465149.1855154,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:32:29+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465166.197|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465174.345|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465174.3459015,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:32:54+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465179.185|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465179.185442,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:32:59+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+2025-09-21T17:33:15.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
+%3|1758465196.198|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+%3|1758465204.345|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465204.3460755,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:33:24+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}
+%3|1758465209.185|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
+{"level":"error","ts":1758465209.1855683,"caller":"kafka/kafka.go:179","msg":"Error reading message","time":"2025-09-21T17:33:29+03:00","error":"localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)","stacktrace":"github.com/tucanbit/platform/kafka.(*kafkaController).StartConsumer\n\t/home/ashenafi-alemu/Downloads/tucanbit/platform/kafka/kafka.go:179"}

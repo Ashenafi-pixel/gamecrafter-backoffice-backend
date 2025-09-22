@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/storage/groove"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -66,14 +67,16 @@ type GrooveServiceImpl struct {
 	storage            groove.GrooveStorage
 	gameSessionStorage groove.GameSessionStorage
 	cashbackService    CashbackService
+	userWS             utils.UserWS
 	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userWS utils.UserWS, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
 		storage:            storage,
 		gameSessionStorage: gameSessionStorage,
 		cashbackService:    cashbackService,
+		userWS:             userWS,
 		logger:             logger,
 	}
 }

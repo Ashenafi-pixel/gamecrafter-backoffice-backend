@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -109,6 +110,10 @@ func (b *User) getUserBalanceSocketLocker(conn *websocket.Conn) *sync.Mutex {
 }
 
 func (b *User) GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBalanceResp, error) {
+	if b.balanceStorage == nil {
+		b.log.Error("Balance storage is nil - cannot get user balance", zap.String("userID", userID.String()))
+		return dto.UserBalanceResp{}, fmt.Errorf("balance storage not initialized")
+	}
 
 	balance, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
 		UserId:       userID,

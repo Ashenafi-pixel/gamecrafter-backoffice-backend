@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -77,12 +78,14 @@ type GrooveStorage interface {
 type GrooveStorageImpl struct {
 	db     *persistencedb.PersistenceDB
 	logger *zap.Logger
+	userWS utils.UserWS
 }
 
-func NewGrooveStorage(db *persistencedb.PersistenceDB, logger *zap.Logger) GrooveStorage {
+func NewGrooveStorage(db *persistencedb.PersistenceDB, userWS utils.UserWS, logger *zap.Logger) GrooveStorage {
 	return &GrooveStorageImpl{
 		db:     db,
 		logger: logger,
+		userWS: userWS,
 	}
 }
 
@@ -708,6 +711,13 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 		zap.String("amount", amount.String()),
 		zap.String("new_balance", newBalance.String()))
 
+	// Trigger WebSocket balance update for real-time frontend updates
+	if s.userWS != nil {
+		s.userWS.TriggerBalanceWS(ctx, userID)
+		s.logger.Debug("WebSocket balance update triggered for user",
+			zap.String("user_id", userID.String()))
+	}
+
 	return newBalance, nil
 }
 
@@ -781,6 +791,13 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 		zap.String("user_id", userID.String()),
 		zap.String("amount", amount.String()),
 		zap.String("new_balance", newBalance.String()))
+
+	// Trigger WebSocket balance update for real-time frontend updates
+	if s.userWS != nil {
+		s.userWS.TriggerBalanceWS(ctx, userID)
+		s.logger.Debug("WebSocket balance update triggered for user",
+			zap.String("user_id", userID.String()))
+	}
 
 	return newBalance, nil
 }
@@ -1119,7 +1136,7 @@ func (s *GrooveStorageImpl) GetTransactionGameInfo(ctx context.Context, transact
 		ORDER BY created_at DESC 
 		LIMIT 1
 	`
-	
+
 	err = s.db.GetPool().QueryRow(ctx, query, transactionID).Scan(&gameID, &gameType)
 	if err != nil {
 		s.logger.Warn("Failed to get transaction game info",

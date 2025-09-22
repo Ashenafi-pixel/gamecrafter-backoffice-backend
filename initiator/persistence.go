@@ -30,6 +30,7 @@ import (
 	"github.com/tucanbit/internal/storage/squads"
 	"github.com/tucanbit/internal/storage/user"
 	"github.com/tucanbit/platform/redis"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -65,7 +66,7 @@ type Persistence struct {
 	GameSession          groove.GameSessionStorage
 }
 
-func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP) *Persistence {
+func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS) *Persistence {
 	return &Persistence{
 		User:                 user.Init(persistencdb, log),
 		OperationalGroup:     operationalgroup.Init(persistencdb, log),
@@ -93,7 +94,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Agent:                agent.Init(persistencdb, log),
 		OTP:                  otp.NewOTP(otp.NewOTPDatabase(redis, log)),
 		Cashback:             cashback.NewCashbackStorage(persistencdb, log),
-		Groove:               groove.NewGrooveStorage(persistencdb, log),
+		Groove:               groove.NewGrooveStorage(persistencdb, userWS, log),
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
 	}
 }

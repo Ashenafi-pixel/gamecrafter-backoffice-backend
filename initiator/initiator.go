@@ -21,6 +21,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
@@ -80,9 +81,17 @@ func Initiate() {
 	platformInstance := platform.InitPlatform(context.Background(), lgr)
 	logger.Info("done initializing platform layer")
 
-	// Now initialize persistence with Redis
-	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP))
-	userBalanceWs := utils.InitUserws(logger, persistence.Balance)
+	// Initialize userWS first
+	userBalanceWs := utils.InitUserws(logger, nil) // Will be updated after persistence is created
+
+	// Now initialize persistence with Redis and userWS
+	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP), userBalanceWs)
+
+	// Update userWS with the actual balance storage
+	userBalanceWs = utils.InitUserws(logger, persistence.Balance)
+	
+	// Update GrooveStorage with the proper userWS
+	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, logger)
 
 	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, platformInstance.Redis.(*redis.RedisOTP), platformInstance.Pisi)
 
