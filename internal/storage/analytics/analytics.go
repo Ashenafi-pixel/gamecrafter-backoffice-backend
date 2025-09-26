@@ -602,7 +602,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 		WHERE toDate(created_at) = ?
 	`
 
-	row := s.clickhouse.QueryRow(ctx, query, date.Format("2006-01-02"))
+	row := s.clickhouse.QueryRow(ctx, query, date)
 
 	var report dto.DailyReport
 	err := row.Scan(
