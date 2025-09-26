@@ -828,7 +828,11 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		INSERT INTO groove_transactions (
 			transaction_id, account_id, session_id, amount, currency, type, status, metadata
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (transaction_id) DO NOTHING
+		ON CONFLICT (transaction_id) DO UPDATE SET
+			type = EXCLUDED.type,
+			amount = EXCLUDED.amount,
+			metadata = EXCLUDED.metadata,
+			created_at = EXCLUDED.created_at
 	`, transaction.TransactionID, transaction.AccountID, transaction.GameSessionID,
 		transaction.BetAmount, "USD", transactionType, "completed", metadata)
 	if err != nil {
