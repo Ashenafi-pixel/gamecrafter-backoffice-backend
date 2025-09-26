@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:25.8
     container_name: tucanbit-clickhouse
     ports:
       - "8123:8123"  # HTTP interface
@@ -25,17 +25,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  clickhouse-client:
-    image: clickhouse/clickhouse-client:latest
-    container_name: tucanbit-clickhouse-client
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    networks:
-      - tucanbit-network
-    profiles:
-      - tools
 
 volumes:
   clickhouse_data:
