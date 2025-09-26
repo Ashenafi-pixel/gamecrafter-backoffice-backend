@@ -8,6 +8,7 @@ import (
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/handler/adds"
 	"github.com/tucanbit/internal/handler/agent"
+	analyticsHandler "github.com/tucanbit/internal/handler/analytics"
 	"github.com/tucanbit/internal/handler/authz"
 	"github.com/tucanbit/internal/handler/balance"
 	"github.com/tucanbit/internal/handler/balancelogs"
@@ -65,6 +66,7 @@ type Handler struct {
 	Cashback              *cashback.CashbackHandler
 	Groove                *groove.GrooveHandler
 	RegistrationService   *user.RegistrationService
+	Analytics             handler.Analytics
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS) *Handler {
@@ -114,6 +116,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Cashback:              cashback.NewCashbackHandler(module.Cashback, log),
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, log),
 		RegistrationService:   registrationService,
+		Analytics:             analyticsHandler.Init(log, persistence.Analytics),
 	}
 }
 

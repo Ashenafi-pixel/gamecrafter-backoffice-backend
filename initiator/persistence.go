@@ -2,10 +2,12 @@ package initiator
 
 import (
 	"github.com/tucanbit/internal/constant/persistencedb"
+	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/adds"
 	"github.com/tucanbit/internal/storage/agent"
 	"github.com/tucanbit/internal/storage/airtime"
+	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/authz"
 	"github.com/tucanbit/internal/storage/balance"
 	"github.com/tucanbit/internal/storage/balancelogs"
@@ -29,6 +31,7 @@ import (
 	"github.com/tucanbit/internal/storage/sports"
 	"github.com/tucanbit/internal/storage/squads"
 	"github.com/tucanbit/internal/storage/user"
+	"github.com/tucanbit/platform/clickhouse"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
@@ -64,9 +67,10 @@ type Persistence struct {
 	Cashback             cashback.CashbackStorage
 	Groove               groove.GrooveStorage
 	GameSession          groove.GameSessionStorage
+	Analytics            storage.Analytics
 }
 
-func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS) *Persistence {
+func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS, clickhouseClient *clickhouse.ClickHouseClient) *Persistence {
 	return &Persistence{
 		User:                 user.Init(persistencdb, log),
 		OperationalGroup:     operationalgroup.Init(persistencdb, log),
@@ -93,8 +97,9 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		RiskSettings:         risksettings.Init(persistencdb, log),
 		Agent:                agent.Init(persistencdb, log),
 		OTP:                  otp.NewOTP(otp.NewOTPDatabase(redis, log)),
-		Cashback:             cashback.NewCashbackStorage(persistencdb, log),
-		Groove:               groove.NewGrooveStorage(persistencdb, userWS, log),
+		Cashback:             cashback.NewCashbackStorage(persistencdb, log, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log)),
+		Groove:               groove.NewGrooveStorage(persistencdb, userWS, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log), log),
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
+		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 	}
 }

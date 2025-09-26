@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/storage/analytics"
 	"go.uber.org/zap"
 )
 
@@ -95,14 +96,16 @@ type CashbackStorage interface {
 
 // CashbackStorageImpl provides a production-ready implementation with real database integration
 type CashbackStorageImpl struct {
-	db     *persistencedb.PersistenceDB
-	logger *zap.Logger
+	db                   *persistencedb.PersistenceDB
+	logger               *zap.Logger
+	analyticsIntegration *analytics.AnalyticsIntegration
 }
 
-func NewCashbackStorage(db *persistencedb.PersistenceDB, logger *zap.Logger) CashbackStorage {
+func NewCashbackStorage(db *persistencedb.PersistenceDB, logger *zap.Logger, analyticsIntegration *analytics.AnalyticsIntegration) CashbackStorage {
 	return &CashbackStorageImpl{
-		db:     db,
-		logger: logger,
+		db:                   db,
+		logger:               logger,
+		analyticsIntegration: analyticsIntegration,
 	}
 }
 
@@ -234,13 +237,13 @@ func (s *CashbackStorageImpl) createDefaultUserLevel(ctx context.Context, userID
 	}
 
 	defaultLevel := dto.UserLevel{
-		UserID:        userID,
-		CurrentLevel:  1,
+		UserID:           userID,
+		CurrentLevel:     1,
 		TotalExpectedGGR: decimal.Zero,
-		TotalBets:     decimal.Zero,
-		TotalWins:     decimal.Zero,
-		LevelProgress: decimal.Zero,
-		CurrentTierID: bronzeTier.ID,
+		TotalBets:        decimal.Zero,
+		TotalWins:        decimal.Zero,
+		LevelProgress:    decimal.Zero,
+		CurrentTierID:    bronzeTier.ID,
 	}
 
 	createdLevel, err := s.CreateUserLevel(ctx, defaultLevel)
@@ -526,6 +529,62 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 
 // Placeholder implementations for remaining methods
 func (s *CashbackStorageImpl) CreateCashbackEarning(ctx context.Context, earning dto.CashbackEarning) (dto.CashbackEarning, error) {
+	s.logger.Info("Creating cashback earning",
+		zap.String("user_id", earning.UserID.String()),
+		zap.String("earning_type", earning.EarningType),
+		zap.String("earned_amount", earning.EarnedAmount.String()))
+
+	query := `
+		INSERT INTO cashback_earnings (
+			user_id, tier_id, earning_type, source_bet_id, ggr_amount, 
+			cashback_rate, earned_amount, claimed_amount, available_amount, 
+			status, expires_at, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
+		) RETURNING id, created_at, updated_at
+	`
+
+	var id uuid.UUID
+	var createdAt, updatedAt time.Time
+
+	err := s.db.GetPool().QueryRow(ctx, query,
+		earning.UserID,
+		earning.TierID,
+		earning.EarningType,
+		earning.SourceBetID,
+		earning.ExpectedGGRAmount,
+		earning.CashbackRate,
+		earning.EarnedAmount,
+		earning.ClaimedAmount,
+		earning.AvailableAmount,
+		earning.Status,
+		earning.ExpiresAt,
+	).Scan(&id, &createdAt, &updatedAt)
+
+	if err != nil {
+		s.logger.Error("Failed to create cashback earning", zap.Error(err))
+		return earning, fmt.Errorf("failed to create cashback earning: %w", err)
+	}
+
+	earning.ID = id
+	earning.CreatedAt = createdAt
+	earning.UpdatedAt = updatedAt
+
+	s.logger.Info("Cashback earning created successfully",
+		zap.String("earning_id", earning.ID.String()),
+		zap.String("user_id", earning.UserID.String()),
+		zap.String("earned_amount", earning.EarnedAmount.String()))
+
+	// Sync to ClickHouse for analytics
+	if s.analyticsIntegration != nil {
+		if err := s.analyticsIntegration.OnCashbackEarning(ctx, &earning); err != nil {
+			s.logger.Error("Failed to sync cashback earning to ClickHouse",
+				zap.String("earning_id", earning.ID.String()),
+				zap.Error(err))
+			// Don't fail the operation if ClickHouse sync fails
+		}
+	}
+
 	return earning, nil
 }
 
@@ -1271,15 +1330,15 @@ func (s *CashbackStorageImpl) InitializeUserLevel(ctx context.Context, userID uu
 
 	// Create user level
 	userLevel := dto.UserLevel{
-		UserID:        userID,
-		CurrentLevel:  1,
+		UserID:           userID,
+		CurrentLevel:     1,
 		TotalExpectedGGR: decimal.Zero,
-		TotalBets:     decimal.Zero,
-		TotalWins:     decimal.Zero,
-		LevelProgress: decimal.Zero,
-		CurrentTierID: defaultTier.ID,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		TotalBets:        decimal.Zero,
+		TotalWins:        decimal.Zero,
+		LevelProgress:    decimal.Zero,
+		CurrentTierID:    defaultTier.ID,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	// Save user level

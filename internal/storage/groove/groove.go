@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
@@ -64,6 +65,7 @@ type GrooveStorage interface {
 	StoreTransaction(ctx context.Context, transaction *dto.GrooveTransaction, transactionType string) error
 	GetTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
 	GetResultTransactionByID(ctx context.Context, transactionID string) (*dto.GrooveTransaction, error)
+	GetWagerTransactionBySessionID(ctx context.Context, sessionID string) (*dto.GrooveTransaction, error)
 	GetTransactionGameInfo(ctx context.Context, transactionID string) (gameID, gameType string, err error)
 
 	// Balance synchronization and validation
@@ -76,16 +78,18 @@ type GrooveStorage interface {
 }
 
 type GrooveStorageImpl struct {
-	db     *persistencedb.PersistenceDB
-	logger *zap.Logger
-	userWS utils.UserWS
+	db                   *persistencedb.PersistenceDB
+	logger               *zap.Logger
+	userWS               utils.UserWS
+	analyticsIntegration *analytics.AnalyticsIntegration
 }
 
-func NewGrooveStorage(db *persistencedb.PersistenceDB, userWS utils.UserWS, logger *zap.Logger) GrooveStorage {
+func NewGrooveStorage(db *persistencedb.PersistenceDB, userWS utils.UserWS, analyticsIntegration *analytics.AnalyticsIntegration, logger *zap.Logger) GrooveStorage {
 	return &GrooveStorageImpl{
-		db:     db,
-		logger: logger,
-		userWS: userWS,
+		db:                   db,
+		logger:               logger,
+		userWS:               userWS,
+		analyticsIntegration: analyticsIntegration,
 	}
 }
 
@@ -836,6 +840,21 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		zap.String("transaction_id", transaction.TransactionID),
 		zap.String("transaction_type", transactionType))
 
+	// Sync to ClickHouse analytics
+	if s.analyticsIntegration != nil {
+		if err := s.analyticsIntegration.OnGrooveTransaction(ctx, transaction, transactionType); err != nil {
+			s.logger.Error("Failed to sync GrooveTech transaction to ClickHouse",
+				zap.String("transaction_id", transaction.TransactionID),
+				zap.String("transaction_type", transactionType),
+				zap.Error(err))
+			// Don't fail the transaction if analytics sync fails
+		} else {
+			s.logger.Debug("GrooveTech transaction synced to ClickHouse successfully",
+				zap.String("transaction_id", transaction.TransactionID),
+				zap.String("transaction_type", transactionType))
+		}
+	}
+
 	return nil
 }
 
@@ -954,6 +973,69 @@ func (s *GrooveStorageImpl) GetResultTransactionByID(ctx context.Context, transa
 
 	s.logger.Info("Result transaction retrieved successfully",
 		zap.String("transaction_id", transactionID),
+		zap.String("account_transaction_id", transaction.AccountTransactionID))
+
+	return &transaction, nil
+}
+
+// GetWagerTransactionBySessionID retrieves a WAGER transaction by session ID
+func (s *GrooveStorageImpl) GetWagerTransactionBySessionID(ctx context.Context, sessionID string) (*dto.GrooveTransaction, error) {
+	s.logger.Info("Getting wager transaction by session ID", zap.String("session_id", sessionID))
+
+	var transaction dto.GrooveTransaction
+	var metadata map[string]interface{}
+
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT transaction_id, account_id, session_id, amount, metadata, created_at
+		FROM groove_transactions
+		WHERE session_id = $1 AND type = 'wager'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, sessionID).Scan(
+		&transaction.TransactionID,
+		&transaction.AccountID,
+		&transaction.GameSessionID,
+		&transaction.BetAmount,
+		&metadata,
+		&transaction.CreatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			s.logger.Info("Wager transaction not found for session", zap.String("session_id", sessionID))
+			return nil, nil
+		}
+		s.logger.Error("Failed to get wager transaction by session ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to get wager transaction by session ID: %w", err)
+	}
+
+	// Extract data from metadata
+	if metadata != nil {
+		if accountTxnID, ok := metadata["account_transaction_id"].(string); ok {
+			transaction.AccountTransactionID = accountTxnID
+		}
+		if roundID, ok := metadata["round_id"].(string); ok {
+			transaction.RoundID = roundID
+		}
+		if gameID, ok := metadata["game_id"].(string); ok {
+			transaction.GameID = gameID
+		}
+		if device, ok := metadata["device"].(string); ok {
+			transaction.Device = device
+		}
+		if frbid, ok := metadata["frbid"].(string); ok {
+			transaction.FRBID = frbid
+		}
+		if userIDStr, ok := metadata["user_id"].(string); ok {
+			userID, err := uuid.Parse(userIDStr)
+			if err == nil {
+				transaction.UserID = userID
+			}
+		}
+	}
+
+	s.logger.Info("Wager transaction retrieved successfully",
+		zap.String("session_id", sessionID),
+		zap.String("transaction_id", transaction.TransactionID),
 		zap.String("account_transaction_id", transaction.AccountTransactionID))
 
 	return &transaction, nil
@@ -1129,20 +1211,31 @@ func (s *GrooveStorageImpl) GetBalanceDiscrepancies(ctx context.Context) ([]Bala
 func (s *GrooveStorageImpl) GetTransactionGameInfo(ctx context.Context, transactionID string) (gameID, gameType string, err error) {
 	s.logger.Info("Getting transaction game info", zap.String("transaction_id", transactionID))
 
+	var metadata map[string]interface{}
+
 	query := `
-		SELECT game_id, game_type 
+		SELECT metadata 
 		FROM groove_transactions 
-		WHERE client_transaction_id = $1 
+		WHERE transaction_id = $1 
 		ORDER BY created_at DESC 
 		LIMIT 1
 	`
 
-	err = s.db.GetPool().QueryRow(ctx, query, transactionID).Scan(&gameID, &gameType)
+	err = s.db.GetPool().QueryRow(ctx, query, transactionID).Scan(&metadata)
 	if err != nil {
 		s.logger.Warn("Failed to get transaction game info",
 			zap.String("transaction_id", transactionID),
 			zap.Error(err))
 		return "", "", fmt.Errorf("failed to get transaction game info: %w", err)
+	}
+
+	// Extract game information from metadata
+	if metadata != nil {
+		if gameIDStr, ok := metadata["game_id"].(string); ok && gameIDStr != "" {
+			gameID = gameIDStr
+		}
+		// Default game type for GrooveTech
+		gameType = "groovetech"
 	}
 
 	s.logger.Info("Retrieved transaction game info",

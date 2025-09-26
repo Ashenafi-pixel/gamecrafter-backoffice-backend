@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/adds"
 	"github.com/tucanbit/internal/glue/agent"
+	"github.com/tucanbit/internal/glue/analytics"
 	"github.com/tucanbit/internal/glue/authz"
 	"github.com/tucanbit/internal/glue/balance"
 	"github.com/tucanbit/internal/glue/balancelogs"
@@ -59,4 +60,5 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	otp.Init(grp, *log, handler.OTP, module.OTP)
 	cashback.Init(grp, *log, handler.Cashback, module.Authz, enforcer, module.SystemLogs)
 	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, enforcer, module.SystemLogs)
+	analytics.Init(grp, log, handler.Analytics)
 }

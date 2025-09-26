@@ -21,8 +21,11 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
+	analyticsModule "github.com/tucanbit/internal/module/analytics"
+	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform"
+	"github.com/tucanbit/platform/clickhouse"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
@@ -81,17 +84,46 @@ func Initiate() {
 	platformInstance := platform.InitPlatform(context.Background(), lgr)
 	logger.Info("done initializing platform layer")
 
+	// Initialize ClickHouse client
+	logger.Info("initializing ClickHouse client")
+	clickhouseConfig := clickhouse.ClickHouseConfig{
+		Host:     "localhost",
+		Port:     9000,
+		Database: "tucanbit_analytics",
+		Username: "tucanbit",
+		Password: "tucanbit_clickhouse_password",
+		Timeout:  30 * time.Second,
+	}
+	clickhouseClient, err := clickhouse.NewClickHouseClient(clickhouseConfig, logger)
+	if err != nil {
+		logger.Error("Failed to initialize ClickHouse client", zap.Error(err))
+		// Continue without ClickHouse for now
+		clickhouseClient = nil
+	} else {
+		logger.Info("ClickHouse client initialized successfully")
+	}
+
 	// Initialize userWS first
 	userBalanceWs := utils.InitUserws(logger, nil) // Will be updated after persistence is created
 
-	// Now initialize persistence with Redis and userWS
-	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP), userBalanceWs)
+	// Now initialize persistence with Redis, userWS, and ClickHouse
+	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP), userBalanceWs, clickhouseClient)
 
 	// Update userWS with the actual balance storage
 	userBalanceWs = utils.InitUserws(logger, persistence.Balance)
-	
-	// Update GrooveStorage with the proper userWS
-	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, logger)
+
+	// Update GrooveStorage with the proper userWS and analytics integration
+	var analyticsIntegration *analyticsStorage.AnalyticsIntegration
+	if clickhouseClient != nil {
+		analyticsStorageInstance := analyticsStorage.NewAnalyticsStorage(clickhouseClient, logger)
+		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, logger)
+		realtimeSyncService := analyticsModule.NewRealtimeSyncService(syncService, analyticsStorageInstance, logger)
+		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(realtimeSyncService, logger)
+		logger.Info("Analytics integration initialized successfully")
+	} else {
+		logger.Warn("ClickHouse client not available, analytics integration disabled")
+	}
+	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
 	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, platformInstance.Redis.(*redis.RedisOTP), platformInstance.Pisi)
 
@@ -121,6 +153,7 @@ func Initiate() {
 	server := gin.New()
 	server.Use(middleware.GinLogger(*logger))
 	server.Use(middleware.CORS())
+	server.Use(middleware.PanicRecovery(logger))
 	server.Use(middleware.ErrorHandler())
 	ginsrv := server.Group("")
 

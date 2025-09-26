@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "tucanbit-groovetech-api-collection",
 		"name": "TucanBIT GrooveTech API Collection",
-		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), and Edge Cases",
+		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), Analytics APIs (Real-time Stats, User Analytics, Transaction History, Daily Reports, Top Games, Top Players), and Edge Cases",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -112,6 +112,12 @@
 			"value": "session_001",
 			"type": "string",
 			"description": "Session ID for game validation"
+		},
+		{
+			"key": "access_token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU4Nzk2ODA2LCJpYXQiOjE3NTg3MTA0MDYsImlzcyI6InR1Y2FuYml0Iiwic3ViIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1In0.7rtKAJqhfoiXA9Kto9Gt6I5wTKGwG7KQe7vuQkg4L-M",
+			"type": "string",
+			"description": "JWT access token for analytics API authentication"
 		}
 	],
 	"item": [
@@ -5677,6 +5683,259 @@
 							}
 						}
 					]
+				}
+			]
+		},
+		{
+			"name": "Analytics APIs",
+			"item": [
+				{
+					"name": "Real-time Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/realtime/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"realtime",
+								"stats"
+							]
+						},
+						"description": "Get real-time statistics for the last hour including total transactions, deposits, withdrawals, bets, wins, active users, and games."
+					},
+					"response": []
+				},
+				{
+					"name": "User Transactions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/users/{{account_id}}/transactions?limit=100&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"users",
+								"{{account_id}}",
+								"transactions"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "100",
+									"description": "Number of transactions to return"
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Number of transactions to skip"
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by transaction status (optional)"
+								},
+								{
+									"key": "transaction_type",
+									"value": "",
+									"description": "Filter by transaction type (optional)"
+								}
+							]
+						},
+						"description": "Get paginated list of user transactions with optional filtering by status and transaction type."
+					},
+					"response": []
+				},
+				{
+					"name": "User Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/users/{{account_id}}/analytics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"users",
+								"{{account_id}}",
+								"analytics"
+							]
+						},
+						"description": "Get comprehensive user analytics including total deposits, withdrawals, bets, wins, bonuses, cashback, transaction counts, unique games played, session counts, and betting statistics."
+					},
+					"response": []
+				},
+				{
+					"name": "User Balance History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/users/{{account_id}}/balance-history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"users",
+								"{{account_id}}",
+								"balance-history"
+							]
+						},
+						"description": "Get user balance history showing balance changes over time."
+					},
+					"response": []
+				},
+				{
+					"name": "Daily Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/reports/daily?date=2025-09-24",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"reports",
+								"daily"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-09-24",
+									"description": "Date in YYYY-MM-DD format"
+								}
+							]
+						},
+						"description": "Get daily analytics report including total transactions, deposits, withdrawals, bets, wins, net revenue, active users, games, new users, top games, and top players."
+					},
+					"response": []
+				},
+				{
+					"name": "Top Games",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/reports/top-games?limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"reports",
+								"top-games"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of top games to return"
+								},
+								{
+									"key": "date_from",
+									"value": "",
+									"description": "Start date filter (optional)"
+								},
+								{
+									"key": "date_to",
+									"value": "",
+									"description": "End date filter (optional)"
+								}
+							]
+						},
+						"description": "Get top games by net revenue including game statistics, player counts, session counts, average bet amounts, and RTP."
+					},
+					"response": []
+				},
+				{
+					"name": "Top Players",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/reports/top-players?limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"reports",
+								"top-players"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of top players to return"
+								},
+								{
+									"key": "date_from",
+									"value": "",
+									"description": "Start date filter (optional)"
+								},
+								{
+									"key": "date_to",
+									"value": "",
+									"description": "End date filter (optional)"
+								}
+							]
+						},
+						"description": "Get top players by total bets including player statistics, deposits, withdrawals, bets, wins, net loss, transaction counts, unique games played, session counts, and betting patterns."
+					},
+					"response": []
 				}
 			]
 		}

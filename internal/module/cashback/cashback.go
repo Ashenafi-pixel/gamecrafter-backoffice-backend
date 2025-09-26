@@ -203,7 +203,7 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		UserID:            bet.UserID,
 		TierID:            userLevel.CurrentTierID,
 		EarningType:       "bet",
-		SourceBetID:       &bet.BetID,
+		SourceBetID:       nil, // Set to nil for GrooveTech transactions to avoid foreign key constraint
 		ExpectedGGRAmount: expectedGGR,
 		CashbackRate:      cashbackRate,
 		EarnedAmount:      earnedCashback,

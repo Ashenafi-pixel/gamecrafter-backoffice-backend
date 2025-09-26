@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: tucanbit-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native TCP interface
+    environment:
+      CLICKHOUSE_DB: tucanbit_analytics
+      CLICKHOUSE_USER: tucanbit
+      CLICKHOUSE_PASSWORD: tucanbit_clickhouse_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/config.xml:/etc/clickhouse-server/config.xml:ro
+      - ./clickhouse/users.xml:/etc/clickhouse-server/users.xml:ro
+    networks:
+      - tucanbit-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  clickhouse-client:
+    image: clickhouse/clickhouse-client:latest
+    container_name: tucanbit-clickhouse-client
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - tucanbit-network
+    profiles:
+      - tools
+
+volumes:
+  clickhouse_data:
+    driver: local
+
+networks:
+  tucanbit-network:
+    external: true

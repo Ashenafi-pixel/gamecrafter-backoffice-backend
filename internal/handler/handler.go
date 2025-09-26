@@ -48,17 +48,16 @@ type User interface {
 	ReSendVerificationOTP(c *gin.Context)
 	GetOtp(c *gin.Context)
 	GetAdmins(c *gin.Context)
-	// Enterprise Registration Methods
-	InitiateEnterpriseRegistration(c *gin.Context)
-	CompleteEnterpriseRegistration(c *gin.Context)
-	GetEnterpriseRegistrationStatus(c *gin.Context)
-	ResendEnterpriseVerificationEmail(c *gin.Context)
-	// Regular Registration with Email Verification Methods
-	InitiateUserRegistration(c *gin.Context)
-	CompleteUserRegistration(c *gin.Context)
-	ResendVerificationEmail(c *gin.Context)
-	// Service Management
-	SetRegistrationService(service RegistrationServiceInterface)
+}
+
+type Analytics interface {
+	GetUserTransactions(c *gin.Context)
+	GetUserAnalytics(c *gin.Context)
+	GetRealTimeStats(c *gin.Context)
+	GetDailyReport(c *gin.Context)
+	GetTopGames(c *gin.Context)
+	GetTopPlayers(c *gin.Context)
+	GetUserBalanceHistory(c *gin.Context)
 }
 
 type OTP interface {

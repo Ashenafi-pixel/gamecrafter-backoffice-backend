@@ -43,9 +43,9 @@ func (s *GameSessionStorageImpl) CreateGameSession(ctx context.Context, userID u
 
 	err := s.db.GetPool().QueryRow(ctx, query,
 		userID, gameID, deviceType, gameMode,
-		"https://tucanbit.vercel.app",         // home_url
-		"https://tucanbit.vercel.app",         // exit_url
-		"https://tucanbit.vercel.app/history", // history_url
+		"https://tucanbit.tv",         // home_url
+		"https://tucanbit.tv",         // exit_url
+		"https://tucanbit.tv/history", // history_url
 		"Curacao",                             // license_type
 		false,                                 // is_test_account
 		0,                                     // reality_check_elapsed

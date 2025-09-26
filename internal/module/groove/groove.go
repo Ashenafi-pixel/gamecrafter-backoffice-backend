@@ -518,7 +518,10 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 			TransactionID: req.TransactionID,
 			AccountID:     req.AccountID,
 			GameSessionID: req.GameSessionID,
+			GameID:        req.GameID,
+			RoundID:       req.RoundID,
 			BetAmount:     req.Result,
+			Device:        req.Device,
 			CreatedAt:     time.Now(),
 		}
 
@@ -573,7 +576,10 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 		TransactionID: req.TransactionID,
 		AccountID:     req.AccountID,
 		GameSessionID: req.GameSessionID,
+		GameID:        req.GameID,
+		RoundID:       req.RoundID,
 		BetAmount:     req.Result,
+		Device:        req.Device,
 		CreatedAt:     time.Now(),
 	}
 
@@ -2069,7 +2075,7 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 	}
 
 	// Get the original wager transaction to calculate net loss
-	wagerTransaction, err := s.storage.GetTransactionByID(ctx, req.TransactionID)
+	wagerTransaction, err := s.storage.GetWagerTransactionBySessionID(ctx, req.GameSessionID)
 	if err != nil {
 		s.logger.Error("Failed to get wager transaction for cashback calculation", zap.Error(err))
 		return
@@ -2101,13 +2107,13 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 
 	// Process cashback for the net loss
 	if s.cashbackService != nil {
-		// Create a bet DTO for cashback processing based on net loss
+		// Create a bet DTO for cashback processing based on bet amount (not net loss)
 		bet := dto.Bet{
 			BetID:               uuid.New(),
 			RoundID:             uuid.New(),
 			UserID:              userID,
 			ClientTransactionID: req.TransactionID,
-			Amount:              netLoss, // Use net loss instead of bet amount
+			Amount:              betAmount, // Use bet amount for GGR calculation
 			Currency:            "USD",
 			Timestamp:           time.Now(),
 			Payout:              winAmount, // Actual winnings

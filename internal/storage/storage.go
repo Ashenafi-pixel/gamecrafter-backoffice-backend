@@ -68,11 +68,34 @@ type User interface {
 	DeleteTempData(ctx context.Context, ID uuid.UUID) error
 	GetTempData(ctx context.Context, userID uuid.UUID) (dto.GetUserReferals, error)
 	SaveToTemp(ctx context.Context, req dto.UserReferals) error
-	// Unique constraint validation methods
 	CheckEmailExists(ctx context.Context, email string) (bool, error)
 	CheckPhoneExists(ctx context.Context, phone string) (bool, error)
 	CheckUsernameExists(ctx context.Context, username string) (bool, error)
 	ValidateUniqueConstraints(ctx context.Context, userRequest dto.User) error
+}
+
+type Analytics interface {
+	// Transaction methods
+	InsertTransaction(ctx context.Context, transaction *dto.AnalyticsTransaction) error
+	InsertTransactions(ctx context.Context, transactions []*dto.AnalyticsTransaction) error
+	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+	GetGameTransactions(ctx context.Context, gameID string, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+
+	// Analytics methods
+	GetUserAnalytics(ctx context.Context, userID uuid.UUID, dateRange *dto.DateRange) (*dto.UserAnalytics, error)
+	GetGameAnalytics(ctx context.Context, gameID string, dateRange *dto.DateRange) (*dto.GameAnalytics, error)
+	GetSessionAnalytics(ctx context.Context, sessionID string) (*dto.SessionAnalytics, error)
+
+	// Reporting methods
+	GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error)
+	GetMonthlyReport(ctx context.Context, year int, month int) (*dto.MonthlyReport, error)
+	GetTopGames(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.GameStats, error)
+	GetTopPlayers(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.PlayerStats, error)
+
+	// Real-time methods
+	GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error)
+	GetUserBalanceHistory(ctx context.Context, userID uuid.UUID, hours int) ([]*dto.BalanceSnapshot, error)
+	InsertBalanceSnapshot(ctx context.Context, snapshot *dto.BalanceSnapshot) error
 }
 
 type Balance interface {
