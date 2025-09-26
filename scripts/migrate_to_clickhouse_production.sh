@@ -157,11 +157,11 @@ migrate_users() {
                     'username', username,
                     'first_name', first_name,
                     'last_name', last_name,
-                    'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS'),
-                    'verified', is_email_verified
-                )::text as metadata,
-                created_at,
-                created_at as updated_at
+                'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS'),
+                'verified', is_email_verified
+            )::text as metadata,
+            to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+            to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
             FROM users
             WHERE created_at IS NOT NULL
             ORDER BY created_at
@@ -238,8 +238,8 @@ migrate_balances() {
                     'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS'),
                     'updated_at', to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS')
                 )::text as metadata,
-                created_at,
-                updated_at
+                to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+                to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
             FROM balance_logs
             WHERE created_at IS NOT NULL
             ORDER BY created_at
@@ -283,39 +283,33 @@ migrate_groove_transactions() {
             SELECT 
                 account_id as user_id,
                 CASE 
-                    WHEN transaction_type = 'wager' THEN 'groove_bet'
-                    WHEN transaction_type = 'result' THEN 'groove_win'
-                    WHEN transaction_type = 'rollback' THEN 'refund'
+                    WHEN type = 'wager' THEN 'groove_bet'
+                    WHEN type = 'result' THEN 'groove_win'
+                    WHEN type = 'rollback' THEN 'refund'
                     ELSE 'groove_bet'
                 END as transaction_type,
-                bet_amount as amount,
+                amount,
                 'USD' as currency,
                 'completed' as status,
-                game_id,
+                NULL as game_id,
                 NULL as game_name,
                 'GrooveTech' as provider,
-                game_session_id as session_id,
-                round_id,
-                bet_amount,
-                CASE WHEN transaction_type = 'result' THEN bet_amount ELSE NULL END as win_amount,
+                session_id,
+                NULL as round_id,
+                CASE WHEN type = 'wager' THEN amount ELSE NULL END as bet_amount,
+                CASE WHEN type = 'result' THEN amount ELSE NULL END as win_amount,
                 CASE 
-                    WHEN transaction_type = 'wager' THEN -bet_amount
-                    WHEN transaction_type = 'result' THEN bet_amount
-                    ELSE bet_amount
+                    WHEN type = 'wager' THEN -amount
+                    WHEN type = 'result' THEN amount
+                    ELSE amount
                 END as net_result,
                 0 as balance_before,
                 0 as balance_after,
                 'groove' as payment_method,
-                account_transaction_id as external_transaction_id,
-                json_build_object(
-                    'groove_transaction', true, 
-                    'device', device, 
-                    'status', status,
-                    'frbid', frbid,
-                    'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS')
-                )::text as metadata,
-                created_at,
-                created_at as updated_at
+                transaction_id as external_transaction_id,
+                metadata::text as metadata,
+                to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+                to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
             FROM groove_transactions
             WHERE created_at IS NOT NULL
             ORDER BY created_at
@@ -360,7 +354,7 @@ create_balance_snapshots() {
                 user_id,
                 amount as balance,
                 'USD' as currency,
-                created_at as snapshot_time,
+                to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as snapshot_time,
                 id::text as transaction_id,
                 transaction_type
             FROM balance_logs
