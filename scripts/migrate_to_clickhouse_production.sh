@@ -157,7 +157,7 @@ migrate_users() {
                     'username', username,
                     'first_name', first_name,
                     'last_name', last_name,
-                    'created_at', created_at,
+                    'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS'),
                     'verified', is_email_verified
                 )::text as metadata,
                 created_at,
@@ -235,8 +235,8 @@ migrate_balances() {
                 json_build_object(
                     'balance_log', true, 
                     'description', description,
-                    'created_at', created_at,
-                    'updated_at', updated_at
+                    'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS'),
+                    'updated_at', to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS')
                 )::text as metadata,
                 created_at,
                 updated_at
@@ -312,7 +312,7 @@ migrate_groove_transactions() {
                     'device', device, 
                     'status', status,
                     'frbid', frbid,
-                    'created_at', created_at
+                    'created_at', to_char(created_at, 'YYYY-MM-DD HH24:MI:SS')
                 )::text as metadata,
                 created_at,
                 created_at as updated_at
