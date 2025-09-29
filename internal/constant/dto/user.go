@@ -370,9 +370,10 @@ type ReferralBonusRes struct {
 }
 
 type UserBalanceResp struct {
-	UserID   uuid.UUID       `json:"user_id"`
-	Balance  decimal.Decimal `json:"balance"`
-	Currency string          `json:"currency"`
+	UserID           uuid.UUID       `json:"user_id"`
+	Balance          decimal.Decimal `json:"balance"`
+	BalanceFormatted string          `json:"balance_formatted"`
+	Currency         string          `json:"currency"`
 }
 
 // UserSession represents a user session for session management

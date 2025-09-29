@@ -62,6 +62,7 @@ pisi:
   
 # Kafka Configuration
 kafka:
+  enabled: false
   bootstrap_servers: localhost:9092
   topic: "events"
   cluster_api_key: ""

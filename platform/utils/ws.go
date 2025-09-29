@@ -86,9 +86,10 @@ func (b *User) AddToPlayerBalanceWS(ctx context.Context, userID uuid.UUID, conn 
 	}
 
 	p := dto.UserBalanceResp{
-		UserID:   userID,
-		Balance:  playerLevel.Balance,
-		Currency: playerLevel.Currency,
+		UserID:           userID,
+		Balance:          playerLevel.Balance,
+		BalanceFormatted: FormatCurrency(playerLevel.Balance, playerLevel.Currency),
+		Currency:         playerLevel.Currency,
 	}
 
 	msg, err := json.Marshal(p)
@@ -135,14 +136,17 @@ func (b *User) GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBa
 	if !exist {
 		b.log.Warn("User balance does not exist", zap.String("userID", userID.String()))
 		return dto.UserBalanceResp{
-			UserID:  userID,
-			Balance: decimal.Zero,
+			UserID:           userID,
+			Balance:          decimal.Zero,
+			BalanceFormatted: FormatCurrency(decimal.Zero, constant.DEFAULT_CURRENCY),
+			Currency:         constant.DEFAULT_CURRENCY,
 		}, nil
 	}
 	return dto.UserBalanceResp{
-		UserID:   userID,
-		Balance:  balance.AmountUnits,
-		Currency: balance.CurrencyCode,
+		UserID:           userID,
+		Balance:          balance.AmountUnits,
+		BalanceFormatted: FormatCurrency(balance.AmountUnits, balance.CurrencyCode),
+		Currency:         balance.CurrencyCode,
 	}, nil
 }
 
@@ -155,9 +159,10 @@ func (b *User) TriggerBalanceWS(ctx context.Context, userID uuid.UUID) {
 	}
 
 	pl := dto.UserBalanceResp{
-		UserID:   userID,
-		Balance:  playerLevel.Balance,
-		Currency: playerLevel.Currency,
+		UserID:           userID,
+		Balance:          playerLevel.Balance,
+		BalanceFormatted: FormatCurrency(playerLevel.Balance, playerLevel.Currency),
+		Currency:         playerLevel.Currency,
 	}
 
 	msg, err := json.Marshal(pl)

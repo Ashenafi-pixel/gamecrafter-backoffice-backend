@@ -866,7 +866,8 @@ func (s *CashbackService) extractGameVariantFromTransaction(ctx context.Context,
 
 	// Return the game ID as the variant for specific house edge lookup
 	// This allows us to have game-specific RTP configurations
-	gameVariant := fmt.Sprintf("%s_%s", gameType, gameID)
+	// Use just the game ID as the variant since that's how it's stored in the database
+	gameVariant := gameID
 
 	s.logger.Info("Extracted game variant from transaction",
 		zap.String("transaction_id", transactionID),
@@ -919,7 +920,7 @@ func (s *CashbackService) createEnhancedCashbackData(ctx context.Context, baseSu
 		if extractedGameID, extractedGameType, err := s.grooveStorage.GetTransactionGameInfo(ctx, bet.ClientTransactionID); err == nil {
 			gameID = extractedGameID
 			gameType = extractedGameType
-			gameVariant = fmt.Sprintf("%s_%s", gameType, gameID)
+			gameVariant = gameID
 			gameName = s.getGameDisplayName(gameID, gameType)
 		}
 	}
