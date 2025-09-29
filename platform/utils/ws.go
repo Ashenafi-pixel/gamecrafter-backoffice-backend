@@ -21,6 +21,7 @@ type UserWS interface {
 	AddToPlayerBalanceWS(ctx context.Context, userID uuid.UUID, conn *websocket.Conn)
 	GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBalanceResp, error)
 	TriggerBalanceWS(ctx context.Context, userID uuid.UUID)
+	TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashbackData dto.EnhancedUserCashbackSummary)
 }
 
 type User struct {
@@ -29,6 +30,14 @@ type User struct {
 	UserBalanceSocket       map[uuid.UUID]map[*websocket.Conn]bool
 	UserBalanceSocketLocker map[*websocket.Conn]*sync.Mutex
 	mutex                   sync.Mutex
+}
+
+// CashbackWebSocketMessage represents the WebSocket message for cashback updates
+type CashbackWebSocketMessage struct {
+	Type    string                          `json:"type"`
+	UserID  uuid.UUID                       `json:"user_id"`
+	Data    dto.EnhancedUserCashbackSummary `json:"data"`
+	Message string                          `json:"message,omitempty"`
 }
 
 func InitUserws(
@@ -184,5 +193,51 @@ func (b *User) TriggerBalanceWS(ctx context.Context, userID uuid.UUID) {
 		}
 	} else {
 		b.log.Info("No user balance socket connections found for user", zap.String("userID", userID.String()))
+	}
+}
+
+// TriggerCashbackWS sends real-time cashback updates to connected WebSocket clients
+func (b *User) TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashbackData dto.EnhancedUserCashbackSummary) {
+	cashbackMessage := CashbackWebSocketMessage{
+		Type:    "cashback_update",
+		UserID:  userID,
+		Data:    cashbackData,
+		Message: "Cashback availability updated",
+	}
+
+	msg, err := json.Marshal(cashbackMessage)
+	if err != nil {
+		b.log.Error("Failed to marshal cashback message", zap.Error(err), zap.String("userID", userID.String()))
+		return
+	}
+
+	b.log.Info("Triggering cashback WebSocket update",
+		zap.String("userID", userID.String()),
+		zap.String("available_cashback", cashbackData.AvailableCashback.String()),
+		zap.String("current_tier", cashbackData.CurrentTier.TierName))
+
+	if conns, exists := b.UserBalanceSocket[userID]; exists {
+		for conn := range conns {
+			b.getUserBalanceSocketLocker(conn).Lock()
+			if conn == nil {
+				if b.getUserBalanceSocketLocker(conn) != nil {
+					b.getUserBalanceSocketLocker(conn).Unlock()
+				}
+				continue
+			}
+
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				b.log.Warn("Failed to send cashback update", zap.Error(err), zap.String("userID", userID.String()))
+				if b.getUserBalanceSocketLocker(conn) != nil {
+					b.getUserBalanceSocketLocker(conn).Unlock()
+				}
+				continue
+			}
+			if b.getUserBalanceSocketLocker(conn) != nil {
+				b.getUserBalanceSocketLocker(conn).Unlock()
+			}
+		}
+	} else {
+		b.log.Info("No user balance socket connections found for cashback update", zap.String("userID", userID.String()))
 	}
 }

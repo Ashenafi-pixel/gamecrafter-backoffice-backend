@@ -15,16 +15,18 @@ import (
 )
 
 type analytics struct {
-	logger             *zap.Logger
-	analyticsStorage   storage.Analytics
-	dailyReportService analyticsModule.DailyReportService
+	logger                    *zap.Logger
+	analyticsStorage          storage.Analytics
+	dailyReportService        analyticsModule.DailyReportService
+	dailyReportCronjobService analyticsModule.DailyReportCronjobService
 }
 
-func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService) handler.Analytics {
+func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) handler.Analytics {
 	return &analytics{
-		logger:             log,
-		analyticsStorage:   analyticsStorage,
-		dailyReportService: dailyReportService,
+		logger:                    log,
+		analyticsStorage:          analyticsStorage,
+		dailyReportService:        dailyReportService,
+		dailyReportCronjobService: dailyReportCronjobService,
 	}
 }
 
@@ -241,6 +243,54 @@ func (a *analytics) GetDailyReport(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
 			Success: false,
 			Error:   "Failed to retrieve daily report",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    report,
+	})
+}
+
+// GetEnhancedDailyReport Get enhanced daily report with comparison metrics
+// @Summary Get enhanced daily report
+// @Description Retrieve enhanced daily analytics report with comparison metrics (previous day, MTD, SPLM)
+// @Tags analytics
+// @Accept json
+// @Produce json
+// @Param date query string true "Date (YYYY-MM-DD)"
+// @Success 200 {object} dto.AnalyticsResponse
+// @Failure 400 {object} dto.AnalyticsResponse
+// @Failure 500 {object} dto.AnalyticsResponse
+// @Router /analytics/reports/daily-enhanced [get]
+func (a *analytics) GetEnhancedDailyReport(c *gin.Context) {
+	dateStr := c.Query("date")
+	if dateStr == "" {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Date parameter is required",
+		})
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	report, err := a.analyticsStorage.GetEnhancedDailyReport(c.Request.Context(), date)
+	if err != nil {
+		a.logger.Error("Failed to get enhanced daily report",
+			zap.String("date", dateStr),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve enhanced daily report",
 		})
 		return
 	}

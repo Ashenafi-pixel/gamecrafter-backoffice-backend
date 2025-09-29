@@ -19,3 +19,12 @@ func InitLogger() logger.Logger {
 	}
 	return logger.New(lg)
 }
+
+// InitEnhancedLogger creates an enhanced logger with AWS CloudWatch integration
+func InitEnhancedLogger() logger.EnhancedLogger {
+	enhancedLogger, err := logger.NewEnhancedLogger()
+	if err != nil {
+		log.Fatalf("failed to initialize enhanced logger: %v", err)
+	}
+	return enhancedLogger
+}

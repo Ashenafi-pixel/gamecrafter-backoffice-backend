@@ -137,8 +137,80 @@ type DailyReport struct {
 	ActiveUsers       uint32          `json:"active_users"`
 	ActiveGames       uint32          `json:"active_games"`
 	NewUsers          uint32          `json:"new_users"`
+	UniqueDepositors  uint32          `json:"unique_depositors"`
+	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
 	TopGames          []GameStats     `json:"top_games"`
 	TopPlayers        []PlayerStats   `json:"top_players"`
+}
+
+// EnhancedDailyReport represents daily analytics report with comparison metrics
+type EnhancedDailyReport struct {
+	Date              time.Time       `json:"date"`
+	TotalTransactions uint32          `json:"total_transactions"`
+	TotalDeposits     decimal.Decimal `json:"total_deposits"`
+	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
+	TotalBets         decimal.Decimal `json:"total_bets"`
+	TotalWins         decimal.Decimal `json:"total_wins"`
+	NetRevenue        decimal.Decimal `json:"net_revenue"`
+	ActiveUsers       uint32          `json:"active_users"`
+	ActiveGames       uint32          `json:"active_games"`
+	NewUsers          uint32          `json:"new_users"`
+	UniqueDepositors  uint32          `json:"unique_depositors"`
+	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
+
+	// Comparison metrics
+	PreviousDayChange DailyReportComparison `json:"previous_day_change"`
+	MTD               DailyReportMTD        `json:"mtd"`
+	SPLM              DailyReportSPLM       `json:"splm"`
+	MTDvsSPLMChange   DailyReportComparison `json:"mtd_vs_splm_change"`
+
+	TopGames   []GameStats   `json:"top_games"`
+	TopPlayers []PlayerStats `json:"top_players"`
+}
+
+// DailyReportComparison represents percentage change comparison
+type DailyReportComparison struct {
+	TotalTransactionsChange decimal.Decimal `json:"total_transactions_change"`
+	TotalDepositsChange     decimal.Decimal `json:"total_deposits_change"`
+	TotalWithdrawalsChange  decimal.Decimal `json:"total_withdrawals_change"`
+	TotalBetsChange         decimal.Decimal `json:"total_bets_change"`
+	TotalWinsChange         decimal.Decimal `json:"total_wins_change"`
+	NetRevenueChange        decimal.Decimal `json:"net_revenue_change"`
+	ActiveUsersChange       decimal.Decimal `json:"active_users_change"`
+	ActiveGamesChange       decimal.Decimal `json:"active_games_change"`
+	NewUsersChange          decimal.Decimal `json:"new_users_change"`
+	UniqueDepositorsChange  decimal.Decimal `json:"unique_depositors_change"`
+	UniqueWithdrawersChange decimal.Decimal `json:"unique_withdrawers_change"`
+}
+
+// DailyReportMTD represents Month To Date metrics
+type DailyReportMTD struct {
+	TotalTransactions uint32          `json:"total_transactions"`
+	TotalDeposits     decimal.Decimal `json:"total_deposits"`
+	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
+	TotalBets         decimal.Decimal `json:"total_bets"`
+	TotalWins         decimal.Decimal `json:"total_wins"`
+	NetRevenue        decimal.Decimal `json:"net_revenue"`
+	ActiveUsers       uint32          `json:"active_users"`
+	ActiveGames       uint32          `json:"active_games"`
+	NewUsers          uint32          `json:"new_users"`
+	UniqueDepositors  uint32          `json:"unique_depositors"`
+	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
+}
+
+// DailyReportSPLM represents Same Period Last Month metrics
+type DailyReportSPLM struct {
+	TotalTransactions uint32          `json:"total_transactions"`
+	TotalDeposits     decimal.Decimal `json:"total_deposits"`
+	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
+	TotalBets         decimal.Decimal `json:"total_bets"`
+	TotalWins         decimal.Decimal `json:"total_wins"`
+	NetRevenue        decimal.Decimal `json:"net_revenue"`
+	ActiveUsers       uint32          `json:"active_users"`
+	ActiveGames       uint32          `json:"active_games"`
+	NewUsers          uint32          `json:"new_users"`
+	UniqueDepositors  uint32          `json:"unique_depositors"`
+	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
 }
 
 // MonthlyReport represents monthly analytics report

@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,87 @@ type SendYesterdayReportEmailRequest struct {
 // SendLastWeekReportEmailRequest represents the request to send last week's reports
 type SendLastWeekReportEmailRequest struct {
 	Recipients []string `json:"recipients" binding:"required" example:"admin@example.com,manager@example.com"` // Email recipients
+}
+
+// SendConfiguredDailyReportEmailRequest represents the request to send daily report to configured recipients
+type SendConfiguredDailyReportEmailRequest struct {
+	Date string `json:"date,omitempty" example:"2025-01-15"` // Date in YYYY-MM-DD format (optional, defaults to yesterday)
+}
+
+// SendConfiguredDailyReportEmail sends daily report email to configured recipients
+// @Summary Send daily report email to configured recipients
+// @Description Send daily report email to recipients configured in the system (ashenafialemu27@gmail.com, johsjones612@gmail.com)
+// @Tags analytics
+// @Accept json
+// @Produce json
+// @Param request body SendConfiguredDailyReportEmailRequest true "Configured daily report email request"
+// @Success 200 {object} dto.AnalyticsResponse
+// @Failure 400 {object} dto.AnalyticsResponse
+// @Failure 500 {object} dto.AnalyticsResponse
+// @Router /analytics/daily-report/send-configured [post]
+func (a *analytics) SendConfiguredDailyReportEmail(c *gin.Context) {
+	var req SendConfiguredDailyReportEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		a.logger.Error("Invalid request format for configured daily report email", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid request format: " + err.Error(),
+		})
+		return
+	}
+
+	// Use yesterday's date if no date provided
+	date := req.Date
+	if date == "" {
+		date = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	}
+
+	// Validate date format
+	parsedDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		a.logger.Error("Invalid date format for configured daily report email",
+			zap.String("date", date),
+			zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	// Get configured recipients
+	configuredRecipients := []string{
+		"ashenafialemu27@gmail.com",
+		"johsjones612@gmail.com",
+	}
+
+	a.logger.Info("Sending configured daily report email",
+		zap.String("date", date),
+		zap.Int("recipients_count", len(configuredRecipients)),
+		zap.Strings("recipients", configuredRecipients))
+
+	// Call the daily report service to generate and send the email
+	if err := a.dailyReportService.GenerateAndSendDailyReport(c.Request.Context(), parsedDate, configuredRecipients); err != nil {
+		a.logger.Error("Failed to generate and send configured daily report email",
+			zap.String("date", date),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to send configured daily report email: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data: gin.H{
+			"message":          "Configured daily report email sent successfully",
+			"date":             date,
+			"recipients_count": len(configuredRecipients),
+			"recipients":       configuredRecipients,
+			"note":             "Email sent to configured recipients: ashenafialemu27@gmail.com, johsjones612@gmail.com",
+		},
+	})
 }
 
 // SendDailyReportEmail sends daily report email manually
@@ -167,6 +249,42 @@ func (a *analytics) SendYesterdayReportEmail(c *gin.Context) {
 // @Param request body SendLastWeekReportEmailRequest true "Last week's reports email request"
 // @Success 200 {object} dto.AnalyticsResponse
 // @Failure 400 {object} dto.AnalyticsResponse
+// @Failure 500 {object} dto.AnalyticsResponse
+// @Router /analytics/daily-report/last-week [post]
+func (a *analytics) SendLastWeekReportEmail(c *gin.Context) {
+	var req SendLastWeekReportEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		a.logger.Error("Invalid request format for last week's report email", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid request format: " + err.Error(),
+		})
+		return
+	}
+
+	a.logger.Info("Sending last week's report emails manually",
+		zap.Int("recipients_count", len(req.Recipients)))
+
+	// Call the daily report service to generate and send last week's reports
+	if err := a.dailyReportService.GenerateLastWeekReport(c.Request.Context(), req.Recipients); err != nil {
+		a.logger.Error("Failed to generate and send last week's report emails",
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to send last week's report emails: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data: gin.H{
+			"message":          "Last week's report emails sent successfully",
+			"recipients_count": len(req.Recipients),
+			"recipients":       req.Recipients,
+		},
+	})
+}
 
 // SendDailyReportRequest represents the simplified request structure
 type SendDailyReportRequest struct {
@@ -191,7 +309,7 @@ type GenerateDailyReportRequest struct {
 
 // contains helper function for basic string validation
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || contains(s[1:], substr))
+	return strings.Contains(s, substr)
 }
 
 // ScheduleDailyReportCronJob schedules a cron job for automatic daily reports
@@ -265,6 +383,97 @@ func (a *analytics) ScheduleDailyReportCronJob(c *gin.Context) {
 		Data: gin.H{
 			"message":       "Daily report cronjob scheduled successfully",
 			"schedule_info": scheduleInfo,
+		},
+	})
+}
+
+// SendTestDailyReport sends a test daily report to configured recipients
+// @Summary Send test daily report
+// @Description Send a test daily report to configured recipients for verification
+// @Tags analytics
+// @Accept json
+// @Produce json
+// @Success 200 {object} dto.AnalyticsResponse
+// @Failure 500 {object} dto.AnalyticsResponse
+// @Router /analytics/daily-report/test [post]
+func (a *analytics) SendTestDailyReport(c *gin.Context) {
+	a.logger.Info("Sending test daily report to configured recipients")
+
+	// Get configured recipients
+	configuredRecipients := []string{
+		"ashenafialemu27@gmail.com",
+		"johsjones612@gmail.com",
+	}
+
+	// Use yesterday's date for test
+	testDate := time.Now().AddDate(0, 0, -1)
+
+	a.logger.Info("Sending test daily report",
+		zap.String("date", testDate.Format("2006-01-02")),
+		zap.Int("recipients_count", len(configuredRecipients)),
+		zap.Strings("recipients", configuredRecipients))
+
+	// Call the daily report service to generate and send the email
+	if err := a.dailyReportService.GenerateAndSendDailyReport(c.Request.Context(), testDate, configuredRecipients); err != nil {
+		a.logger.Error("Failed to generate and send test daily report",
+			zap.String("date", testDate.Format("2006-01-02")),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to send test daily report: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data: gin.H{
+			"message":          "Test daily report sent successfully",
+			"date":             testDate.Format("2006-01-02"),
+			"recipients_count": len(configuredRecipients),
+			"recipients":       configuredRecipients,
+			"note":             "Test email sent to configured recipients: ashenafialemu27@gmail.com, johsjones612@gmail.com",
+		},
+	})
+}
+
+// GetCronjobStatus gets the status of the daily report cronjob service
+// @Summary Get cronjob status
+// @Description Get the current status of the daily report cronjob service
+// @Tags analytics
+// @Accept json
+// @Produce json
+// @Success 200 {object} dto.AnalyticsResponse
+// @Router /analytics/daily-report/cronjob-status [get]
+func (a *analytics) GetCronjobStatus(c *gin.Context) {
+	if a.dailyReportCronjobService == nil {
+		c.JSON(http.StatusOK, dto.AnalyticsResponse{
+			Success: true,
+			Data: gin.H{
+				"status":                "not_initialized",
+				"message":               "Daily report cronjob service is not initialized",
+				"configured_recipients": []string{"ashenafialemu27@gmail.com", "johsjones612@gmail.com"},
+				"schedule":              "23:59 UTC (end of day)",
+			},
+		})
+		return
+	}
+
+	isRunning := a.dailyReportCronjobService.IsRunning()
+	status := "stopped"
+	if isRunning {
+		status = "running"
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data: gin.H{
+			"status":                status,
+			"is_running":            isRunning,
+			"message":               "Daily report cronjob service status",
+			"configured_recipients": []string{"ashenafialemu27@gmail.com", "johsjones612@gmail.com"},
+			"schedule":              "23:59 UTC (end of day)",
+			"next_run":              "Tomorrow at 23:59 UTC",
 		},
 	})
 }

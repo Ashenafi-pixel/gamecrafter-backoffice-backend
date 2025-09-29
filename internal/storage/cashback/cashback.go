@@ -655,27 +655,264 @@ func (s *CashbackStorageImpl) GetUserCashbackEarnings(ctx context.Context, userI
 }
 
 func (s *CashbackStorageImpl) GetAvailableCashbackEarnings(ctx context.Context, userID uuid.UUID) ([]dto.CashbackEarning, error) {
-	return []dto.CashbackEarning{}, nil
+	s.logger.Info("Getting available cashback earnings", zap.String("user_id", userID.String()))
+
+	var earnings []dto.CashbackEarning
+
+	query := `
+		SELECT id, user_id, source_bet_id, earning_type, earned_amount, available_amount, 
+		       claimed_amount, cashback_rate, ggr_amount, tier_id, status, expires_at, 
+		       claimed_at, created_at, updated_at
+		FROM cashback_earnings
+		WHERE user_id = $1 
+		  AND status = 'available' 
+		  AND available_amount > 0
+		  AND expires_at > NOW()
+		ORDER BY created_at ASC
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query, userID)
+	if err != nil {
+		s.logger.Error("Failed to query available cashback earnings", zap.Error(err))
+		return nil, fmt.Errorf("failed to query available cashback earnings: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var earning dto.CashbackEarning
+		var claimedAt sql.NullTime
+
+		err := rows.Scan(
+			&earning.ID,
+			&earning.UserID,
+			&earning.SourceBetID,
+			&earning.EarningType,
+			&earning.EarnedAmount,
+			&earning.AvailableAmount,
+			&earning.ClaimedAmount,
+			&earning.CashbackRate,
+			&earning.ExpectedGGRAmount,
+			&earning.TierID,
+			&earning.Status,
+			&earning.ExpiresAt,
+			&claimedAt,
+			&earning.CreatedAt,
+			&earning.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan available cashback earning", zap.Error(err))
+			return nil, fmt.Errorf("failed to scan available cashback earning: %w", err)
+		}
+
+		if claimedAt.Valid {
+			earning.ClaimedAt = &claimedAt.Time
+		}
+
+		earnings = append(earnings, earning)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.Error("Error iterating available cashback earnings", zap.Error(err))
+		return nil, fmt.Errorf("error iterating available cashback earnings: %w", err)
+	}
+
+	s.logger.Info("Retrieved available cashback earnings",
+		zap.String("user_id", userID.String()),
+		zap.Int("count", len(earnings)))
+
+	return earnings, nil
 }
 
 func (s *CashbackStorageImpl) UpdateCashbackEarningStatus(ctx context.Context, earning dto.CashbackEarning) (dto.CashbackEarning, error) {
+	s.logger.Info("Updating cashback earning status",
+		zap.String("earning_id", earning.ID.String()),
+		zap.String("user_id", earning.UserID.String()),
+		zap.String("status", earning.Status),
+		zap.String("available_amount", earning.AvailableAmount.String()))
+
+	query := `
+		UPDATE cashback_earnings 
+		SET claimed_amount = $2, 
+		    available_amount = $3, 
+		    status = $4, 
+		    claimed_at = $5,
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+
+	var claimedAt interface{}
+	if earning.ClaimedAt != nil {
+		claimedAt = earning.ClaimedAt
+	} else {
+		claimedAt = nil
+	}
+
+	_, err := s.db.GetPool().Exec(ctx, query,
+		earning.ID,
+		earning.ClaimedAmount,
+		earning.AvailableAmount,
+		earning.Status,
+		claimedAt,
+	)
+	if err != nil {
+		s.logger.Error("Failed to update cashback earning status", zap.Error(err))
+		return earning, fmt.Errorf("failed to update cashback earning status: %w", err)
+	}
+
+	s.logger.Info("Cashback earning status updated successfully",
+		zap.String("earning_id", earning.ID.String()),
+		zap.String("status", earning.Status))
+
 	return earning, nil
 }
 
 func (s *CashbackStorageImpl) CreateCashbackClaim(ctx context.Context, claim dto.CashbackClaim) (dto.CashbackClaim, error) {
+	s.logger.Info("Creating cashback claim",
+		zap.String("claim_id", claim.ID.String()),
+		zap.String("user_id", claim.UserID.String()),
+		zap.String("amount", claim.ClaimAmount.String()))
+
+	query := `
+		INSERT INTO cashback_claims (id, user_id, claim_amount, net_amount, processing_fee, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+	`
+
+	_, err := s.db.GetPool().Exec(ctx, query,
+		claim.ID,
+		claim.UserID,
+		claim.ClaimAmount,
+		claim.NetAmount,
+		claim.ProcessingFee,
+		claim.Status,
+	)
+	if err != nil {
+		s.logger.Error("Failed to create cashback claim", zap.Error(err))
+		return claim, fmt.Errorf("failed to create cashback claim: %w", err)
+	}
+
+	s.logger.Info("Cashback claim created successfully",
+		zap.String("claim_id", claim.ID.String()),
+		zap.String("user_id", claim.UserID.String()))
+
 	return claim, nil
 }
 
 func (s *CashbackStorageImpl) UpdateCashbackClaimStatus(ctx context.Context, claim dto.CashbackClaim) (dto.CashbackClaim, error) {
+	s.logger.Info("Updating cashback claim status",
+		zap.String("claim_id", claim.ID.String()),
+		zap.String("user_id", claim.UserID.String()),
+		zap.String("status", claim.Status))
+
+	query := `
+		UPDATE cashback_claims 
+		SET status = $2, 
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := s.db.GetPool().Exec(ctx, query,
+		claim.ID,
+		claim.Status,
+	)
+	if err != nil {
+		s.logger.Error("Failed to update cashback claim status", zap.Error(err))
+		return claim, fmt.Errorf("failed to update cashback claim status: %w", err)
+	}
+
+	s.logger.Info("Cashback claim status updated successfully",
+		zap.String("claim_id", claim.ID.String()),
+		zap.String("status", claim.Status))
+
 	return claim, nil
 }
 
 func (s *CashbackStorageImpl) GetUserCashbackClaims(ctx context.Context, userID uuid.UUID) ([]dto.CashbackClaim, error) {
-	return []dto.CashbackClaim{}, nil
+	s.logger.Info("Getting user cashback claims", zap.String("user_id", userID.String()))
+
+	var claims []dto.CashbackClaim
+
+	query := `
+		SELECT id, user_id, claim_amount, net_amount, processing_fee, status, created_at, updated_at
+		FROM cashback_claims
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query, userID)
+	if err != nil {
+		s.logger.Error("Failed to query cashback claims", zap.Error(err))
+		return nil, fmt.Errorf("failed to query cashback claims: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var claim dto.CashbackClaim
+
+		err := rows.Scan(
+			&claim.ID,
+			&claim.UserID,
+			&claim.ClaimAmount,
+			&claim.NetAmount,
+			&claim.ProcessingFee,
+			&claim.Status,
+			&claim.CreatedAt,
+			&claim.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan cashback claim", zap.Error(err))
+			return nil, fmt.Errorf("failed to scan cashback claim: %w", err)
+		}
+
+		claims = append(claims, claim)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.Error("Error iterating cashback claims", zap.Error(err))
+		return nil, fmt.Errorf("error iterating cashback claims: %w", err)
+	}
+
+	s.logger.Info("Retrieved user cashback claims",
+		zap.String("user_id", userID.String()),
+		zap.Int("count", len(claims)))
+
+	return claims, nil
 }
 
 func (s *CashbackStorageImpl) GetCashbackClaim(ctx context.Context, claimID uuid.UUID) (*dto.CashbackClaim, error) {
-	return nil, nil
+	s.logger.Info("Getting cashback claim", zap.String("claim_id", claimID.String()))
+
+	query := `
+		SELECT id, user_id, claim_amount, net_amount, processing_fee, status, created_at, updated_at
+		FROM cashback_claims
+		WHERE id = $1
+	`
+
+	var claim dto.CashbackClaim
+
+	err := s.db.GetPool().QueryRow(ctx, query, claimID).Scan(
+		&claim.ID,
+		&claim.UserID,
+		&claim.ClaimAmount,
+		&claim.NetAmount,
+		&claim.ProcessingFee,
+		&claim.Status,
+		&claim.CreatedAt,
+		&claim.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Info("Cashback claim not found", zap.String("claim_id", claimID.String()))
+			return nil, nil
+		}
+		s.logger.Error("Failed to get cashback claim", zap.Error(err))
+		return nil, fmt.Errorf("failed to get cashback claim: %w", err)
+	}
+
+	s.logger.Info("Retrieved cashback claim",
+		zap.String("claim_id", claimID.String()),
+		zap.String("user_id", claim.UserID.String()))
+
+	return &claim, nil
 }
 
 func (s *CashbackStorageImpl) GetGameHouseEdge(ctx context.Context, gameType, gameVariant string) (*dto.GameHouseEdge, error) {

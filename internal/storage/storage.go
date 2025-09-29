@@ -88,6 +88,7 @@ type Analytics interface {
 
 	// Reporting methods
 	GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error)
+	GetEnhancedDailyReport(ctx context.Context, date time.Time) (*dto.EnhancedDailyReport, error)
 	GetMonthlyReport(ctx context.Context, year int, month int) (*dto.MonthlyReport, error)
 	GetTopGames(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.GameStats, error)
 	GetTopPlayers(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.PlayerStats, error)

@@ -15,6 +15,8 @@ import (
 type DailyReportService interface {
 	GenerateAndSendDailyReport(ctx context.Context, date time.Time, recipients []string) error
 	GenerateDailyReportForDate(ctx context.Context, date time.Time) (*dto.DailyReport, error)
+	GenerateYesterdayReport(ctx context.Context, recipients []string) error
+	GenerateLastWeekReport(ctx context.Context, recipients []string) error
 }
 
 // DailyReportServiceImpl implementation of daily report service

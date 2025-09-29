@@ -68,7 +68,7 @@ func (d *DailyReportEmailServiceImpl) sendDailyReportEmailToRecipient(recipient,
 	if err := tmpl.Execute(&buf, map[string]interface{}{
 		"Email":        recipient,
 		"CurrentYear":  time.Now().Year(),
-		"ReportHTML":   htmlBody,
+		"ReportHTML":   template.HTML(htmlBody), // Use template.HTML to prevent escaping
 		"BrandName":    "TucanBIT",
 		"SupportEmail": "support@tucanbit.com",
 	}); err != nil {
@@ -89,62 +89,82 @@ func (d *DailyReportEmailServiceImpl) sendDailyReportEmailToRecipient(recipient,
 func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.DailyReport) (string, error) {
 	tmpl := `
 	<div class="daily-report-content">
-		<h2 style="color: #2c3e50; margin-bottom: 20px;">📊 Daily Analytics Report</h2>
-		<p style="margin-bottom: 15px; font-size: 16px;"><strong>Date:</strong> {{.Date.Format "Monday, January 2, 2006"}}</p>
+		<h2 style="color: #2c3e50; margin-bottom: 20px;">Daily Analytics Report</h2>
+		<p style="margin-bottom: 15px; font-size: 16px;"><strong>Date:</strong> {{.DateFormatted}}</p>
 		
-		<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit', minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
-			<div class="metric-card" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 10px; text-align: center;">
-				<h3 style="margin: 0 0 10px 0; font-size: 28px; font-weight: bold;">{{.TotalTransactions}}</h3>
-				<p style="margin: 0; font-size: 14px;">Total Transactions</p>
-			</div>
-			<div class="metric-card" style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 10px; text-align: center;">
-				<h3 style="margin: 0 0 10px 0; font-size: 28px; font-weight: bold;">{{.ActiveUsers}}</h3>
-				<p style="margin: 0; font-size: 14px;">Active Users</p>
-			</div>
-			<div class="metric-card" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; padding: 20px; border-radius: 10px; text-align: center;">
-				<h3 style="margin: 0 0 10px 0; font-size: 28px; font-weight: bold;">{{.NewUsers}}</h3>
-				<p style="margin: 0; font-size: 14px;">New Users</p>
-			</div>
-			<div class="metric-card" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 20px; border-radius: 10px; text-align: center;">
-				<h3 style="margin: 0 0 10px 0; font-size: 28px; font-weight: bold;">{{.ActiveGames}}</h3>
-				<p style="margin: 0; font-size: 14px;">Active Games</p>
-
-			</div>
-		</div>
-
-		<div class="financial-metrics" style="margin: 30px 0;">
-			<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">💰 Financial Overview</h3>
+		<div class="comprehensive-metrics" style="margin: 30px 0;">
+			<h3 style="color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 10px;">Daily Performance Metrics</h3>
 			<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
 				<tr style="background-color: #f8f9fa;">
 					<th style="padding: 15px; text-align: left; border: 1px solid #dee2e6;">Metric</th>
-					<th style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">Amount (USD)</th>
+					<th style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">Value</th>
 				</tr>
 				<tr>
-					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Total Deposits</strong></td>
-					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6; color: #27ae60;">${{.TotalDeposits}}</td>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Number of Registrations</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">{{.NewUsers}}</td>
 				</tr>
 				<tr style="background-color: #f8f9fa;">
-					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Total Withdrawals</strong></td>
-					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6; color: #e74c3c;">${{.TotalWithdrawals}}</td>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Number of First Time Depositors</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">{{.FirstTimeDepositors}}</td>
 				</tr>
 				<tr>
-					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Total Bets</strong></td>
-					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6; color: #3498db;">${{.TotalBets}}</td>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Number of Active Customers</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">{{.ActiveUsers}}</td>
 				</tr>
 				<tr style="background-color: #f8f9fa;">
-					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Total Wins</strong></td>
-					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6; color: #9b59b6;">${{.TotalWins}}</td>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Number of Bets</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">{{.BetCount}}</td>
 				</tr>
-				<tr style="background-color: #ffeb3b;">
-					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Net Revenue</strong></td>
-					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6; color: #2c3e50; font-weight: bold;">${{.NetRevenue}}</td>
+				<tr>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Bet Amount (USD)</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.BetAmount}}</td>
+				</tr>
+				<tr style="background-color: #f8f9fa;">
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Win Amount (USD)</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.WinAmount}}</td>
+				</tr>
+				<tr>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>GGR (Bet - Wins) USD</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.GGR}}</td>
+				</tr>
+				<tr style="background-color: #f8f9fa;">
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Cashback Earned</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.CashbackEarned}}</td>
+				</tr>
+				<tr>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Cashback Claimed</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.CashbackClaimed}}</td>
+				</tr>
+				<tr style="background-color: #f8f9fa;">
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>NGR (GGR - Cashback Claimed)</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.NGR}}</td>
+				</tr>
+				<tr>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Number of Deposits</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">{{.DepositCount}}</td>
+				</tr>
+				<tr style="background-color: #f8f9fa;">
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Deposit Amount (USD)</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.DepositAmount}}</td>
+				</tr>
+				<tr>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Number of Withdrawals</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">{{.WithdrawalCount}}</td>
+				</tr>
+				<tr style="background-color: #f8f9fa;">
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Withdrawal Amount (USD)</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.WithdrawalAmount}}</td>
+				</tr>
+				<tr>
+					<td style="padding: 15px; border: 1px solid #dee2e6;"><strong>Admin Corrections (USD)</strong></td>
+					<td style="padding: 15px; text-align: right; border: 1px solid #dee2e6;">${{.AdminCorrections}}</td>
 				</tr>
 			</table>
 		</div>
 
 		{{if .TopGames}}
 		<div class="top-games" style="margin: 30px 0;">
-			<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">🎮 Top Performing Games</h3>
+			<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Top Performing Games</h3>
 			<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
 				<tr style="background-color: #3498db; color: white;">
 					<th style="padding: 15px; text-align: center; border: 1px solid #2980b9;">Rank</th>
@@ -170,7 +190,7 @@ func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.DailyR
 
 		{{if .TopPlayers}}
 		<div class="top-players" style="margin: 30px 0;">
-			<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">👑 Top Players</h3>
+			<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Top Players</h3>
 			<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
 				<tr style="background-color: #27ae60; color: white;">
 					<th style="padding: 15px; text-align: center; border: 1px solid #229954;">Rank</th>
@@ -204,8 +224,76 @@ func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.DailyR
 
 	tmplParsed := template.Must(template.New("daily_report").Funcs(funcMap).Parse(tmpl))
 
+	// Prepare data for the report content template
+	data := struct {
+		DateFormatted       string
+		TotalTransactions   uint32
+		TotalDeposits       string
+		TotalWithdrawals    string
+		TotalBets           string
+		TotalWins           string
+		NetRevenue          string
+		ActiveUsers         uint32
+		ActiveGames         uint32
+		NewUsers            uint32
+		FirstTimeDepositors uint32
+		BetCount            uint32
+		BetAmount           string
+		WinAmount           string
+		GGR                 string
+		CashbackEarned      string
+		CashbackClaimed     string
+		NGR                 string
+		DepositCount        uint32
+		DepositAmount       string
+		WithdrawalCount     uint32
+		WithdrawalAmount    string
+		AdminCorrections    string
+		TopGames            []dto.GameStats
+		TopPlayers          []struct {
+			dto.PlayerStats
+			LastActivityFormatted string
+		}
+	}{
+		DateFormatted:       report.Date.Format("January 02, 2006"),
+		TotalTransactions:   report.TotalTransactions,
+		TotalDeposits:       report.TotalDeposits.StringFixed(2),
+		TotalWithdrawals:    report.TotalWithdrawals.StringFixed(2),
+		TotalBets:           report.TotalBets.StringFixed(2),
+		TotalWins:           report.TotalWins.StringFixed(2),
+		NetRevenue:          report.NetRevenue.StringFixed(2),
+		ActiveUsers:         report.ActiveUsers,
+		ActiveGames:         report.ActiveGames,
+		NewUsers:            report.NewUsers,
+		FirstTimeDepositors: 0,                        // TODO: Add this field to DailyReport DTO
+		BetCount:            report.TotalTransactions, // Using total transactions as proxy for bet count
+		BetAmount:           report.TotalBets.StringFixed(2),
+		WinAmount:           report.TotalWins.StringFixed(2),
+		GGR:                 report.TotalBets.Sub(report.TotalWins).StringFixed(2),
+		CashbackEarned:      "0.00",                                                // TODO: Add this field to DailyReport DTO
+		CashbackClaimed:     "0.00",                                                // TODO: Add this field to DailyReport DTO
+		NGR:                 report.TotalBets.Sub(report.TotalWins).StringFixed(2), // GGR - Cashback Claimed
+		DepositCount:        0,                                                     // TODO: Add actual deposit count field to DailyReport DTO
+		DepositAmount:       report.TotalDeposits.StringFixed(2),
+		WithdrawalCount:     0, // TODO: Add actual withdrawal count field to DailyReport DTO
+		WithdrawalAmount:    report.TotalWithdrawals.StringFixed(2),
+		AdminCorrections:    "0.00", // TODO: Add this field to DailyReport DTO
+		TopGames:            report.TopGames,
+	}
+
+	// Format player stats for display
+	for _, ps := range report.TopPlayers {
+		data.TopPlayers = append(data.TopPlayers, struct {
+			dto.PlayerStats
+			LastActivityFormatted string
+		}{
+			PlayerStats:           ps,
+			LastActivityFormatted: ps.LastActivity.Format("2006-01-02 15:04 UTC"),
+		})
+	}
+
 	var buf bytes.Buffer
-	if err := tmplParsed.Execute(&buf, report); err != nil {
+	if err := tmplParsed.Execute(&buf, data); err != nil {
 		return "", fmt.Errorf("failed to execute daily report template: %w", err)
 	}
 

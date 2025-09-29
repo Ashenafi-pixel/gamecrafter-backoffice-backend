@@ -125,6 +125,41 @@ type UserCashbackSummary struct {
 	SpecialBenefits   map[string]interface{} `json:"special_benefits"`
 }
 
+// EnhancedUserCashbackSummary represents a user's cashback summary with game-specific details
+type EnhancedUserCashbackSummary struct {
+	UserID            uuid.UUID              `json:"user_id"`
+	CurrentTier       CashbackTier           `json:"current_tier"`
+	LevelProgress     decimal.Decimal        `json:"level_progress"`
+	TotalGGR          decimal.Decimal        `json:"total_ggr"`
+	AvailableCashback decimal.Decimal        `json:"available_cashback"`
+	PendingCashback   decimal.Decimal        `json:"pending_cashback"`
+	TotalClaimed      decimal.Decimal        `json:"total_claimed"`
+	NextTierGGR       decimal.Decimal        `json:"next_tier_ggr"`
+	DailyLimit        *decimal.Decimal       `json:"daily_limit"`
+	WeeklyLimit       *decimal.Decimal       `json:"weekly_limit"`
+	MonthlyLimit      *decimal.Decimal       `json:"monthly_limit"`
+	SpecialBenefits   map[string]interface{} `json:"special_benefits"`
+	// Game-specific information
+	LastGameInfo *GameCashbackInfo `json:"last_game_info,omitempty"`
+}
+
+// GameCashbackInfo represents game-specific cashback information
+type GameCashbackInfo struct {
+	GameID           string          `json:"game_id"`
+	GameName         string          `json:"game_name"`
+	GameType         string          `json:"game_type"`
+	GameVariant      string          `json:"game_variant"`
+	HouseEdge        decimal.Decimal `json:"house_edge"`
+	HouseEdgePercent string          `json:"house_edge_percent"`
+	CashbackRate     decimal.Decimal `json:"cashback_rate"`
+	CashbackPercent  string          `json:"cashback_percent"`
+	ExpectedGGR      decimal.Decimal `json:"expected_ggr"`
+	EarnedCashback   decimal.Decimal `json:"earned_cashback"`
+	BetAmount        decimal.Decimal `json:"bet_amount"`
+	TransactionID    string          `json:"transaction_id"`
+	Timestamp        time.Time       `json:"timestamp"`
+}
+
 // CashbackClaimRequest represents a request to claim cashback
 type CashbackClaimRequest struct {
 	Amount decimal.Decimal `json:"amount" validate:"required,gt=0"`

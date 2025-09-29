@@ -450,7 +450,7 @@ func GetDailyReportEmailTemplate() *template.Template {
             overflow: hidden;
         }
         .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #2c3e50;
             color: white; 
             padding: 30px; 
             text-align: center;
@@ -495,12 +495,11 @@ func GetDailyReportEmailTemplate() *template.Template {
         .metric-card {
             background: white;
             padding: 25px;
-            border-radius: 15px;
+            border-radius: 8px;
             text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e1e8ed;
             position: relative;
-            overflow: hidden;
         }
         .metric-card::before {
             content: '';
@@ -508,8 +507,8 @@ func GetDailyReportEmailTemplate() *template.Template {
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3498db, #2980b9);
+            height: 3px;
+            background: #2c3e50;
         }
         .metric-card h3 {
             margin: 0 0 10px 0;
@@ -532,7 +531,7 @@ func GetDailyReportEmailTemplate() *template.Template {
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .financial-metrics th, .top-games th, .top-players th {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: #2c3e50;
             color: white;
             padding: 18px 15px;
             text-align: left;
@@ -554,10 +553,10 @@ func GetDailyReportEmailTemplate() *template.Template {
             transition: background-color 0.3s ease;
         }
         .highlight-revenue {
-            background: linear-gradient(135deg, #ffeb3b, #ffc107) !important;
+            background: #f8f9fa !important;
             font-weight: bold;
             color: #2c3e50 !important;
-            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+            border-left: 4px solid #2c3e50;
         }
         .footer { 
             background-color: #2c3e50;
@@ -586,12 +585,13 @@ func GetDailyReportEmailTemplate() *template.Template {
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
         .report-summary {
-            background: linear-gradient(135deg, #74b9ff, #0984e3);
-            color: white;
+            background: #f8f9fa;
+            color: #2c3e50;
             padding: 25px;
-            border-radius: 15px;
+            border-radius: 8px;
             margin: 30px 0;
             text-align: center;
+            border: 1px solid #e1e8ed;
         }
         .report-summary h3 {
             margin: 0 0 15px 0;
@@ -620,9 +620,7 @@ func GetDailyReportEmailTemplate() *template.Template {
             transition: all 0.3s ease;
         }
         .social-icons a:hover {
-            background: #3498db;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background: #2c3e50;
         }
         @media (max-width: 600px) {
             .metrics-grid {
@@ -648,12 +646,12 @@ func GetDailyReportEmailTemplate() *template.Template {
         <div class="header">
             <img src="cid:tucan.png" alt="{{.BrandName}} Logo" class="brand-logo">
             <h1>{{.BrandName}}</h1>
-            <p class="subtitle">📊 Daily Analytics Report</p>
+            <p class="subtitle">Daily Analytics Report</p>
         </div>
         
         <div class="content">
             <div class="report-summary">
-                <h3>🎯 Daily Performance Summary</h3>
+                <h3>Daily Performance Summary</h3>
                 <p>Comprehensive overview of your platform's performance</p>
             </div>
             
@@ -668,10 +666,10 @@ func GetDailyReportEmailTemplate() *template.Template {
         
         <div class="footer">
             <div class="social-icons">
-                <a href="https://discord.gg/tucanbit" title="Discord">🅓</a>
-                <a href="https://t.me/tucanbit" title="Telegram">✉</a>
-                <a href="https://instagram.com/tucanbit" title="Instagram">📷</a>
-                <a href="https://twitter.com/tucanbit" title="Twitter">🐦</a>
+                <a href="https://discord.gg/tucanbit" title="Discord">D</a>
+                <a href="https://t.me/tucanbit" title="Telegram">T</a>
+                <a href="https://instagram.com/tucanbit" title="Instagram">I</a>
+                <a href="https://twitter.com/tucanbit" title="Twitter">X</a>
             </div>
             <p><strong>{{.BrandName}} Analytics Platform</strong></p>
             <p>Your trusted partner in gaming analytics</p>

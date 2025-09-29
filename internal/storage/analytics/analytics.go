@@ -26,6 +26,7 @@ type AnalyticsStorage interface {
 
 	// Reporting methods
 	GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error)
+	GetEnhancedDailyReport(ctx context.Context, date time.Time) (*dto.EnhancedDailyReport, error)
 	GetMonthlyReport(ctx context.Context, year int, month int) (*dto.MonthlyReport, error)
 	GetTopGames(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.GameStats, error)
 	GetTopPlayers(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.PlayerStats, error)
@@ -597,7 +598,9 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt32(uniqExact(user_id)) as active_users,
 			toUInt32(uniqExact(game_id)) as active_games,
-			toUInt32(countIf(transaction_type = 'registration')) as new_users
+			toUInt32(countIf(transaction_type = 'registration')) as new_users,
+			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
+			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers
 		FROM tucanbit_analytics.transactions
 		WHERE toDate(created_at) = ?
 	`
@@ -615,6 +618,8 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 		&report.ActiveUsers,
 		&report.ActiveGames,
 		&report.NewUsers,
+		&report.UniqueDepositors,
+		&report.UniqueWithdrawers,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan daily report: %w", err)
@@ -657,6 +662,250 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 	}
 
 	return &report, nil
+}
+
+// GetEnhancedDailyReport returns an enhanced daily report with comparison metrics
+func (s *AnalyticsStorageImpl) GetEnhancedDailyReport(ctx context.Context, date time.Time) (*dto.EnhancedDailyReport, error) {
+	// Get the base daily report
+	baseReport, err := s.GetDailyReport(ctx, date)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get base daily report: %w", err)
+	}
+
+	// Convert base report to enhanced report
+	enhancedReport := &dto.EnhancedDailyReport{
+		Date:              baseReport.Date,
+		TotalTransactions: baseReport.TotalTransactions,
+		TotalDeposits:     baseReport.TotalDeposits,
+		TotalWithdrawals:  baseReport.TotalWithdrawals,
+		TotalBets:         baseReport.TotalBets,
+		TotalWins:         baseReport.TotalWins,
+		NetRevenue:        baseReport.NetRevenue,
+		ActiveUsers:       baseReport.ActiveUsers,
+		ActiveGames:       baseReport.ActiveGames,
+		NewUsers:          baseReport.NewUsers,
+		UniqueDepositors:  baseReport.UniqueDepositors,
+		UniqueWithdrawers: baseReport.UniqueWithdrawers,
+		TopGames:          baseReport.TopGames,
+		TopPlayers:        baseReport.TopPlayers,
+	}
+
+	// Get previous day's report for comparison
+	previousDay := date.AddDate(0, 0, -1)
+	previousReport, err := s.GetDailyReport(ctx, previousDay)
+	if err != nil {
+		s.logger.Warn("Failed to get previous day report for comparison", zap.Error(err))
+		// Set all changes to 0 if previous day data is not available
+		enhancedReport.PreviousDayChange = dto.DailyReportComparison{}
+	} else {
+		// Calculate percentage changes
+		enhancedReport.PreviousDayChange = s.calculatePercentageChange(baseReport, previousReport)
+	}
+
+	// Get MTD (Month To Date) data
+	mtdData, err := s.getMTDData(ctx, date)
+	if err != nil {
+		s.logger.Warn("Failed to get MTD data", zap.Error(err))
+		enhancedReport.MTD = dto.DailyReportMTD{}
+	} else {
+		enhancedReport.MTD = *mtdData
+	}
+
+	// Get SPLM (Same Period Last Month) data
+	splmData, err := s.getSPLMData(ctx, date)
+	if err != nil {
+		s.logger.Warn("Failed to get SPLM data", zap.Error(err))
+		enhancedReport.SPLM = dto.DailyReportSPLM{}
+	} else {
+		enhancedReport.SPLM = *splmData
+	}
+
+	// Calculate MTD vs SPLM percentage changes
+	if mtdData != nil && splmData != nil {
+		enhancedReport.MTDvsSPLMChange = s.calculateMTDvsSPLMChange(mtdData, splmData)
+	}
+
+	return enhancedReport, nil
+}
+
+// calculatePercentageChange calculates percentage change between two daily reports
+func (s *AnalyticsStorageImpl) calculatePercentageChange(current, previous *dto.DailyReport) dto.DailyReportComparison {
+	return dto.DailyReportComparison{
+		TotalTransactionsChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.TotalTransactions)),
+			decimal.NewFromInt(int64(previous.TotalTransactions)),
+		),
+		TotalDepositsChange:    s.calculatePercentageChangeDecimal(current.TotalDeposits, previous.TotalDeposits),
+		TotalWithdrawalsChange: s.calculatePercentageChangeDecimal(current.TotalWithdrawals, previous.TotalWithdrawals),
+		TotalBetsChange:        s.calculatePercentageChangeDecimal(current.TotalBets, previous.TotalBets),
+		TotalWinsChange:        s.calculatePercentageChangeDecimal(current.TotalWins, previous.TotalWins),
+		NetRevenueChange:       s.calculatePercentageChangeDecimal(current.NetRevenue, previous.NetRevenue),
+		ActiveUsersChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.ActiveUsers)),
+			decimal.NewFromInt(int64(previous.ActiveUsers)),
+		),
+		ActiveGamesChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.ActiveGames)),
+			decimal.NewFromInt(int64(previous.ActiveGames)),
+		),
+		NewUsersChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.NewUsers)),
+			decimal.NewFromInt(int64(previous.NewUsers)),
+		),
+		UniqueDepositorsChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.UniqueDepositors)),
+			decimal.NewFromInt(int64(previous.UniqueDepositors)),
+		),
+		UniqueWithdrawersChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.UniqueWithdrawers)),
+			decimal.NewFromInt(int64(previous.UniqueWithdrawers)),
+		),
+	}
+}
+
+// calculatePercentageChangeDecimal calculates percentage change between two decimal values
+func (s *AnalyticsStorageImpl) calculatePercentageChangeDecimal(current, previous decimal.Decimal) decimal.Decimal {
+	if previous.IsZero() {
+		if current.IsZero() {
+			return decimal.Zero
+		}
+		return decimal.NewFromInt(100) // 100% increase from 0
+	}
+
+	change := current.Sub(previous).Div(previous).Mul(decimal.NewFromInt(100))
+	return change
+}
+
+// getMTDData gets Month To Date data for the given date
+func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (*dto.DailyReportMTD, error) {
+	startOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
+
+	query := `
+		SELECT 
+			toUInt32(count()) as total_transactions,
+			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
+			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
+			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
+			toUInt32(uniqExact(user_id)) as active_users,
+			toUInt32(uniqExact(game_id)) as active_games,
+			toUInt32(countIf(transaction_type = 'registration')) as new_users,
+			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
+			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers
+		FROM tucanbit_analytics.transactions
+		WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+	`
+
+	row := s.clickhouse.QueryRow(ctx, query, startOfMonth, date)
+
+	var mtd dto.DailyReportMTD
+	err := row.Scan(
+		&mtd.TotalTransactions,
+		&mtd.TotalDeposits,
+		&mtd.TotalWithdrawals,
+		&mtd.TotalBets,
+		&mtd.TotalWins,
+		&mtd.NetRevenue,
+		&mtd.ActiveUsers,
+		&mtd.ActiveGames,
+		&mtd.NewUsers,
+		&mtd.UniqueDepositors,
+		&mtd.UniqueWithdrawers,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan MTD data: %w", err)
+	}
+
+	return &mtd, nil
+}
+
+// getSPLMData gets Same Period Last Month data for the given date
+func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) (*dto.DailyReportSPLM, error) {
+	// Calculate same period last month
+	lastMonth := date.AddDate(0, -1, 0)
+	startOfLastMonth := time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, lastMonth.Location())
+	endOfLastMonth := startOfLastMonth.AddDate(0, 1, -1)
+
+	// Use the same day of the month as the current date, but cap at the end of last month
+	splmEndDate := time.Date(lastMonth.Year(), lastMonth.Month(), date.Day(), 0, 0, 0, 0, lastMonth.Location())
+	if splmEndDate.After(endOfLastMonth) {
+		splmEndDate = endOfLastMonth
+	}
+
+	query := `
+		SELECT 
+			toUInt32(count()) as total_transactions,
+			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
+			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
+			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
+			toUInt32(uniqExact(user_id)) as active_users,
+			toUInt32(uniqExact(game_id)) as active_games,
+			toUInt32(countIf(transaction_type = 'registration')) as new_users,
+			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
+			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers
+		FROM tucanbit_analytics.transactions
+		WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+	`
+
+	row := s.clickhouse.QueryRow(ctx, query, startOfLastMonth, splmEndDate)
+
+	var splm dto.DailyReportSPLM
+	err := row.Scan(
+		&splm.TotalTransactions,
+		&splm.TotalDeposits,
+		&splm.TotalWithdrawals,
+		&splm.TotalBets,
+		&splm.TotalWins,
+		&splm.NetRevenue,
+		&splm.ActiveUsers,
+		&splm.ActiveGames,
+		&splm.NewUsers,
+		&splm.UniqueDepositors,
+		&splm.UniqueWithdrawers,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan SPLM data: %w", err)
+	}
+
+	return &splm, nil
+}
+
+// calculateMTDvsSPLMChange calculates percentage change between MTD and SPLM
+func (s *AnalyticsStorageImpl) calculateMTDvsSPLMChange(mtd *dto.DailyReportMTD, splm *dto.DailyReportSPLM) dto.DailyReportComparison {
+	return dto.DailyReportComparison{
+		TotalTransactionsChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.TotalTransactions)),
+			decimal.NewFromInt(int64(splm.TotalTransactions)),
+		),
+		TotalDepositsChange:    s.calculatePercentageChangeDecimal(mtd.TotalDeposits, splm.TotalDeposits),
+		TotalWithdrawalsChange: s.calculatePercentageChangeDecimal(mtd.TotalWithdrawals, splm.TotalWithdrawals),
+		TotalBetsChange:        s.calculatePercentageChangeDecimal(mtd.TotalBets, splm.TotalBets),
+		TotalWinsChange:        s.calculatePercentageChangeDecimal(mtd.TotalWins, splm.TotalWins),
+		NetRevenueChange:       s.calculatePercentageChangeDecimal(mtd.NetRevenue, splm.NetRevenue),
+		ActiveUsersChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.ActiveUsers)),
+			decimal.NewFromInt(int64(splm.ActiveUsers)),
+		),
+		ActiveGamesChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.ActiveGames)),
+			decimal.NewFromInt(int64(splm.ActiveGames)),
+		),
+		NewUsersChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.NewUsers)),
+			decimal.NewFromInt(int64(splm.NewUsers)),
+		),
+		UniqueDepositorsChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.UniqueDepositors)),
+			decimal.NewFromInt(int64(splm.UniqueDepositors)),
+		),
+		UniqueWithdrawersChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.UniqueWithdrawers)),
+			decimal.NewFromInt(int64(splm.UniqueWithdrawers)),
+		),
+	}
 }
 
 func (s *AnalyticsStorageImpl) GetMonthlyReport(ctx context.Context, year int, month int) (*dto.MonthlyReport, error) {

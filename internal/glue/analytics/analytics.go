@@ -19,13 +19,17 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 
 		// Reporting endpoints
 		analyticsGroup.GET("/reports/daily", analyticsHandler.GetDailyReport)
+		analyticsGroup.GET("/reports/daily-enhanced", analyticsHandler.GetEnhancedDailyReport)
 		analyticsGroup.GET("/reports/top-games", analyticsHandler.GetTopGames)
 		analyticsGroup.GET("/reports/top-players", analyticsHandler.GetTopPlayers)
 
 		// Daily report email endpoints
 		analyticsGroup.POST("/daily-report/send", analyticsHandler.SendDailyReportEmail)
+		analyticsGroup.POST("/daily-report/send-configured", analyticsHandler.SendConfiguredDailyReportEmail)
 		analyticsGroup.POST("/daily-report/yesterday", analyticsHandler.SendYesterdayReportEmail)
 		analyticsGroup.POST("/daily-report/schedule", analyticsHandler.ScheduleDailyReportCronJob)
 		analyticsGroup.POST("/daily-report/last-week", analyticsHandler.SendLastWeekReportEmail)
+		analyticsGroup.POST("/daily-report/test", analyticsHandler.SendTestDailyReport)
+		analyticsGroup.GET("/daily-report/cronjob-status", analyticsHandler.GetCronjobStatus)
 	}
 }

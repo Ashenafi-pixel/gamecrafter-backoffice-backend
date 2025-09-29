@@ -3,6 +3,7 @@ package cashback
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/groove"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -62,14 +64,16 @@ type CashbackService struct {
 	grooveStorage           groove.GrooveStorage
 	retryService            *RetryService
 	levelProgressionService *LevelProgressionService
+	userWS                  utils.UserWS
 	logger                  *zap.Logger
 }
 
-func NewCashbackService(storage cashback.CashbackStorage, grooveStorage groove.GrooveStorage, logger *zap.Logger) *CashbackService {
+func NewCashbackService(storage cashback.CashbackStorage, grooveStorage groove.GrooveStorage, userWS utils.UserWS, logger *zap.Logger) *CashbackService {
 	// Create the service first
 	service := &CashbackService{
 		storage:       storage,
 		grooveStorage: grooveStorage,
+		userWS:        userWS,
 		logger:        logger,
 	}
 
@@ -270,6 +274,22 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		zap.String("earned_cashback", earnedCashback.String()),
 		zap.String("cashback_rate", cashbackRate.String()))
 
+	// Trigger WebSocket notification for new cashback availability with game details
+	if s.userWS != nil {
+		cashbackSummary, err := s.GetUserCashbackSummary(ctx, bet.UserID)
+		if err == nil && cashbackSummary != nil {
+			// Create enhanced cashback data with game-specific information
+			enhancedCashbackData := s.createEnhancedCashbackData(ctx, *cashbackSummary, bet, houseEdge, cashbackRate)
+			s.userWS.TriggerCashbackWS(ctx, bet.UserID, enhancedCashbackData)
+			s.logger.Debug("Cashback WebSocket notification triggered with game details",
+				zap.String("user_id", bet.UserID.String()),
+				zap.String("available_cashback", cashbackSummary.AvailableCashback.String()),
+				zap.String("game_type", gameType),
+				zap.String("house_edge", houseEdge.String()),
+				zap.String("cashback_rate", cashbackRate.String()))
+		}
+	}
+
 	// Check and process automatic level progression after cashback processing
 	s.logger.Info("Checking automatic level progression after cashback processing",
 		zap.String("user_id", bet.UserID.String()))
@@ -379,6 +399,7 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 		claimAmount := decimal.Min(remainingAmount, earning.AvailableAmount)
 
 		// Update earning status
+		claimedAt := time.Now()
 		updatedEarning := dto.CashbackEarning{
 			ID:                earning.ID,
 			UserID:            earning.UserID,
@@ -392,7 +413,7 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 			AvailableAmount:   earning.AvailableAmount.Sub(claimAmount),
 			Status:            "claimed",
 			ExpiresAt:         earning.ExpiresAt,
-			ClaimedAt:         &time.Time{},
+			ClaimedAt:         &claimedAt,
 		}
 
 		_, err = s.storage.UpdateCashbackEarningStatus(ctx, updatedEarning)
@@ -406,12 +427,18 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 	}
 
 	// Credit the user's balance immediately
+	// Note: AddBalance automatically triggers balance WebSocket notification
 	netAmount := request.Amount.Sub(processingFee)
 	_, err = s.grooveStorage.AddBalance(ctx, userID, netAmount)
 	if err != nil {
 		s.logger.Error("Failed to credit user balance", zap.Error(err))
 		return nil, errors.ErrInternalServerError.Wrap(err, "failed to credit user balance")
 	}
+
+	s.logger.Debug("Balance updated and WebSocket notification triggered after cashback claim",
+		zap.String("user_id", userID.String()),
+		zap.String("claimed_amount", request.Amount.String()),
+		zap.String("net_amount", netAmount.String()))
 
 	// Create cashback claim record
 	cashbackClaim := dto.CashbackClaim{
@@ -446,6 +473,35 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 	s.logger.Info("Cashback claim processed successfully",
 		zap.String("claim_id", claimID.String()),
 		zap.String("amount", request.Amount.String()))
+
+	// Trigger WebSocket notification for cashback claim completion with enhanced data
+	if s.userWS != nil {
+		cashbackSummary, err := s.GetUserCashbackSummary(ctx, userID)
+		if err == nil && cashbackSummary != nil {
+			// Create enhanced cashback data for claim notification
+			enhancedCashbackData := dto.EnhancedUserCashbackSummary{
+				UserID:            cashbackSummary.UserID,
+				CurrentTier:       cashbackSummary.CurrentTier,
+				LevelProgress:     cashbackSummary.LevelProgress,
+				TotalGGR:          cashbackSummary.TotalGGR,
+				AvailableCashback: cashbackSummary.AvailableCashback,
+				PendingCashback:   cashbackSummary.PendingCashback,
+				TotalClaimed:      cashbackSummary.TotalClaimed,
+				NextTierGGR:       cashbackSummary.NextTierGGR,
+				DailyLimit:        cashbackSummary.DailyLimit,
+				WeeklyLimit:       cashbackSummary.WeeklyLimit,
+				MonthlyLimit:      cashbackSummary.MonthlyLimit,
+				SpecialBenefits:   cashbackSummary.SpecialBenefits,
+				// No game info for claims (not game-specific)
+				LastGameInfo: nil,
+			}
+			s.userWS.TriggerCashbackWS(ctx, userID, enhancedCashbackData)
+			s.logger.Debug("Cashback claim WebSocket notification triggered",
+				zap.String("user_id", userID.String()),
+				zap.String("claimed_amount", request.Amount.String()),
+				zap.String("remaining_cashback", cashbackSummary.AvailableCashback.String()))
+		}
+	}
 
 	return response, nil
 }
@@ -833,6 +889,75 @@ func (s *CashbackService) GetLevelProgressionInfo(ctx context.Context, userID uu
 	s.logger.Info("Getting level progression info", zap.String("user_id", userID.String()))
 
 	return s.levelProgressionService.GetLevelProgressionInfo(ctx, userID)
+}
+
+// createEnhancedCashbackData creates enhanced cashback data with game-specific information
+func (s *CashbackService) createEnhancedCashbackData(ctx context.Context, baseSummary dto.UserCashbackSummary, bet dto.Bet, houseEdge, cashbackRate decimal.Decimal) dto.EnhancedUserCashbackSummary {
+	enhanced := dto.EnhancedUserCashbackSummary{
+		UserID:            baseSummary.UserID,
+		CurrentTier:       baseSummary.CurrentTier,
+		LevelProgress:     baseSummary.LevelProgress,
+		TotalGGR:          baseSummary.TotalGGR,
+		AvailableCashback: baseSummary.AvailableCashback,
+		PendingCashback:   baseSummary.PendingCashback,
+		TotalClaimed:      baseSummary.TotalClaimed,
+		NextTierGGR:       baseSummary.NextTierGGR,
+		DailyLimit:        baseSummary.DailyLimit,
+		WeeklyLimit:       baseSummary.WeeklyLimit,
+		MonthlyLimit:      baseSummary.MonthlyLimit,
+		SpecialBenefits:   baseSummary.SpecialBenefits,
+	}
+
+	// Extract game information from bet
+	gameType := "groovetech"
+	gameVariant := ""
+	gameID := ""
+	gameName := "Unknown Game"
+
+	if bet.ClientTransactionID != "" {
+		// Try to get game info from GrooveTech transaction
+		if extractedGameID, extractedGameType, err := s.grooveStorage.GetTransactionGameInfo(ctx, bet.ClientTransactionID); err == nil {
+			gameID = extractedGameID
+			gameType = extractedGameType
+			gameVariant = fmt.Sprintf("%s_%s", gameType, gameID)
+			gameName = s.getGameDisplayName(gameID, gameType)
+		}
+	}
+
+	// Calculate expected GGR and earned cashback
+	expectedGGR := bet.Amount.Mul(houseEdge)
+	earnedCashback := expectedGGR.Mul(cashbackRate.Div(decimal.NewFromInt(100)))
+
+	// Create game-specific information
+	gameInfo := dto.GameCashbackInfo{
+		GameID:           gameID,
+		GameName:         gameName,
+		GameType:         gameType,
+		GameVariant:      gameVariant,
+		HouseEdge:        houseEdge,
+		HouseEdgePercent: fmt.Sprintf("%.2f%%", houseEdge.Mul(decimal.NewFromInt(100)).InexactFloat64()),
+		CashbackRate:     cashbackRate,
+		CashbackPercent:  fmt.Sprintf("%.1f%%", cashbackRate.InexactFloat64()),
+		ExpectedGGR:      expectedGGR,
+		EarnedCashback:   earnedCashback,
+		BetAmount:        bet.Amount,
+		TransactionID:    bet.ClientTransactionID,
+		Timestamp:        time.Now(),
+	}
+
+	enhanced.LastGameInfo = &gameInfo
+
+	return enhanced
+}
+
+// getGameDisplayName returns a user-friendly display name for a game
+func (s *CashbackService) getGameDisplayName(gameID, gameType string) string {
+	// This could be enhanced to fetch from a games database or configuration
+	// For now, return a formatted name based on game ID and type
+	if gameID != "" {
+		return fmt.Sprintf("%s Game %s", strings.Title(gameType), gameID)
+	}
+	return fmt.Sprintf("%s Game", strings.Title(gameType))
 }
 
 // ProcessBulkLevelProgression processes level progression for multiple users
