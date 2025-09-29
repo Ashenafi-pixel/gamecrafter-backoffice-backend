@@ -21,5 +21,11 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 		analyticsGroup.GET("/reports/daily", analyticsHandler.GetDailyReport)
 		analyticsGroup.GET("/reports/top-games", analyticsHandler.GetTopGames)
 		analyticsGroup.GET("/reports/top-players", analyticsHandler.GetTopPlayers)
+
+		// Daily report email endpoints
+		analyticsGroup.POST("/daily-report/send", analyticsHandler.SendDailyReportEmail)
+		analyticsGroup.POST("/daily-report/yesterday", analyticsHandler.SendYesterdayReportEmail)
+		analyticsGroup.POST("/daily-report/schedule", analyticsHandler.ScheduleDailyReportCronJob)
+		analyticsGroup.POST("/daily-report/last-week", analyticsHandler.SendLastWeekReportEmail)
 	}
 }

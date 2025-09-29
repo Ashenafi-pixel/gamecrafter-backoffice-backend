@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/handler/adds"
@@ -69,7 +70,7 @@ type Handler struct {
 	Analytics             handler.Analytics
 }
 
-func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS) *Handler {
+func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService) *Handler {
 	// Create Redis adapter for RegistrationService
 	redisAdapter := &redisAdapter{client: module.Redis}
 
@@ -116,7 +117,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Cashback:              cashback.NewCashbackHandler(module.Cashback, log),
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, log),
 		RegistrationService:   registrationService,
-		Analytics:             analyticsHandler.Init(log, persistence.Analytics),
+		Analytics:            analyticsHandler.Init(log, persistence.Analytics, dailyReportService),
 	}
 }
 

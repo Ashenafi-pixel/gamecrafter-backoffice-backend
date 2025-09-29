@@ -22,6 +22,7 @@ import (
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
+	emailModule "github.com/tucanbit/internal/module/email"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform"
@@ -112,13 +113,41 @@ func Initiate() {
 	// Update userWS with the actual balance storage
 	userBalanceWs = utils.InitUserws(logger, persistence.Balance)
 
+	// Initialize email services
+	logger.Info("initializing email services")
+	smtpConfig := emailModule.SMTPConfig{
+		Host:     viper.GetString("smtp.host"),
+		Port:     viper.GetInt("smtp.port"),
+		Username: viper.GetString("smtp.username"),
+		Password: viper.GetString("smtp.password"),
+		From:     viper.GetString("smtp.from"),
+		FromName: viper.GetString("smtp.from_name"),
+		UseTLS:   viper.GetBool("smtp.use_tls"),
+	}
+	emailService, err := emailModule.NewEmailService(smtpConfig, logger)
+	if err != nil {
+		logger.Error("Failed to initialize email service", zap.Error(err))
+		emailService = nil
+	} else {
+		logger.Info("Email service initialized successfully")
+	}
+
 	// Update GrooveStorage with the proper userWS and analytics integration
 	var analyticsIntegration *analyticsStorage.AnalyticsIntegration
+	var dailyReportService analyticsModule.DailyReportService
 	if clickhouseClient != nil {
 		analyticsStorageInstance := analyticsStorage.NewAnalyticsStorage(clickhouseClient, logger)
 		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, logger)
 		realtimeSyncService := analyticsModule.NewRealtimeSyncService(syncService, analyticsStorageInstance, logger)
 		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(realtimeSyncService, logger)
+		
+		// Initialize daily report email service
+		if emailService != nil {
+			dailyReportEmailService := emailModule.NewDailyReportEmailService(emailService, logger)
+			dailyReportService = analyticsModule.NewDailyReportService(analyticsStorageInstance, dailyReportEmailService, logger)
+			logger.Info("Daily report email service initialized successfully")
+		}
+		
 		logger.Info("Analytics integration initialized successfully")
 	} else {
 		logger.Warn("ClickHouse client not available, analytics integration disabled")
@@ -146,7 +175,7 @@ func Initiate() {
 	// initializing handler layer
 	// which is the layer responsible to handle http layer and validate user
 	logger.Info("initializing handler layer ")
-	handler := initHandler(module, persistence, logger, userBalanceWs)
+	handler := initHandler(module, persistence, logger, userBalanceWs, dailyReportService)
 	logger.Info("done initializing handler layer")
 
 	logger.Info("initializing http server")

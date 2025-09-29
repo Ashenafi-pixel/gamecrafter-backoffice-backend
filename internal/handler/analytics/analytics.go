@@ -9,19 +9,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/handler"
+	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
 )
 
 type analytics struct {
-	logger           *zap.Logger
-	analyticsStorage storage.Analytics
+	logger             *zap.Logger
+	analyticsStorage   storage.Analytics
+	dailyReportService analyticsModule.DailyReportService
 }
 
-func Init(log *zap.Logger, analyticsStorage storage.Analytics) handler.Analytics {
+func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService) handler.Analytics {
 	return &analytics{
-		logger:           log,
-		analyticsStorage: analyticsStorage,
+		logger:             log,
+		analyticsStorage:   analyticsStorage,
+		dailyReportService: dailyReportService,
 	}
 }
 

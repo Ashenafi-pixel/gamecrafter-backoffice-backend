@@ -423,6 +423,270 @@ func (e *EmailServiceImpl) renderTemplate(templateName string, data interface{})
 	return buf.String(), nil
 }
 
+// GetDailyReportEmailTemplate returns the template for daily report emails
+func GetDailyReportEmailTemplate() *template.Template {
+	return template.Must(template.New("daily_report").Parse(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.BrandName}} - Daily Report</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f5f6fa;
+        }
+        .email-container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background-color: white; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+            position: relative;
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 32px; 
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .header .subtitle {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content { 
+            padding: 40px 30px; 
+            background: white;
+        }
+        .daily-report-content {
+            margin: 0;
+        }
+        .daily-report-content h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .daily-report-content h3 {
+            color: #2c3e50;
+            margin: 30px 0 15px 0;
+            font-size: 20px;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+        }
+        .metric-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 36px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .metric-card p {
+            margin: 0;
+            font-size: 14px;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+        .financial-metrics table, .top-games table, .top-players table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .financial-metrics th, .top-games th, .top-players th {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .financial-metrics td, .top-games td, .top-players td {
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            font-size: 14px;
+        }
+        .financial-metrics tr:nth-child(even), .top-games tr:nth-child(even), .top-players tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .financial-metrics tr:hover, .top-games tr:hover, .top-players tr:hover {
+            background-color: #e3f2fd;
+            transition: background-color 0.3s ease;
+        }
+        .highlight-revenue {
+            background: linear-gradient(135deg, #ffeb3b, #ffc107) !important;
+            font-weight: bold;
+            color: #2c3e50 !important;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+        }
+        .footer { 
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 30px; 
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer p { 
+            margin: 5px 0; 
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer a:hover {
+            color: #5dade2;
+            text-decoration: underline;
+        }
+        .brand-logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .report-summary {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .report-summary h3 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+        }
+        .report-summary p {
+            margin: 0;
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .social-icons {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .social-icons a {
+            display: inline-block;
+            margin: 0 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #34495e;
+            text-align: center;
+            line-height: 40px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .social-icons a:hover {
+            background: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        @media (max-width: 600px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .email-container {
+                margin: 10px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .header {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <img src="cid:tucan.png" alt="{{.BrandName}} Logo" class="brand-logo">
+            <h1>{{.BrandName}}</h1>
+            <p class="subtitle">📊 Daily Analytics Report</p>
+        </div>
+        
+        <div class="content">
+            <div class="report-summary">
+                <h3>🎯 Daily Performance Summary</h3>
+                <p>Comprehensive overview of your platform's performance</p>
+            </div>
+            
+            {{.ReportHTML}}
+            
+            <div style="text-align: center; margin: 40px 0 20px 0;">
+                <p style="font-size: 16px; color: #7f8c8d; margin: 0;">
+                    Keep track of your platform's growth and performance with TucanBIT Analytics.
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="social-icons">
+                <a href="https://discord.gg/tucanbit" title="Discord">🅓</a>
+                <a href="https://t.me/tucanbit" title="Telegram">✉</a>
+                <a href="https://instagram.com/tucanbit" title="Instagram">📷</a>
+                <a href="https://twitter.com/tucanbit" title="Twitter">🐦</a>
+            </div>
+            <p><strong>{{.BrandName}} Analytics Platform</strong></p>
+            <p>Your trusted partner in gaming analytics</p>
+            <p>Need help? Contact us at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a></p>
+            <p>&copy; {{.CurrentYear}} {{.BrandName}}. All rights reserved.</p>
+            <p style="font-size: 12px; margin-top: 15px; opacity: 0.7;">
+                This email was automatically generated by the TucanBIT Analytics System.<br>
+                For support, contact our technical team at {{.SupportEmail}}
+            </p>
+        </div>
+    </div>
+</body>
+</html>`))
+}
+
 // LoadSMTPConfigFromEnv loads SMTP configuration from environment variables
 func LoadSMTPConfigFromEnv() SMTPConfig {
 	port, _ := strconv.Atoi(getEnv("SMTP_PORT", "587"))

@@ -58,6 +58,10 @@ type Analytics interface {
 	GetTopGames(c *gin.Context)
 	GetTopPlayers(c *gin.Context)
 	GetUserBalanceHistory(c *gin.Context)
+	SendDailyReportEmail(c *gin.Context)
+	SendYesterdayReportEmail(c *gin.Context)
+	SendLastWeekReportEmail(c *gin.Context)
+	ScheduleDailyReportCronJob(c *gin.Context)
 }
 
 type OTP interface {
