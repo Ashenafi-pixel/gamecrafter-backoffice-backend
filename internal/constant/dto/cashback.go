@@ -46,7 +46,7 @@ type CashbackEarning struct {
 	TierID            uuid.UUID       `json:"tier_id" db:"tier_id"`
 	EarningType       string          `json:"earning_type" db:"earning_type"`
 	SourceBetID       *uuid.UUID      `json:"source_bet_id" db:"source_bet_id"`
-	ExpectedGGRAmount decimal.Decimal `json:"expected_ggr_amount" db:"expected_ggr_amount"`
+	ExpectedGGRAmount decimal.Decimal `json:"expected_ggr_amount" db:"ggr_amount"`
 	CashbackRate      decimal.Decimal `json:"cashback_rate" db:"cashback_rate"`
 	EarnedAmount      decimal.Decimal `json:"earned_amount" db:"earned_amount"`
 	ClaimedAmount     decimal.Decimal `json:"claimed_amount" db:"claimed_amount"`

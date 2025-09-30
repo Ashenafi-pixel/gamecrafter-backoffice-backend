@@ -199,16 +199,19 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 	// 		zap.String("boost", promotion.BoostMultiplier.String()))
 	// }
 
-	// Calculate earned cashback
-	earnedCashback := expectedGGR.Mul(cashbackRate.Div(decimal.NewFromInt(100)))
+	// Calculate earned cashback per spin (bet amount * cashback rate)
+	earnedCashback := bet.Amount.Mul(cashbackRate.Div(decimal.NewFromInt(100)))
+
+	// Round to 2 decimal places
+	earnedCashback = earnedCashback.Round(2)
 
 	// Create cashback earning
 	cashbackEarning := dto.CashbackEarning{
 		UserID:            bet.UserID,
 		TierID:            userLevel.CurrentTierID,
 		EarningType:       "bet",
-		SourceBetID:       nil, // Set to nil for GrooveTech transactions to avoid foreign key constraint
-		ExpectedGGRAmount: expectedGGR,
+		SourceBetID:       nil,        // Set to nil for GrooveTech transactions to avoid foreign key constraint
+		ExpectedGGRAmount: bet.Amount, // Store bet amount instead of GGR for per-spin calculation
 		CashbackRate:      cashbackRate,
 		EarnedAmount:      earnedCashback,
 		ClaimedAmount:     decimal.Zero,
@@ -248,7 +251,7 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		updatedUserLevel := dto.UserLevel{
 			UserID:           bet.UserID,
 			CurrentLevel:     userLevel.CurrentLevel,
-			TotalExpectedGGR: userLevel.TotalExpectedGGR.Add(expectedGGR),
+			TotalExpectedGGR: userLevel.TotalExpectedGGR.Add(bet.Amount), // Use bet amount for per-spin cashback
 			TotalBets:        userLevel.TotalBets.Add(bet.Amount),
 			TotalWins:        userLevel.TotalWins.Add(bet.Payout), // We use payout as win amount
 			LevelProgress:    userLevel.LevelProgress,
@@ -268,9 +271,9 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		return errors.ErrInternalServerError.Wrap(err, "failed to process bet cashback")
 	}
 
-	s.logger.Info("Bet cashback processed successfully",
+	s.logger.Info("Bet cashback processed successfully (per-spin calculation)",
 		zap.String("bet_id", bet.BetID.String()),
-		zap.String("expected_ggr", expectedGGR.String()),
+		zap.String("bet_amount", bet.Amount.String()),
 		zap.String("earned_cashback", earnedCashback.String()),
 		zap.String("cashback_rate", cashbackRate.String()))
 
@@ -925,9 +928,9 @@ func (s *CashbackService) createEnhancedCashbackData(ctx context.Context, baseSu
 		}
 	}
 
-	// Calculate expected GGR and earned cashback
-	expectedGGR := bet.Amount.Mul(houseEdge)
-	earnedCashback := expectedGGR.Mul(cashbackRate.Div(decimal.NewFromInt(100)))
+	// Calculate earned cashback per spin (bet amount * cashback rate)
+	earnedCashback := bet.Amount.Mul(cashbackRate.Div(decimal.NewFromInt(100)))
+	earnedCashback = earnedCashback.Round(2) // Round to 2 decimal places
 
 	// Create game-specific information
 	gameInfo := dto.GameCashbackInfo{
@@ -939,7 +942,7 @@ func (s *CashbackService) createEnhancedCashbackData(ctx context.Context, baseSu
 		HouseEdgePercent: fmt.Sprintf("%.2f%%", houseEdge.Mul(decimal.NewFromInt(100)).InexactFloat64()),
 		CashbackRate:     cashbackRate,
 		CashbackPercent:  fmt.Sprintf("%.1f%%", cashbackRate.InexactFloat64()),
-		ExpectedGGR:      expectedGGR,
+		ExpectedGGR:      bet.Amount, // Store bet amount for per-spin calculation
 		EarnedCashback:   earnedCashback,
 		BetAmount:        bet.Amount,
 		TransactionID:    bet.ClientTransactionID,
