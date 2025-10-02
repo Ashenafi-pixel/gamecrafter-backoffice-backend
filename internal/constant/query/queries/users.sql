@@ -62,6 +62,28 @@ CROSS JOIN row_count r
 ORDER BY c.created_at DESC
 LIMIT $1 OFFSET $2;
 
+-- name: GetAllUsersWithFilters :many 
+WITH users_data AS (
+    SELECT *
+    FROM users 
+    WHERE default_currency IS NOT NULL 
+    AND user_type = 'PLAYER'
+    AND ($1::text IS NULL OR username ILIKE '%' || $1 || '%')
+    AND ($2::text IS NULL OR email ILIKE '%' || $2 || '%')
+    AND ($3::text IS NULL OR phone_number ILIKE '%' || $3 || '%')
+    AND ($4::text[] IS NULL OR array_length($4, 1) > 0 AND status = ANY($4))
+    AND ($5::text[] IS NULL OR array_length($5, 1) > 0 AND kyc_status = ANY($5))
+),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM users_data
+)
+SELECT c.*, r.total_rows
+FROM users_data c
+CROSS JOIN row_count r
+ORDER BY c.created_at DESC
+LIMIT $6 OFFSET $7;
+
 -- name: GetUserPointsByReferals :one 
 SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;
 

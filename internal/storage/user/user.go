@@ -420,22 +420,77 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 
 func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error) {
 	users := make([]dto.User, 0)
-	usrs, err := u.db.Queries.GetAllUsers(ctx, db.GetAllUsersParams{
-		Limit:  int32(req.PerPage),
-		Offset: int32(req.Page),
-	})
-	if err != nil && err.Error() != dto.ErrNoRows {
-		u.log.Error(err.Error(), zap.Any("req", req))
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
-		return dto.GetPlayersRes{}, err
+
+	// Check if we have any filters to apply
+	hasFilters := req.Filter.Username != "" || req.Filter.Email != "" || req.Filter.Phone != "" || 
+		len(req.Filter.Status) > 0 || len(req.Filter.KycStatus) > 0 || len(req.Filter.VipLevel) > 0
+
+	var usrs []db.GetAllUsersWithFiltersRow
+	var err error
+	var totalCount int64
+	var totalPages int
+
+	if hasFilters {
+		// Normalize status values to uppercase
+		normalizedStatus := make([]string, len(req.Filter.Status))
+		for i, status := range req.Filter.Status {
+			normalizedStatus[i] = strings.ToUpper(status)
+		}
+		
+		normalizedKycStatus := make([]string, len(req.Filter.KycStatus))
+		for i, kycStatus := range req.Filter.KycStatus {
+			normalizedKycStatus[i] = strings.ToUpper(kycStatus)
+		}
+		
+		// Use filtered query
+		usrs, err = u.db.Queries.GetAllUsersWithFilters(ctx, db.GetAllUsersWithFiltersParams{
+			Username:  sql.NullString{String: req.Filter.Username, Valid: req.Filter.Username != ""},
+			Email:     sql.NullString{String: req.Filter.Email, Valid: req.Filter.Email != ""},
+			Phone:     sql.NullString{String: req.Filter.Phone, Valid: req.Filter.Phone != ""},
+			Status:    normalizedStatus,
+			KycStatus: normalizedKycStatus,
+			Limit:     int32(req.PerPage),
+			Offset:    int32(req.Page),
+		})
+		if err != nil && err.Error() != dto.ErrNoRows {
+			u.log.Error(err.Error(), zap.Any("req", req))
+			err = errors.ErrUnableToGet.Wrap(err, err.Error())
+			return dto.GetPlayersRes{}, err
+		}
+	} else {
+		// Use regular query
+		regularUsrs, err := u.db.Queries.GetAllUsers(ctx, db.GetAllUsersParams{
+			Limit:  int32(req.PerPage),
+			Offset: int32(req.Page),
+		})
+		if err != nil && err.Error() != dto.ErrNoRows {
+			u.log.Error(err.Error(), zap.Any("req", req))
+			err = errors.ErrUnableToGet.Wrap(err, err.Error())
+			return dto.GetPlayersRes{}, err
+		}
+
+		// Convert to the same type
+		usrs = make([]db.GetAllUsersWithFiltersRow, len(regularUsrs))
+		for i, usr := range regularUsrs {
+			usrs[i] = db.GetAllUsersWithFiltersRow{
+				ID: usr.ID, Username: usr.Username, PhoneNumber: usr.PhoneNumber, Password: usr.Password,
+				CreatedAt: usr.CreatedAt, DefaultCurrency: usr.DefaultCurrency, Profile: usr.Profile,
+				Email: usr.Email, FirstName: usr.FirstName, LastName: usr.LastName, DateOfBirth: usr.DateOfBirth,
+				Source: usr.Source, IsEmailVerified: sql.NullBool{Bool: false, Valid: false}, ReferalCode: usr.ReferalCode,
+				StreetAddress: usr.StreetAddress, Country: usr.Country, State: usr.State, City: usr.City,
+				PostalCode: usr.PostalCode, KycStatus: usr.KycStatus, CreatedBy: usr.CreatedBy,
+				IsAdmin: usr.IsAdmin, Status: usr.Status, ReferalType: usr.ReferalType,
+				ReferedByCode: usr.ReferedByCode, UserType: usr.UserType, TotalRows: usr.TotalRows,
+			}
+		}
 	}
 
 	u.log.Info("GetAllUsers debug", zap.Int("users_count", len(usrs)))
-	totalPages := 1
-	totalCount := int64(0)
+
+	// Convert to DTO and apply VIP level filtering (client-side for now)
 	for i, usr := range usrs {
 		u.log.Info("Processing user", zap.Int("index", i), zap.String("username", usr.Username.String), zap.String("email", usr.Email.String))
-		users = append(users, dto.User{
+		user := dto.User{
 			ID:              usr.ID,
 			Username:        usr.Username.String,
 			PhoneNumber:     usr.PhoneNumber.String,
@@ -446,6 +501,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			ProfilePicture:  usr.Profile.String,
 			DateOfBirth:     usr.DateOfBirth.String,
 			Source:          usr.Source.String,
+			IsEmailVerified: usr.IsEmailVerified.Bool,
 			ReferralCode:    usr.ReferalCode.String,
 			StreetAddress:   usr.StreetAddress,
 			Country:         usr.Country,
@@ -459,16 +515,45 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			Type:            dto.Type(usr.UserType.String),
 			Status:          usr.Status.String,
 			CreatedAt:       &usr.CreatedAt,
-		})
+		}
 
+		// Apply VIP Level filter (client-side for now)
+		shouldInclude := true
+		if len(req.Filter.VipLevel) > 0 {
+			// For now, we'll use a simple mapping based on balance or other criteria
+			// This can be enhanced later with actual VIP level logic
+			vipLevel := "Bronze" // Default
+			if user.DefaultCurrency != "" {
+				// Simple VIP level logic - can be enhanced
+				vipLevel = "Bronze"
+			}
+
+			vipMatch := false
+			for _, level := range req.Filter.VipLevel {
+				if strings.EqualFold(vipLevel, level) {
+					vipMatch = true
+					break
+				}
+			}
+			if !vipMatch {
+				shouldInclude = false
+			}
+		}
+
+		if shouldInclude {
+			users = append(users, user)
+		}
+
+		// Get pagination info from first row
 		if i == 0 {
+			totalCount = usr.TotalRows
 			totalPages = int(int(usr.TotalRows) / req.PerPage)
 			if int(usr.TotalRows)%req.PerPage != 0 {
 				totalPages++
 			}
-			totalCount = usr.TotalRows
 		}
 	}
+
 	result := dto.GetPlayersRes{
 		Message:    constant.SUCCESS,
 		Users:      users,

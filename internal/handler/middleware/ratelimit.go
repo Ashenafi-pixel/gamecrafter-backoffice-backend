@@ -52,7 +52,7 @@ func (rl *rateLimiter) isAllowed(key string) bool {
 }
 
 func RateLimiter() gin.HandlerFunc {
-	limiter := newRateLimiter(5, time.Second)
+	limiter := newRateLimiter(100, time.Second)
 	
 	return func(c *gin.Context) {
 		key := c.ClientIP()

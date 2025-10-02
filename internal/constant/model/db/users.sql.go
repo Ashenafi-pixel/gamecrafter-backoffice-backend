@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
+	"github.com/lib/pq"
 	"github.com/shopspring/decimal"
 )
 
@@ -1369,4 +1370,127 @@ func (q *Queries) UpdateProfilePicuter(ctx context.Context, arg UpdateProfilePic
 		&i.UserType,
 	)
 	return i, err
+}
+
+const getAllUsersWithFilters = `-- name: GetAllUsersWithFilters :many 
+WITH users_data AS (
+    SELECT *
+    FROM users 
+    WHERE default_currency IS NOT NULL 
+    AND user_type = 'PLAYER'
+    AND ($1::text IS NULL OR username ILIKE '%' || $1 || '%')
+    AND ($2::text IS NULL OR email ILIKE '%' || $2 || '%')
+    AND ($3::text IS NULL OR phone_number ILIKE '%' || $3 || '%')
+    AND ($4::text[] IS NULL OR array_length($4, 1) > 0 AND status = ANY($4))
+    AND ($5::text[] IS NULL OR array_length($5, 1) > 0 AND kyc_status = ANY($5))
+),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM users_data
+)
+SELECT c.*, r.total_rows
+FROM users_data c
+CROSS JOIN row_count r
+ORDER BY c.created_at DESC
+LIMIT $6 OFFSET $7
+`
+
+type GetAllUsersWithFiltersParams struct {
+	Username  sql.NullString
+	Email     sql.NullString
+	Phone     sql.NullString
+	Status    []string
+	KycStatus []string
+	Limit     int32
+	Offset    int32
+}
+
+type GetAllUsersWithFiltersRow struct {
+	ID                       uuid.UUID
+	Username                 sql.NullString
+	PhoneNumber              sql.NullString
+	Password                 string
+	CreatedAt                time.Time
+	DefaultCurrency          sql.NullString
+	Profile                  sql.NullString
+	Email                    sql.NullString
+	FirstName                sql.NullString
+	LastName                 sql.NullString
+	DateOfBirth              sql.NullString
+	Source                   sql.NullString
+	IsEmailVerified          sql.NullBool
+	ReferalCode              sql.NullString
+	StreetAddress            string
+	Country                  string
+	State                    string
+	City                     string
+	PostalCode               string
+	KycStatus                string
+	CreatedBy                uuid.NullUUID
+	IsAdmin                  sql.NullBool
+	Status                   sql.NullString
+	ReferalType              sql.NullString
+	ReferedByCode            sql.NullString
+	UserType                 sql.NullString
+	PrimaryWalletAddress     sql.NullString
+	WalletVerificationStatus sql.NullString
+	TotalRows                int64
+}
+
+func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWithFiltersParams) ([]GetAllUsersWithFiltersRow, error) {
+	rows, err := q.db.Query(ctx, getAllUsersWithFilters,
+		arg.Username,
+		arg.Email,
+		arg.Phone,
+		pq.Array(arg.Status),
+		pq.Array(arg.KycStatus),
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllUsersWithFiltersRow
+	for rows.Next() {
+		var i GetAllUsersWithFiltersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.PhoneNumber,
+			&i.Password,
+			&i.CreatedAt,
+			&i.DefaultCurrency,
+			&i.Profile,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.DateOfBirth,
+			&i.Source,
+			&i.IsEmailVerified,
+			&i.ReferalCode,
+			&i.StreetAddress,
+			&i.Country,
+			&i.State,
+			&i.City,
+			&i.PostalCode,
+			&i.KycStatus,
+			&i.CreatedBy,
+			&i.IsAdmin,
+			&i.Status,
+			&i.ReferalType,
+			&i.ReferedByCode,
+			&i.UserType,
+			&i.PrimaryWalletAddress,
+			&i.WalletVerificationStatus,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
