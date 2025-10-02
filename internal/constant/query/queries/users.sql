@@ -68,11 +68,17 @@ WITH users_data AS (
     FROM users 
     WHERE default_currency IS NOT NULL 
     AND user_type = 'PLAYER'
-    AND ($1::text IS NULL OR username ILIKE '%' || $1 || '%')
-    AND ($2::text IS NULL OR email ILIKE '%' || $2 || '%')
-    AND ($3::text IS NULL OR phone_number ILIKE '%' || $3 || '%')
-    AND ($4::text[] IS NULL OR array_length($4, 1) > 0 AND status = ANY($4))
-    AND ($5::text[] IS NULL OR array_length($5, 1) > 0 AND kyc_status = ANY($5))
+    AND (
+        $1::text IS NULL OR $1 = '' OR username ILIKE '%' || $1 || '%'
+    )
+    AND (
+        $2::text IS NULL OR $2 = '' OR email ILIKE '%' || $2 || '%'
+    )
+    AND (
+        $3::text IS NULL OR $3 = '' OR phone_number ILIKE '%' || $3 || '%'
+    )
+    AND ($4::text[] IS NULL OR array_length($4, 1) = 0 OR status = ANY($4))
+    AND ($5::text[] IS NULL OR array_length($5, 1) = 0 OR kyc_status = ANY($5))
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows

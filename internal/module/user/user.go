@@ -1510,11 +1510,7 @@ func (u *User) GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPl
 	offset := (req.Page - 1) * req.PerPage
 	req.Page = offset
 
-	if req.Filter.Email != "" || req.Filter.Phone != "" || req.Filter.Username != "" {
-		return u.userStorage.GetUsersByEmailAndPhone(ctx, req)
-	}
-
-	// get all users
+	// Always use GetAllUsers which now handles filtering
 	pls, err := u.userStorage.GetAllUsers(ctx, req)
 	if err != nil {
 		return dto.GetPlayersRes{}, err

@@ -421,9 +421,19 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error) {
 	users := make([]dto.User, 0)
 
+	u.log.Info("GetAllUsers called", zap.Any("req", req))
+
 	// Check if we have any filters to apply
-	hasFilters := req.Filter.Username != "" || req.Filter.Email != "" || req.Filter.Phone != "" || 
+	hasFilters := req.Filter.Username != "" || req.Filter.Email != "" || req.Filter.Phone != "" ||
 		len(req.Filter.Status) > 0 || len(req.Filter.KycStatus) > 0 || len(req.Filter.VipLevel) > 0
+
+	u.log.Info("Filter check", zap.Bool("hasFilters", hasFilters),
+		zap.String("username", req.Filter.Username),
+		zap.String("email", req.Filter.Email),
+		zap.String("phone", req.Filter.Phone),
+		zap.Int("status_len", len(req.Filter.Status)),
+		zap.Int("kyc_len", len(req.Filter.KycStatus)),
+		zap.Int("vip_len", len(req.Filter.VipLevel)))
 
 	var usrs []db.GetAllUsersWithFiltersRow
 	var err error
@@ -431,19 +441,21 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 	var totalPages int
 
 	if hasFilters {
+		u.log.Info("Using filtered query", zap.String("username", req.Filter.Username), zap.String("email", req.Filter.Email), zap.String("phone", req.Filter.Phone))
+
 		// Normalize status values to uppercase
 		normalizedStatus := make([]string, len(req.Filter.Status))
 		for i, status := range req.Filter.Status {
 			normalizedStatus[i] = strings.ToUpper(status)
 		}
-		
+
 		normalizedKycStatus := make([]string, len(req.Filter.KycStatus))
 		for i, kycStatus := range req.Filter.KycStatus {
 			normalizedKycStatus[i] = strings.ToUpper(kycStatus)
 		}
-		
+
 		// Use filtered query
-		usrs, err = u.db.Queries.GetAllUsersWithFilters(ctx, db.GetAllUsersWithFiltersParams{
+		params := db.GetAllUsersWithFiltersParams{
 			Username:  sql.NullString{String: req.Filter.Username, Valid: req.Filter.Username != ""},
 			Email:     sql.NullString{String: req.Filter.Email, Valid: req.Filter.Email != ""},
 			Phone:     sql.NullString{String: req.Filter.Phone, Valid: req.Filter.Phone != ""},
@@ -451,13 +463,19 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			KycStatus: normalizedKycStatus,
 			Limit:     int32(req.PerPage),
 			Offset:    int32(req.Page),
-		})
+		}
+		u.log.Info("Calling GetAllUsersWithFilters", zap.Any("params", params))
+
+		usrs, err = u.db.Queries.GetAllUsersWithFilters(ctx, params)
+		u.log.Info("GetAllUsersWithFilters result", zap.Int("count", len(usrs)), zap.Error(err))
+
 		if err != nil && err.Error() != dto.ErrNoRows {
 			u.log.Error(err.Error(), zap.Any("req", req))
 			err = errors.ErrUnableToGet.Wrap(err, err.Error())
 			return dto.GetPlayersRes{}, err
 		}
 	} else {
+		u.log.Info("Using regular query (no filters)")
 		// Use regular query
 		regularUsrs, err := u.db.Queries.GetAllUsers(ctx, db.GetAllUsersParams{
 			Limit:  int32(req.PerPage),
