@@ -369,19 +369,23 @@ func (u *user) DeleteOTP(ctx context.Context, userID uuid.UUID) error {
 
 func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileReq) (dto.User, error) {
 	updatedUser, err := u.db.Queries.UpdateProfile(ctx, db.UpdateProfileParams{
-		FirstName:     sql.NullString{String: updateProfile.FirstName, Valid: true},
-		LastName:      sql.NullString{String: updateProfile.LastName, Valid: true},
-		Email:         sql.NullString{String: updateProfile.Email, Valid: true},
-		DateOfBirth:   sql.NullString{String: updateProfile.DateOfBirth, Valid: true},
-		PhoneNumber:   sql.NullString{String: updateProfile.Phone, Valid: true},
-		ID:            updateProfile.UserID,
-		Username:      sql.NullString{String: updateProfile.Username, Valid: true},
-		StreetAddress: updateProfile.StreetAddress,
-		City:          updateProfile.City,
-		PostalCode:    updateProfile.PostalCode,
-		State:         updateProfile.State,
-		Country:       updateProfile.Country,
-		KycStatus:     updateProfile.KYCStatus,
+		FirstName:                sql.NullString{String: updateProfile.FirstName, Valid: true},
+		LastName:                 sql.NullString{String: updateProfile.LastName, Valid: true},
+		Email:                    sql.NullString{String: updateProfile.Email, Valid: true},
+		DateOfBirth:              sql.NullString{String: updateProfile.DateOfBirth, Valid: true},
+		PhoneNumber:              sql.NullString{String: updateProfile.Phone, Valid: true},
+		ID:                       updateProfile.UserID,
+		Username:                 sql.NullString{String: updateProfile.Username, Valid: true},
+		StreetAddress:            updateProfile.StreetAddress,
+		City:                     updateProfile.City,
+		PostalCode:               updateProfile.PostalCode,
+		State:                    updateProfile.State,
+		Country:                  updateProfile.Country,
+		KycStatus:                updateProfile.KYCStatus,
+		Status:                   updateProfile.Status,
+		IsEmailVerified:          updateProfile.IsEmailVerified,
+		DefaultCurrency:          updateProfile.DefaultCurrency,
+		WalletVerificationStatus: updateProfile.WalletVerificationStatus,
 	})
 	if err != nil {
 		u.log.Error(err.Error(), zap.Any("updateRequest", updateProfile))
@@ -389,23 +393,33 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 		return dto.User{}, err
 	}
 	return dto.User{
-		ID:              updateProfile.UserID,
-		PhoneNumber:     updatedUser.PhoneNumber.String,
-		FirstName:       updateProfile.FirstName,
-		LastName:        updateProfile.LastName,
-		Email:           updateProfile.Email,
-		DefaultCurrency: updatedUser.DefaultCurrency.String,
-		ProfilePicture:  updatedUser.Profile.String,
-		DateOfBirth:     updateProfile.DateOfBirth,
-		ReferralCode:    updatedUser.ReferalCode.String,
-		ReferedByCode:   updatedUser.ReferedByCode.String,
-		ReferalType:     dto.Type(updatedUser.ReferalType.String),
-		Type:            dto.Type(updatedUser.UserType.String),
+		ID:                       updateProfile.UserID,
+		PhoneNumber:              updatedUser.PhoneNumber.String,
+		FirstName:                updateProfile.FirstName,
+		LastName:                 updateProfile.LastName,
+		Email:                    updateProfile.Email,
+		DefaultCurrency:          updateProfile.DefaultCurrency,
+		ProfilePicture:           updatedUser.Profile.String,
+		DateOfBirth:              updateProfile.DateOfBirth,
+		ReferralCode:             updatedUser.ReferalCode.String,
+		ReferedByCode:            updatedUser.ReferedByCode.String,
+		ReferalType:              dto.Type(updatedUser.ReferalType.String),
+		Type:                     dto.Type(updatedUser.UserType.String),
+		Username:                 updateProfile.Username,
+		StreetAddress:            updateProfile.StreetAddress,
+		City:                     updateProfile.City,
+		PostalCode:               updateProfile.PostalCode,
+		State:                    updateProfile.State,
+		Country:                  updateProfile.Country,
+		KYCStatus:                updateProfile.KYCStatus,
+		Status:                   updateProfile.Status,
+		IsEmailVerified:          updateProfile.IsEmailVerified,
+		WalletVerificationStatus: updateProfile.WalletVerificationStatus,
 	}, nil
 }
 
 func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error) {
-	var users []dto.User
+	users := make([]dto.User, 0)
 	usrs, err := u.db.Queries.GetAllUsers(ctx, db.GetAllUsersParams{
 		Limit:  int32(req.PerPage),
 		Offset: int32(req.Page),
@@ -415,11 +429,15 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return dto.GetPlayersRes{}, err
 	}
+
+	u.log.Info("GetAllUsers debug", zap.Int("users_count", len(usrs)))
 	totalPages := 1
 	totalCount := int64(0)
 	for i, usr := range usrs {
+		u.log.Info("Processing user", zap.Int("index", i), zap.String("username", usr.Username.String), zap.String("email", usr.Email.String))
 		users = append(users, dto.User{
 			ID:              usr.ID,
+			Username:        usr.Username.String,
 			PhoneNumber:     usr.PhoneNumber.String,
 			FirstName:       usr.FirstName.String,
 			LastName:        usr.LastName.String,
@@ -439,6 +457,8 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			ReferedByCode:   usr.ReferedByCode.String,
 			ReferalType:     dto.Type(usr.ReferalType.String),
 			Type:            dto.Type(usr.UserType.String),
+			Status:          usr.Status.String,
+			CreatedAt:       &usr.CreatedAt,
 		})
 
 		if i == 0 {
@@ -449,18 +469,20 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			totalCount = usr.TotalRows
 		}
 	}
-	return dto.GetPlayersRes{
+	result := dto.GetPlayersRes{
 		Message:    constant.SUCCESS,
 		Users:      users,
 		TotalPages: totalPages,
 		TotalCount: totalCount,
-	}, nil
+	}
+	u.log.Info("GetAllUsers result", zap.Int("users_length", len(result.Users)), zap.Int64("total_count", result.TotalCount))
+	return result, nil
 }
 
 func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Decimal, bool, error) {
 	blc, err := u.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:       userID,
-		CurrencyCode: constant.POINT_CURRENCY,
+		UserID:   userID,
+		Currency: constant.POINT_CURRENCY,
 	})
 	if err != nil && err.Error() != dto.ErrNoRows {
 		u.log.Error("unable to make get balance request using user_id")
@@ -471,21 +493,21 @@ func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Dec
 		return decimal.Zero, false, nil
 	}
 
-	return blc.AmountUnits.Decimal, true, nil
+	return blc.RealMoney.Decimal, true, nil
 }
 
 func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (decimal.Decimal, error) {
 	resp, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-		AmountUnits:  points,
-		AmountCents:  points.Mul(decimal.NewFromInt(100)).IntPart(),
-		UpdatedAt:    time.Now(),
-		UserID:       userID,
-		CurrencyCode: constant.POINT_CURRENCY,
+		BonusMoney: points,
+		RealMoney:  decimal.Zero,
+		UpdatedAt:  time.Now(),
+		UserID:     userID,
+		Currency:   constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
 	}
-	return resp.AmountUnits.Decimal, nil
+	return resp.RealMoney.Decimal, nil
 }
 
 func (u *user) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
@@ -678,12 +700,11 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 		var accounts []dto.Balance
 		for _, bal := range balance {
 			accounts = append(accounts, dto.Balance{
-				ID:            bal.ID,
-				CurrencyCode:  bal.CurrencyCode,
-				AmountUnits:   bal.AmountUnits.Decimal,
-				AmountCents:   bal.AmountCents.Int64,
-				ReservedUnits: bal.ReservedUnits.Decimal,
-				ReservedCents: bal.ReservedCents.Int64,
+				ID:           bal.ID,
+				CurrencyCode: bal.Currency,
+				BonusMoney:   bal.BonusMoney.Decimal,
+				RealMoney:    bal.RealMoney.Decimal,
+				Points:       bal.Points.Int32,
 			})
 		}
 

@@ -184,14 +184,14 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 	if err != nil {
 		return dto.PlacePlinkoGameRes{}, err
 	}
-	if !exist || userBalance.AmountUnits.LessThan(req.Amount) {
+	if !exist || userBalance.RealMoney.LessThan(req.Amount) {
 		err = fmt.Errorf("insufficient fund %v", req.Currency)
 		b.log.Warn(err.Error(), zap.Any("placeBetReq", req))
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.PlacePlinkoGameRes{}, err
 	}
 	//update user balance
-	newBalance := userBalance.AmountUnits.Sub(req.Amount)
+	newBalance := userBalance.RealMoney.Sub(req.Amount)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,
@@ -211,7 +211,7 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		return dto.PlacePlinkoGameRes{}, err
 	}
@@ -222,7 +222,7 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           req.Currency,
-		Description:        fmt.Sprintf("place plinko bet amount %v, new balance is %v and  currency %s", req.Amount, userBalance.AmountUnits.Sub(req.Amount), req.Currency),
+		Description:        fmt.Sprintf("place plinko bet amount %v, new balance is %v and  currency %s", req.Amount, userBalance.RealMoney.Sub(req.Amount), req.Currency),
 		ChangeAmount:       req.Amount,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -243,7 +243,7 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		if err2 != nil {
 			return dto.PlacePlinkoGameRes{}, err2
@@ -261,7 +261,7 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		if err2 != nil {
 			return dto.PlacePlinkoGameRes{}, err2
@@ -286,7 +286,7 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		if err2 != nil {
 			return dto.PlacePlinkoGameRes{}, err2
@@ -318,7 +318,7 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 			UserID:    req.UserID,
 			Currency:  req.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		// reverse cashout
 
@@ -331,8 +331,8 @@ func (b *bet) PlacePlinkoGame(ctx context.Context, req dto.PlacePlinkoGameReq) (
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           req.Currency,
-		Description:        fmt.Sprintf("cash out plinko bet  %v  amount, new balance is %v s currency balance is  %s", winAmount, updatedBalance.AmountUnits, req.Currency),
-		ChangeAmount:       updatedBalance.AmountUnits,
+		Description:        fmt.Sprintf("cash out plinko bet  %v  amount, new balance is %v s currency balance is  %s", winAmount, updatedBalance.RealMoney, req.Currency),
+		ChangeAmount:       updatedBalance.RealMoney,
 		OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
 		BalanceAfterUpdate: &balanceAfterWin,

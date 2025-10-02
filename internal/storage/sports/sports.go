@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
@@ -40,7 +41,7 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	// get user balance by user id
 	balance, err := s.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
 		UserID:       req.UserID,
-		CurrencyCode: constant.NGN_CURRENCY,
+		Currency: constant.NGN_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToGet.Wrap(err, "error fetching user balance")
@@ -48,7 +49,7 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 		return nil, err
 	}
 
-	if balance.AmountUnits.Decimal.LessThan(requestedAmount) {
+	if balance.RealMoney.Decimal.LessThan(requestedAmount) {
 		err = errors.ErrInvalidUserInput.Wrap(err, "insufficient balance")
 		s.log.Error("insufficient balance", zap.Error(err))
 		return nil, err
@@ -56,12 +57,12 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 
 	// update user balance by the requested amount
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
-		UserID:        req.UserID,
-		CurrencyCode:  constant.NGN_CURRENCY,
-		AmountCents:   balance.AmountCents.Int64 - requestedAmount.Mul(decimal.NewFromInt(100)).IntPart(),
-		AmountUnits:   balance.AmountUnits.Decimal.Sub(requestedAmount),
-		ReservedCents: balance.ReservedCents.Int64,
-		ReservedUnits: balance.ReservedUnits.Decimal,
+		UserID:     req.UserID,
+		Currency:   constant.NGN_CURRENCY,
+		RealMoney:  balance.RealMoney.Decimal.Sub(requestedAmount),
+		BonusMoney: balance.BonusMoney.Decimal,
+		Points:     balance.Points.Int32,
+		UpdatedAt:  time.Now(),
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, "error updating user balance")
@@ -118,10 +119,10 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	}
 
 	return &dto.PlaceBetResponse{
-		Balance:          updatedBalance.AmountUnits.Decimal.String(),
+		Balance:          updatedBalance.RealMoney.Decimal.String(),
 		ExtTransactionID: bet.TransactionID,
 		CustomerId:       updatedBalance.UserID.String(),
-		BonusAmount:      updatedBalance.ReservedUnits.Decimal.String(),
+		BonusAmount:      updatedBalance.BonusMoney.Decimal.String(),
 	}, nil
 }
 
@@ -151,7 +152,7 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 	// get user balance by user id
 	balance, err := s.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
 		UserID:       userID,
-		CurrencyCode: constant.NGN_CURRENCY,
+		Currency: constant.NGN_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToGet.Wrap(err, "error fetching user balance")
@@ -161,12 +162,12 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 
 	// update user balance by the requested amount
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
-		UserID:        userID,
-		CurrencyCode:  constant.NGN_CURRENCY,
-		AmountCents:   balance.AmountCents.Int64 + requestedAmount.Mul(decimal.NewFromInt(100)).IntPart(),
-		AmountUnits:   balance.AmountUnits.Decimal.Add(requestedAmount),
-		ReservedCents: balance.ReservedCents.Int64,
-		ReservedUnits: balance.ReservedUnits.Decimal,
+		UserID:     userID,
+		Currency:   constant.NGN_CURRENCY,
+		RealMoney:  balance.RealMoney.Decimal.Add(requestedAmount),
+		BonusMoney: balance.BonusMoney.Decimal,
+		Points:     balance.Points.Int32,
+		UpdatedAt:  time.Now(),
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, "error updating user balance")
@@ -187,7 +188,7 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 	}
 
 	return &dto.SportsServiceAwardWinningsRes{
-		Balance:          updatedBalance.AmountUnits.Decimal.String(),
+		Balance:          updatedBalance.RealMoney.Decimal.String(),
 		ExtTransactionID: req.TransactionID,
 		AlreadyProcessed: "false",
 	}, nil

@@ -571,7 +571,7 @@ func (q *Queries) GetAdminsByStatus(ctx context.Context, arg GetAdminsByStatusPa
 const getAllUsers = `-- name: GetAllUsers :many
 WITH users_data AS (
     SELECT id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type
-    FROM  users where default_currency  is not null
+    FROM  users where default_currency  is not null AND user_type = 'PLAYER'
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -1007,23 +1007,23 @@ func (q *Queries) GetUserEmailOrPhoneNumber(ctx context.Context, arg GetUserEmai
 }
 
 const getUserPointsByReferals = `-- name: GetUserPointsByReferals :one
-SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency_code = $2
+SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2
 `
 
 type GetUserPointsByReferalsParams struct {
-	ReferalCode  sql.NullString
-	CurrencyCode string
+	ReferalCode sql.NullString
+	Currency    string
 }
 
 type GetUserPointsByReferalsRow struct {
-	AmountUnits decimal.Decimal
-	UserID      uuid.UUID
+	RealMoney decimal.Decimal
+	UserID    uuid.UUID
 }
 
 func (q *Queries) GetUserPointsByReferals(ctx context.Context, arg GetUserPointsByReferalsParams) (GetUserPointsByReferalsRow, error) {
-	row := q.db.QueryRow(ctx, getUserPointsByReferals, arg.ReferalCode, arg.CurrencyCode)
+	row := q.db.QueryRow(ctx, getUserPointsByReferals, arg.ReferalCode, arg.Currency)
 	var i GetUserPointsByReferalsRow
-	err := row.Scan(&i.AmountUnits, &i.UserID)
+	err := row.Scan(&i.RealMoney, &i.UserID)
 	return i, err
 }
 
@@ -1252,24 +1252,28 @@ func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) 
 }
 
 const updateProfile = `-- name: UpdateProfile :one
-UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12 where id = $13
-RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type
+UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16 where id = $17
+RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, is_email_verified, wallet_verification_status
 `
 
 type UpdateProfileParams struct {
-	FirstName     sql.NullString
-	LastName      sql.NullString
-	Email         sql.NullString
-	DateOfBirth   sql.NullString
-	PhoneNumber   sql.NullString
-	Username      sql.NullString
-	StreetAddress string
-	City          string
-	PostalCode    string
-	State         string
-	Country       string
-	KycStatus     string
-	ID            uuid.UUID
+	FirstName                sql.NullString
+	LastName                 sql.NullString
+	Email                    sql.NullString
+	DateOfBirth              sql.NullString
+	PhoneNumber              sql.NullString
+	Username                 sql.NullString
+	StreetAddress            string
+	City                     string
+	PostalCode               string
+	State                    string
+	Country                  string
+	KycStatus                string
+	Status                   string
+	IsEmailVerified          bool
+	DefaultCurrency          string
+	WalletVerificationStatus string
+	ID                       uuid.UUID
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (User, error) {
@@ -1286,6 +1290,10 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		arg.State,
 		arg.Country,
 		arg.KycStatus,
+		arg.Status,
+		arg.IsEmailVerified,
+		arg.DefaultCurrency,
+		arg.WalletVerificationStatus,
 		arg.ID,
 	)
 	var i User
@@ -1315,6 +1323,8 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		&i.ReferalType,
 		&i.ReferedByCode,
 		&i.UserType,
+		&i.IsEmailVerified,
+		&i.WalletVerificationStatus,
 	)
 	return i, err
 }

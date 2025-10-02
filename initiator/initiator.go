@@ -83,6 +83,12 @@ func Initiate() {
 	defer lgr.Close()
 	// initializing platform
 	logger.Info("initializing platform layer")
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Platform initialization panicked", zap.Any("panic", r))
+			panic(r)
+		}
+	}()
 	platformInstance := platform.InitPlatform(context.Background(), lgr)
 	logger.Info("done initializing platform layer")
 
@@ -109,7 +115,14 @@ func Initiate() {
 	userBalanceWs := utils.InitUserws(logger, nil) // Will be updated after persistence is created
 
 	// Now initialize persistence with Redis, userWS, and ClickHouse
-	persistence := initPersistence(&persistenceDB, logger, gormDB, platformInstance.Redis.(*redis.RedisOTP), userBalanceWs, clickhouseClient)
+	var redisOTP *redis.RedisOTP
+	if realRedis, ok := platformInstance.Redis.(*redis.RedisOTP); ok {
+		redisOTP = realRedis
+	} else {
+		logger.Warn("Using mock Redis client for persistence initialization")
+		redisOTP = nil
+	}
+	persistence := initPersistence(&persistenceDB, logger, gormDB, redisOTP, userBalanceWs, clickhouseClient)
 
 	// Update userWS with the actual balance storage
 	userBalanceWs = utils.InitUserws(logger, persistence.Balance)
@@ -161,7 +174,7 @@ func Initiate() {
 	}
 	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
-	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, platformInstance.Redis.(*redis.RedisOTP), platformInstance.Pisi)
+	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi)
 
 	// Start cashback Kafka consumer for real-time bet processing
 	if module.CashbackKafkaConsumer != nil {

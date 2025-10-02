@@ -162,8 +162,8 @@ func (a *adds) UpdateBalance(ctx context.Context, req dto.AddUpdateBalanceReq) (
 		_, err = a.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:     req.UserID,
 			CurrencyCode:   req.Currency,
-			AmountUnits:  amountUnits,
-			ReservedUnits: reservedUnits,
+			RealMoney:  amountUnits,
+			BonusMoney: reservedUnits,
 		})
 		if err != nil {
 			a.logger.Error("error creating balance", zap.Error(err))
@@ -180,10 +180,10 @@ func (a *adds) UpdateBalance(ctx context.Context, req dto.AddUpdateBalanceReq) (
 
 		// Add the new amount to existing balance
 		if req.Component == constant.REAL_MONEY {
-			updateReq.Amount = currentBalance.AmountUnits.Add(amount)
+			updateReq.Amount = currentBalance.RealMoney.Add(amount)
 			newBalance = updateReq.Amount
 		} else {
-			updateReq.Amount = currentBalance.ReservedUnits.Add(amount)
+			updateReq.Amount = currentBalance.BonusMoney.Add(amount)
 			newBalance = updateReq.Amount
 		}
 

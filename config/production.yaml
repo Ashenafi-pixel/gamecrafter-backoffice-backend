@@ -1,5 +1,5 @@
 db:
-  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5432/tucanbit?sslmode=disable
+  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable
   
 app:
   host: 0.0.0.0
@@ -62,8 +62,8 @@ pisi:
   
 # Kafka Configuration
 kafka:
-  enabled: false
-  bootstrap_servers: localhost:9092
+  enabled: true
+  bootstrap_servers: localhost:9093
   topic: "events"
   cluster_api_key: ""
   cluster_api_secret: ""
@@ -77,7 +77,7 @@ kafka:
 
 # Redis Configuration
 redis:
-  addr: "localhost:6379"
+  addr: "localhost:63790"
   password: "tucanbit_redis_password"
   db: 0
   key_prefix: "tucanbit:"

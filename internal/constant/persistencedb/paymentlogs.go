@@ -380,12 +380,12 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 
 	// Lock the row
 	_, err = q.LockBalance(ctx, db.LockBalanceParams{
-		UserID:       params.UserID,
-		CurrencyCode: params.CurrencyCode,
+		UserID:   params.UserID,
+		Currency: params.Currency,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
+			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
 			return db.Balance{}, err
 		}
 		p.log.Error("Failed to lock balance", zap.Error(err))
@@ -394,12 +394,12 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 
 	// Perform the update
 	balance, err := q.UpdateBalance(ctx, db.UpdateBalanceParams{
-		CurrencyCode:  params.CurrencyCode,
-		AmountUnits:   params.AmountUnits,
-		ReservedUnits: params.ReservedUnits,
-		ReservedCents: params.ReservedCents,
-		UpdatedAt:     params.UpdatedAt,
-		UserID:        params.UserID,
+		Currency:   params.Currency,
+		RealMoney:  params.RealMoney,
+		BonusMoney: params.BonusMoney,
+		Points:     params.Points,
+		UpdatedAt:  params.UpdatedAt,
+		UserID:     params.UserID,
 	})
 	if err != nil {
 		p.log.Error("Failed to update balance", zap.Error(err))
@@ -411,7 +411,7 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 		return db.Balance{}, err
 	}
 
-	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
+	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
 	return balance, nil
 }
 
@@ -431,12 +431,12 @@ func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateAmountU
 
 	// Lock the row
 	_, err = q.LockBalance(ctx, db.LockBalanceParams{
-		UserID:       params.UserID,
-		CurrencyCode: params.CurrencyCode,
+		UserID:   params.UserID,
+		Currency: params.Currency,
 	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
+			p.log.Warn("No balance found for user and currency", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
 			return db.Balance{}, err
 		}
 		p.log.Error("Failed to lock balance", zap.Error(err))
@@ -455,10 +455,9 @@ func (p *PersistenceDB) UpdateMoney(ctx context.Context, params db.UpdateAmountU
 		return db.Balance{}, err
 	}
 
-	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.CurrencyCode))
+	p.log.Info("Successfully updated balance", zap.Any("user_id", params.UserID), zap.String("currency", params.Currency))
 	return balance, nil
 }
-
 
 func (p *PersistenceDB) GetBalanceLog(ctx context.Context, balanceLogID uuid.UUID) (db.BalanceLog, error) {
 	query := `
@@ -510,7 +509,6 @@ func (p *PersistenceDB) GetBalanceLog(ctx context.Context, balanceLogID uuid.UUI
 	return balanceLog, nil
 }
 
-
 func (p *PersistenceDB) GetBalanceLogByTransactionID(ctx context.Context, transactionID string) (db.BalanceLog, error) {
 	query := `
 		SELECT
@@ -560,7 +558,6 @@ func (p *PersistenceDB) GetBalanceLogByTransactionID(ctx context.Context, transa
 
 	return balanceLog, nil
 }
-
 
 func (p *PersistenceDB) SaveBalanceLogs(ctx context.Context, arg db.SaveBalanceLogsParams) (db.BalanceLog, error) {
 	query := `

@@ -21,34 +21,36 @@ const (
 
 // User represents the user registration request payload.
 type User struct {
-	ID              uuid.UUID  `json:"id,omitempty"  swaggerignore:"true"`
-	Username        string     `json:"username,omitempty"`
-	PhoneNumber     string     `json:"phone_number" validate:"omitempty,e164,min=8"`
-	FirstName       string     `json:"first_name"`
-	LastName        string     `json:"last_name"`
-	Email           string     `json:"email"`
-	ReferralCode    string     `json:"referral_code,omitempty" `
-	Password        string     `json:"password,omitempty" validate:"passwordvalidation"`
-	DefaultCurrency string     `json:"default_currency"`
-	ProfilePicture  string     `json:"profile_picture"`
-	DateOfBirth     string     `json:"date_of_birth"`
-	Source          string     `json:"source,omitempty"  swaggerignore:"true"`
-	Roles           []Role     `gorm:"many2many:user_roles;" json:"user_roles,omitempty" swaggerignore:"true"`
-	StreetAddress   string     `json:"street_address"`
-	Country         string     `json:"country"`
-	State           string     `json:"state"`
-	City            string     `json:"city"`
-	Status          string     `json:"status,omitempty" swaggerignore:"true"`
-	CreatedBy       uuid.UUID  `json:"created_by" swaggerignore:"true"`
-	IsAdmin         bool       `json:"is_admin,omitempty" swaggerignore:"true"`
-	PostalCode      string     `json:"postal_code"`
-	KYCStatus       string     `json:"kyc_status"`
-	Type            Type       `json:"type,omitempty"`
-	ReferalType     Type       `json:"referal_type,omitempty"`
-	ReferedByCode   string     `json:"refered_by_code,omitempty"`
-	AgentRequestID  string     `json:"agent_request_id,omitempty"`
-	Accounts        []Balance  `json:"accounts"`
-	CreatedAt       *time.Time `json:"created_at,omitempty"`
+	ID                       uuid.UUID  `json:"id,omitempty"  swaggerignore:"true"`
+	Username                 string     `json:"username,omitempty"`
+	PhoneNumber              string     `json:"phone_number" validate:"omitempty,e164,min=8"`
+	FirstName                string     `json:"first_name"`
+	LastName                 string     `json:"last_name"`
+	Email                    string     `json:"email"`
+	ReferralCode             string     `json:"referral_code,omitempty" `
+	Password                 string     `json:"password,omitempty" validate:"passwordvalidation"`
+	DefaultCurrency          string     `json:"default_currency"`
+	ProfilePicture           string     `json:"profile_picture"`
+	DateOfBirth              string     `json:"date_of_birth"`
+	Source                   string     `json:"source,omitempty"  swaggerignore:"true"`
+	Roles                    []Role     `gorm:"many2many:user_roles;" json:"user_roles,omitempty" swaggerignore:"true"`
+	StreetAddress            string     `json:"street_address"`
+	Country                  string     `json:"country"`
+	State                    string     `json:"state"`
+	City                     string     `json:"city"`
+	Status                   string     `json:"status,omitempty" swaggerignore:"true"`
+	CreatedBy                uuid.UUID  `json:"created_by" swaggerignore:"true"`
+	IsAdmin                  bool       `json:"is_admin,omitempty" swaggerignore:"true"`
+	PostalCode               string     `json:"postal_code"`
+	KYCStatus                string     `json:"kyc_status"`
+	Type                     Type       `json:"type,omitempty"`
+	ReferalType              Type       `json:"referal_type,omitempty"`
+	ReferedByCode            string     `json:"refered_by_code,omitempty"`
+	AgentRequestID           string     `json:"agent_request_id,omitempty"`
+	Accounts                 []Balance  `json:"accounts"`
+	CreatedAt                *time.Time `json:"created_at,omitempty"`
+	IsEmailVerified          bool       `json:"is_email_verified,omitempty"`
+	WalletVerificationStatus string     `json:"wallet_verification_status,omitempty"`
 }
 
 // profileResponse
@@ -185,7 +187,7 @@ type VerifyResetPasswordRes struct {
 }
 
 type OTPHolder struct {
-	TmpOTP    string    `json:"json:"tmp_OTP"`
+	TmpOTP    string    `json:"tmp_OTP"`
 	CreatedAT time.Time `json:"created_at"`
 	Attempts  int       `json:"attempts"`
 }
@@ -208,20 +210,24 @@ func ValidateResetPassword(rp ResetPasswordReq) error {
 }
 
 type UpdateProfileReq struct {
-	UserID        uuid.UUID `json:"user_id" swaggerignore:"true"`
-	FirstName     string    `json:"first_name"`
-	LastName      string    `json:"last_name"`
-	Email         string    `json:"email"`
-	DateOfBirth   string    `json:"date_of_birth"`
-	Phone         string    `json:"phone"`
-	Username      string    `json:"username" swaggerignore:"true"`
-	Source        string    `json:"source" swaggerignore:"true"`
-	StreetAddress string    `json:"street_address"`
-	City          string    `json:"city"`
-	PostalCode    string    `json:"postal_code"`
-	State         string    `json:"state"`
-	Country       string    `json:"country"`
-	KYCStatus     string    `json:"kyc_status"`
+	UserID                   uuid.UUID `json:"user_id" swaggerignore:"true"`
+	FirstName                string    `json:"first_name"`
+	LastName                 string    `json:"last_name"`
+	Email                    string    `json:"email"`
+	DateOfBirth              string    `json:"date_of_birth"`
+	Phone                    string    `json:"phone"`
+	Username                 string    `json:"username" swaggerignore:"true"`
+	Source                   string    `json:"source" swaggerignore:"true"`
+	StreetAddress            string    `json:"street_address"`
+	City                     string    `json:"city"`
+	PostalCode               string    `json:"postal_code"`
+	State                    string    `json:"state"`
+	Country                  string    `json:"country"`
+	KYCStatus                string    `json:"kyc_status"`
+	Status                   string    `json:"status"`
+	IsEmailVerified          bool      `json:"is_email_verified"`
+	DefaultCurrency          string    `json:"default_currency"`
+	WalletVerificationStatus string    `json:"wallet_verification_status"`
 }
 
 type UpdateProfileRes struct {
@@ -231,7 +237,7 @@ type UpdateProfileRes struct {
 }
 
 type UpdateProfileTmpHolder struct {
-	TmpOTP           string           `json:"json:"tmp_OTP"`
+	TmpOTP           string           `json:"tmp_OTP"`
 	CreatedAT        time.Time        `json:"created_at"`
 	Attempts         int              `json:"attempts"`
 	Any              bool             `json:"any"`
@@ -264,19 +270,24 @@ type NotifyDepartmentsReq struct {
 }
 
 type EditProfileAdminReq struct {
-	UserID        uuid.UUID `json:"user_id"`
-	AdminID       uuid.UUID `json:"admin_id" swaggerignore:"true"`
-	FirstName     string    `json:"first_name"`
-	LastName      string    `json:"last_name"`
-	UserName      string    `json:"username"`
-	Email         string    `json:"email"`
-	PhoneNumber   string    `json:"phone_number"`
-	StreetAddress string    `json:"street_address"`
-	City          string    `json:"city"`
-	PostalCode    string    `json:"postal_code"`
-	State         string    `json:"state"`
-	Country       string    `json:"country"`
-	KYCStatus     string    `json:"kyc_status"`
+	UserID                   uuid.UUID `json:"user_id"`
+	AdminID                  uuid.UUID `json:"admin_id" swaggerignore:"true"`
+	FirstName                string    `json:"first_name"`
+	LastName                 string    `json:"last_name"`
+	UserName                 string    `json:"username"`
+	Email                    string    `json:"email"`
+	PhoneNumber              string    `json:"phone_number"`
+	StreetAddress            string    `json:"street_address"`
+	City                     string    `json:"city"`
+	PostalCode               string    `json:"postal_code"`
+	State                    string    `json:"state"`
+	Country                  string    `json:"country"`
+	KYCStatus                string    `json:"kyc_status"`
+	DateOfBirth              string    `json:"date_of_birth"`
+	Status                   string    `json:"status"`
+	IsEmailVerified          bool      `json:"is_email_verified"`
+	DefaultCurrency          string    `json:"default_currency"`
+	WalletVerificationStatus string    `json:"wallet_verification_status"`
 }
 
 type AdminResetPasswordReq struct {
@@ -421,6 +432,16 @@ type TestOtp struct {
 	PhoneNumber string `json:"phone_number" validate:"required,e164,min=8"`
 }
 
+// DetailedAccount represents the account structure in detailed registration
+type DetailedAccount struct {
+	BonusMoney int    `json:"bonus_money"`
+	Currency   string `json:"currency"`
+	ID         string `json:"id"`
+	RealMoney  int    `json:"real_money"`
+	UpdatedAt  string `json:"updated_at"`
+	UserID     string `json:"user_id"`
+}
+
 // DetailedUserRegistration represents the comprehensive user registration request payload
 type DetailedUserRegistration struct {
 	Accounts        []DetailedAccount `json:"accounts"`
@@ -446,12 +467,58 @@ type DetailedUserRegistration struct {
 	Username        string            `json:"username"`
 }
 
-// DetailedAccount represents the account structure in detailed registration
-type DetailedAccount struct {
-	BonusMoney int    `json:"bonus_money"`
-	Currency   string `json:"currency"`
-	ID         string `json:"id"`
-	RealMoney  int    `json:"real_money"`
-	UpdatedAt  string `json:"updated_at"`
-	UserID     string `json:"user_id"`
+// SuspensionHistory represents a player's suspension history
+type SuspensionHistory struct {
+	ID          uuid.UUID  `json:"id"`
+	UserID      uuid.UUID  `json:"user_id"`
+	BlockedBy   uuid.UUID  `json:"blocked_by"`
+	Duration    string     `json:"duration"`
+	Type        string     `json:"type"`
+	BlockedFrom *time.Time `json:"blocked_from"`
+	BlockedTo   *time.Time `json:"blocked_to"`
+	UnblockedAt *time.Time `json:"unblocked_at"`
+	Reason      string     `json:"reason"`
+	Note        string     `json:"note"`
+	CreatedAt   time.Time  `json:"created_at"`
+	// Admin details
+	BlockedByUsername string `json:"blocked_by_username"`
+	BlockedByEmail    string `json:"blocked_by_email"`
+}
+
+// BalanceLog represents a balance transaction log
+type BalanceLog struct {
+	ID                  uuid.UUID       `json:"id"`
+	UserID              uuid.UUID       `json:"user_id"`
+	Component           string          `json:"component"`
+	Currency            string          `json:"currency"`
+	ChangeAmount        decimal.Decimal `json:"change_amount"`
+	OperationalGroupID  uuid.UUID       `json:"operational_group_id"`
+	OperationalTypeID   uuid.UUID       `json:"operational_type_id"`
+	Description         string          `json:"description"`
+	Timestamp           time.Time       `json:"timestamp"`
+	BalanceAfterUpdate  decimal.Decimal `json:"balance_after_update"`
+	TransactionID       string          `json:"transaction_id"`
+	Status              string          `json:"status"`
+	Type                string          `json:"type"`
+	OperationalTypeName string          `json:"operational_type_name"`
+}
+
+// GameActivity represents a player's game activity
+type GameActivity struct {
+	Game         string          `json:"game"`
+	Provider     string          `json:"provider"`
+	Sessions     int             `json:"sessions"`
+	TotalWagered decimal.Decimal `json:"total_wagered"`
+	NetResult    decimal.Decimal `json:"net_result"`
+	LastPlayed   time.Time       `json:"last_played"`
+	FavoriteGame bool            `json:"favorite_game"`
+}
+
+// PlayerDetailsResponse represents the complete player details response
+type PlayerDetailsResponse struct {
+	Player            User                `json:"player"`
+	SuspensionHistory []SuspensionHistory `json:"suspension_history"`
+	BalanceLogs       []BalanceLog        `json:"balance_logs"`
+	Balances          []Balance           `json:"balances"`
+	GameActivity      []GameActivity      `json:"game_activity"`
 }

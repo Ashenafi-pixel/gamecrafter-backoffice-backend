@@ -90,7 +90,7 @@ func (b *bet) CheckRankAndClaim(ctx context.Context, req dto.SquadEarns) error {
 								balance = dto.Balance{
 									UserId:       member.UserID,
 									CurrencyCode: constant.POINT_CURRENCY,
-									AmountUnits:  decimal.Zero,
+									RealMoney:  decimal.Zero,
 								}
 							}
 
@@ -111,7 +111,7 @@ func (b *bet) CheckRankAndClaim(ctx context.Context, req dto.SquadEarns) error {
 								ChangeAmount:       reward.Amount,
 								OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 								OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
-								BalanceAfterUpdate: &balance.AmountUnits,
+								BalanceAfterUpdate: &balance.RealMoney,
 								TransactionID:      &transactionID,
 							})
 							if err != nil {
