@@ -27,6 +27,8 @@ type User interface {
 	BlockAccount(ctx context.Context, account dto.AccountBlockReq) (dto.AccountBlockReq, error)
 	GetBlockedAccountByType(ctx context.Context, userID uuid.UUID, tp, duration string) (dto.AccountBlockReq, bool, error)
 	GetBlockedAccountByUserID(ctx context.Context, userID uuid.UUID) ([]dto.AccountBlockReq, bool, error)
+	GetBlockedAccountByUserIDWithPagination(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.SuspensionHistory, error)
+	GetBalanceLogsByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.BalanceLog, error)
 	AaccountUnlock(ctx context.Context, ID uuid.UUID) (dto.AccountBlockReq, error)
 	GetBlockedAllAccount(ctx context.Context, getBlockedAcReq dto.GetBlockedAccountLogReq) ([]dto.GetBlockedAccountLogRep, bool, error)
 	GetBlockedByDurationAndTypeAndUserIDAccount(ctx context.Context, getBlockedAcReq dto.GetBlockedAccountLogReq) ([]dto.GetBlockedAccountLogRep, bool, error)

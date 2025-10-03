@@ -44,7 +44,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		_, err = b.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:       fund.UserID,
 			CurrencyCode: fund.Currency,
-			AmountUnits:  fund.Amount,
+			RealMoney:  fund.Amount,
 		})
 		if err != nil {
 			return dto.ManualFundRes{}, err
@@ -55,7 +55,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			UserID:    fund.UserID,
 			Currency:  fund.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits.Add(fund.Amount),
+			Amount:    usrAmount.RealMoney.Add(fund.Amount),
 		})
 		if err != nil {
 			return dto.ManualFundRes{}, err
@@ -74,7 +74,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
 				Currency:   fund.Currency,
-				NewBalance: fund.Amount.Add(usrAmount.AmountUnits),
+				NewBalance: fund.Amount.Add(usrAmount.RealMoney),
 			},
 		},
 	})
@@ -84,7 +84,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			UserID:    fund.UserID,
 			Currency:  fund.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    usrAmount.RealMoney,
 		})
 	}
 
@@ -105,7 +105,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			UserID:    fund.UserID,
 			Currency:  fund.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    usrAmount.RealMoney,
 		})
 
 		//remove from balance log
@@ -146,8 +146,8 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 	} else {
 		// update existing balance
 		//check if the balance is greater than or equal
-		if fund.Amount.GreaterThan(usrAmount.AmountUnits) {
-			err = fmt.Errorf("user dose not have enough balance with this currency to substract. user current balance %v", usrAmount.AmountUnits)
+		if fund.Amount.GreaterThan(usrAmount.RealMoney) {
+			err = fmt.Errorf("user dose not have enough balance with this currency to substract. user current balance %v", usrAmount.RealMoney)
 			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return dto.ManualFundRes{}, err
 		}
@@ -155,7 +155,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			UserID:    fund.UserID,
 			Currency:  fund.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits.Sub(fund.Amount),
+			Amount:    usrAmount.RealMoney.Sub(fund.Amount),
 		})
 		if err != nil {
 			return dto.ManualFundRes{}, err
@@ -174,7 +174,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
 				Currency:   fund.Currency,
-				NewBalance: fund.Amount.Add(usrAmount.AmountUnits),
+				NewBalance: fund.Amount.Add(usrAmount.RealMoney),
 			},
 		},
 	})
@@ -184,7 +184,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			UserID:    fund.UserID,
 			Currency:  fund.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    usrAmount.RealMoney,
 		})
 	}
 
@@ -205,7 +205,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			UserID:    fund.UserID,
 			Currency:  fund.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    usrAmount.RealMoney,
 		})
 
 		//remove from balance log

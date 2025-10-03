@@ -49,6 +49,7 @@ type UserHandler interface {
 	GetCurrentReferralMultiplier(c *gin.Context)
 	UpdateReferralMultiplier(c *gin.Context)
 	UpdateUsersPointsForReferrances(c *gin.Context)
+	GetPlayerDetails(c *gin.Context)
 	GetAdminAssignedPoints(c *gin.Context)
 	GetUserPoints(c *gin.Context)
 	AdminRegisterPlayer(c *gin.Context)

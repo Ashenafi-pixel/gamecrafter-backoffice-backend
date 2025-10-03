@@ -1001,7 +1001,7 @@ func (b *bet) PlaceBet(ctx context.Context, placeBetReq dto.PlaceBetReq) (dto.Pl
 	if err != nil {
 		return dto.PlaceBetRes{}, err
 	}
-	if !exist || userBalance.AmountUnits.LessThan(placeBetReq.Amount) {
+	if !exist || userBalance.RealMoney.LessThan(placeBetReq.Amount) {
 		err = fmt.Errorf("insufficient balance with %s currency", placeBetReq.Currency)
 		b.log.Warn(err.Error(), zap.Any("placeBetReq", placeBetReq))
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
@@ -1023,7 +1023,7 @@ func (b *bet) PlaceBet(ctx context.Context, placeBetReq dto.PlaceBetReq) (dto.Pl
 		return dto.PlaceBetRes{}, err
 	}
 
-	newBalance := userBalance.AmountUnits.Sub(placeBetReq.Amount)
+	newBalance := userBalance.RealMoney.Sub(placeBetReq.Amount)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    placeBetReq.UserID,
@@ -1043,7 +1043,7 @@ func (b *bet) PlaceBet(ctx context.Context, placeBetReq dto.PlaceBetReq) (dto.Pl
 			UserID:    placeBetReq.UserID,
 			Currency:  placeBetReq.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		return dto.PlaceBetRes{}, err
 	}
@@ -1054,7 +1054,7 @@ func (b *bet) PlaceBet(ctx context.Context, placeBetReq dto.PlaceBetReq) (dto.Pl
 		UserID:             placeBetReq.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           placeBetReq.Currency,
-		Description:        fmt.Sprintf("place bet amount %v, new balance is %v and  currency %s", placeBetReq.Amount, userBalance.AmountUnits.Sub(placeBetReq.Amount), placeBetReq.Currency),
+		Description:        fmt.Sprintf("place bet amount %v, new balance is %v and  currency %s", placeBetReq.Amount, userBalance.RealMoney.Sub(placeBetReq.Amount), placeBetReq.Currency),
 		ChangeAmount:       placeBetReq.Amount,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -1077,7 +1077,7 @@ func (b *bet) PlaceBet(ctx context.Context, placeBetReq dto.PlaceBetReq) (dto.Pl
 			UserID:    placeBetReq.UserID,
 			Currency:  placeBetReq.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.AmountUnits,
+			Amount:    userBalance.RealMoney,
 		})
 		if err2 != nil {
 			return dto.PlaceBetRes{}, err2
@@ -1142,8 +1142,8 @@ func (b *bet) CancelBet(ctx context.Context, cancelReq dto.CancelBetReq) (dto.Ca
 
 	for _, userBalance := range userBalances {
 		if userBalance.CurrencyCode == userBet.Currency {
-			currentBalance = userBalance.AmountUnits
-			newBalance = userBalance.AmountUnits.Add(userBet.Amount)
+			currentBalance = userBalance.RealMoney
+			newBalance = userBalance.RealMoney.Add(userBet.Amount)
 		}
 	}
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{

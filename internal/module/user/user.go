@@ -377,12 +377,11 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 	//create user balance
 	if userRequest.IsAdmin {
 		u.balanceStorage.CreateBalance(ctx, dto.Balance{
-			UserId:        usrRes.ID,
-			CurrencyCode:  constant.DEFAULT_CURRENCY,
-			AmountUnits:   decimal.Zero,
-			AmountCents:   0,
-			ReservedUnits: decimal.Zero,
-			ReservedCents: 0,
+			UserId:       usrRes.ID,
+			CurrencyCode: constant.DEFAULT_CURRENCY,
+			RealMoney:    decimal.Zero,
+			BonusMoney:   decimal.Zero,
+			Points:       0,
 		})
 	} else {
 		signUpdBonus, exist, err := u.ConfigStorage.GetConfigByName(ctx, constant.SIGNUP_BONUS)
@@ -392,12 +391,11 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 
 		if !exist {
 			u.balanceStorage.CreateBalance(ctx, dto.Balance{
-				UserId:        usrRes.ID,
-				CurrencyCode:  constant.DEFAULT_CURRENCY,
-				AmountUnits:   decimal.Zero,
-				AmountCents:   0,
-				ReservedUnits: decimal.Zero,
-				ReservedCents: 0,
+				UserId:       usrRes.ID,
+				CurrencyCode: constant.DEFAULT_CURRENCY,
+				RealMoney:    decimal.Zero,
+				BonusMoney:   decimal.Zero,
+				Points:       0,
 			})
 		} else {
 			// if the signup bonus is exist then add the bonus to the user
@@ -407,12 +405,11 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 				return dto.UserRegisterResponse{}, "", errors.ErrInternalServerError.Wrap(err, "unable to convert signup bonus amount")
 			}
 			u.balanceStorage.CreateBalance(ctx, dto.Balance{
-				UserId:        usrRes.ID,
-				CurrencyCode:  constant.DEFAULT_CURRENCY,
-				AmountUnits:   signUpBonusAmount,
-				AmountCents:   signUpBonusAmount.Mul(decimal.NewFromInt(100)).IntPart(),
-				ReservedUnits: decimal.Zero,
-				ReservedCents: 0,
+				UserId:       usrRes.ID,
+				CurrencyCode: constant.DEFAULT_CURRENCY,
+				RealMoney:    decimal.Zero,
+				BonusMoney:   signUpBonusAmount,
+				Points:       0,
 			})
 		}
 
@@ -551,10 +548,10 @@ func (u *User) processReferralBonus(ctx context.Context, referralCode string, ne
 	if err != nil {
 		return fmt.Errorf("failed to get referrer balance: %w", err)
 	}
-	u.log.Info("Referrer balance after update", zap.Any("referrerBalance", referrerBalance.AmountUnits.Add(realAmount)))
+	u.log.Info("Referrer balance after update", zap.Any("referrerBalance", referrerBalance.RealMoney.Add(realAmount)))
 
 	// check if tthe bala
-	newMoney := referrerBalance.AmountUnits.Add(realAmount)
+	newMoney := referrerBalance.RealMoney.Add(realAmount)
 	_, err = u.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    referrer.UserID,
 		Currency:  "P",
@@ -582,7 +579,7 @@ func (u *User) processReferralBonus(ctx context.Context, referralCode string, ne
 		OperationalGroupID: operationalGroupAndType.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndType.OperationalTypeID,
 		TransactionID:      &transactionID,
-		BalanceAfterUpdate: &referrerBalance.ReservedUnits,
+		BalanceAfterUpdate: &referrerBalance.BonusMoney,
 		Status:             constant.COMPLTE,
 	})
 	if err != nil {
@@ -1391,7 +1388,7 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 	}
 
 	if userReq.StreetAddress != "" {
-		updatedUser.LastName = userReq.LastName
+		updatedUser.StreetAddress = userReq.StreetAddress
 	}
 	if userReq.City != "" {
 		updatedUser.City = userReq.City
@@ -1416,19 +1413,65 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		updatedUser.KYCStatus = userReq.KYCStatus
 	}
 
+	// Handle new fields
+	if userReq.UserName != "" {
+		updatedUser.Username = userReq.UserName
+	}
+
+	if userReq.DateOfBirth != "" {
+		dateLayout := "2006-01-02"
+		birthDate, err := time.Parse(dateLayout, userReq.DateOfBirth)
+		if err != nil {
+			u.log.Error(err.Error())
+			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+			return dto.EditProfileAdminRes{}, err
+		}
+		// Validate age (must be 18+)
+		age := time.Now().Year() - birthDate.Year()
+		if time.Now().YearDay() < birthDate.YearDay() {
+			age--
+		}
+		if age < 18 {
+			err = fmt.Errorf("invalid age, age must be greater than 18")
+			err = errors.ErrAcessError.Wrap(err, err.Error())
+			return dto.EditProfileAdminRes{}, err
+		}
+		updatedUser.DateOfBirth = userReq.DateOfBirth
+	}
+
+	if userReq.Status != "" {
+		updatedUser.Status = userReq.Status
+	}
+
+	if userReq.DefaultCurrency != "" {
+		updatedUser.DefaultCurrency = userReq.DefaultCurrency
+	}
+
+	if userReq.WalletVerificationStatus != "" {
+		updatedUser.WalletVerificationStatus = userReq.WalletVerificationStatus
+	}
+
+	// Handle boolean field
+	updatedUser.IsEmailVerified = userReq.IsEmailVerified
+
 	res, err := u.userStorage.UpdateUser(ctx, dto.UpdateProfileReq{
-		UserID:        updatedUser.ID,
-		FirstName:     updatedUser.FirstName,
-		LastName:      updatedUser.LastName,
-		Email:         updatedUser.Email,
-		DateOfBirth:   updatedUser.DateOfBirth,
-		Phone:         updatedUser.PhoneNumber,
-		StreetAddress: updatedUser.StreetAddress,
-		City:          updatedUser.City,
-		PostalCode:    updatedUser.PostalCode,
-		State:         updatedUser.State,
-		Country:       updatedUser.Country,
-		KYCStatus:     updatedUser.KYCStatus,
+		UserID:                   updatedUser.ID,
+		FirstName:                updatedUser.FirstName,
+		LastName:                 updatedUser.LastName,
+		Email:                    updatedUser.Email,
+		DateOfBirth:              updatedUser.DateOfBirth,
+		Phone:                    updatedUser.PhoneNumber,
+		Username:                 updatedUser.Username,
+		StreetAddress:            updatedUser.StreetAddress,
+		City:                     updatedUser.City,
+		PostalCode:               updatedUser.PostalCode,
+		State:                    updatedUser.State,
+		Country:                  updatedUser.Country,
+		KYCStatus:                updatedUser.KYCStatus,
+		Status:                   updatedUser.Status,
+		IsEmailVerified:          updatedUser.IsEmailVerified,
+		DefaultCurrency:          updatedUser.DefaultCurrency,
+		WalletVerificationStatus: updatedUser.WalletVerificationStatus,
 	})
 	if err != nil {
 		return dto.EditProfileAdminRes{}, err
@@ -1509,7 +1552,7 @@ func (u *User) AdminResetPassword(ctx context.Context, req dto.AdminResetPasswor
 }
 
 func (u *User) GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error) {
-	var plys []dto.User
+	plys := make([]dto.User, 0)
 	// else check for page and per_page
 	if req.Page == 0 || req.PerPage == 0 {
 		req.Page = 1
@@ -1518,25 +1561,28 @@ func (u *User) GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPl
 	offset := (req.Page - 1) * req.PerPage
 	req.Page = offset
 
-	if req.Filter.Email != "" || req.Filter.Phone != "" || req.Filter.Username != "" {
-		return u.userStorage.GetUsersByEmailAndPhone(ctx, req)
-	}
-
-	// get all users
+	// Always use GetAllUsers which now handles filtering
 	pls, err := u.userStorage.GetAllUsers(ctx, req)
 	if err != nil {
 		return dto.GetPlayersRes{}, err
 	}
+
+	u.log.Info("GetPlayers debug", zap.Int("users_from_storage", len(pls.Users)), zap.Int64("total_count", pls.TotalCount))
+
 	for _, player := range pls.Users {
+		u.log.Info("Processing player", zap.String("player_id", player.ID.String()), zap.String("username", player.Username))
 		balance, err := u.balanceStorage.GetBalancesByUserID(ctx, player.ID)
 		if err != nil {
-			u.log.Error(err.Error())
-			continue
+			u.log.Error("Failed to get balance for player", zap.Error(err), zap.String("player_id", player.ID.String()))
+			// Don't skip the player, just set empty accounts
+			player.Accounts = []dto.Balance{}
+		} else {
+			player.Accounts = balance
 		}
-		player.Accounts = balance
 		plys = append(plys, player)
-
 	}
+
+	u.log.Info("GetPlayers result", zap.Int("final_users_count", len(plys)))
 	return dto.GetPlayersRes{
 		TotalPages: pls.TotalPages,
 		Message:    constant.SUCCESS,
@@ -1984,7 +2030,7 @@ func (u *User) ReSendVerificationOTP(ctx context.Context, phoneNumber string) (*
 	return msg, nil
 }
 
-func (u *User) GetOtp(ctx constant.ContextKey, phone string) string {
+func (u *User) GetOtp(ctx context.Context, phone string) string {
 	otp, err := u.redis.GetOTP(context.Background(), phone)
 	if err != nil {
 		u.log.Error("Failed to get OTP", zap.Error(err), zap.String("phone", phone))

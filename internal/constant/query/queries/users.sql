@@ -37,7 +37,7 @@ SELECT * FROM users_otp where user_id = $1;
 DELETE from users_otp where user_id = $1;
 
 -- name: UpdateProfile :one 
-UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12 where id = $13
+UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16 where id = $17
 RETURNING *;
 
 -- name: GetUsersByDepartmentNotificationTypes :many 
@@ -50,7 +50,7 @@ WHERE $1::VARCHAR = ANY(dp.notifications);
 -- name: GetAllUsers :many 
 WITH users_data AS (
     SELECT *
-    FROM  users where default_currency  is not null
+    FROM  users where default_currency  is not null AND user_type = 'PLAYER'
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -62,8 +62,36 @@ CROSS JOIN row_count r
 ORDER BY c.created_at DESC
 LIMIT $1 OFFSET $2;
 
+-- name: GetAllUsersWithFilters :many 
+WITH users_data AS (
+    SELECT *
+    FROM users 
+    WHERE default_currency IS NOT NULL 
+    AND user_type = 'PLAYER'
+    AND (
+        $1::text IS NULL OR $1 = '' OR username ILIKE '%' || $1 || '%'
+    )
+    AND (
+        $2::text IS NULL OR $2 = '' OR email ILIKE '%' || $2 || '%'
+    )
+    AND (
+        $3::text IS NULL OR $3 = '' OR phone_number ILIKE '%' || $3 || '%'
+    )
+    AND ($4::text[] IS NULL OR array_length($4, 1) = 0 OR status = ANY($4))
+    AND ($5::text[] IS NULL OR array_length($5, 1) = 0 OR kyc_status = ANY($5))
+),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM users_data
+)
+SELECT c.*, r.total_rows
+FROM users_data c
+CROSS JOIN row_count r
+ORDER BY c.created_at DESC
+LIMIT $6 OFFSET $7;
+
 -- name: GetUserPointsByReferals :one 
-SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency_code = $2;
+SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;
 
 
 -- name: GetUsersDoseNotHaveReferalCode :many 

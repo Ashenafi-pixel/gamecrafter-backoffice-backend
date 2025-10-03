@@ -109,7 +109,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 		betAmount = price.Price.String()
 	}
 
-	if !freeSping && (balance.AmountUnits.LessThan(price.Price) || !exist) {
+	if !freeSping && (balance.RealMoney.LessThan(price.Price) || !exist) {
 		err := fmt.Errorf("insufficient balance ")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.PlaceSpinningWheelResp{}, err
@@ -120,7 +120,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 	if !freeSping {
 		// to transactions
 		//update user balance
-		newBalance = balance.AmountUnits.Sub(price.Price)
+		newBalance = balance.RealMoney.Sub(price.Price)
 		transactionID := utils.GenerateTransactionId()
 		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    userID,
@@ -141,7 +141,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 				UserID:    userID,
 				Currency:  constant.POINT_CURRENCY,
 				Component: constant.REAL_MONEY,
-				Amount:    balance.AmountUnits,
+				Amount:    balance.RealMoney,
 			})
 			return dto.PlaceSpinningWheelResp{}, err
 		}
@@ -151,7 +151,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 			UserID:             userID,
 			Component:          constant.REAL_MONEY,
 			Currency:           constant.POINT_CURRENCY,
-			Description:        fmt.Sprintf("place spinning wheel bet amount %v, new balance is %v and  currency %s", price.Price, balance.AmountUnits.Sub(price.Price), constant.POINT_CURRENCY),
+			Description:        fmt.Sprintf("place spinning wheel bet amount %v, new balance is %v and  currency %s", price.Price, balance.RealMoney.Sub(price.Price), constant.POINT_CURRENCY),
 			ChangeAmount:       price.Price,
 			OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 			OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -257,7 +257,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 			}
 
 			// update balance
-			newBalance := balance.AmountUnits.Add(mystery.Amount)
+			newBalance := balance.RealMoney.Add(mystery.Amount)
 			_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 				UserID:    userID,
 				Currency:  constant.POINT_CURRENCY,
@@ -282,7 +282,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 				UserID:             userID,
 				Component:          constant.REAL_MONEY,
 				Currency:           constant.POINT_CURRENCY,
-				Description:        fmt.Sprintf("cashout spinning wheel bet amount %v, new balance is %v and  currency %s", price.Price, balance.AmountUnits.Add(mystery.Amount), constant.POINT_CURRENCY),
+				Description:        fmt.Sprintf("cashout spinning wheel bet amount %v, new balance is %v and  currency %s", price.Price, balance.RealMoney.Add(mystery.Amount), constant.POINT_CURRENCY),
 				ChangeAmount:       price.Price,
 				OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 				OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -430,7 +430,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 		}
 
 		// update balance
-		newBalance := balance.AmountUnits.Add(resp.Amount)
+		newBalance := balance.RealMoney.Add(resp.Amount)
 		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    userID,
 			Currency:  constant.POINT_CURRENCY,
@@ -447,7 +447,7 @@ func (b *bet) PlaceSpinningWheelBet(ctx context.Context, userID uuid.UUID) (dto.
 			UserID:             userID,
 			Component:          constant.REAL_MONEY,
 			Currency:           constant.POINT_CURRENCY,
-			Description:        fmt.Sprintf("cashout spinning wheel bet amount %v, new balance is %v and  currency %s", price.Price, balance.AmountUnits.Add(resp.Amount), constant.POINT_CURRENCY),
+			Description:        fmt.Sprintf("cashout spinning wheel bet amount %v, new balance is %v and  currency %s", price.Price, balance.RealMoney.Add(resp.Amount), constant.POINT_CURRENCY),
 			ChangeAmount:       price.Price,
 			OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 			OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -643,7 +643,7 @@ func (b *bet) SaveSpinningWheelPrize(ctx context.Context, userID uuid.UUID, wonA
 	if err != nil {
 		return err
 	}
-	balanceAfterWin := balance.AmountUnits.Add(wonAmount)
+	balanceAfterWin := balance.RealMoney.Add(wonAmount)
 	updatedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    userID,
 		Currency:  constant.POINT_CURRENCY,
@@ -663,7 +663,7 @@ func (b *bet) SaveSpinningWheelPrize(ctx context.Context, userID uuid.UUID, wonA
 			UserID:    userID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.AmountUnits,
+			Amount:    balance.RealMoney,
 		})
 		// reverse cashout
 
@@ -676,8 +676,8 @@ func (b *bet) SaveSpinningWheelPrize(ctx context.Context, userID uuid.UUID, wonA
 		UserID:             userID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("cash out spinning wheels bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, updatedBalance.AmountUnits, constant.POINT_CURRENCY),
-		ChangeAmount:       updatedBalance.AmountUnits,
+		Description:        fmt.Sprintf("cash out spinning wheels bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, updatedBalance.RealMoney, constant.POINT_CURRENCY),
+		ChangeAmount:       updatedBalance.RealMoney,
 		OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
 		BalanceAfterUpdate: &balanceAfterWin,

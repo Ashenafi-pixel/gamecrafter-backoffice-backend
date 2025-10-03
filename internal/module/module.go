@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
-	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 )
 
@@ -61,15 +60,17 @@ type User interface {
 	MonitorUserSessions(ctx context.Context)
 	HandleSessionExpiry(ctx context.Context, userID uuid.UUID) error
 	Stop()
+	GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, bool, error)
+	GetPlayerSuspensionHistory(ctx context.Context, userID uuid.UUID) ([]dto.SuspensionHistory, error)
+	GetPlayerBalanceLogs(ctx context.Context, userID uuid.UUID) ([]dto.BalanceLog, error)
+	GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]dto.GameActivity, error)
+	GetPlayerBalances(ctx context.Context, userID uuid.UUID) ([]dto.Balance, error)
 	VerifyUser(ctx context.Context, req dto.VerifyPhoneNumberReq) (dto.UserRegisterResponse, string, error)
-	ReSendVerificationOTP(ctx context.Context, phoneNumber string) (*dto.ForgetPasswordRes, error)
-	GetOtp(ctx constant.ContextKey, phone string) string
-	// Unique constraint validation methods
+	GetOtp(ctx context.Context, phone string) string
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
 	CheckUserExistsByPhoneNumber(ctx context.Context, phone string) (bool, error)
-	CheckUserExistsByUsername(ctx context.Context, username string) (bool, error)
-	// User verification methods
 	UpdateUserVerificationStatus(ctx context.Context, userID uuid.UUID, verified bool) (dto.User, error)
+	ReSendVerificationOTP(ctx context.Context, phoneNumber string) (*dto.ForgetPasswordRes, error)
 }
 
 type Balance interface {

@@ -57,12 +57,12 @@ func (b *bet) RefundFailedRounds(ctx context.Context, failedRounds []dto.BetRoun
 			b.log.Error("user balance not found with user_id", zap.Any("user_id", round.UserID.String()), zap.Any("currency", round.Currency))
 			continue
 		}
-		newBalance := usr.AmountUnits.Add(round.Amount)
+		newBalance := usr.RealMoney.Add(round.Amount)
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    round.UserID,
 			Currency:  round.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usr.AmountUnits.Add(round.Amount),
+			Amount:    usr.RealMoney.Add(round.Amount),
 		})
 		operationalGroupAndTypeIDs, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.TRANSFER, constant.REFUND)
 		if err != nil {
@@ -72,7 +72,7 @@ func (b *bet) RefundFailedRounds(ctx context.Context, failedRounds []dto.BetRoun
 				UserID:    round.UserID,
 				Currency:  round.Currency,
 				Component: constant.REAL_MONEY,
-				Amount:    usr.AmountUnits,
+				Amount:    usr.RealMoney,
 			})
 			continue
 		}
@@ -95,7 +95,7 @@ func (b *bet) RefundFailedRounds(ctx context.Context, failedRounds []dto.BetRoun
 				UserID:    round.UserID,
 				Currency:  round.Currency,
 				Component: constant.REAL_MONEY,
-				Amount:    usr.AmountUnits,
+				Amount:    usr.RealMoney,
 			})
 			continue
 		}
@@ -117,7 +117,7 @@ func (b *bet) RefundFailedRounds(ctx context.Context, failedRounds []dto.BetRoun
 				UserID:    round.UserID,
 				Currency:  round.Currency,
 				Component: constant.REAL_MONEY,
-				Amount:    usr.AmountUnits,
+				Amount:    usr.RealMoney,
 			})
 			continue
 		}
@@ -224,12 +224,12 @@ func (b *bet) ManualRefundFailedRounds(ctx context.Context, req dto.ManualRefund
 		b.log.Error("user balance not found with user_id")
 		return dto.ManualRefundFailedRoundsRes{}, err
 	}
-	newBalance := usr.AmountUnits.Add(bt.Amount)
+	newBalance := usr.RealMoney.Add(bt.Amount)
 	b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    bt.UserID,
 		Currency:  bt.Currency,
 		Component: constant.REAL_MONEY,
-		Amount:    usr.AmountUnits.Add(bt.Amount),
+		Amount:    usr.RealMoney.Add(bt.Amount),
 	})
 	operationalGroupAndTypeIDs, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.TRANSFER, constant.REFUND)
 	if err != nil {
@@ -239,7 +239,7 @@ func (b *bet) ManualRefundFailedRounds(ctx context.Context, req dto.ManualRefund
 			UserID:    bt.UserID,
 			Currency:  bt.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usr.AmountUnits,
+			Amount:    usr.RealMoney,
 		})
 		return dto.ManualRefundFailedRoundsRes{}, err
 	}
@@ -262,7 +262,7 @@ func (b *bet) ManualRefundFailedRounds(ctx context.Context, req dto.ManualRefund
 			UserID:    bt.UserID,
 			Currency:  bt.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usr.AmountUnits,
+			Amount:    usr.RealMoney,
 		})
 		return dto.ManualRefundFailedRoundsRes{}, err
 	}
@@ -286,7 +286,7 @@ func (b *bet) ManualRefundFailedRounds(ctx context.Context, req dto.ManualRefund
 			UserID:    bt.UserID,
 			Currency:  bt.Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    usr.AmountUnits,
+			Amount:    usr.RealMoney,
 		})
 		return dto.ManualRefundFailedRoundsRes{}, err
 	}

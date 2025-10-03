@@ -47,7 +47,7 @@ type UserHandler interface {
 	AdminLogin(c *gin.Context)
 	UpdateSignupBonus(c *gin.Context)
 	GetSignupBonus(c *gin.Context)
-	UpdateReferralBonus(c *gin.Context)
+	GetPlayerDetails(c *gin.Context)
 	GetReferralBonus(c *gin.Context)
 	RefreshToken(c *gin.Context)
 	VerifyUser(c *gin.Context)
@@ -273,6 +273,16 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodPost,
+			Path:    "/api/admin/users",
+			Handler: user.GetUsers,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get users", http.MethodPost),
+				middleware.SystemLogs("get users", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
 			Path:    "/api/admin/users/password",
 			Handler: user.AdminResetUsersPassword,
 			Middleware: []gin.HandlerFunc{
@@ -282,14 +292,14 @@ func Init(
 				middleware.SystemLogs("reset user account password", &log, systemLog),
 			},
 		}, {
-			Method:  http.MethodPost,
-			Path:    "/api/admin/users",
-			Handler: user.GetUsers,
+			Method:  http.MethodGet,
+			Path:    "/api/admin/players/:user_id/details",
+			Handler: user.GetPlayerDetails,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get players", http.MethodPost),
-				middleware.SystemLogs("get players", &log, systemLog),
+				middleware.Authz(authModule, enforcer, "get player details", http.MethodGet),
+				middleware.SystemLogs("get player details", &log, systemLog),
 			},
 		}, {
 			Method:  http.MethodDelete,
@@ -413,7 +423,7 @@ func Init(
 		}, {
 			Method:  http.MethodPut,
 			Path:    "/api/admin/referral/bonus/config",
-			Handler: user.UpdateReferralBonus,
+			Handler: user.UpdateSignupBonus,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
