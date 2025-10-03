@@ -2,6 +2,7 @@ package user
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -289,7 +290,12 @@ func (u *user) ForgetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.ForgetPassword(c, changePAsswordReq.EmailOrPhoneOrUserame)
+
+	// Extract user agent and IP address for email security features
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	res, err := u.userModule.ForgetPassword(c, changePAsswordReq.EmailOrPhoneOrUserame, userAgent, ipAddress)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -343,7 +349,12 @@ func (u *user) ResetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.ResetPassword(c, resetPassword)
+
+	// Add user agent and IP address to context for email confirmation
+	ctx := context.WithValue(c.Request.Context(), "user_agent", c.GetHeader("User-Agent"))
+	ctx = context.WithValue(ctx, "ip_address", c.ClientIP())
+
+	res, err := u.userModule.ResetPassword(ctx, resetPassword)
 	if err != nil {
 		_ = c.Error(err)
 		return
