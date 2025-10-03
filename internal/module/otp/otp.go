@@ -18,6 +18,7 @@ import (
 // OTPModule defines the interface for OTP operations
 type OTPModule interface {
 	CreateEmailVerification(ctx context.Context, email, userAgent, ipAddress string, userID string) (*dto.EmailVerificationResponse, error)
+	CreatePasswordResetOTP(ctx context.Context, email, userAgent, ipAddress string, userID string) (*dto.EmailVerificationResponse, error)
 	VerifyOTP(ctx context.Context, req *dto.OTPVerificationRequest) (*dto.OTPVerificationResponse, error)
 	ResendOTP(ctx context.Context, email, userAgent, ipAddress string) (*dto.ResendOTPResponse, error)
 	InvalidateOTP(ctx context.Context, otpID uuid.UUID) error
@@ -102,6 +103,60 @@ func (s *OTPService) CreateEmailVerification(ctx context.Context, email, userAge
 
 	return &dto.EmailVerificationResponse{
 		Message:     "Verification email sent successfully",
+		OTPID:       otp.ID,
+		Email:       email,
+		ExpiresAt:   expiresAt,
+		ResendAfter: resendAfter,
+	}, nil
+}
+
+// CreatePasswordResetOTP creates a new password reset OTP
+func (s *OTPService) CreatePasswordResetOTP(ctx context.Context, email, userAgent, ipAddress string, userID string) (*dto.EmailVerificationResponse, error) {
+	// Check if user exists
+	existingUser, exists, err := s.user.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing user: %w", err)
+	}
+
+	if !exists {
+		return nil, fmt.Errorf("user with email %s does not exist", email)
+	}
+
+	// Generate OTP code
+	otpCode := s.generateOTPCode()
+
+	// Get current database time for consistency
+	dbTime, err := s.storage.GetCurrentDBTime(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database time: %w", err)
+	}
+
+	expiresAt := dbTime.Add(10 * time.Minute)
+	resendAfter := dbTime.Add(2 * time.Minute)
+
+	// Create OTP record for password reset
+	otp, err := s.storage.CreateOTP(ctx, email, otpCode, string(dto.OTPTypePasswordReset), expiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTP: %w", err)
+	}
+
+	// Send password reset email
+	err = s.email.SendPasswordResetOTPEmail(email, otpCode, otp.ID.String(), existingUser.ID.String(), expiresAt, userAgent, ipAddress)
+	if err != nil {
+		// Log error but don't fail the request
+		s.logger.Error("Failed to send password reset email",
+			zap.String("email", email),
+			zap.Error(err))
+		// You might want to handle this differently in production
+	}
+
+	s.logger.Info("Password reset OTP created",
+		zap.String("email", email),
+		zap.String("otp_id", otp.ID.String()),
+		zap.String("user_id", existingUser.ID.String()))
+
+	return &dto.EmailVerificationResponse{
+		Message:     "Password reset email sent successfully",
 		OTPID:       otp.ID,
 		Email:       email,
 		ExpiresAt:   expiresAt,

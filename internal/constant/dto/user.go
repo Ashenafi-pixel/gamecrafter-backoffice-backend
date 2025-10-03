@@ -155,7 +155,9 @@ type ChangePasswordRes struct {
 }
 
 type ForgetPasswordRes struct {
-	Message string `json:"message"`
+	Message string    `json:"message"`
+	Email   string    `json:"email"`
+	OTPID   uuid.UUID `json:"otp_id"`
 }
 
 type ForgetPasswordOTPReq struct {
@@ -175,8 +177,9 @@ type ForgetPasswordReq struct {
 }
 
 type VerifyResetPasswordReq struct {
-	EmailOrPhoneOrUserame string `json:"phone_number"`
-	OTP                   string `json:"otp"`
+	EmailOrPhoneOrUserame string    `json:"phone_number"`
+	OTP                   string    `json:"otp"`
+	OTPID                 uuid.UUID `json:"otp_id"`
 }
 
 type VerifyResetPasswordRes struct {

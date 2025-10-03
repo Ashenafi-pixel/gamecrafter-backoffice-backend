@@ -18,7 +18,7 @@ type User interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (dto.UserProfile, error)
 	UploadProfilePicture(ctx context.Context, img multipart.File, header *multipart.FileHeader, userID uuid.UUID) (string, error)
 	ChangePassword(ctx context.Context, changePasswordReq dto.ChangePasswordReq) (dto.ChangePasswordRes, error)
-	ForgetPassword(ctx context.Context, usernameOrPhoneOrEmail string) (*dto.ForgetPasswordRes, error)
+	ForgetPassword(ctx context.Context, usernameOrPhoneOrEmail, userAgent, ipAddress string) (*dto.ForgetPasswordRes, error)
 	VerifyResetPassword(ctx context.Context, resetPasswordReq dto.VerifyResetPasswordReq) (*dto.VerifyResetPasswordRes, error)
 	ResetPassword(ctx context.Context, resetPasswordReq dto.ResetPasswordReq) (dto.ResetPasswordRes, error)
 	UpdateProfile(ctx context.Context, profileupateReq dto.UpdateProfileReq) (dto.UpdateProfileRes, error)
