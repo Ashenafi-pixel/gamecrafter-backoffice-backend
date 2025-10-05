@@ -111,6 +111,16 @@ func Init(
 				middleware.Authz(authModule, enforcer, "get user roles", http.MethodGet),
 				middleware.SystemLogs("get user roles", &log, systemLog),
 			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/admin/rbac/users",
+			Handler: authzModule.SearchAdminUsers,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get permissions", http.MethodGet),
+				middleware.SystemLogs("search admin users", &log, systemLog),
+			},
 		},
 		// Crypto Wallet Routes
 		{

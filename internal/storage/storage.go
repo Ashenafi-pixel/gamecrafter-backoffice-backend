@@ -62,6 +62,7 @@ type User interface {
 	CreateUserPoint(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (dto.UserPoint, error)
 	UpdateIpFilter(ctx context.Context, req dto.IPFilter) (dto.IPFilter, error)
 	GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
+	GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByRole(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByStatus(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByRoleAndStatus(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)

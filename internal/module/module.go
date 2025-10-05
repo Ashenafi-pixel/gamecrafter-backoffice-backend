@@ -223,6 +223,7 @@ type Authz interface {
 	RevokeUserRole(ctx context.Context, req dto.UserRole) error
 	GetRoleUsers(ctx context.Context, roleID uuid.UUID) ([]dto.User, error)
 	GetUserRoles(ctx context.Context, userID uuid.UUID) (dto.UserRolesRes, error)
+	GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 }
 
 type AirtimeProvider interface {

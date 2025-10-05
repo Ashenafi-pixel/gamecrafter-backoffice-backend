@@ -224,6 +224,7 @@ type Authz interface {
 	RevokeUserRole(c *gin.Context)
 	GetRoleUsers(c *gin.Context)
 	GetUserRoles(c *gin.Context)
+	SearchAdminUsers(c *gin.Context)
 	// Crypto Wallet Methods
 	ConnectWallet(c *gin.Context)
 	DisconnectWallet(c *gin.Context)

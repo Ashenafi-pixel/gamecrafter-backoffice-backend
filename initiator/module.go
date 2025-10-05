@@ -157,7 +157,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		),
 		Departments:   department.Init(persistence.Departments, persistence.User, log),
 		Performance:   performance.Init(persistence.Performance, log),
-		Authz:         authz.Init(log, persistence.Authz, enforcer),
+		Authz:         authz.Init(log, persistence.Authz, persistence.User, enforcer),
 		UserBalanceWS: userBalanceWs,
 		SystemLogs:    logs.Init(log, persistence.Logs),
 		Company:       company.Init(persistence.Company, log),
