@@ -93,7 +93,7 @@ func (u *user) UpdateReferalMultiplier(ctx context.Context, mul decimal.Decimal)
 func (u *user) GetUserPointsByReferalPoint(ctx context.Context, referal string) (dto.UserPoint, bool, error) {
 	res, err := u.db.Queries.GetUserPointsByReferals(ctx, db.GetUserPointsByReferalsParams{
 		ReferalCode:  sql.NullString{String: referal, Valid: true},
-		CurrencyCode: constant.POINT_CURRENCY,
+		Currency: constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		if err.Error() == "no rows in result set" {
@@ -103,7 +103,7 @@ func (u *user) GetUserPointsByReferalPoint(ctx context.Context, referal string) 
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return dto.UserPoint{}, false, err
 	}
-	intp := res.AmountUnits.IntPart()
+	intp := res.RealMoney.IntPart()
 	return dto.UserPoint{
 		UserID: res.UserID,
 		Point:  int(intp),
@@ -112,11 +112,11 @@ func (u *user) GetUserPointsByReferalPoint(ctx context.Context, referal string) 
 
 func (u *user) UpdateUserPointByUserID(ctx context.Context, userID uuid.UUID, points decimal.Decimal) error {
 	_, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-		AmountUnits:  points,
-		AmountCents:  points.Mul(decimal.NewFromInt(100)).IntPart(),
-		UpdatedAt:    time.Now(),
-		UserID:       userID,
-		CurrencyCode: constant.POINT_CURRENCY,
+		BonusMoney: points,
+		RealMoney:  decimal.Zero,
+		UpdatedAt:  time.Now(),
+		UserID:     userID,
+		Currency:   constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		u.log.Error(err.Error(), zap.Any("user_id", userID.String()), zap.Any("new_point", points))
@@ -314,13 +314,12 @@ func (u *user) GetAdminAssignedPoints(ctx context.Context, limit, offset int) (d
 
 func (u *user) CreateUserPoint(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (dto.UserPoint, error) {
 	resp, err := u.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-		UserID:        userID,
-		CurrencyCode:  constant.POINT_CURRENCY,
-		AmountCents:   points.Mul(decimal.NewFromInt(100)).IntPart(),
-		AmountUnits:   points,
-		ReservedCents: 0,
-		ReservedUnits: decimal.Zero,
-		UpdatedAt:     time.Now(),
+		UserID:     userID,
+		Currency:   constant.POINT_CURRENCY,
+		RealMoney:  decimal.Zero,
+		BonusMoney: points,
+		Points:     0,
+		UpdatedAt:  time.Now(),
 	})
 
 	if err != nil {
@@ -330,6 +329,6 @@ func (u *user) CreateUserPoint(ctx context.Context, userID uuid.UUID, points dec
 	}
 	return dto.UserPoint{
 		UserID: userID,
-		Point:  int(resp.AmountUnits.Decimal.IntPart()),
+		Point:  int(resp.RealMoney.Decimal.IntPart()),
 	}, nil
 }

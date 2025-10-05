@@ -190,16 +190,16 @@ func (l *lottery) CheckUserBalanceAndDeductBalance(ctx context.Context, req dto.
 		return dto.LotteryVerifyAndDeductBalanceRes{}, errors.ErrInvalidUserInput.Wrap(nil, "user balance does not exist")
 	}
 
-	if balance.AmountUnits.LessThanOrEqual(decimal.Zero) {
+	if balance.RealMoney.LessThanOrEqual(decimal.Zero) {
 		l.log.Warn("user balance is zero", zap.Any("user_id", req.UserID))
 		return dto.LotteryVerifyAndDeductBalanceRes{}, errors.ErrInvalidUserInput.Wrap(nil, "user balance is zero")
 	}
 
-	if balance.AmountUnits.LessThan(req.Amount) {
+	if balance.RealMoney.LessThan(req.Amount) {
 		l.log.Warn("user balance is less than required amount", zap.Any("user_id", req.UserID), zap.Any("required_amount", req.Amount))
 		return dto.LotteryVerifyAndDeductBalanceRes{}, errors.ErrInvalidUserInput.Wrap(nil, "user balance is less than required amount")
 	}
-	newBalance := balance.AmountUnits.Sub(req.Amount)
+	newBalance := balance.RealMoney.Sub(req.Amount)
 	transactionID := utils.GenerateTransactionId()
 	_, err = l.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,

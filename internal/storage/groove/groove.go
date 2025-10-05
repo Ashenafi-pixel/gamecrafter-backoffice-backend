@@ -563,8 +563,8 @@ func (s *GrooveStorageImpl) EndGameSession(ctx context.Context, sessionID string
 func (s *GrooveStorageImpl) GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
 	s.logger.Info("Getting user balance", zap.String("user_id", userID.String()))
 
-	// Get balance from main balances table (source of truth) - using amount_cents
-	query := `SELECT amount_cents FROM balances WHERE user_id = $1 AND currency_code = 'USD' LIMIT 1`
+	// Get balance from main balances table (source of truth) - using real_money
+	query := `SELECT real_money FROM balances WHERE user_id = $1 AND currency = 'USD' LIMIT 1`
 
 	var balanceCents int64
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&balanceCents)
@@ -608,7 +608,7 @@ func (s *GrooveStorageImpl) GetUserProfile(ctx context.Context, userID uuid.UUID
 	query := `
 		SELECT city, country, currency_code 
 		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency = 'USD'
 		WHERE u.id = $1`
 
 	var city, country, currencyCode *string
@@ -658,12 +658,12 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	}
 	defer tx.Rollback(ctx)
 
-	// Get current balance from main balances table - using amount_cents
+	// Get current balance from main balances table - using real_money
 	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(amount_cents, 0) 
+		SELECT COALESCE(real_money, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency_code = 'USD'
+		WHERE user_id = $1 AND currency = 'USD'
 	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
@@ -685,14 +685,14 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	newBalance := currentBalance.Sub(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table - using amount_cents
+	// Update main balances table - using real_money
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		INSERT INTO balances (user_id, currency, real_money, bonus_money, updated_at)
 		VALUES ($1, 'USD', $2, $3, NOW())
-		ON CONFLICT (user_id, currency_code)
+		ON CONFLICT (user_id, currency)
 		DO UPDATE SET 
-			amount_cents = $2,
-			amount_units = $3,
+			real_money = $2,
+			bonus_money = $3,
 			updated_at = NOW()
 	`, userID, newBalanceCents, newBalance)
 	if err != nil {
@@ -747,12 +747,12 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	}
 	defer tx.Rollback(ctx)
 
-	// Get current balance from main balances table - using amount_cents
+	// Get current balance from main balances table - using real_money
 	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(amount_cents, 0) 
+		SELECT COALESCE(real_money, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency_code = 'USD'
+		WHERE user_id = $1 AND currency = 'USD'
 	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
@@ -766,14 +766,14 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	newBalance := currentBalance.Add(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table - using amount_cents
+	// Update main balances table - using real_money
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		INSERT INTO balances (user_id, currency, real_money, bonus_money, updated_at)
 		VALUES ($1, 'USD', $2, $3, NOW())
-		ON CONFLICT (user_id, currency_code)
+		ON CONFLICT (user_id, currency)
 		DO UPDATE SET 
-			amount_cents = $2,
-			amount_units = $3,
+			real_money = $2,
+			bonus_money = $3,
 			updated_at = NOW()
 	`, userID, newBalanceCents, newBalance)
 	if err != nil {
@@ -1115,12 +1115,12 @@ func (s *GrooveStorageImpl) ReconcileBalances(ctx context.Context, userID uuid.U
 	}
 	defer tx.Rollback(ctx)
 
-	// Get main balance (source of truth) - using amount_cents
+	// Get main balance (source of truth) - using real_money
 	var mainBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(amount_cents, 0) 
+		SELECT COALESCE(real_money, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency_code = 'USD'
+		WHERE user_id = $1 AND currency = 'USD'
 	`, userID).Scan(&mainBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get main balance", zap.Error(err))
@@ -1170,16 +1170,16 @@ func (s *GrooveStorageImpl) GetBalanceDiscrepancies(ctx context.Context) ([]Bala
 			u.id as user_id,
 			u.username,
 			u.email,
-			COALESCE(b.amount_units, 0) as main_balance,
+			COALESCE(b.bonus_money, 0) as main_balance,
 			COALESCE(ga.balance, 0) as groove_balance,
-			COALESCE(b.amount_units, 0) - COALESCE(ga.balance, 0) as discrepancy,
+			COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0) as discrepancy,
 			ga.last_activity
 		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency = 'USD'
 		LEFT JOIN groove_accounts ga ON u.id = ga.user_id
 		WHERE ga.user_id IS NOT NULL
-		AND ABS(COALESCE(b.amount_units, 0) - COALESCE(ga.balance, 0)) > 0.01
-		ORDER BY ABS(COALESCE(b.amount_units, 0) - COALESCE(ga.balance, 0)) DESC`
+		AND ABS(COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0)) > 0.01
+		ORDER BY ABS(COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0)) DESC`
 
 	rows, err := s.db.GetPool().Query(ctx, query)
 	if err != nil {

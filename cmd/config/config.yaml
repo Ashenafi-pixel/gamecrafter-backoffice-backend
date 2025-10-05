@@ -64,7 +64,8 @@ pisi:
   
 # Kafka Configuration
 kafka:
-  bootstrap_servers: kafka:9092
+  enabled: false
+  bootstrap_servers: localhost:9093
   topic: "events"
   cluster_api_key: ""
   cluster_api_secret: ""
@@ -78,7 +79,8 @@ kafka:
 
 # Redis Configuration
 redis:
-  addr: "redis:6379"
+  enabled: false
+  addr: "localhost:63790"
   password: ""
   db: 0
   key_prefix: "tucanbit:"

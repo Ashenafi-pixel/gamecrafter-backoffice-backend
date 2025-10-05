@@ -1,26 +1,26 @@
 -- name: CreateBalance :one 
-INSERT INTO balances(user_id,currency_code,amount_cents,amount_units,reserved_cents,reserved_units,updated_at) VALUES 
-($1,$2,$3,$4,$5,$6,$7) RETURNING *;
+INSERT INTO balances(user_id,currency,real_money,bonus_money,points,updated_at) VALUES 
+($1,$2,$3,$4,$5,$6) RETURNING *;
 
 -- name: UpdateBalance :one 
-UPDATE balances set currency_code = $1,amount_cents=$2,amount_units=$3,reserved_cents=$4,reserved_units=$5,updated_at=$6 where user_id = $7
+UPDATE balances set currency = $1,real_money=$2,bonus_money=$3,points=$4,updated_at=$5 where user_id = $6
 RETURNING *;
 
 -- name: UpdateAmountUnits :one 
-UPDATE balances set amount_units = $1, amount_cents = $2, updated_at=$3 where user_id = $4 and currency_code = $5
+UPDATE balances set real_money = $1, bonus_money = $2, updated_at=$3 where user_id = $4 and currency = $5
 RETURNING *;
 
 -- name: UpdateReservedUnits :one 
-UPDATE balances set reserved_units = $1, reserved_cents = $2, updated_at=$3 where user_id = $4 and currency_code = $5
+UPDATE balances set points = $1, updated_at=$2 where user_id = $3 and currency = $4
 RETURNING *;
 
 -- name: LockBalance :one
 SELECT * FROM balances 
-WHERE user_id = $1 and currency_code = $2
+WHERE user_id = $1 and currency = $2
 FOR UPDATE;
 
 -- name: GetUserBalanaceByUserIDAndCurrency :one 
-SELECT * FROM balances where user_id = $1 and currency_code=$2;
+SELECT * FROM balances where user_id = $1 and currency=$2;
 
 -- name: GetUserBalancesByUserID :many 
 SELECT * FROM  balances where user_id = $1;
@@ -30,5 +30,5 @@ SELECT * FROM  balances where user_id = $1;
 SELECT EXISTS (
     SELECT 1 
     FROM balances 
-    WHERE user_id = $1 AND currency_code = $2
+    WHERE user_id = $1 AND currency = $2
 ) AS exists;

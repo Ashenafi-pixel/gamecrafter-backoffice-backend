@@ -111,6 +111,13 @@ func (u *User) BlockUser(ctx context.Context, blockAcc dto.AccountBlockReq) (dto
 		return dto.AccountBlockRes{}, err
 	}
 
+	// Update user status to SUSPENDED when account is blocked
+	_, err = u.userStorage.UpdateUserStatus(ctx, blockAcc.UserID, "SUSPENDED")
+	if err != nil {
+		u.log.Error("Failed to update user status to SUSPENDED", zap.Error(err), zap.String("userID", blockAcc.UserID.String()))
+		// Don't fail the block operation if status update fails
+	}
+
 	//notify departments about the blocked user
 	usrsToNoTify, _ := u.userStorage.GetUsersByDepartmentNotificationTypes(ctx, []string{blockAcc.Type})
 	u.NotifyUsers(ctx, dto.NotifyDepartmentsReq{
