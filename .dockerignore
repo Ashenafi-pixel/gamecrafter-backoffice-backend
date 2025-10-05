@@ -9,7 +9,6 @@ docker-compose.yaml
 
 # Documentation
 *.md
-docs/
 
 # Test files
 *_test.go
@@ -35,7 +34,4 @@ tucanbit
 tucanbit-app
 
 # Migrations (will be copied separately)
-migrations/
-
-# Platform specific
-platform/ 
+migrations/ 
