@@ -45,7 +45,7 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 		// GET /groove-official?request=reversewin&accountid=...&gamesessionid=...&device=desktop&gameid=82695&apiversion=1.2&amount=10.0&roundid=...&transactionid=...
 		// GET /groove-official?request=rollbackrollback&accountid=...&gamesessionid=...&device=desktop&gameid=82695&rollbackAmount=5.0&roundid=...&transactionid=...
 		officialGroup.GET("", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessGrooveOfficialRequest) // Unified GrooveTech Handler
-		
+
 		// POST endpoint for batch operations
 		// POST /groove-official?request=wagerbybatch&accountid=...&gamesessionid=...&device=desktop&apiversion=1.2
 		officialGroup.POST("", middleware.GrooveSignatureMiddlewareOptional(securityKey), handler.ProcessGrooveOfficialRequest) // Unified GrooveTech Handler for POST
@@ -76,6 +76,14 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, 
 	{
 		gameGroup.POST("/launch-game", handler.LaunchGame)                         // Launch Game
 		gameGroup.GET("/validate-session/:sessionId", handler.ValidateGameSession) // Validate Game Session
+	}
+
+	// Player Transaction History API routes
+	playerGroup := grp.Group("/api/player")
+	{
+		// Player transaction history endpoints
+		playerGroup.GET("/transactions", handler.GetPlayerTransactionHistory)                                // Get player transaction history
+		playerGroup.GET("/transactions/account/:account_id", handler.GetPlayerTransactionHistoryByAccountID) // Get transaction history by GrooveTech account ID
 	}
 
 	// Admin GrooveTech API routes - TODO: Implement these methods

@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🚀 Starting PostgreSQL to ClickHouse Data Migration..."
+echo " Starting PostgreSQL to ClickHouse Data Migration..."
 
 # Colors for output
 RED='\033[0;31m'

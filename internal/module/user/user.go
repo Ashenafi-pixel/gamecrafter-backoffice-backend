@@ -66,7 +66,6 @@ type User struct {
 	PisiClient                    pisi.PisiClient
 	EnterpriseRegistrationService *EnterpriseRegistrationService
 	otpModule                     otp.OTPModule
-	emailService                  email.EmailService
 }
 
 func Init(userStorage storage.User,
@@ -131,7 +130,6 @@ func Init(userStorage storage.User,
 		redis:                       redis,
 		PisiClient:                  pisiClient,
 		otpModule:                   otp.NewOTPService(otpStorage, userStorage, emailService, log),
-		emailService:                emailService,
 	}
 	// Initialize enterprise registration service
 	usr.EnterpriseRegistrationService = NewEnterpriseRegistrationService(
@@ -1046,48 +1044,13 @@ func (u *User) ResetPassword(ctx context.Context, resetPasswordReq dto.ResetPass
 	}
 
 	//save updated password to the user
-	updatedUser, err := u.userStorage.UpdatePassword(ctx, claims.UserID, hashPassword)
+	_, err = u.userStorage.UpdatePassword(ctx, claims.UserID, hashPassword)
 	if err != nil {
 		return dto.ResetPasswordRes{}, err
 	}
-
 	//delete otp from otp list
 	delete(u.tmpOTP, claims.UserID)
 	u.userStorage.DeleteOTP(ctx, claims.UserID)
-
-	// Send password reset confirmation email
-	go func() {
-		// Get user agent and IP from context if available
-		userAgent := ""
-		ipAddress := ""
-
-		// Try to extract from context (this would need to be passed from the handler)
-		if ctx.Value("user_agent") != nil {
-			userAgent = ctx.Value("user_agent").(string)
-		}
-		if ctx.Value("ip_address") != nil {
-			ipAddress = ctx.Value("ip_address").(string)
-		}
-
-		// Send confirmation email
-		err := u.emailService.SendPasswordResetConfirmationEmail(
-			updatedUser.Email,
-			updatedUser.FirstName,
-			userAgent,
-			ipAddress,
-		)
-		if err != nil {
-			u.log.Error("Failed to send password reset confirmation email",
-				zap.String("email", updatedUser.Email),
-				zap.String("user_id", claims.UserID.String()),
-				zap.Error(err))
-		} else {
-			u.log.Info("Password reset confirmation email sent successfully",
-				zap.String("email", updatedUser.Email),
-				zap.String("user_id", claims.UserID.String()))
-		}
-	}()
-
 	tokenStr, err := utils.GenerateJWT(claims.UserID)
 	if err != nil {
 		err = fmt.Errorf("unable to generate jwt token")

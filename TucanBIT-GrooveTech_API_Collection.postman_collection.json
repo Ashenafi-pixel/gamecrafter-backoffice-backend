@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "tucanbit-groovetech-api-collection",
 		"name": "TucanBIT GrooveTech API Collection",
-		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), Analytics APIs (Real-time Stats, User Analytics, Transaction History, Daily Reports, Top Games, Top Players), and Edge Cases",
+		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Forgot Password Flow (OTP-based password reset with email delivery, JWT token generation, and secure password validation), Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), Analytics APIs (Real-time Stats, User Analytics, Transaction History, Daily Reports, Top Games, Top Players), and Edge Cases",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -118,6 +118,36 @@
 			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU4Nzk2ODA2LCJpYXQiOjE3NTg3MTA0MDYsImlzcyI6InR1Y2FuYml0Iiwic3ViIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1In0.7rtKAJqhfoiXA9Kto9Gt6I5wTKGwG7KQe7vuQkg4L-M",
 			"type": "string",
 			"description": "JWT access token for analytics API authentication"
+		},
+		{
+			"key": "reset_password_otp",
+			"value": "691316",
+			"type": "string",
+			"description": "OTP code for password reset verification"
+		},
+		{
+			"key": "reset_password_otp_id",
+			"value": "d6482761-6149-4ca8-9378-d54aabbd2239",
+			"type": "string",
+			"description": "OTP ID for password reset verification"
+		},
+		{
+			"key": "reset_password_token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NDgwNTI3fQ.W-yZBn-D7NqxOPVPG1Zae7fgv4zkm8plo7sGCsMp6k8",
+			"type": "string",
+			"description": "JWT token for password reset"
+		},
+		{
+			"key": "test_user_email",
+			"value": "ashenafialemu9898@gmail.com",
+			"type": "string",
+			"description": "Test user email for forgot password flow"
+		},
+		{
+			"key": "new_password",
+			"value": "NewSecurePass123!",
+			"type": "string",
+			"description": "New password for reset testing"
 		}
 	],
 	"item": [
@@ -357,6 +387,488 @@
 							],
 							"cookie": [],
 							"body": "{\n  \"message\": \"Login successful\",\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user_profile\": {\n    \"username\": \"ashenafi_alemu\",\n    \"phone_number\": \"+251912308971\",\n    \"email\": \"ashenafialemu9898@gmail.com\",\n    \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n    \"profile_picture\": \"\",\n    \"first_name\": \"Ashenafi\",\n    \"last_name\": \"Alemu\",\n    \"type\": \"PLAYER\",\n    \"referral_code\": \"ouWiLgN0RZDB\"\n  }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Forgot Password Flow",
+			"description": "Complete forgot password functionality with OTP verification and password reset",
+			"item": [
+				{
+					"name": "Request Password Reset OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "User-Agent",
+								"value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login_id\": \"{{test_user_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/password/forget",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"password",
+								"forget"
+							]
+						},
+						"description": "Initiates the password reset process by sending an OTP to the user's email. Returns email and OTP ID for frontend localStorage. The OTP is stored in Redis with 10-minute expiry."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"login_id\": \"ashenafialemu9898@gmail.com\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/forget",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"forget"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"message\": \"Password reset email sent successfully. Please check your email for the OTP code.\",\n  \"email\": \"{{test_user_email}}\",\n  \"otp_id\": \"{{reset_password_otp_id}}\"\n}"
+						},
+						{
+							"name": "User Not Found",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"login_id\": \"nonexistent@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/forget",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"forget"
+									]
+								}
+							},
+							"status": "Forbidden",
+							"code": 403,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 403,\n  \"message\": \"invalid login information provided\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Verify OTP and Get Reset Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"{{test_user_email}}\",\n  \"otp\": \"{{reset_password_otp}}\",\n  \"otp_id\": \"{{reset_password_otp_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/password/forget/verify",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"password",
+								"forget",
+								"verify"
+							]
+						},
+						"description": "Verifies the OTP code and returns a JWT token for password reset. The OTP must be valid and not expired (10 minutes)."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"phone_number\": \"ashenafialemu9898@gmail.com\",\n  \"otp\": \"872998\",\n  \"otp_id\": \"c406b4c1-678c-48b6-aca4-f161f5bf1f6a\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/forget/verify",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"forget",
+										"verify"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NDQ1NzczfQ.ldULiJwbFiVuFvzuyNR6MFaDQ0MwGktELIPN244_qcE\"\n}"
+						},
+						{
+							"name": "Invalid OTP",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"phone_number\": \"ashenafialemu9898@gmail.com\",\n  \"otp\": \"123456\",\n  \"otp_id\": \"c406b4c1-678c-48b6-aca4-f161f5bf1f6a\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/forget/verify",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"forget",
+										"verify"
+									]
+								}
+							},
+							"status": "Internal Server Error",
+							"code": 500,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 500,\n  \"message\": \"Unknown server error\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"{{reset_password_token}}\",\n  \"new_password\": \"{{new_password}}\",\n  \"confirm_password\": \"{{new_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user/password/reset",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user",
+								"password",
+								"reset"
+							]
+						},
+						"description": "Updates the user's password using the JWT token from OTP verification. Password must meet strength requirements: minimum 8 characters, uppercase, lowercase, number, and special character."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NDQ1NzczfQ.ldULiJwbFiVuFvzuyNR6MFaDQ0MwGktELIPN244_qcE\",\n  \"new_password\": \"NewSecurePass123!\",\n  \"confirm_password\": \"NewSecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/reset",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"reset"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NTI4NTc5LCJpYXQiOjE3NTk0NDIxNzksImlzcyI6InR1Y2FuYml0Iiwic3ViIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1In0.So0LRe5uft-UN_k5emr8uKIxeNM7jsmQer-z44jFrhE\",\n  \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\"\n}"
+						},
+						{
+							"name": "Weak Password",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NDQ1NzczfQ.ldULiJwbFiVuFvzuyNR6MFaDQ0MwGktELIPN244_qcE\",\n  \"new_password\": \"weak\",\n  \"confirm_password\": \"weak\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/reset",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"reset"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 400,\n  \"message\": \"Key: 'ResetPasswordReq.NewPassword' Error:Field validation for 'NewPassword' failed on the 'validpassword' tag\"\n}"
+						},
+						{
+							"name": "Password Mismatch",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NDQ1NzczfQ.ldULiJwbFiVuFvzuyNR6MFaDQ0MwGktELIPN244_qcE\",\n  \"new_password\": \"SecurePass123!\",\n  \"confirm_password\": \"DifferentPass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/reset",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"reset"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 400,\n  \"message\": \"new_password and cofirm_password are not equal\"\n}"
+						},
+						{
+							"name": "Invalid Token",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"token\": \"invalid.token.here\",\n  \"new_password\": \"SecurePass123!\",\n  \"confirm_password\": \"SecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user/password/reset",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user",
+										"password",
+										"reset"
+									]
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"code\": 401,\n  \"message\": \"invalid or expired token \"\n}"
+						}
+					]
+				},
+				{
+					"name": "Test Login After Password Reset",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login_id\": \"{{test_user_email}}\",\n  \"password\": \"{{new_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"login"
+							]
+						},
+						"description": "Test login with the new password to verify the password reset was successful."
+					},
+					"response": [
+						{
+							"name": "Login Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"login_id\": \"ashenafialemu9898@gmail.com\",\n  \"password\": \"NewSecurePass123!\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"login"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"message\": \"Login successful\",\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1IiwiaXNfdmVyaWZpZWQiOmZhbHNlLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwiZXhwIjoxNzU5NTI4NTg0LCJpYXQiOjE3NTk0NDIxODQsImlzcyI6InR1Y2FuYml0Iiwic3ViIjoiYTVlMTY4ZmItMTY4ZS00MTgzLTg0YzUtZDQ5MDM4Y2UwMGI1In0.PGCRlVwMWsMfMRVIEey0F596e6MUwf9n6uhTLtV4GYE\",\n  \"user_profile\": {\n    \"username\": \"P-uBKtmkyl5LPo\",\n    \"phone_number\": \"+251912308971\",\n    \"email\": \"ashenafialemu9898@gmail.com\",\n    \"user_id\": \"a5e168fb-168e-4183-84c5-d49038ce00b5\",\n    \"profile_picture\": \"\",\n    \"first_name\": \"Ashenafi\",\n    \"last_name\": \"Alemu\",\n    \"type\": \"PLAYER\",\n    \"referral_code\": \"ouWiLgN0RZDB\"\n  }\n}"
 						}
 					]
 				}
@@ -5934,6 +6446,313 @@
 							]
 						},
 						"description": "Get top players by total bets including player statistics, deposits, withdrawals, bets, wins, net loss, transaction counts, unique games played, session counts, and betting patterns."
+					},
+					"response": []
+				},
+				{
+					"name": "Player Transaction History",  
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/player/transactions?user_id={{account_id}}&limit=50&offset=0&include_summary=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"player",
+								"transactions"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "{{account_id}}",
+									"description": "User ID to fetch transactions for"
+								},
+								{
+									"key": "account_id",
+									"value": "",
+									"description": "GrooveTech account ID filter (optional)"
+								},
+								{
+									"key": "type",
+									"value": "",
+									"description": "Transaction type filter (wager, result, sport_bet, bet) (optional)"
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Transaction status filter (optional)"
+								},
+								{
+									"key": "category",
+									"value": "",
+									"description": "Transaction category filter (gaming, sports, general) (optional)"
+								},
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Number of transactions to return (default 50, max 100)"
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Offset for pagination (default 0)"
+								},
+								{
+									"key": "start_date",
+									"value": "",
+									"description": "Start date filter (YYYY-MM-DD) (optional)"
+								},
+								{
+									"key": "end_date",
+									"value": "",
+									"description": "End date filter (YYYY-MM-DD) (optional)"
+								},
+								{
+									"key": "include_summary",
+									"value": "true",
+									"description": "Include summary statistics (default false)"
+								}
+							]
+						},
+						"description": "Get comprehensive player transaction history including GrooveTech gaming transactions, sports bets, and general bets with detailed information and summary statistics."
+					},
+					"response": []
+				},
+				{
+					"name": "Player Transaction History by Account ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/player/transactions/account/{{account_id}}?limit=50&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"player",
+								"transactions",
+								"account",
+								"{{account_id}}"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "",
+									"description": "Transaction type filter (wager, result, sport_bet, bet) (optional)"
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Transaction status filter (optional)"
+								},
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Number of transactions to return (default 50, max 100)"
+								},
+								{
+									"key": "offset",
+									"value": "0",
+									"description": "Offset for pagination (default 0)"
+								},
+								{
+									"key": "start_date",
+									"value": "",
+									"description": "Start date filter (YYYY-MM-DD) (optional)"
+								},
+								{
+									"key": "end_date",
+									"value": "",
+									"description": "End date filter (YYYY-MM-DD) (optional)"
+								}
+							]
+						},
+						"description": "Get transaction history for a specific GrooveTech account ID with detailed transaction information."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Enhanced Daily Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/analytics/reports/daily?date=2025-01-15",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"reports",
+								"daily"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-01-15",
+									"description": "Date in YYYY-MM-DD format"
+								}
+							]
+						},
+						"description": "Get enhanced daily report with comparison metrics (previous day, MTD, SPLM) including unique depositors, unique withdrawers, and percentage changes."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Daily Report Email (Configured Recipients)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2025-01-15\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/analytics/daily-report/send-configured",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"daily-report",
+								"send-configured"
+							]
+						},
+						"description": "Send enhanced daily report email to configured recipients (ashenafialemu27@gmail.com, johsjones612@gmail.com) with comparison metrics. Date is optional, defaults to yesterday."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Daily Report Email (Custom Recipients)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2025-01-15\",\n  \"recipients\": [\n    \"admin@example.com\",\n    \"manager@example.com\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/analytics/daily-report/send",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"daily-report",
+								"send"
+							]
+						},
+						"description": "Send enhanced daily report email to custom recipients for a specific date with comparison metrics."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Yesterday's Report Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"recipients\": [\n    \"admin@example.com\",\n    \"manager@example.com\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/analytics/daily-report/yesterday",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"daily-report",
+								"yesterday"
+							]
+						},
+						"description": "Send yesterday's enhanced daily report email to specified recipients with comparison metrics."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Last Week's Reports Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"recipients\": [\n    \"admin@example.com\",\n    \"manager@example.com\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/analytics/daily-report/last-week",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"analytics",
+								"daily-report",
+								"last-week"
+							]
+						},
+						"description": "Send single weekly report email with data from the last 7 days including summary statistics, averages, best/worst days, and daily breakdown."
 					},
 					"response": []
 				}

@@ -5,7 +5,7 @@
 
 set -e
 
-echo "🚀 Setting up ClickHouse for TucanBIT Casino Analytics..."
+echo " Setting up ClickHouse for TucanBIT Casino Analytics..."
 
 # Colors for output
 RED='\033[0;31m'

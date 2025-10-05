@@ -1,5 +1,5 @@
 db:
-  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable
+  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable
   
 app:
   host: 0.0.0.0

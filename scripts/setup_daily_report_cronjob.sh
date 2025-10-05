@@ -17,7 +17,7 @@ TIME_OF_DAY="09"  # Send at 9:00 AM
 TIMEZONE="UTC"    # Change to your preferred timezone
 LOG_FILE="/var/log/tucanbit_daily_reports.log"
 
-echo -e "${BLUE}🚀 Setting up TucanBIT Daily Report Email Cronjob${NC}"
+echo -e "${BLUE} Setting up TucanBIT Daily Report Email Cronjob${NC}"
 echo "======================================================"
 
 # Check if running as root or if user has sudo privileges

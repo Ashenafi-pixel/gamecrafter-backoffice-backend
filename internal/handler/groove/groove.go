@@ -14,6 +14,7 @@ import (
 	"github.com/tucanbit/internal/constant/model/response"
 	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/storage"
+	grooveStorage "github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/internal/utils"
 	"go.uber.org/zap"
 )
@@ -24,14 +25,18 @@ type GrooveHandler struct {
 	balanceStorage     storage.Balance
 	logger             *zap.Logger
 	signatureValidator *utils.GrooveSignatureValidator
+	transactionHistory *PlayerTransactionHistoryHandler
 }
 
-func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, logger *zap.Logger) *GrooveHandler {
+func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, grooveStorage grooveStorage.GrooveStorage, logger *zap.Logger) *GrooveHandler {
 	// Initialize signature validator
 	secretKey := viper.GetString("groove.signature_secret")
 	if secretKey == "" {
 		secretKey = "default_secret_key" // Fallback for development
 	}
+
+	// Initialize transaction history handler with proper storage
+	transactionHistoryHandler := NewPlayerTransactionHistoryHandler(grooveStorage, logger)
 
 	return &GrooveHandler{
 		grooveService:      grooveService,
@@ -39,6 +44,7 @@ func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.Us
 		balanceStorage:     balanceStorage,
 		logger:             logger,
 		signatureValidator: utils.NewGrooveSignatureValidator(secretKey),
+		transactionHistory: transactionHistoryHandler,
 	}
 }
 
@@ -708,4 +714,14 @@ func (h *GrooveHandler) ProcessGrooveOfficialRequest(c *gin.Context) {
 		})
 		return
 	}
+}
+
+// GetPlayerTransactionHistory delegates to the transaction history handler
+func (h *GrooveHandler) GetPlayerTransactionHistory(c *gin.Context) {
+	h.transactionHistory.GetPlayerTransactionHistory(c)
+}
+
+// GetPlayerTransactionHistoryByAccountID delegates to the transaction history handler
+func (h *GrooveHandler) GetPlayerTransactionHistoryByAccountID(c *gin.Context) {
+	h.transactionHistory.GetPlayerTransactionHistoryByAccountID(c)
 }

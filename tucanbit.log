@@ -1,44 +1,43 @@
-nohup: ignoring input
 Starting TucanBIT Online Casino application...
 This is API documentation for TucanBIT online casino
-2025/09/30 10:13:03 Initializing application components
+2025/10/04 08:23:00 Initializing application components
 Initializing application components
-2025-09-30T10:13:03.167+0300	INFO	initiator/initiator.go:44	Logger initialized successfully
-2025-09-30T10:13:03.169+0300	INFO	initiator/initiator.go:47	initializing config 
-2025-09-30T10:13:03.170+0300	INFO	initiator/config.go:35	Configuration loaded	{"app.jwt_secret": "tokensecrethere", "auth.jwt_secret": "tokensecrethere", "smtp.host": "smtp.gmail.com", "smtp.port": 465, "smtp.username": "ashenafialemu66@gmail.com", "smtp.from": "noreply@tucanbit.com", "smtp.use_tls": true}
-2025-09-30T10:13:03.170+0300	INFO	initiator/initiator.go:53	initializing config completed
-2025-09-30T10:13:03.170+0300	INFO	initiator/initiator.go:56	initializing database connect
-2025-09-30T10:13:03.170+0300	INFO	initiator/db.go:17	Attempting to connect to database	{"connection_string": "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"}
-2025-09-30T10:13:03.186+0300	INFO	initiator/initiator.go:58	database connection initialized
-2025-09-30T10:13:03.186+0300	INFO	initiator/initiator.go:63	initializing persistence layer 
-2025-09-30T10:13:03.186+0300	INFO	initiator/initiator.go:65	done initializing persistence layer
-2025-09-30T10:13:03.186+0300	INFO	initiator/initiator.go:72	initializing module layer
+2025-10-04T08:23:00.650+0300	INFO	initiator/initiator.go:44	Logger initialized successfully
+2025-10-04T08:23:00.650+0300	INFO	initiator/initiator.go:47	initializing config 
+2025-10-04T08:23:00.651+0300	INFO	initiator/config.go:35	Configuration loaded	{"app.jwt_secret": "tokensecrethere", "auth.jwt_secret": "tokensecrethere", "smtp.host": "smtp.gmail.com", "smtp.port": 465, "smtp.username": "ashenafialemu66@gmail.com", "smtp.from": "noreply@tucanbit.com", "smtp.use_tls": true}
+2025-10-04T08:23:00.651+0300	INFO	initiator/initiator.go:53	initializing config completed
+2025-10-04T08:23:00.652+0300	INFO	initiator/initiator.go:56	initializing database connect
+2025-10-04T08:23:00.652+0300	INFO	initiator/db.go:17	Attempting to connect to database	{"connection_string": "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"}
+2025-10-04T08:23:00.670+0300	INFO	initiator/initiator.go:58	database connection initialized
+2025-10-04T08:23:00.670+0300	INFO	initiator/initiator.go:63	initializing persistence layer 
+2025-10-04T08:23:00.671+0300	INFO	initiator/initiator.go:65	done initializing persistence layer
+2025-10-04T08:23:00.671+0300	INFO	initiator/initiator.go:72	initializing module layer
 Warning: AWS logging setup failed: AWS logging is disabled in configuration
-2025-09-30T10:13:03.270+0300	INFO	initiator/initiator.go:85	initializing platform layer
-%4|1759216383.273|CONFWARN|rdkafka#producer-1| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
-%3|1759216383.273|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
-%4|1759216383.283|CONFWARN|rdkafka#consumer-2| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
-%3|1759216383.285|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
-2025-09-30T10:13:03.292+0300	INFO	initiator/initiator.go:87	done initializing platform layer
-2025-09-30T10:13:03.292+0300	INFO	initiator/initiator.go:90	initializing ClickHouse client
-2025-09-30T10:13:03.294+0300	INFO	clickhouse/clickhouse.go:63	ClickHouse connection established successfully	{"host": "localhost", "port": 9000, "database": "tucanbit_analytics"}
-2025-09-30T10:13:03.294+0300	INFO	initiator/initiator.go:105	ClickHouse client initialized successfully
-2025-09-30T10:13:03.332+0300	INFO	initiator/initiator.go:118	initializing email services
-2025-09-30T10:13:03.332+0300	INFO	initiator/initiator.go:133	Email service initialized successfully
-2025-09-30T10:13:03.332+0300	INFO	initiator/initiator.go:154	Daily report email service initialized successfully
-2025-09-30T10:13:03.332+0300	INFO	initiator/initiator.go:155	Daily report cronjob service initialized successfully
-2025-09-30T10:13:03.332+0300	INFO	initiator/initiator.go:158	Analytics integration initialized successfully
-2025-09-30T10:13:03.333+0300	INFO	agent/agent.go:53	Agent callback cron started
-2025-09-30T10:13:03.341+0300	INFO	user/user.go:144	Session monitoring service started
-2025-09-30T10:13:03.341+0300	INFO	user/user.go:1723	Starting session monitoring service
-2025-09-30T10:13:03.350+0300	INFO	initiator/initiator.go:168	Starting cashback Kafka consumer
-2025-09-30T10:13:03.350+0300	INFO	cashback/kafka_consumer.go:50	Starting cashback Kafka consumer
-2025-09-30T10:13:03.351+0300	INFO	cashback/kafka_consumer.go:60	Cashback Kafka consumer started successfully
-2025-09-30T10:13:03.351+0300	INFO	initiator/initiator.go:172	Cashback Kafka consumer started successfully
-2025-09-30T10:13:03.351+0300	INFO	initiator/initiator.go:177	Expired cashback processing job started
-2025-09-30T10:13:03.351+0300	INFO	initiator/initiator.go:182	Starting daily report cronjob service
-2025-09-30T10:13:03.351+0300	INFO	cashback/kafka_consumer.go:129	Starting expired cashback processing job
-2025-09-30T10:13:03.351+0300	ERROR	analytics/daily_report_cronjob.go:81	Failed to add daily report cronjob	{"error": "expected exactly 6 fields, found 5: [59 23 * * *]"}
+2025-10-04T08:23:00.750+0300	INFO	initiator/initiator.go:85	initializing platform layer
+%4|1759555380.756|CONFWARN|rdkafka#producer-1| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1759555380.756|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+%4|1759555380.760|CONFWARN|rdkafka#consumer-2| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1759555380.761|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+2025-10-04T08:23:00.763+0300	INFO	initiator/initiator.go:87	done initializing platform layer
+2025-10-04T08:23:00.763+0300	INFO	initiator/initiator.go:90	initializing ClickHouse client
+2025-10-04T08:23:00.767+0300	INFO	clickhouse/clickhouse.go:63	ClickHouse connection established successfully	{"host": "localhost", "port": 9000, "database": "tucanbit_analytics"}
+2025-10-04T08:23:00.767+0300	INFO	initiator/initiator.go:105	ClickHouse client initialized successfully
+2025-10-04T08:23:00.817+0300	INFO	initiator/initiator.go:118	initializing email services
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:133	Email service initialized successfully
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:154	Daily report email service initialized successfully
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:155	Daily report cronjob service initialized successfully
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:158	Analytics integration initialized successfully
+2025-10-04T08:23:00.820+0300	INFO	agent/agent.go:53	Agent callback cron started
+2025-10-04T08:23:00.831+0300	INFO	user/user.go:147	Session monitoring service started
+2025-10-04T08:23:00.831+0300	INFO	user/user.go:1737	Starting session monitoring service
+2025-10-04T08:23:00.844+0300	INFO	initiator/initiator.go:168	Starting cashback Kafka consumer
+2025-10-04T08:23:00.844+0300	INFO	cashback/kafka_consumer.go:50	Starting cashback Kafka consumer
+2025-10-04T08:23:00.845+0300	INFO	cashback/kafka_consumer.go:60	Cashback Kafka consumer started successfully
+2025-10-04T08:23:00.845+0300	INFO	initiator/initiator.go:172	Cashback Kafka consumer started successfully
+2025-10-04T08:23:00.845+0300	INFO	initiator/initiator.go:177	Expired cashback processing job started
+2025-10-04T08:23:00.845+0300	INFO	initiator/initiator.go:182	Starting daily report cronjob service
+2025-10-04T08:23:00.845+0300	INFO	cashback/kafka_consumer.go:129	Starting expired cashback processing job
+2025-10-04T08:23:00.845+0300	ERROR	analytics/daily_report_cronjob.go:81	Failed to add daily report cronjob	{"error": "expected exactly 6 fields, found 5: [59 23 * * *]"}
 github.com/tucanbit/internal/module/analytics.(*dailyReportCronjob).StartScheduler
 	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/analytics/daily_report_cronjob.go:81
 github.com/tucanbit/initiator.Initiate
@@ -47,26 +46,26 @@ main.main
 	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
 runtime.main
 	/snap/go/10938/src/runtime/proc.go:283
-%4|1759216383.352|CONFWARN|rdkafka#consumer-3| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.2025-09-30T10:13:03.352+0300	ERROR	initiator/initiator.go:184	Failed to start daily report cronjob service	{"error": "expected exactly 6 fields, found 5: [59 23 * * *]"}
+2025-10-04T08:23:00.846+0300	ERROR	initiator/initiator.go:184	Failed to start daily report cronjob service	{"error": "expected exactly 6 fields, found 5: [59 23 * * *]"}
 github.com/tucanbit/initiator.Initiate
 	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:184
 main.main
 	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
 runtime.main
 	/snap/go/10938/src/runtime/proc.go:283
-protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
-2025-09-30T10:13:03.352+0300	INFO	initiator/initiator.go:191	done initializing module layer
-2025-09-30T10:13:03.352+0300	INFO	initiator/initiator.go:195	initializing handler layer 
-2025-09-30T10:13:03.352+0300	INFO	initiator/initiator.go:197	done initializing handler layer
-2025-09-30T10:13:03.352+0300	INFO	initiator/initiator.go:199	initializing http server
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:191	done initializing module layer
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:195	initializing handler layer 
+%4|1759555380.846|CONFWARN|rdkafka#consumer-3| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:197	done initializing handler layer
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:199	initializing http server
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
  - using env:	export GIN_MODE=release
  - using code:	gin.SetMode(gin.ReleaseMode)
 
 [GIN-debug] GET    /swagger/*any             --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (5 handlers)
-2025-09-30T10:13:03.352+0300	INFO	initiator/initiator.go:208	done initializing server
-%3|1759216383.352|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:2025-09-30T10:13:03.352+0300	INFO	initiator/initiator.go:211	initializing route
-9093 failed: Connection refused (after 0ms in state CONNECT)
+2025-10-04T08:23:00.847+0300	INFO	initiator/initiator.go:208	done initializing server
+2025-10-04T08:23:00.847+0300	INFO	initiator/initiator.go:211	initializing route
+%3|1759555380.847|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
 [GIN-debug] POST   /register                 --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateUserRegistration-fm (7 handlers)
 [GIN-debug] GET    /verify                   --> github.com/tucanbit/internal/glue/user.UserHandler.ServeVerificationPage-fm (7 handlers)
 [GIN-debug] POST   /register/complete        --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteUserRegistration-fm (7 handlers)
@@ -110,13 +109,13 @@ protocol` is not configured for SASL: recommend setting `security.protocol` to S
 [GIN-debug] POST   /api/user/verify          --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyUser-fm (6 handlers)
 [GIN-debug] POST   /api/user/resend/verification/otp --> github.com/tucanbit/internal/glue/user.UserHandler.ReSendVerificationOTP-fm (6 handlers)
 [GIN-debug] POST   /api/user/otp             --> github.com/tucanbit/internal/glue/user.UserHandler.GetOtp-fm (6 handlers)
-2025-09-30T10:13:03.352+0300	INFO	user/enterprise_registration.go:18	🔧 Initializing enterprise registration routes...
-2025-09-30T10:13:03.352+0300	INFO	user/enterprise_registration.go:54	🔧 Registering enterprise registration routes...	{"route_count": 4}
+2025-10-04T08:23:00.848+0300	INFO	user/enterprise_registration.go:18	🔧 Initializing enterprise registration routes...
+2025-10-04T08:23:00.848+0300	INFO	user/enterprise_registration.go:54	🔧 Registering enterprise registration routes...	{"route_count": 4}
 [GIN-debug] POST   /api/enterprise/register  --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateEnterpriseRegistration-fm (6 handlers)
 [GIN-debug] POST   /api/enterprise/register/complete --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteEnterpriseRegistration-fm (6 handlers)
 [GIN-debug] GET    /api/enterprise/register/status/:user_id --> github.com/tucanbit/internal/glue/user.UserHandler.GetEnterpriseRegistrationStatus-fm (6 handlers)
 [GIN-debug] POST   /api/enterprise/register/resend --> github.com/tucanbit/internal/glue/user.UserHandler.ResendEnterpriseVerificationEmail-fm (6 handlers)
-2025-09-30T10:13:03.352+0300	INFO	user/enterprise_registration.go:56	Enterprise registration routes initialized successfully
+2025-10-04T08:23:00.848+0300	INFO	user/enterprise_registration.go:56	Enterprise registration routes initialized successfully
 [GIN-debug] POST   /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.CreateOperationalGroup-fm (9 handlers)
 [GIN-debug] GET    /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.GetOperationalGroups-fm (9 handlers)
 [GIN-debug] POST   /api/admin/operationalgrouptype --> github.com/tucanbit/internal/handler.OperationalGroupType.CreateOperationalGroupType-fm (9 handlers)
@@ -306,7 +305,7 @@ protocol` is not configured for SASL: recommend setting `security.protocol` to S
 [GIN-debug] DELETE /api/otp/:otp_id/invalidate --> github.com/tucanbit/internal/handler.OTP.InvalidateOTP-fm (6 handlers)
 [GIN-debug] POST   /api/otp/cleanup          --> github.com/tucanbit/internal/handler.OTP.CleanupExpiredOTPs-fm (6 handlers)
 [GIN-debug] GET    /api/otp/stats            --> github.com/tucanbit/internal/handler.OTP.GetOTPStats-fm (6 handlers)
-2025-09-30T10:13:03.355+0300	INFO	cashback/cashback.go:13	Initializing cashback routes
+2025-10-04T08:23:00.854+0300	INFO	cashback/cashback.go:13	Initializing cashback routes
 [GIN-debug] GET    /cashback/tiers           --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackTiers-fm (5 handlers)
 [GIN-debug] GET    /cashback/house-edge      --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetGameHouseEdge-fm (5 handlers)
 [GIN-debug] GET    /user/cashback            --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackSummary-fm (6 handlers)
@@ -330,8 +329,8 @@ protocol` is not configured for SASL: recommend setting `security.protocol` to S
 [GIN-debug] POST   /admin/cashback/dashboard/manual-cashback --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ProcessManualCashback-fm (7 handlers)
 [GIN-debug] POST   /admin/cashback/retry-failed-operations --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).RetryFailedOperations-fm (7 handlers)
 [GIN-debug] POST   /admin/cashback/bulk-level-progression --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ProcessBulkLevelProgression-fm (7 handlers)
-2025-09-30T10:13:03.355+0300	INFO	cashback/cashback.go:72	Cashback routes initialized successfully
-2025-09-30T10:13:03.355+0300	INFO	groove/groove.go:16	Initializing GrooveTech Transaction API routes
+2025-10-04T08:23:00.855+0300	INFO	cashback/cashback.go:72	Cashback routes initialized successfully
+2025-10-04T08:23:00.855+0300	INFO	groove/groove.go:16	Initializing GrooveTech Transaction API routes
 [GIN-debug] GET    /groove/account           --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetAccount-fm (5 handlers)
 [GIN-debug] GET    /groove/balance           --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetBalance-fm (5 handlers)
 [GIN-debug] GET    /groove/health            --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).HealthCheck-fm (5 handlers)
@@ -345,7 +344,9 @@ protocol` is not configured for SASL: recommend setting `security.protocol` to S
 [GIN-debug] GET    /groove                   --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessWagerAndResultOfficial-fm (6 handlers)
 [GIN-debug] POST   /api/groove/launch-game   --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).LaunchGame-fm (5 handlers)
 [GIN-debug] GET    /api/groove/validate-session/:sessionId --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ValidateGameSession-fm (5 handlers)
-2025-09-30T10:13:03.356+0300	INFO	groove/groove.go:107	GrooveTech Transaction API routes initialized successfully
+[GIN-debug] GET    /api/player/transactions  --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetPlayerTransactionHistory-fm (5 handlers)
+[GIN-debug] GET    /api/player/transactions/account/:account_id --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetPlayerTransactionHistoryByAccountID-fm (5 handlers)
+2025-10-04T08:23:00.855+0300	INFO	groove/groove.go:115	GrooveTech Transaction API routes initialized successfully
 [GIN-debug] GET    /analytics/users/:user_id/transactions --> github.com/tucanbit/internal/handler.Analytics.GetUserTransactions-fm (5 handlers)
 [GIN-debug] GET    /analytics/users/:user_id/analytics --> github.com/tucanbit/internal/handler.Analytics.GetUserAnalytics-fm (5 handlers)
 [GIN-debug] GET    /analytics/users/:user_id/balance-history --> github.com/tucanbit/internal/handler.Analytics.GetUserBalanceHistory-fm (5 handlers)
@@ -361,492 +362,15 @@ protocol` is not configured for SASL: recommend setting `security.protocol` to S
 [GIN-debug] POST   /analytics/daily-report/last-week --> github.com/tucanbit/internal/handler.Analytics.SendLastWeekReportEmail-fm (5 handlers)
 [GIN-debug] POST   /analytics/daily-report/test --> github.com/tucanbit/internal/handler.Analytics.SendTestDailyReport-fm (5 handlers)
 [GIN-debug] GET    /analytics/daily-report/cronjob-status --> github.com/tucanbit/internal/handler.Analytics.GetCronjobStatus-fm (5 handlers)
-2025-09-30T10:13:03.356+0300	INFO	initiator/initiator.go:213	done initializing route
-2025-09-30T10:13:03.356+0300	INFO	initiator/initiator.go:215	Server configuration	{"host": "0.0.0.0", "port": 8080}
-2025-09-30T10:13:03.356+0300	INFO	initiator/initiator.go:220	initializing server
-2025-09-30T10:13:03.356+0300	INFO	initiator/initiator.go:234	http server listening on port : 8080
-%3|1759216384.273|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
-%3|1759216384.283|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
-%3|1759216384.351|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 1 identical error(s) suppressed)
-2025-09-30T10:13:23.547+0300	INFO	groove/groove.go:471	Processing game launch request
-2025-09-30T10:13:23.551+0300	INFO	groove/groove.go:1296	Launching game	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "device_type": "desktop", "game_mode": "real"}
-2025-09-30T10:13:23.559+0300	INFO	groove/groove.go:126	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:23.560+0300	INFO	groove/groove.go:145	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:23.562+0300	INFO	groove/groove.go:176	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:23.562+0300	INFO	groove/groove.go:134	Account retrieved successfully by user ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:23.562+0300	INFO	groove/groove.go:222	Updating GrooveTech account	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:23.566+0300	INFO	groove/groove.go:246	GrooveTech account updated successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:23.566+0300	INFO	groove/groove.go:1357	GrooveTech account updated with new session	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"}
-2025-09-30T10:13:23.566+0300	INFO	groove/groove.go:1378	GrooveTech API URL constructed	{"groove_url": "https://routerstg.groovegaming.com/game/?accountid=a5e168fb-168e-4183-84c5-d49038ce00b5&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c&homeurl=https://tucanbit.tv&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.tv/history&exitUrl=https://tucanbit.tv", "note": "Actual GrooveTech API call not implemented yet - credentials needed"}
-2025-09-30T10:13:23.570+0300	INFO	groove/groove.go:1393	Game launched successfully	{"session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c", "game_url": "https://routerstg.groovegaming.com/game/?accountid=a5e168fb-168e-4183-84c5-d49038ce00b5&country=US&nogsgameid=82695&nogslang=en_US&nogsmode=real&nogsoperatorid=3818&nogscurrency=USD&sessionid=Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c&homeurl=https://tucanbit.tv&license=Curacao&is_test_account=false&device_type=desktop&realityCheckElapsed=0&realityCheckInterval=60&historyUrl=https://tucanbit.tv/history&exitUrl=https://tucanbit.tv"}
-2025-09-30T10:13:23.570+0300	INFO	groove/groove.go:534	Game launched successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "game_id": "82695", "session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"}
-2025-09-30T10:13:23.570+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/api/groove/launch-game", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00039847853333333335}
-%3|1759216414.274|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:13:34.310+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
-2025-09-30T10:13:34.310+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "wager"}
-2025-09-30T10:13:34.310+0300	INFO	groove/groove.go:680	Routing to ProcessWagerOfficial
-2025-09-30T10:13:34.310+0300	INFO	groove/groove_official.go:341	GrooveTech Wager request
-2025-09-30T10:13:34.312+0300	INFO	groove/groove.go:1406	Validating game session	{"session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"}
-2025-09-30T10:13:34.313+0300	INFO	groove/groove.go:126	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.313+0300	INFO	groove/groove.go:145	Getting GrooveTech account by user ID	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.314+0300	INFO	groove/groove.go:176	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.314+0300	INFO	groove/groove.go:134	Account retrieved successfully by user ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.314+0300	INFO	groove/groove.go:1492	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.314+0300	INFO	groove/groove.go:556	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.315+0300	INFO	groove/groove.go:571	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance_cents": "10042976", "balance_dollars": "100429.76"}
-2025-09-30T10:13:34.315+0300	INFO	groove/groove.go:1501	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance": "100429.76"}
-2025-09-30T10:13:34.315+0300	INFO	groove/groove.go:1577	Getting transaction by ID	{"transaction_id": "wager-1759216414"}
-2025-09-30T10:13:34.315+0300	INFO	groove/groove.go:867	Getting transaction by ID	{"transaction_id": "wager-1759216414"}
-2025-09-30T10:13:34.317+0300	INFO	groove/groove.go:886	Transaction not found	{"transaction_id": "wager-1759216414"}
-2025-09-30T10:13:34.317+0300	INFO	groove/groove.go:1586	Transaction not found	{"transaction_id": "wager-1759216414"}
-2025-09-30T10:13:34.317+0300	INFO	groove/groove.go:1510	Processing wager transaction	{"transaction_id": "wager-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "bet_amount": "2"}
-2025-09-30T10:13:34.317+0300	INFO	groove/groove.go:641	Deducting balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "2"}
-2025-09-30T10:13:34.320+0300	INFO	groove/groove.go:713	Balance deducted successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "2", "new_balance": "100427.76"}
-2025/09/30 10:13:34 Triggering balance connection for user map[]
-2025-09-30T10:13:34.321+0300	INFO	utils/ws.go:200	No user balance socket connections found for user	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.321+0300	DEBUG	groove/groove.go:721	WebSocket balance update triggered for user	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.322+0300	INFO	groove/groove.go:811	Storing transaction	{"transaction_id": "wager-1759216414", "account_transaction_id": "TXN_wager-17_1759216414", "transaction_type": "wager"}
-2025-09-30T10:13:34.323+0300	INFO	groove/groove.go:843	Transaction stored successfully	{"transaction_id": "wager-1759216414", "transaction_type": "wager"}
-2025-09-30T10:13:34.332+0300	DEBUG	analytics/analytics.go:94	Transaction inserted successfully	{"transaction_id": "wager-1759216414", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.332+0300	DEBUG	analytics/sync.go:152	GrooveTech transaction synced to ClickHouse successfully	{"transaction_id": "wager-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "type": "wager"}
-2025-09-30T10:13:34.332+0300	DEBUG	analytics/realtime_sync.go:131	GrooveTech transaction synced to ClickHouse in real-time	{"transaction_id": "wager-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.332+0300	DEBUG	groove/groove.go:856	GrooveTech transaction synced to ClickHouse successfully	{"transaction_id": "wager-1759216414", "transaction_type": "wager"}
-2025-09-30T10:13:34.332+0300	INFO	groove/groove.go:1551	Wager processed - cashback will be calculated after result	{"transaction_id": "wager-1759216414", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:34.332+0300	INFO	groove/groove.go:1555	Wager transaction processed successfully	{"transaction_id": "wager-1759216414", "account_transaction_id": "TXN_wager-17_1759216414", "new_balance": "100427.76"}
-2025-09-30T10:13:34.332+0300	INFO	groove/groove_official.go:562	Wager processed successfully	{"transaction_id": "wager-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "bet_amount": "2", "new_balance": "100427.76"}
-2025-09-30T10:13:34.332+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"betamount":["2.0"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"],"request":["wager"],"roundid":["round-1759216414"],"transactionid":["wager-1759216414"]}, "user-agent": "curl/8.5.0", "latency": 0.00036779516666666666}
-%3|1759216414.351|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216415.283|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
-2025-09-30T10:13:51.308+0300	INFO	groove/groove.go:654	Processing unified GrooveTech Official request
-2025-09-30T10:13:51.308+0300	INFO	groove/groove.go:667	GrooveTech request type	{"request": "result"}
-2025-09-30T10:13:51.308+0300	INFO	groove/groove.go:683	Routing to ProcessResultOfficial
-2025-09-30T10:13:51.308+0300	INFO	groove/groove_official.go:574	GrooveTech Result request
-2025-09-30T10:13:51.308+0300	INFO	groove/groove.go:420	Processing result transaction	{"transaction_id": "result-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "result": "0", "game_status": "completed"}
-2025-09-30T10:13:51.309+0300	INFO	groove/groove.go:1406	Validating game session	{"session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"}
-2025-09-30T10:13:51.310+0300	INFO	groove/groove.go:184	Getting GrooveTech account by ID	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.310+0300	INFO	groove/groove.go:209	GrooveTech account retrieved successfully	{"account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.310+0300	INFO	groove/groove.go:927	Getting result transaction by ID	{"transaction_id": "result-1759216414"}
-2025-09-30T10:13:51.311+0300	INFO	groove/groove.go:946	Result transaction not found	{"transaction_id": "result-1759216414"}
-2025-09-30T10:13:51.311+0300	INFO	groove/groove.go:494	Result is zero, no balance change needed	{"transaction_id": "result-1759216414"}
-2025-09-30T10:13:51.311+0300	INFO	groove/groove.go:556	Getting user balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.311+0300	INFO	groove/groove.go:571	User balance retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "balance_cents": "10042776", "balance_dollars": "100427.76"}
-2025-09-30T10:13:51.311+0300	INFO	groove/groove.go:811	Storing transaction	{"transaction_id": "result-1759216414", "account_transaction_id": "", "transaction_type": "result"}
-2025-09-30T10:13:51.312+0300	INFO	groove/groove.go:843	Transaction stored successfully	{"transaction_id": "result-1759216414", "transaction_type": "result"}
-2025-09-30T10:13:51.317+0300	DEBUG	analytics/analytics.go:94	Transaction inserted successfully	{"transaction_id": "result-1759216414", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.317+0300	DEBUG	analytics/sync.go:152	GrooveTech transaction synced to ClickHouse successfully	{"transaction_id": "result-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "type": "result"}
-2025-09-30T10:13:51.317+0300	DEBUG	analytics/realtime_sync.go:131	GrooveTech transaction synced to ClickHouse in real-time	{"transaction_id": "result-1759216414", "account_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.317+0300	DEBUG	groove/groove.go:856	GrooveTech transaction synced to ClickHouse successfully	{"transaction_id": "result-1759216414", "transaction_type": "result"}
-2025-09-30T10:13:51.317+0300	INFO	groove/groove.go:2065	Processing result-based cashback	{"transaction_id": "result-1759216414", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "result_amount": "0"}
-2025-09-30T10:13:51.317+0300	INFO	groove/groove.go:987	Getting wager transaction by session ID	{"session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"}
-2025-09-30T10:13:51.318+0300	INFO	groove/groove.go:1040	Wager transaction retrieved successfully	{"session_id": "Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c", "transaction_id": "wager-1759216414", "account_transaction_id": "TXN_wager-17_1759216414"}
-2025-09-30T10:13:51.318+0300	INFO	groove/groove.go:2095	Calculating cashback based on net loss	{"bet_amount": "2", "win_amount": "0", "net_loss": "2"}
-2025-09-30T10:13:51.318+0300	INFO	cashback/cashback.go:125	Processing bet cashback	{"bet_id": "3cea9c31-0269-4495-9307-74dabf3eafad", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.318+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.319+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.319+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:13:51.320+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:13:51.320+0300	INFO	cashback/cashback.go:858	Extracting game variant from transaction	{"transaction_id": "result-1759216414"}
-2025-09-30T10:13:51.320+0300	INFO	groove/groove.go:1216	Getting transaction game info	{"transaction_id": "result-1759216414"}
-2025-09-30T10:13:51.321+0300	INFO	groove/groove.go:1245	Retrieved transaction game info	{"transaction_id": "result-1759216414", "game_id": "82695", "game_type": "groovetech"}
-2025-09-30T10:13:51.321+0300	INFO	cashback/cashback.go:875	Extracted game variant from transaction	{"transaction_id": "result-1759216414", "game_id": "82695", "game_type": "groovetech", "game_variant": "82695"}
-2025-09-30T10:13:51.321+0300	INFO	cashback/cashback.go:919	Getting game house edge	{"game_type": "groovetech", "game_variant": "82695"}
-2025-09-30T10:13:51.322+0300	INFO	cashback/cashback.go:973	Retrieved game house edge	{"game_type": "groovetech", "game_variant": "82695", "house_edge": "0.02", "min_bet": "1", "max_bet": "10000"}
-2025-09-30T10:13:51.322+0300	INFO	cashback/cashback.go:180	Using configurable house edge	{"game_type": "groovetech", "game_variant": "82695", "house_edge": "0.02"}
-2025-09-30T10:13:51.322+0300	INFO	cashback/retry.go:69	Starting retryable operation	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b", "operation_type": "process_bet_cashback", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.322+0300	INFO	cashback/cashback.go:1157	Creating retryable operation	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b", "operation_type": "process_bet_cashback", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.323+0300	INFO	cashback/cashback.go:1192	Retryable operation created successfully	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b"}
-2025-09-30T10:13:51.323+0300	INFO	cashback/cashback.go:1242	Updating retryable operation	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b", "status": "retrying", "attempts": 0}
-2025-09-30T10:13:51.324+0300	INFO	cashback/cashback.go:1273	Retryable operation updated successfully	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b"}
-2025-09-30T10:13:51.324+0300	INFO	cashback/retry.go:109	Executing operation attempt	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b", "operation_type": "process_bet_cashback", "attempt": 0, "max_retries": 3}
-2025-09-30T10:13:51.324+0300	INFO	cashback/cashback.go:532	Creating cashback earning	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "earning_type": "bet", "earned_amount": "0.02"}
-2025-09-30T10:13:51.326+0300	INFO	cashback/cashback.go:573	Cashback earning created successfully	{"earning_id": "12d4625e-9963-4d6e-82e2-65d19f36ae07", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "earned_amount": "0.02"}
-2025-09-30T10:13:51.332+0300	DEBUG	analytics/analytics.go:94	Transaction inserted successfully	{"transaction_id": "12d4625e-9963-4d6e-82e2-65d19f36ae07", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.332+0300	DEBUG	analytics/sync.go:186	Cashback earning synced to ClickHouse successfully	{"earning_id": "12d4625e-9963-4d6e-82e2-65d19f36ae07", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.02"}
-2025-09-30T10:13:51.332+0300	DEBUG	analytics/realtime_sync.go:147	Cashback earning synced to ClickHouse in real-time	{"earning_id": "12d4625e-9963-4d6e-82e2-65d19f36ae07", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.02"}
-2025-09-30T10:13:51.332+0300	INFO	cashback/cashback.go:199	Updating user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.333+0300	INFO	cashback/cashback.go:226	User level updated successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.333+0300	INFO	cashback/cashback.go:1242	Updating retryable operation	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b", "status": "completed", "attempts": 0}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:1273	Retryable operation updated successfully	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b"}
-2025-09-30T10:13:51.334+0300	INFO	cashback/retry.go:123	Operation completed successfully	{"operation_id": "10935b55-a8e4-46f4-b1df-d54f32878c9b", "operation_type": "process_bet_cashback", "attempts": 1}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:274	Bet cashback processed successfully (per-spin calculation)	{"bet_id": "3cea9c31-0269-4495-9307-74dabf3eafad", "bet_amount": "2", "earned_cashback": "0.02", "cashback_rate": "1"}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:316	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:476	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.334+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:13:51.335+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:13:51.335+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 3}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 3}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 3, "tier_name": "Gold"}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:526	Retrieved user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.336+0300	INFO	groove/groove.go:1216	Getting transaction game info	{"transaction_id": "result-1759216414"}
-2025-09-30T10:13:51.336+0300	INFO	groove/groove.go:1245	Retrieved transaction game info	{"transaction_id": "result-1759216414", "game_id": "82695", "game_type": "groovetech"}
-2025-09-30T10:13:51.336+0300	INFO	utils/ws.go:219	Triggering cashback WebSocket update	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5", "available_cashback": "0.0208", "current_tier": "Silver"}
-2025-09-30T10:13:51.336+0300	INFO	utils/ws.go:246	No user balance socket connections found for cashback update	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.336+0300	DEBUG	cashback/cashback.go:287	Cashback WebSocket notification triggered with game details	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "available_cashback": "0.0208", "game_type": "groovetech", "house_edge": "0.02", "cashback_rate": "1"}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:297	Checking automatic level progression after cashback processing	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:886	Checking level progression for user	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.336+0300	INFO	cashback/level_progression.go:32	Checking level progression for user	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.336+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.337+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:13:51.337+0300	INFO	cashback/cashback.go:1402	Getting all cashback tiers
-2025-09-30T10:13:51.337+0300	INFO	cashback/cashback.go:1479	Retrieved all cashback tiers	{"count": 5}
-2025-09-30T10:13:51.337+0300	INFO	cashback/level_progression.go:102	User already at appropriate level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "current_level": 2, "current_tier": "Silver"}
-2025-09-30T10:13:51.337+0300	INFO	cashback/cashback.go:305	Level progression completed	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "new_level": 2, "level_progress": "0.01"}
-2025-09-30T10:13:51.337+0300	INFO	groove/groove.go:2133	Result-based cashback processed successfully	{"transaction_id": "result-1759216414", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "net_loss": "2", "cashback_based_on": "net_loss"}
-2025-09-30T10:13:51.337+0300	INFO	groove/groove_official.go:672	Result processed successfully	{"transaction_id": "result-1759216414", "result": "0", "balance": "100427.76"}
-2025-09-30T10:13:51.338+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/groove-official", "ip": "::1", "query": {"accountid":["a5e168fb-168e-4183-84c5-d49038ce00b5"],"apiversion":["1.2"],"device":["desktop"],"gameid":["82695"],"gamesessionid":["Tucan_b02d9dec-4d7c-4359-a1c1-cd75f57ce07c"],"gamestatus":["completed"],"request":["result"],"result":["0.0"],"roundid":["round-1759216414"],"transactionid":["result-1759216414"]}, "user-agent": "curl/8.5.0", "latency": 0.0004971959333333333}
-2025-09-30T10:14:00.305+0300	INFO	cashback/cashback.go:60	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.305+0300	INFO	cashback/cashback.go:316	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.305+0300	INFO	cashback/cashback.go:476	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.305+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.306+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.306+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:14:00.307+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:14:00.307+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.308+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 3}
-2025-09-30T10:14:00.308+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 3}
-2025-09-30T10:14:00.308+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 3, "tier_name": "Gold"}
-2025-09-30T10:14:00.308+0300	INFO	cashback/cashback.go:526	Retrieved user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:14:00.308+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/user/cashback", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00008881828333333333}
-2025-09-30T10:14:03.017+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216444.275|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216444.351|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216446.283|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
-%3|1759216474.276|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216474.351|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216476.283|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:15:03.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216504.277|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216504.352|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216506.283|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216534.278|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216534.352|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216536.283|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:16:03.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216564.279|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216564.355|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216566.284|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216594.279|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216594.356|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216596.284|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:17:03.005+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216624.280|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216624.356|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216626.288|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:17:27.009+0300	INFO	cashback/cashback.go:119	Processing cashback claim	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0"}
-2025-09-30T10:17:27.009+0300	INFO	cashback/cashback.go:343	Processing cashback claim	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0"}
-2025-09-30T10:17:27.010+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.012+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.012+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:17:27.013+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:17:27.013+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.014+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 3}
-2025-09-30T10:17:27.014+0300	INFO	groove/groove.go:730	Adding balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0"}
-2025-09-30T10:17:27.017+0300	INFO	groove/groove.go:794	Balance added successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0", "new_balance": "100427.76"}
-2025/09/30 10:17:27 Triggering balance connection for user map[]
-2025-09-30T10:17:27.019+0300	INFO	utils/ws.go:200	No user balance socket connections found for user	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.019+0300	DEBUG	groove/groove.go:802	WebSocket balance update triggered for user	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.019+0300	DEBUG	cashback/cashback.go:441	Balance updated and WebSocket notification triggered after cashback claim	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "claimed_amount": "0", "net_amount": "0"}
-2025-09-30T10:17:27.019+0300	INFO	cashback/cashback.go:770	Creating cashback claim	{"claim_id": "b5bd91e4-ef09-49ec-8544-e5c56d815724", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0"}
-2025-09-30T10:17:27.021+0300	ERROR	cashback/cashback.go:789	Failed to create cashback claim	{"error": "ERROR: null value in column \"claimed_earnings\" of relation \"cashback_claims\" violates not-null constraint (SQLSTATE 23502)"}
-github.com/tucanbit/internal/storage/cashback.(*CashbackStorageImpl).CreateCashbackClaim
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/storage/cashback/cashback.go:789
-github.com/tucanbit/internal/module/cashback.(*CashbackService).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/cashback/cashback.go:459
-github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/cashback/cashback.go:123
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.PanicRecovery.func4
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/panic_recovery.go:26
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.CORS.func3
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.GinLogger.func2
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
-github.com/gin-gonic/gin.(*Engine).ServeHTTP
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
-net/http.serverHandler.ServeHTTP
-	/snap/go/10938/src/net/http/server.go:3301
-net/http.(*conn).serve
-	/snap/go/10938/src/net/http/server.go:2102
-2025-09-30T10:17:27.021+0300	ERROR	cashback/cashback.go:461	Failed to create cashback claim	{"error": "failed to create cashback claim: ERROR: null value in column \"claimed_earnings\" of relation \"cashback_claims\" violates not-null constraint (SQLSTATE 23502)"}
-github.com/tucanbit/internal/module/cashback.(*CashbackService).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/cashback/cashback.go:461
-github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/cashback/cashback.go:123
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.PanicRecovery.func4
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/panic_recovery.go:26
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.CORS.func3
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.GinLogger.func2
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
-github.com/gin-gonic/gin.(*Engine).ServeHTTP
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
-net/http.serverHandler.ServeHTTP
-	/snap/go/10938/src/net/http/server.go:3301
-net/http.(*conn).serve
-	/snap/go/10938/src/net/http/server.go:2102
-2025-09-30T10:17:27.021+0300	ERROR	cashback/cashback.go:464	Balance credited but claim record creation failed - manual reconciliation required
-github.com/tucanbit/internal/module/cashback.(*CashbackService).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/cashback/cashback.go:464
-github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/cashback/cashback.go:123
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.PanicRecovery.func4
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/panic_recovery.go:26
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.CORS.func3
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.GinLogger.func2
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
-github.com/gin-gonic/gin.(*Engine).ServeHTTP
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
-net/http.serverHandler.ServeHTTP
-	/snap/go/10938/src/net/http/server.go:3301
-net/http.(*conn).serve
-	/snap/go/10938/src/net/http/server.go:2102
-2025-09-30T10:17:27.021+0300	INFO	cashback/cashback.go:476	Cashback claim processed successfully	{"claim_id": "b5bd91e4-ef09-49ec-8544-e5c56d815724", "amount": "0"}
-2025-09-30T10:17:27.021+0300	INFO	cashback/cashback.go:316	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.021+0300	INFO	cashback/cashback.go:476	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.021+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.022+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.022+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:17:27.023+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:17:27.023+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.024+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 3}
-2025-09-30T10:17:27.024+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 3}
-2025-09-30T10:17:27.024+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 3, "tier_name": "Gold"}
-2025-09-30T10:17:27.024+0300	INFO	cashback/cashback.go:526	Retrieved user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.024+0300	INFO	utils/ws.go:219	Triggering cashback WebSocket update	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5", "available_cashback": "0.0208", "current_tier": "Silver"}
-2025-09-30T10:17:27.024+0300	INFO	utils/ws.go:246	No user balance socket connections found for cashback update	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:27.024+0300	DEBUG	cashback/cashback.go:502	Cashback claim WebSocket notification triggered	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "claimed_amount": "0", "remaining_cashback": "0.0208"}
-2025-09-30T10:17:27.025+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/user/cashback/claim", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00025784381666666664}
-%3|1759216654.284|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 1ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216654.356|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:17:35.207+0300	INFO	cashback/cashback.go:60	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.207+0300	INFO	cashback/cashback.go:316	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.207+0300	INFO	cashback/cashback.go:476	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.207+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.208+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.208+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:17:35.209+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:17:35.209+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.210+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 3}
-2025-09-30T10:17:35.210+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 3}
-2025-09-30T10:17:35.211+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 3, "tier_name": "Gold"}
-2025-09-30T10:17:35.211+0300	INFO	cashback/cashback.go:526	Retrieved user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:17:35.211+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/user/cashback", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00006688828333333333}
-%3|1759216656.293|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:18:03.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-2025-09-30T10:18:03.344+0300	INFO	user/user.go:1747	Found expiring sessions	{"count": 0}
-%3|1759216684.286|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216685.356|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
-%3|1759216687.293|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
-2025-09-30T10:18:17.135+0300	INFO	cashback/cashback.go:119	Processing cashback claim	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.0208"}
-2025-09-30T10:18:17.135+0300	INFO	cashback/cashback.go:343	Processing cashback claim	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.0208"}
-2025-09-30T10:18:17.135+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.136+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.136+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:18:17.137+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:18:17.137+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.139+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 3}
-2025-09-30T10:18:17.139+0300	INFO	cashback/cashback.go:727	Updating cashback earning status	{"earning_id": "18a27f71-1e3c-4c9a-af6b-1d20d4c3eece", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "status": "claimed", "available_amount": "0"}
-2025-09-30T10:18:17.142+0300	INFO	cashback/cashback.go:762	Cashback earning status updated successfully	{"earning_id": "18a27f71-1e3c-4c9a-af6b-1d20d4c3eece", "status": "claimed"}
-2025-09-30T10:18:17.142+0300	INFO	cashback/cashback.go:727	Updating cashback earning status	{"earning_id": "c2f8d4f5-cb51-455a-b26c-40a827a96197", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "status": "claimed", "available_amount": "0"}
-2025-09-30T10:18:17.144+0300	INFO	cashback/cashback.go:762	Cashback earning status updated successfully	{"earning_id": "c2f8d4f5-cb51-455a-b26c-40a827a96197", "status": "claimed"}
-2025-09-30T10:18:17.144+0300	INFO	cashback/cashback.go:727	Updating cashback earning status	{"earning_id": "12d4625e-9963-4d6e-82e2-65d19f36ae07", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "status": "claimed", "available_amount": "0"}
-2025-09-30T10:18:17.146+0300	INFO	cashback/cashback.go:762	Cashback earning status updated successfully	{"earning_id": "12d4625e-9963-4d6e-82e2-65d19f36ae07", "status": "claimed"}
-2025-09-30T10:18:17.146+0300	INFO	groove/groove.go:730	Adding balance	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.0208"}
-2025-09-30T10:18:17.151+0300	INFO	groove/groove.go:794	Balance added successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.0208", "new_balance": "100427.7808"}
-2025/09/30 10:18:17 Triggering balance connection for user map[]
-2025-09-30T10:18:17.152+0300	INFO	utils/ws.go:200	No user balance socket connections found for user	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.152+0300	DEBUG	groove/groove.go:802	WebSocket balance update triggered for user	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.152+0300	DEBUG	cashback/cashback.go:441	Balance updated and WebSocket notification triggered after cashback claim	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "claimed_amount": "0.0208", "net_amount": "0.0208"}
-2025-09-30T10:18:17.152+0300	INFO	cashback/cashback.go:770	Creating cashback claim	{"claim_id": "6a51e101-917c-49f7-9bd9-34e6264b18ff", "user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "amount": "0.0208"}
-2025-09-30T10:18:17.153+0300	ERROR	cashback/cashback.go:789	Failed to create cashback claim	{"error": "ERROR: null value in column \"claimed_earnings\" of relation \"cashback_claims\" violates not-null constraint (SQLSTATE 23502)"}
-github.com/tucanbit/internal/storage/cashback.(*CashbackStorageImpl).CreateCashbackClaim
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/storage/cashback/cashback.go:789
-github.com/tucanbit/internal/module/cashback.(*CashbackService).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/cashback/cashback.go:459
-github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/cashback/cashback.go:123
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.PanicRecovery.func4
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/panic_recovery.go:26
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.CORS.func3
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.GinLogger.func2
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
-github.com/gin-gonic/gin.(*Engine).ServeHTTP
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
-net/http.serverHandler.ServeHTTP
-	/snap/go/10938/src/net/http/server.go:3301
-net/http.(*conn).serve
-	/snap/go/10938/src/net/http/server.go:2102
-2025-09-30T10:18:17.153+0300	ERROR	cashback/cashback.go:461	Failed to create cashback claim	{"error": "failed to create cashback claim: ERROR: null value in column \"claimed_earnings\" of relation \"cashback_claims\" violates not-null constraint (SQLSTATE 23502)"}
-github.com/tucanbit/internal/module/cashback.(*CashbackService).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/cashback/cashback.go:461
-github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/cashback/cashback.go:123
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.PanicRecovery.func4
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/panic_recovery.go:26
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.CORS.func3
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.GinLogger.func2
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
-github.com/gin-gonic/gin.(*Engine).ServeHTTP
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
-net/http.serverHandler.ServeHTTP
-	/snap/go/10938/src/net/http/server.go:3301
-net/http.(*conn).serve
-	/snap/go/10938/src/net/http/server.go:2102
-2025-09-30T10:18:17.153+0300	ERROR	cashback/cashback.go:464	Balance credited but claim record creation failed - manual reconciliation required
-github.com/tucanbit/internal/module/cashback.(*CashbackService).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/cashback/cashback.go:464
-github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/cashback/cashback.go:123
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/internal/handler/middleware.ErrorHandler.func1
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/errors.go:20
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.PanicRecovery.func4
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/panic_recovery.go:26
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.CORS.func3
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/CORS.go:22
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/tucanbit/initiator.Initiate.GinLogger.func2
-	/home/ashenafi-alemu/Downloads/tucanbit/internal/handler/middleware/ginlogger.go:23
-github.com/gin-gonic/gin.(*Context).Next
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/context.go:185
-github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:644
-github.com/gin-gonic/gin.(*Engine).ServeHTTP
-	/home/ashenafi-alemu/go/pkg/mod/github.com/gin-gonic/gin@v1.10.1/gin.go:600
-net/http.serverHandler.ServeHTTP
-	/snap/go/10938/src/net/http/server.go:3301
-net/http.(*conn).serve
-	/snap/go/10938/src/net/http/server.go:2102
-2025-09-30T10:18:17.153+0300	INFO	cashback/cashback.go:476	Cashback claim processed successfully	{"claim_id": "6a51e101-917c-49f7-9bd9-34e6264b18ff", "amount": "0.0208"}
-2025-09-30T10:18:17.153+0300	INFO	cashback/cashback.go:316	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.153+0300	INFO	cashback/cashback.go:476	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.153+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.154+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.154+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:18:17.155+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:18:17.155+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.156+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 0}
-2025-09-30T10:18:17.156+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 3}
-2025-09-30T10:18:17.156+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 3, "tier_name": "Gold"}
-2025-09-30T10:18:17.156+0300	INFO	cashback/cashback.go:526	Retrieved user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.157+0300	INFO	utils/ws.go:219	Triggering cashback WebSocket update	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5", "available_cashback": "0", "current_tier": "Silver"}
-2025-09-30T10:18:17.157+0300	INFO	utils/ws.go:246	No user balance socket connections found for cashback update	{"userID": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:17.157+0300	DEBUG	cashback/cashback.go:502	Cashback claim WebSocket notification triggered	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "claimed_amount": "0.0208", "remaining_cashback": "0"}
-2025-09-30T10:18:17.157+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "POST", "path": "/user/cashback/claim", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.0003733983333333333}
-2025-09-30T10:18:26.315+0300	INFO	cashback/cashback.go:60	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.316+0300	INFO	cashback/cashback.go:316	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.316+0300	INFO	cashback/cashback.go:476	Getting user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.316+0300	INFO	cashback/cashback.go:157	Getting user level	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.316+0300	INFO	cashback/cashback.go:194	User level retrieved successfully	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.316+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 2}
-2025-09-30T10:18:26.317+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 2, "tier_name": "Silver"}
-2025-09-30T10:18:26.317+0300	INFO	cashback/cashback.go:658	Getting available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.317+0300	INFO	cashback/cashback.go:719	Retrieved available cashback earnings	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5", "count": 0}
-2025-09-30T10:18:26.317+0300	INFO	cashback/cashback.go:336	Getting cashback tier by level	{"level": 3}
-2025-09-30T10:18:26.317+0300	INFO	cashback/cashback.go:392	Retrieved cashback tier by level	{"level": 3, "tier_name": "Gold"}
-2025-09-30T10:18:26.317+0300	INFO	cashback/cashback.go:526	Retrieved user cashback summary	{"user_id": "a5e168fb-168e-4183-84c5-d49038ce00b5"}
-2025-09-30T10:18:26.317+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 200, "method": "GET", "path": "/user/cashback", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.000036772616666666664}
-2025-09-30T10:18:33.264+0300	INFO	middleware/ginlogger.go:35	Gin Request	{"status": 404, "method": "GET", "path": "/user/balance", "ip": "::1", "query": {}, "user-agent": "curl/8.5.0", "latency": 0.00000025496666666666664}
-%3|1759216714.287|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216715.357|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216717.293|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:18:45.230+0300	INFO	bet/rounds.go:147	cleanup for round	{"roundID": "f5e59130-0bf3-42c5-96a6-5be12f118ac6"}
-2025-09-30T10:19:03.001+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216744.288|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216745.358|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216747.293|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216774.289|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216775.358|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216777.294|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:20:03.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216804.290|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216805.360|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216808.285|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
-%3|1759216834.290|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216835.363|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216838.285|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-2025-09-30T10:21:03.002+0300	DEBUG	agent/agent.go:226	no pending callbacks to process
-%3|1759216864.292|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216865.365|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 30 identical error(s) suppressed)
-%3|1759216869.294|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT, 31 identical error(s) suppressed)
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:213	done initializing route
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:215	Server configuration	{"host": "0.0.0.0", "port": 8080}
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:220	initializing server
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:234	http server listening on port : 8080
+2025-10-04T08:23:00.856+0300	FATAL	initiator/initiator.go:238	Could not start HTTP server: listen tcp 0.0.0.0:8080: bind: address already in use
+github.com/tucanbit/initiator.Initiate
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:238
+main.main
+	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
+runtime.main
+	/snap/go/10938/src/runtime/proc.go:283
+exit status 1

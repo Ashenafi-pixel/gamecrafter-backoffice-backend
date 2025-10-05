@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
@@ -67,15 +68,17 @@ type GrooveServiceImpl struct {
 	storage            groove.GrooveStorage
 	gameSessionStorage groove.GameSessionStorage
 	cashbackService    CashbackService
+	userStorage        storage.User
 	userWS             utils.UserWS
 	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userWS utils.UserWS, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, userWS utils.UserWS, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
 		storage:            storage,
 		gameSessionStorage: gameSessionStorage,
 		cashbackService:    cashbackService,
+		userStorage:        userStorage,
 		userWS:             userWS,
 		logger:             logger,
 	}
@@ -812,6 +815,47 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 	err = s.storage.StoreTransaction(ctx, &transaction, "wager")
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
+	}
+
+	// Trigger winner notification if player won (netResult > 0)
+	if netResult.GreaterThan(decimal.Zero) && s.userWS != nil {
+		// Get user information for winner notification
+		user, exists, err := s.userStorage.GetUserByID(ctx, userID)
+		if err == nil && exists {
+			// Get game information from session
+			gameSession, err := s.gameSessionStorage.GetGameSessionBySessionID(ctx, req.SessionID)
+			gameName := "GrooveTech Game"
+			gameID := ""
+			if err == nil && gameSession != nil {
+				gameID = gameSession.GameID
+				gameName = fmt.Sprintf("GrooveTech Game %s", gameSession.GameID)
+			}
+
+			// Create winner notification data
+			winnerData := dto.WinnerNotificationData{
+				Username:      user.Username,
+				Email:         user.Email,
+				GameName:      gameName,
+				GameID:        gameID,
+				BetAmount:     req.BetAmount,
+				WinAmount:     req.WinAmount,
+				NetWinnings:   netResult,
+				Currency:      "USD",
+				Timestamp:     time.Now(),
+				SessionID:     req.SessionID,
+				RoundID:       req.RoundID,
+				TransactionID: req.TransactionID,
+			}
+
+			// Trigger winner notification WebSocket
+			s.userWS.TriggerWinnerNotificationWS(ctx, userID, winnerData)
+			s.logger.Info("Winner notification triggered",
+				zap.String("user_id", userID.String()),
+				zap.String("username", user.Username),
+				zap.String("game_name", gameName),
+				zap.String("win_amount", req.WinAmount.String()),
+				zap.String("net_winnings", netResult.String()))
+		}
 	}
 
 	s.logger.Info("Wager and result processed successfully",

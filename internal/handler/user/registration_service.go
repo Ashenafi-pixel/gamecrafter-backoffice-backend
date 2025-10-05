@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -559,6 +560,24 @@ func (rs *RegistrationService) validateRegistrationRequest(req *dto.User) error 
 	if req.Type == "" {
 		return fmt.Errorf("user type is required")
 	}
+
+	// Validate email format
+	if err := rs.validateEmailFormat(req.Email); err != nil {
+		return err
+	}
+
+	// Validate username format if provided
+	if req.Username != "" {
+		if err := rs.validateUsernameFormat(req.Username); err != nil {
+			return err
+		}
+	}
+
+	// Validate password strength
+	if err := rs.validatePasswordStrength(req.Password); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -574,6 +593,21 @@ func (rs *RegistrationService) validateDetailedRegistrationRequest(req *dto.Deta
 		return fmt.Errorf("password is required")
 	}
 
+	// Validate email format
+	if err := rs.validateEmailFormat(req.Email); err != nil {
+		return err
+	}
+
+	// Validate username format
+	if err := rs.validateUsernameFormat(req.Username); err != nil {
+		return err
+	}
+
+	// Validate password strength
+	if err := rs.validatePasswordStrength(req.Password); err != nil {
+		return err
+	}
+
 	// Set default currency to USD if not provided
 	if req.DefaultCurrency == "" {
 		req.DefaultCurrency = "USD"
@@ -587,18 +621,20 @@ func (rs *RegistrationService) validateDetailedRegistrationRequest(req *dto.Deta
 	return nil
 }
 
-// validateUniqueConstraints checks for unique constraints (e.g., email, phone number)
+// validateUniqueConstraints checks for unique constraints (e.g., email, phone number, username)
 func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, req interface{}) error {
-	var email, phone string
+	var email, phone, username string
 
-	// Extract email and phone based on the request type
+	// Extract email, phone, and username based on the request type
 	switch r := req.(type) {
 	case *dto.DetailedUserRegistration:
 		email = r.Email
 		phone = r.PhoneNumber
+		username = r.Username
 	case *dto.User:
 		email = r.Email
 		phone = r.PhoneNumber
+		username = r.Username
 	default:
 		return fmt.Errorf("unsupported request type for validation")
 	}
@@ -613,6 +649,20 @@ func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, re
 	}
 	if exists {
 		return fmt.Errorf("email '%s' is already in use", email)
+	}
+
+	// Check if username is already in use
+	if username != "" {
+		exists, err = rs.userModule.CheckUserExistsByUsername(ctx, username)
+		if err != nil {
+			rs.logger.Error("Failed to check username uniqueness",
+				zap.Error(err),
+				zap.String("username", username))
+			return fmt.Errorf("failed to check username uniqueness: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("username '%s' is already taken", username)
+		}
 	}
 
 	// Check if phone number is already in use (only if phone number is provided)
@@ -665,4 +715,118 @@ func (rs *RegistrationService) retrieveRegistrationData(ctx context.Context, ses
 	}
 
 	return &registrationData, nil
+}
+
+// validateEmailFormat validates email format using regex
+func (rs *RegistrationService) validateEmailFormat(email string) error {
+	// Email regex pattern that matches common email formats
+	// This pattern allows for various valid email formats including:
+	// - abcd1234@example.com
+	// - abc@company.com
+	// - emailtest@example.com
+	// - user.name@domain.co.uk
+	// - user+tag@example.org
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+	if !emailRegex.MatchString(email) {
+		return fmt.Errorf("invalid email format: '%s'", email)
+	}
+
+	// Additional length validation
+	if len(email) > 254 {
+		return fmt.Errorf("email address is too long (maximum 254 characters)")
+	}
+
+	return nil
+}
+
+// validateUsernameFormat validates username format
+func (rs *RegistrationService) validateUsernameFormat(username string) error {
+	// Username should be 3-30 characters long
+	if len(username) < 3 {
+		return fmt.Errorf("username must be at least 3 characters long")
+	}
+	if len(username) > 30 {
+		return fmt.Errorf("username must be no more than 30 characters long")
+	}
+
+	// Username should only contain alphanumeric characters, underscores, and hyphens
+	// Must start and end with alphanumeric character
+	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$`)
+	if !usernameRegex.MatchString(username) {
+		return fmt.Errorf("username can only contain letters, numbers, underscores, and hyphens, and must start and end with a letter or number")
+	}
+
+	return nil
+}
+
+// validatePasswordStrength validates password strength for professional security standards
+func (rs *RegistrationService) validatePasswordStrength(password string) error {
+	// Minimum length requirement
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters long")
+	}
+
+	// Maximum length requirement
+	if len(password) > 128 {
+		return fmt.Errorf("password must be no more than 128 characters long")
+	}
+
+	// Check for at least one uppercase letter
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	if !hasUpper {
+		return fmt.Errorf("password must contain at least one uppercase letter")
+	}
+
+	// Check for at least one lowercase letter
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
+	if !hasLower {
+		return fmt.Errorf("password must contain at least one lowercase letter")
+	}
+
+	// Check for at least one digit
+	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(password)
+	if !hasDigit {
+		return fmt.Errorf("password must contain at least one number")
+	}
+
+	// Check for at least one special character
+	hasSpecial := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~` + "`" + `]`).MatchString(password)
+	if !hasSpecial {
+		return fmt.Errorf("password must contain at least one special character (!@#$%%^&*()_+-=[]{}|;':\",./<>?~`)")
+	}
+
+	// Check for common weak patterns
+	weakPatterns := []string{
+		"password", "123456", "qwerty", "abc123", "password123",
+		"admin", "user", "test", "guest", "root", "login",
+	}
+
+	for _, pattern := range weakPatterns {
+		if regexp.MustCompile(`(?i)` + regexp.QuoteMeta(pattern)).MatchString(password) {
+			return fmt.Errorf("password contains common weak patterns and is not secure")
+		}
+	}
+
+	// Check for repeated characters (more than 3 consecutive)
+	repeatedChars := regexp.MustCompile(`(.)\\1{3,}`).MatchString(password)
+	if repeatedChars {
+		return fmt.Errorf("password cannot contain more than 3 consecutive identical characters")
+	}
+
+	// Check for sequential characters (like 123, abc, etc.)
+	sequentialPatterns := []string{
+		"123", "234", "345", "456", "567", "678", "789", "890",
+		"abc", "bcd", "cde", "def", "efg", "fgh", "ghi", "hij", "ijk", "jkl", "klm", "lmn", "mno", "nop", "opq", "pqr", "qrs", "rst", "stu", "tuv", "uvw", "vwx", "wxy", "xyz",
+		"qwe", "wer", "ert", "rty", "tyu", "yui", "uio", "iop", "asd", "sdf", "dfg", "fgh", "ghj", "hjk", "jkl", "zxc", "xcv", "cvb", "vbn", "bnm",
+	}
+
+	lowerPassword := regexp.MustCompile(`[^a-z]`).ReplaceAllString(password, "")
+	for _, pattern := range sequentialPatterns {
+		if regexp.MustCompile(`(?i)` + regexp.QuoteMeta(pattern)).MatchString(lowerPassword) {
+			return fmt.Errorf("password contains sequential characters and is not secure")
+		}
+	}
+
+	return nil
 }
