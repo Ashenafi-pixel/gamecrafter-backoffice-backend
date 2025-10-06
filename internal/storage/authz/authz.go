@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"database/sql"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant"
@@ -27,7 +28,14 @@ func Init(db *gorm.DB, log *zap.Logger, pdb *persistencedb.PersistenceDB) storag
 		log: log,
 		pdb: pdb,
 	}
-	a.InitPermissions()
+
+	// Skip permission initialization when using server database
+	if os.Getenv("SKIP_PERMISSION_INIT") != "true" {
+		a.InitPermissions()
+	} else {
+		log.Info("Skipping permission initialization (using server database)")
+	}
+
 	return a
 }
 

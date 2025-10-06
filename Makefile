@@ -22,6 +22,7 @@ help:
 	@echo "make services-down  - Stop local services"
 	@echo "make migrate-up     - Run database migrations"
 	@echo "make run-local      - Run app locally with local services"
+	@echo "make run-server-db  - Run app with server database (via SSH tunnel)"
 	@echo ""
 	@echo "🚀 Background App Management:"
 	@echo "make start-bg       - Start app in background"
@@ -110,6 +111,10 @@ migrate-up:
 run-local: build
 	@echo "🚀 Starting TucanBIT locally..."
 	./run-local.sh
+
+run-server-db: build
+	@echo "🚀 Starting TucanBIT with server database..."
+	./run-server-db.sh
 
 # Background app management commands
 start-bg:

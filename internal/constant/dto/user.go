@@ -517,6 +517,19 @@ type GameActivity struct {
 	FavoriteGame bool            `json:"favorite_game"`
 }
 
+// PlayerStatistics represents player statistics calculated from database
+type PlayerStatistics struct {
+	TotalWagered decimal.Decimal `json:"total_wagered"`
+	NetPL        decimal.Decimal `json:"net_pl"`
+	Sessions     int             `json:"sessions"`
+	TotalBets    int             `json:"total_bets"`
+	TotalWins    int             `json:"total_wins"`
+	TotalLosses  int             `json:"total_losses"`
+	WinRate      decimal.Decimal `json:"win_rate"`
+	AvgBetSize   decimal.Decimal `json:"avg_bet_size"`
+	LastActivity time.Time       `json:"last_activity"`
+}
+
 // PlayerDetailsResponse represents the complete player details response
 type PlayerDetailsResponse struct {
 	Player            User                `json:"player"`
@@ -524,4 +537,5 @@ type PlayerDetailsResponse struct {
 	BalanceLogs       []BalanceLog        `json:"balance_logs"`
 	Balances          []Balance           `json:"balances"`
 	GameActivity      []GameActivity      `json:"game_activity"`
+	Statistics        PlayerStatistics    `json:"statistics"`
 }

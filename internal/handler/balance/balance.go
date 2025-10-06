@@ -3,6 +3,7 @@ package balance
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -122,6 +123,11 @@ func (b *balance) ManualFunding(c *gin.Context) {
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
+	}
+
+	// Force default currency for server database (ignore frontend currency)
+	if os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		fundReq.Currency = constant.DEFAULT_CURRENCY
 	}
 
 	if fundReq.Type == constant.ADD_FUND {

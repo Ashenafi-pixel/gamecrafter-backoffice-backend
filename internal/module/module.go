@@ -65,6 +65,7 @@ type User interface {
 	GetPlayerBalanceLogs(ctx context.Context, userID uuid.UUID) ([]dto.BalanceLog, error)
 	GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]dto.GameActivity, error)
 	GetPlayerBalances(ctx context.Context, userID uuid.UUID) ([]dto.Balance, error)
+	GetPlayerStatistics(ctx context.Context, userID uuid.UUID) (dto.PlayerStatistics, error)
 	VerifyUser(ctx context.Context, req dto.VerifyPhoneNumberReq) (dto.UserRegisterResponse, string, error)
 	GetOtp(ctx context.Context, phone string) string
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)

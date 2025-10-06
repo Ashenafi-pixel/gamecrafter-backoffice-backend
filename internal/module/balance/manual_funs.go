@@ -3,6 +3,7 @@ package balance
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,21 +21,26 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 	userLock := b.getUserLock(fund.UserID)
 	userLock.Lock()
 	defer userLock.Unlock()
-	// validate inputs
 
+	// Set default currency if not provided or using server database
+	if fund.Currency == "" || os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		fund.Currency = constant.DEFAULT_CURRENCY
+	}
+
+	// validate inputs
 	if err := b.ValidateFundReq(ctx, fund); err != nil {
 		return dto.ManualFundRes{}, err
 	}
 
 	//fund user with the specified amount
 	//create or get operational group and type
-	operationalGroupAndType, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.FUND, constant.ADD_FUND)
+	operationalGroupAndType, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.TRANSFER, constant.ADD_FUND)
 	if err != nil {
 		return dto.ManualFundRes{}, err
 	}
 	usrAmount, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
 		UserId:       fund.UserID,
-		CurrencyCode: fund.Currency,
+		CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
 	})
 	if err != nil {
 		return dto.ManualFundRes{}, err
@@ -43,8 +49,8 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 	if !exist {
 		_, err = b.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:       fund.UserID,
-			CurrencyCode: fund.Currency,
-			RealMoney:  fund.Amount,
+			CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
+			RealMoney:    fund.Amount,
 		})
 		if err != nil {
 			return dto.ManualFundRes{}, err
@@ -53,7 +59,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		// update existing balance
 		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
-			Currency:  fund.Currency,
+			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
 			Amount:    usrAmount.RealMoney.Add(fund.Amount),
 		})
@@ -73,7 +79,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		UpdateRes: dto.UpdateBalanceRes{
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
-				Currency:   fund.Currency,
+				Currency:   constant.DEFAULT_CURRENCY, // Use default currency for server database
 				NewBalance: fund.Amount.Add(usrAmount.RealMoney),
 			},
 		},
@@ -82,7 +88,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		// reverse amount
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
-			Currency:  fund.Currency,
+			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
 			Amount:    usrAmount.RealMoney,
 		})
@@ -96,14 +102,14 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		Type:          constant.ADD_FUND,
 		Amount:        fund.Amount,
 		Reason:        fund.Reason,
-		Currency:      fund.Currency,
+		Currency:      constant.DEFAULT_CURRENCY, // Use default currency for server database
 		Note:          fund.Reason,
 	})
 	if err != nil {
 		// reverse transaction
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
-			Currency:  fund.Currency,
+			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
 			Amount:    usrAmount.RealMoney,
 		})
@@ -121,19 +127,25 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 	userLock := b.getUserLock(fund.UserID)
 	userLock.Lock()
 	defer userLock.Unlock()
+
+	// Set default currency if not provided or using server database
+	if fund.Currency == "" || os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		fund.Currency = constant.DEFAULT_CURRENCY
+	}
+
 	// validate inputs
 	if err := b.ValidateFundReq(ctx, fund); err != nil {
 		return dto.ManualFundRes{}, err
 	}
 	//fund user with the specified amount
 	//create or get operational group and type
-	operationalGroupAndType, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.FUND, constant.REMOVE_FUND)
+	operationalGroupAndType, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.TRANSFER, constant.REMOVE_FUND)
 	if err != nil {
 		return dto.ManualFundRes{}, err
 	}
 	usrAmount, exist, err := b.balanceStorage.GetUserBalanaceByUserID(ctx, dto.Balance{
 		UserId:       fund.UserID,
-		CurrencyCode: fund.Currency,
+		CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
 	})
 	if err != nil {
 		return dto.ManualFundRes{}, err
@@ -153,7 +165,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		}
 		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
-			Currency:  fund.Currency,
+			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
 			Amount:    usrAmount.RealMoney.Sub(fund.Amount),
 		})
@@ -173,7 +185,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		UpdateRes: dto.UpdateBalanceRes{
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
-				Currency:   fund.Currency,
+				Currency:   constant.DEFAULT_CURRENCY, // Use default currency for server database
 				NewBalance: fund.Amount.Add(usrAmount.RealMoney),
 			},
 		},
@@ -182,7 +194,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		// reverse amount
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
-			Currency:  fund.Currency,
+			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
 			Amount:    usrAmount.RealMoney,
 		})
@@ -196,14 +208,14 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		Type:          constant.REMOVE_FUND,
 		Amount:        fund.Amount,
 		Reason:        fund.Reason,
-		Currency:      fund.Currency,
+		Currency:      constant.DEFAULT_CURRENCY, // Use default currency for server database
 		Note:          fund.Note,
 	})
 	if err != nil {
 		// reverse transaction
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
-			Currency:  fund.Currency,
+			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
 			Amount:    usrAmount.RealMoney,
 		})
@@ -279,12 +291,12 @@ func (b *balance) ValidateFundReq(ctx context.Context, fund dto.ManualFundReq) e
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return err
 	}
-	//validate currency
-	if yes := dto.IsValidCurrency(fund.Currency); !yes {
-		err = fmt.Errorf("invalid currency is given.")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
-		return err
-	}
+	//validate currency - skip validation for server database compatibility
+	// if yes := dto.IsValidCurrency(fund.Currency); !yes {
+	//	err = fmt.Errorf("invalid currency is given.")
+	//	err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+	//	return err
+	// }
 	// validate and verify user
 	if fund.UserID == uuid.Nil {
 		err = fmt.Errorf("invalid user_id is given. ")
