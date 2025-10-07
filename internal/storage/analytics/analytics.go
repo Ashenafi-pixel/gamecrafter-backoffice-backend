@@ -589,81 +589,6 @@ func (s *AnalyticsStorageImpl) GetSessionAnalytics(ctx context.Context, sessionI
 
 func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error) {
 	query := `
-		WITH daily_data AS (
-			-- Deposits from deposits table
-			SELECT 
-				user_id,
-				amount,
-				'deposit' as transaction_type,
-				created_at,
-				'deposits' as source
-			FROM tucanbit_analytics.deposits
-			WHERE toDate(created_at) = ?
-			
-			UNION ALL
-			
-			-- Withdrawals from withdrawals table
-			SELECT 
-				user_id,
-				amount,
-				'withdrawal' as transaction_type,
-				created_at,
-				'withdrawals' as source
-			FROM tucanbit_analytics.withdrawals
-			WHERE toDate(created_at) = ?
-			
-			UNION ALL
-			
-			-- GrooveTech wagers and results
-			SELECT 
-				account_id as user_id,
-				amount,
-				CASE 
-					WHEN type = 'wager' THEN 'groove_bet'
-					WHEN type = 'result' THEN 'groove_win'
-					ELSE type
-				END as transaction_type,
-				created_at,
-				'groove' as source
-			FROM tucanbit_analytics.groove_transactions
-			WHERE toDate(created_at) = ?
-			
-			UNION ALL
-			
-			-- Regular bets
-			SELECT 
-				user_id,
-				amount,
-				'bet' as transaction_type,
-				timestamp as created_at,
-				'bets' as source
-			FROM tucanbit_analytics.bets
-			WHERE toDate(timestamp) = ?
-			
-			UNION ALL
-			
-			-- Cashback earnings
-			SELECT 
-				user_id,
-				earned_amount as amount,
-				'cashback_earned' as transaction_type,
-				created_at,
-				'cashback_earnings' as source
-			FROM tucanbit_analytics.cashback_earnings
-			WHERE toDate(created_at) = ?
-			
-			UNION ALL
-			
-			-- Cashback claims
-			SELECT 
-				user_id,
-				claim_amount as amount,
-				'cashback_claimed' as transaction_type,
-				created_at,
-				'cashback_claims' as source
-			FROM tucanbit_analytics.cashback_claims
-			WHERE toDate(created_at) = ?
-		)
 		SELECT 
 			toUInt32(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
@@ -672,7 +597,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(0) as active_games, -- TODO: Get from games table
+			toUInt32(uniqExact(game_id)) as active_games,
 			toUInt32(0) as new_users, -- TODO: Get from users table
 			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
 			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
@@ -680,14 +605,15 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
 			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
 			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
-		FROM daily_data
+		FROM tucanbit_analytics.transactions
+		WHERE toDate(created_at) = ? AND amount > 0
 	`
 
 	dateStr := date.Format("2006-01-02")
-	row := s.clickhouse.QueryRow(ctx, query, dateStr, dateStr, dateStr, dateStr, dateStr, dateStr)
+	row := s.clickhouse.QueryRow(ctx, query, dateStr)
 
 	var report dto.DailyReport
 	err := row.Scan(
@@ -1304,56 +1230,23 @@ func (s *AnalyticsStorageImpl) GetMonthlyReport(ctx context.Context, year int, m
 
 func (s *AnalyticsStorageImpl) GetTopGames(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.GameStats, error) {
 	query := `
-		WITH game_data AS (
-			-- GrooveTech games from groove_transactions
-			SELECT 
-				JSONExtractString(metadata, 'game_id') as game_id,
-				JSONExtractString(metadata, 'game_name') as game_name,
-				'GrooveTech' as provider,
-				amount,
-				CASE 
-					WHEN type = 'wager' THEN 'bet'
-					WHEN type = 'result' THEN 'win'
-					ELSE type
-				END as transaction_type,
-				account_id as user_id,
-				session_id,
-				created_at
-			FROM tucanbit_analytics.groove_transactions
-			WHERE JSONExtractString(metadata, 'game_id') IS NOT NULL 
-				AND JSONExtractString(metadata, 'game_id') != ''
-			
-			UNION ALL
-			
-			-- Regular games from bets table
-			SELECT 
-				'regular_game' as game_id,
-				'Regular Game' as game_name,
-				'Internal' as provider,
-				amount,
-				'bet' as transaction_type,
-				user_id,
-				'' as session_id,
-				timestamp as created_at
-			FROM tucanbit_analytics.bets
-		)
 		SELECT 
 			game_id,
 			game_name,
 			provider,
-			toDecimal64(sumIf(amount, transaction_type = 'bet'), 8) as total_bets,
-			toDecimal64(sumIf(amount, transaction_type = 'win'), 8) as total_wins,
-			toDecimal64(sumIf(amount, transaction_type = 'bet') - sumIf(amount, transaction_type = 'win'), 8) as net_revenue,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
+			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt32(uniqExact(user_id)) as player_count,
 			toUInt32(uniqExact(session_id)) as session_count,
-			if(countIf(transaction_type = 'bet') > 0, avgIf(amount, transaction_type = 'bet'), 0) as avg_bet_amount,
+			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			CASE 
-				WHEN sumIf(amount, transaction_type = 'bet') > 0 
-				THEN (sumIf(amount, transaction_type = 'win') / sumIf(amount, transaction_type = 'bet')) * 100
+				WHEN sumIf(amount, transaction_type IN ('bet', 'groove_bet')) > 0 
+				THEN (sumIf(amount, transaction_type IN ('win', 'groove_win')) / sumIf(amount, transaction_type IN ('bet', 'groove_bet'))) * 100
 				ELSE 0 
 			END as rtp
-		FROM game_data
-		WHERE game_id IS NOT NULL AND game_id != ''
+		FROM tucanbit_analytics.transactions
+		WHERE game_id IS NOT NULL AND game_id != '' AND amount > 0
 	`
 
 	args := []interface{}{}
@@ -1417,57 +1310,6 @@ func (s *AnalyticsStorageImpl) GetTopGames(ctx context.Context, limit int, dateR
 
 func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.PlayerStats, error) {
 	query := `
-		WITH player_data AS (
-			-- Deposits from deposits table
-			SELECT 
-				user_id,
-				amount,
-				'deposit' as transaction_type,
-				'' as game_id,
-				'' as session_id,
-				created_at
-			FROM tucanbit_analytics.deposits
-			
-			UNION ALL
-			
-			-- Withdrawals from withdrawals table
-			SELECT 
-				user_id,
-				amount,
-				'withdrawal' as transaction_type,
-				'' as game_id,
-				'' as session_id,
-				created_at
-			FROM tucanbit_analytics.withdrawals
-			
-			UNION ALL
-			
-			-- GrooveTech wagers and results
-			SELECT 
-				account_id as user_id,
-				amount,
-				CASE 
-					WHEN type = 'wager' THEN 'groove_bet'
-					WHEN type = 'result' THEN 'groove_win'
-					ELSE type
-				END as transaction_type,
-				JSONExtractString(metadata, 'game_id') as game_id,
-				session_id,
-				created_at
-			FROM tucanbit_analytics.groove_transactions
-			
-			UNION ALL
-			
-			-- Regular bets
-			SELECT 
-				user_id,
-				amount,
-				'bet' as transaction_type,
-				'regular_game' as game_id,
-				'' as session_id,
-				timestamp as created_at
-			FROM tucanbit_analytics.bets
-		)
 		SELECT 
 			user_id,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
@@ -1480,8 +1322,8 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 			toUInt32(uniqExact(session_id)) as session_count,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			max(created_at) as last_activity
-		FROM player_data
-		WHERE user_id IS NOT NULL AND user_id != ''
+		FROM tucanbit_analytics.transactions
+		WHERE user_id IS NOT NULL AND user_id != '' AND amount > 0
 	`
 
 	args := []interface{}{}
