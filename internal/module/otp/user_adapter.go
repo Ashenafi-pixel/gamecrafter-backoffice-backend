@@ -22,21 +22,15 @@ func NewUserStorageAdapter(userStorage storage.User) UserStorage {
 
 // GetUserByEmail checks if a user exists by email
 func (a *UserStorageAdapter) GetUserByEmail(ctx context.Context, email string) (dto.User, bool, error) {
-	// For now, return that user doesn't exist
-	// In production, you would implement proper user lookup
-	return dto.User{}, false, nil
+	return a.userStorage.GetUserByEmail(ctx, email)
 }
 
 // CreateUser creates a new user
 func (a *UserStorageAdapter) CreateUser(ctx context.Context, user dto.User) (dto.User, error) {
-	// For now, return the user as-is
-	// In production, you would implement proper user creation
-	return user, nil
+	return a.userStorage.CreateUser(ctx, user)
 }
 
 // UpdateUserVerificationStatus updates the user's email verification status
 func (a *UserStorageAdapter) UpdateUserVerificationStatus(ctx context.Context, userID uuid.UUID, isVerified bool) (dto.User, error) {
-	// For now, return empty user
-	// In production, you would implement proper user update
-	return dto.User{}, nil
+	return a.userStorage.UpdateUserVerificationStatus(ctx, userID, isVerified)
 }

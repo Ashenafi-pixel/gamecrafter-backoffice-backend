@@ -183,6 +183,58 @@ func (h *OTPHandler) ResendOTP(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// ResendPasswordResetOTP resends a password reset OTP to the specified email
+// @Summary Resend Password Reset OTP
+// @Description Resend a password reset OTP to the specified email address
+// @Tags OTP
+// @Accept json
+// @Produce json
+// @Param request body dto.ResendOTPRequest true "Resend password reset OTP request"
+// @Success 200 {object} dto.ResendOTPResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/otp/resend-password-reset [post]
+func (h *OTPHandler) ResendPasswordResetOTP(c *gin.Context) {
+	var req dto.ResendOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Error("Failed to bind resend password reset OTP request",
+			zap.Error(err),
+			zap.String("ip", c.ClientIP()))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	// Validate email
+	if req.Email == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Email is required",
+		})
+		return
+	}
+
+	h.logger.Info("Resending password reset OTP",
+		zap.String("email", req.Email),
+		zap.String("ip", c.ClientIP()))
+
+	response, err := h.otpModule.ResendPasswordResetOTP(c.Request.Context(), req.Email, c.Request.UserAgent(), c.ClientIP())
+	if err != nil {
+		h.logger.Error("Failed to resend password reset OTP",
+			zap.Error(err),
+			zap.String("email", req.Email))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // InvalidateOTP invalidates an OTP
 // @Summary Invalidate OTP
 // @Description Invalidate an OTP by ID

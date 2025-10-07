@@ -72,6 +72,7 @@ type OTP interface {
 	CreateEmailVerification(c *gin.Context)
 	VerifyOTP(c *gin.Context)
 	ResendOTP(c *gin.Context)
+	ResendPasswordResetOTP(c *gin.Context)
 	GetOTPInfo(c *gin.Context)
 	InvalidateOTP(c *gin.Context)
 	CleanupExpiredOTPs(c *gin.Context)
