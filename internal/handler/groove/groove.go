@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/model/response"
+	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/storage"
 	grooveStorage "github.com/tucanbit/internal/storage/groove"
@@ -23,12 +24,13 @@ type GrooveHandler struct {
 	grooveService      groove.GrooveService
 	userStorage        storage.User
 	balanceStorage     storage.Balance
+	db                 *persistencedb.PersistenceDB
 	logger             *zap.Logger
 	signatureValidator *utils.GrooveSignatureValidator
 	transactionHistory *PlayerTransactionHistoryHandler
 }
 
-func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, grooveStorage grooveStorage.GrooveStorage, logger *zap.Logger) *GrooveHandler {
+func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, grooveStorage grooveStorage.GrooveStorage, db *persistencedb.PersistenceDB, logger *zap.Logger) *GrooveHandler {
 	// Initialize signature validator
 	secretKey := viper.GetString("groove.signature_secret")
 	if secretKey == "" {
@@ -42,6 +44,7 @@ func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.Us
 		grooveService:      grooveService,
 		userStorage:        userStorage,
 		balanceStorage:     balanceStorage,
+		db:                 db,
 		logger:             logger,
 		signatureValidator: utils.NewGrooveSignatureValidator(secretKey),
 		transactionHistory: transactionHistoryHandler,
@@ -510,7 +513,7 @@ func (h *GrooveHandler) LaunchGame(c *gin.Context) {
 
 	// Set CMA compliance defaults if not provided
 	if req.Country == "" {
-		req.Country = "ET" // Default to Ethiopia
+		req.Country = "US" // Default to Ethiopia
 	}
 	if req.Currency == "" {
 		req.Currency = "USD" // Default to USD
@@ -518,8 +521,28 @@ func (h *GrooveHandler) LaunchGame(c *gin.Context) {
 	if req.Language == "" {
 		req.Language = "en_US" // Default to English
 	}
+
+	// Manually query the database to get user's test account status
+	var isTestAccount bool
+	err = h.db.GetPool().QueryRow(c.Request.Context(),
+		"SELECT is_test_account FROM users WHERE id = $1",
+		googleUserID).Scan(&isTestAccount)
+
+	if err != nil {
+		h.logger.Error("Failed to fetch user test account status from database", zap.Error(err))
+		// Default to true (test account) if we can't fetch the status
+		isTestAccount = true
+		h.logger.Info("Using default test account status due to database error", zap.Bool("is_test_account", true))
+	} else {
+		h.logger.Info("Retrieved user test account status from database",
+			zap.String("user_id", googleUserID.String()),
+			zap.Bool("is_test_account", isTestAccount))
+	}
+
+	req.IsTestAccount = &isTestAccount
+
 	if req.IsTestAccount == nil {
-		testAccount := false // Default to real account
+		testAccount := true // Default to test account
 		req.IsTestAccount = &testAccount
 	}
 	if req.RealityCheckElapsed == 0 {

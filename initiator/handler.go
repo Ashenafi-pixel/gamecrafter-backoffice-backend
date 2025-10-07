@@ -115,7 +115,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Agent:                 agent.Init(module.Agent, log),
 		OTP:                   otp.NewOTPHandler(module.OTP, log),
 		Cashback:              cashback.NewCashbackHandler(module.Cashback, log),
-		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, log),
+		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, persistence.Database, log),
 		RegistrationService:   registrationService,
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
 	}

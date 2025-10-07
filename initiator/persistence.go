@@ -68,6 +68,7 @@ type Persistence struct {
 	Groove               groove.GrooveStorage
 	GameSession          groove.GameSessionStorage
 	Analytics            storage.Analytics
+	Database             *persistencedb.PersistenceDB
 }
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS, clickhouseClient *clickhouse.ClickHouseClient) *Persistence {
@@ -101,5 +102,6 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Groove:               groove.NewGrooveStorage(persistencdb, userWS, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log), log),
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
+		Database:             persistencdb,
 	}
 }

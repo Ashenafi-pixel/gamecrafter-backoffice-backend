@@ -30,7 +30,8 @@ CREATE TABLE users (
     refered_by_code VARCHAR(255),
     user_type VARCHAR(255) DEFAULT 'PLAYER'::VARCHAR,
     primary_wallet_address VARCHAR(255),
-    wallet_verification_status VARCHAR(50) DEFAULT 'none'
+    wallet_verification_status VARCHAR(50) DEFAULT 'none',
+    is_test_account BOOLEAN DEFAULT true
 );
 
 -- Crypto wallet connections table
@@ -734,4 +735,66 @@ CREATE INDEX idx_balances_user_id ON balances(user_id);
 CREATE INDEX idx_balance_logs_user_id ON balance_logs(user_id);
 CREATE INDEX idx_balance_logs_balance_id ON balance_logs(balance_id);
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+
+-- GrooveTech integration tables
+CREATE TABLE groove_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id VARCHAR(255) UNIQUE NOT NULL,
+    session_id VARCHAR(255),
+    balance DECIMAL(20,8) NOT NULL DEFAULT 0,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    last_activity TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE groove_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id VARCHAR(255) UNIQUE NOT NULL,
+    account_id VARCHAR(255) NOT NULL REFERENCES groove_accounts(account_id) ON DELETE CASCADE,
+    session_id VARCHAR(255),
+    amount DECIMAL(20,8) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'completed',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    metadata JSONB,
+    is_test_transaction BOOLEAN DEFAULT true
+);
+
+CREATE TABLE groove_game_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id VARCHAR(255) UNIQUE NOT NULL,
+    account_id VARCHAR(255) NOT NULL REFERENCES groove_accounts(account_id) ON DELETE CASCADE,
+    game_id VARCHAR(255) NOT NULL,
+    balance DECIMAL(20,8) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_activity TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    is_test_game_session BOOLEAN DEFAULT true
+);
+
+CREATE TABLE game_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id VARCHAR(255) UNIQUE NOT NULL,
+    game_id VARCHAR(255) NOT NULL,
+    device_type VARCHAR(50) NOT NULL,
+    game_mode VARCHAR(50) NOT NULL,
+    home_url VARCHAR(500),
+    exit_url VARCHAR(500),
+    history_url VARCHAR(500),
+    license_type VARCHAR(100),
+    is_test_account BOOLEAN DEFAULT true,
+    reality_check_elapsed INTEGER DEFAULT 0,
+    reality_check_interval INTEGER DEFAULT 60,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    last_activity TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
 CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id); 

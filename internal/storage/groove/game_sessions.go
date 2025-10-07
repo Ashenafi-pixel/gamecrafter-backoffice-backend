@@ -30,6 +30,15 @@ func NewGameSessionStorage(db *persistencedb.PersistenceDB) GameSessionStorage {
 }
 
 func (s *GameSessionStorageImpl) CreateGameSession(ctx context.Context, userID uuid.UUID, gameID, deviceType, gameMode string) (*dto.GameSession, error) {
+	// First, get the user's test account status
+	var isTestAccount bool
+	err := s.db.GetPool().QueryRow(ctx,
+		"SELECT is_test_account FROM users WHERE id = $1", userID).Scan(&isTestAccount)
+	if err != nil {
+		// Default to true (test account) if we can't fetch the status
+		isTestAccount = true
+	}
+
 	query := `
 		INSERT INTO game_sessions (user_id, game_id, device_type, game_mode, home_url, exit_url, history_url, license_type, is_test_account, reality_check_elapsed, reality_check_interval)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -41,15 +50,15 @@ func (s *GameSessionStorageImpl) CreateGameSession(ctx context.Context, userID u
 	var exitURL sql.NullString
 	var historyURL sql.NullString
 
-	err := s.db.GetPool().QueryRow(ctx, query,
+	err = s.db.GetPool().QueryRow(ctx, query,
 		userID, gameID, deviceType, gameMode,
 		"https://tucanbit.tv",         // home_url
 		"https://tucanbit.tv",         // exit_url
 		"https://tucanbit.tv/history", // history_url
-		"Curacao",                             // license_type
-		false,                                 // is_test_account
-		0,                                     // reality_check_elapsed
-		60,                                    // reality_check_interval
+		"Curacao",                     // license_type
+		isTestAccount,                 // is_test_account from database
+		0,                             // reality_check_elapsed
+		60,                            // reality_check_interval
 	).Scan(
 		&session.ID,
 		&session.SessionID,

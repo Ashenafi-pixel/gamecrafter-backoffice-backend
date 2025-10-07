@@ -504,13 +504,23 @@ func (s *GrooveStorageImpl) CreateGameSession(ctx context.Context, session dto.G
 		zap.String("session_id", session.SessionID),
 		zap.String("game_id", session.GameID))
 
+	// Get the user's test account status from the account
+	var isTestGameSession bool
+	err := s.db.GetPool().QueryRow(ctx,
+		"SELECT u.is_test_account FROM users u JOIN groove_accounts ga ON u.id = ga.user_id WHERE ga.account_id = $1",
+		session.AccountID).Scan(&isTestGameSession)
+	if err != nil {
+		// Default to true (test account) if we can't fetch the status
+		isTestGameSession = true
+	}
+
 	query := `
-		INSERT INTO groove_game_sessions (id, session_id, account_id, game_id, balance, currency, status, created_at, expires_at, last_activity)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO groove_game_sessions (id, session_id, account_id, game_id, balance, currency, status, created_at, expires_at, last_activity, is_test_game_session)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at, expires_at, last_activity`
 
 	var createdAt, expiresAt, lastActivity time.Time
-	err := s.db.GetPool().QueryRow(ctx, query,
+	err = s.db.GetPool().QueryRow(ctx, query,
 		uuid.New(), // Internal ID
 		session.SessionID,
 		session.AccountID,
@@ -521,6 +531,7 @@ func (s *GrooveStorageImpl) CreateGameSession(ctx context.Context, session dto.G
 		session.CreatedAt,
 		session.ExpiresAt,
 		session.LastActivity,
+		isTestGameSession, // is_test_game_session from database
 	).Scan(&createdAt, &expiresAt, &lastActivity)
 
 	if err != nil {
@@ -563,8 +574,8 @@ func (s *GrooveStorageImpl) EndGameSession(ctx context.Context, sessionID string
 func (s *GrooveStorageImpl) GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
 	s.logger.Info("Getting user balance", zap.String("user_id", userID.String()))
 
-	// Get balance from main balances table (source of truth) - using real_money
-	query := `SELECT real_money FROM balances WHERE user_id = $1 AND currency = 'USD' LIMIT 1`
+	// Get balance from main balances table (source of truth) - using amount_cents
+	query := `SELECT amount_cents FROM balances WHERE user_id = $1 AND currency_code = 'USD' LIMIT 1`
 
 	var balanceCents int64
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&balanceCents)
@@ -661,9 +672,9 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	// Get current balance from main balances table - using real_money
 	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(real_money, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency = 'USD'
+		WHERE user_id = $1 AND currency_code = 'USD'
 	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
@@ -687,14 +698,13 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 
 	// Update main balances table - using real_money
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency, real_money, bonus_money, updated_at)
-		VALUES ($1, 'USD', $2, $3, NOW())
-		ON CONFLICT (user_id, currency)
+		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
+		VALUES ($1, 'USD', $2, NOW())
+		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
-			real_money = $2,
-			bonus_money = $3,
+			amount_cents = $2,
 			updated_at = NOW()
-	`, userID, newBalanceCents, newBalance)
+	`, userID, newBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -750,9 +760,9 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	// Get current balance from main balances table - using real_money
 	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(real_money, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency = 'USD'
+		WHERE user_id = $1 AND currency_code = 'USD'
 	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
@@ -768,14 +778,13 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 
 	// Update main balances table - using real_money
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency, real_money, bonus_money, updated_at)
-		VALUES ($1, 'USD', $2, $3, NOW())
-		ON CONFLICT (user_id, currency)
+		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
+		VALUES ($1, 'USD', $2, NOW())
+		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
-			real_money = $2,
-			bonus_money = $3,
+			amount_cents = $2,
 			updated_at = NOW()
-	`, userID, newBalanceCents, newBalance)
+	`, userID, newBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -821,6 +830,16 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		zap.String("account_transaction_id", transaction.AccountTransactionID),
 		zap.String("transaction_type", transactionType))
 
+	// Get the user's test account status
+	var isTestTransaction bool
+	err := s.db.GetPool().QueryRow(ctx,
+		"SELECT u.is_test_account FROM users u JOIN groove_accounts ga ON u.id = ga.user_id WHERE ga.account_id = $1",
+		transaction.AccountID).Scan(&isTestTransaction)
+	if err != nil {
+		// Default to true (test account) if we can't fetch the status
+		isTestTransaction = true
+	}
+
 	// Store transaction metadata in JSONB format according to existing table structure
 	metadata := map[string]interface{}{
 		"account_transaction_id": transaction.AccountTransactionID,
@@ -832,17 +851,18 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		"user_id":                transaction.UserID.String(),
 	}
 
-	_, err := s.db.GetPool().Exec(ctx, `
+	_, err = s.db.GetPool().Exec(ctx, `
 		INSERT INTO groove_transactions (
-			transaction_id, account_id, session_id, amount, currency, type, status, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			transaction_id, account_id, session_id, amount, currency, type, status, metadata, is_test_transaction
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (transaction_id) DO UPDATE SET
 			type = EXCLUDED.type,
 			amount = EXCLUDED.amount,
 			metadata = EXCLUDED.metadata,
+			is_test_transaction = EXCLUDED.is_test_transaction,
 			created_at = EXCLUDED.created_at
 	`, transaction.TransactionID, transaction.AccountID, transaction.GameSessionID,
-		transaction.BetAmount, "USD", transactionType, "completed", metadata)
+		transaction.BetAmount, "USD", transactionType, "completed", metadata, isTestTransaction)
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		return fmt.Errorf("failed to store transaction: %w", err)
@@ -1118,9 +1138,9 @@ func (s *GrooveStorageImpl) ReconcileBalances(ctx context.Context, userID uuid.U
 	// Get main balance (source of truth) - using real_money
 	var mainBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(real_money, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency = 'USD'
+		WHERE user_id = $1 AND currency_code = 'USD'
 	`, userID).Scan(&mainBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get main balance", zap.Error(err))

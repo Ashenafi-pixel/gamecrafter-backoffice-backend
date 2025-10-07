@@ -71,6 +71,7 @@ type User interface {
 	CheckUserExistsByPhoneNumber(ctx context.Context, phone string) (bool, error)
 	UpdateUserVerificationStatus(ctx context.Context, userID uuid.UUID, verified bool) (dto.User, error)
 	ReSendVerificationOTP(ctx context.Context, phoneNumber string) (*dto.ForgetPasswordRes, error)
+	CheckUserExistsByUsername(ctx context.Context, username string) (bool, error)
 }
 
 type Balance interface {
