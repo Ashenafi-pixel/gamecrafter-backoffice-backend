@@ -167,7 +167,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			bet_amount, win_amount, net_result, balance_before, balance_after,
 			payment_method, external_transaction_id, metadata, created_at, updated_at
 		FROM transactions
-		WHERE user_id = ?
+		WHERE user_id = ? AND amount > 0
 	`
 
 	args := []interface{}{userID.String()}
@@ -456,7 +456,7 @@ func (s *AnalyticsStorageImpl) GetGameTransactions(ctx context.Context, gameID s
 			bet_amount, win_amount, net_result, balance_before, balance_after,
 			payment_method, external_transaction_id, metadata, created_at, updated_at
 		FROM transactions
-		WHERE game_id = ?
+		WHERE game_id = ? AND amount > 0
 	`
 
 	args := []interface{}{gameID}

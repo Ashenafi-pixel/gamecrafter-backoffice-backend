@@ -2,6 +2,7 @@ package balance
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -84,21 +85,62 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 }
 
 func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto.Balance) (dto.Balance, bool, error) {
-	blc, err := b.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:   getBalanceReq.UserId,
-		Currency: getBalanceReq.CurrencyCode,
-	})
-	if err != nil && err.Error() != dto.ErrNoRows {
-		b.log.Error("unable to make get balance request using user_id")
+	query := `SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM balances WHERE user_id = $1 AND currency_code = $2`
+	row := b.db.GetPool().QueryRow(ctx, query, getBalanceReq.UserId, getBalanceReq.CurrencyCode)
+
+	var id uuid.UUID
+	var userID uuid.UUID
+	var currencyCode string
+	var amountCents int64
+	var amountUnits decimal.NullDecimal
+	var reservedCents int64
+	var reservedUnits decimal.NullDecimal
+	var updatedAt sql.NullTime
+
+	err := row.Scan(&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dto.Balance{}, false, nil
+		}
+		b.log.Error("unable to make get balance request using user_id", zap.Error(err), zap.Any("getBalanceReq", getBalanceReq))
 		err = errors.ErrUnableToGet.Wrap(err, "unable to make get balance request using user_id", zap.Error(err), zap.Any("getBalanceReq", getBalanceReq))
 		return dto.Balance{}, false, err
-
-	} else if err != nil && err.Error() == dto.ErrNoRows {
-		return dto.Balance{}, false, nil
 	}
 
-	return convertDBBalanceToDTO(blc), true, nil
+	// Convert database fields to DTO
+	var realMoney decimal.Decimal
+	if amountUnits.Valid {
+		realMoney = amountUnits.Decimal
+	} else {
+		realMoney = decimal.Zero
+	}
 
+	var bonusMoney decimal.Decimal
+	if reservedUnits.Valid {
+		bonusMoney = reservedUnits.Decimal
+	} else {
+		bonusMoney = decimal.Zero
+	}
+
+	var points int32
+	points = int32(reservedCents)
+
+	var updateAt time.Time
+	if updatedAt.Valid {
+		updateAt = updatedAt.Time
+	}
+
+	balance := dto.Balance{
+		ID:           id,
+		UserId:       userID,
+		CurrencyCode: currencyCode,
+		RealMoney:    realMoney,
+		BonusMoney:   bonusMoney,
+		Points:       points,
+		UpdateAt:     updateAt,
+	}
+
+	return balance, true, nil
 }
 
 func (b *balance) UpdateBalance(ctx context.Context, updatedBalance dto.Balance) (dto.Balance, error) {
@@ -121,15 +163,73 @@ func (b *balance) UpdateBalance(ctx context.Context, updatedBalance dto.Balance)
 
 func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]dto.Balance, error) {
 	balances := []dto.Balance{}
-	userBalances, err := b.db.Queries.GetUserBalancesByUserID(ctx, userID)
-	if err != nil && err.Error() != dto.ErrNoRows {
+
+	query := `SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM balances WHERE user_id = $1`
+	rows, err := b.db.GetPool().Query(ctx, query, userID)
+	if err != nil {
 		b.log.Error(err.Error(), zap.Any("userID", userID))
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return []dto.Balance{}, err
 	}
-	for _, userBalance := range userBalances {
-		balances = append(balances, convertDBBalanceToDTO(userBalance))
+	defer rows.Close()
+
+	for rows.Next() {
+		var id uuid.UUID
+		var userID uuid.UUID
+		var currencyCode string
+		var amountCents int64
+		var amountUnits decimal.NullDecimal
+		var reservedCents int64
+		var reservedUnits decimal.NullDecimal
+		var updatedAt sql.NullTime
+
+		err := rows.Scan(&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt)
+		if err != nil {
+			b.log.Error("Error scanning balance row", zap.Error(err))
+			continue
+		}
+
+		// Convert database fields to DTO
+		var realMoney decimal.Decimal
+		if amountUnits.Valid {
+			realMoney = amountUnits.Decimal
+		} else {
+			realMoney = decimal.Zero
+		}
+
+		var bonusMoney decimal.Decimal
+		if reservedUnits.Valid {
+			bonusMoney = reservedUnits.Decimal
+		} else {
+			bonusMoney = decimal.Zero
+		}
+
+		var points int32
+		points = int32(reservedCents)
+
+		var updateAt time.Time
+		if updatedAt.Valid {
+			updateAt = updatedAt.Time
+		}
+
+		balance := dto.Balance{
+			ID:           id,
+			UserId:       userID,
+			CurrencyCode: currencyCode,
+			RealMoney:    realMoney,
+			BonusMoney:   bonusMoney,
+			Points:       points,
+			UpdateAt:     updateAt,
+		}
+
+		balances = append(balances, balance)
 	}
+
+	if err := rows.Err(); err != nil {
+		b.log.Error("Error iterating balance rows", zap.Error(err))
+		return []dto.Balance{}, err
+	}
+
 	return balances, nil
 }
 

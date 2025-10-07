@@ -110,10 +110,10 @@ func (q *Queries) GetUserBalancesByUserID(ctx context.Context, userID uuid.UUID)
 			&i.ID,
 			&i.UserID,
 			&i.Currency,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
-		&i.UpdatedAt,
+			&i.RealMoney,
+			&i.BonusMoney,
+			&i.Points,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

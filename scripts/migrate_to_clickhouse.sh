@@ -34,8 +34,8 @@ print_error() {
 PG_HOST="localhost"
 PG_PORT="5433"
 PG_DB="tucanbit"
-PG_USER="postgres"
-PG_PASSWORD="password"
+PG_USER="tucanbit"
+PG_PASSWORD="5kj0YmV5FKKpU9D50B7yH5A"
 
 CH_HOST="localhost"
 CH_PORT="9000"
@@ -53,7 +53,9 @@ print_success "ClickHouse is ready!"
 
 # Initialize ClickHouse schema if not exists
 print_status "Initializing ClickHouse schema..."
+# Drop materialized view temporarily to avoid issues during migration
 docker exec -i tucanbit-clickhouse clickhouse-client --multiquery < clickhouse/schema.sql
+docker exec tucanbit-clickhouse clickhouse-client --query "DROP VIEW IF EXISTS daily_user_stats_mv"
 print_success "Schema initialized!"
 
 # Function to migrate users/registrations
@@ -82,8 +84,8 @@ migrate_users() {
             'registration' as payment_method,
             id::text as external_transaction_id,
             json_build_object('registration_method', 'direct', 'email', email, 'phone', phone_number)::text as metadata,
-            created_at,
-            updated_at
+            to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+            to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
         FROM users
         WHERE created_at IS NOT NULL
     ) TO STDOUT WITH CSV HEADER" > /tmp/users_export.csv
@@ -105,15 +107,11 @@ migrate_balances() {
         SELECT 
             id::text as user_id,
             CASE 
-                WHEN transaction_type = 'deposit' THEN 'deposit'
-                WHEN transaction_type = 'withdrawal' THEN 'withdrawal'
-                WHEN transaction_type = 'bet' THEN 'bet'
-                WHEN transaction_type = 'win' THEN 'win'
-                WHEN transaction_type = 'bonus' THEN 'bonus'
-                WHEN transaction_type = 'cashback' THEN 'cashback'
+                WHEN component = 'real_money' THEN 'deposit'
+                WHEN component = 'bonus_money' THEN 'bonus'
                 ELSE 'other'
             END as transaction_type,
-            amount,
+            change_units as amount,
             'USD' as currency,
             'completed' as status,
             NULL as game_id,
@@ -121,22 +119,18 @@ migrate_balances() {
             NULL as provider,
             NULL as session_id,
             NULL as round_id,
-            CASE WHEN transaction_type = 'bet' THEN amount ELSE NULL END as bet_amount,
-            CASE WHEN transaction_type = 'win' THEN amount ELSE NULL END as win_amount,
-            CASE 
-                WHEN transaction_type = 'bet' THEN -amount
-                WHEN transaction_type = 'win' THEN amount
-                ELSE amount
-            END as net_result,
-            balance_before,
-            balance_after,
-            payment_method,
-            external_transaction_id,
+            NULL as bet_amount,
+            NULL as win_amount,
+            change_units as net_result,
+            balance_after_units as balance_before,
+            balance_after_units as balance_after,
+            'balance_log' as payment_method,
+            transaction_id as external_transaction_id,
             json_build_object('balance_log', true, 'description', description)::text as metadata,
-            created_at,
-            updated_at
+            to_char(timestamp, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+            to_char(timestamp, 'YYYY-MM-DD HH24:MI:SS') as updated_at
         FROM balance_logs
-        WHERE created_at IS NOT NULL
+        WHERE timestamp IS NOT NULL
     ) TO STDOUT WITH CSV HEADER" > /tmp/balances_export.csv
 
     # Import to ClickHouse
@@ -156,9 +150,9 @@ migrate_groove_transactions() {
         SELECT 
             account_id as user_id,
             CASE 
-                WHEN transaction_type = 'wager' THEN 'groove_bet'
-                WHEN transaction_type = 'result' THEN 'groove_win'
-                WHEN transaction_type = 'rollback' THEN 'refund'
+                WHEN type = 'wager' THEN 'groove_bet'
+                WHEN type = 'result' THEN 'groove_win'
+                WHEN type = 'rollback' THEN 'refund'
                 ELSE 'groove_bet'
             END as transaction_type,
             bet_amount as amount,
@@ -170,10 +164,10 @@ migrate_groove_transactions() {
             game_session_id as session_id,
             round_id,
             bet_amount,
-            CASE WHEN transaction_type = 'result' THEN bet_amount ELSE NULL END as win_amount,
+            CASE WHEN type = 'result' THEN bet_amount ELSE NULL END as win_amount,
             CASE 
-                WHEN transaction_type = 'wager' THEN -bet_amount
-                WHEN transaction_type = 'result' THEN bet_amount
+                WHEN type = 'wager' THEN -bet_amount
+                WHEN type = 'result' THEN bet_amount
                 ELSE bet_amount
             END as net_result,
             0 as balance_before,
@@ -181,8 +175,8 @@ migrate_groove_transactions() {
             'groove' as payment_method,
             account_transaction_id as external_transaction_id,
             json_build_object('groove_transaction', true, 'device', device, 'status', status)::text as metadata,
-            created_at,
-            created_at as updated_at
+            to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at,
+            to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at
         FROM groove_transactions
         WHERE created_at IS NOT NULL
     ) TO STDOUT WITH CSV HEADER" > /tmp/groove_export.csv
@@ -203,14 +197,18 @@ create_balance_snapshots() {
     COPY (
         SELECT 
             user_id,
-            amount as balance,
+            change_units as balance,
             'USD' as currency,
-            created_at as snapshot_time,
+            to_char(timestamp, 'YYYY-MM-DD HH24:MI:SS') as snapshot_time,
             id::text as transaction_id,
-            transaction_type
+            CASE 
+                WHEN component = 'real_money' THEN 'deposit'
+                WHEN component = 'bonus_money' THEN 'bonus'
+                ELSE 'other'
+            END as transaction_type
         FROM balance_logs
-        WHERE created_at IS NOT NULL
-        ORDER BY user_id, created_at
+        WHERE timestamp IS NOT NULL
+        ORDER BY user_id, timestamp
     ) TO STDOUT WITH CSV HEADER" > /tmp/balance_snapshots.csv
 
     # Import to ClickHouse
@@ -243,13 +241,22 @@ create_session_analytics() {
             AVG(CASE WHEN transaction_type IN ('bet', 'groove_bet') THEN amount END) as avg_bet_amount,
             MAX(CASE WHEN transaction_type IN ('bet', 'groove_bet') THEN amount END) as max_bet_amount,
             MIN(CASE WHEN transaction_type IN ('bet', 'groove_bet') THEN amount END) as min_bet_amount,
-            MAX(created_at) as last_activity
+            MAX(to_char(created_at, 'YYYY-MM-DD HH24:MI:SS')) as last_activity
         FROM (
-            SELECT user_id, transaction_type, amount, game_id, session_id, created_at
+            SELECT user_id::text as user_id, 
+                   CASE 
+                       WHEN component = 'real_money' THEN 'deposit'
+                       WHEN component = 'bonus_money' THEN 'bonus'
+                       ELSE 'other'
+                   END as transaction_type, 
+                   change_units as amount, 
+                   NULL as game_id, 
+                   NULL as session_id, 
+                   timestamp as created_at
             FROM balance_logs
             UNION ALL
             SELECT account_id as user_id, 
-                   CASE WHEN transaction_type = 'wager' THEN 'groove_bet' ELSE 'groove_win' END as transaction_type,
+                   CASE WHEN type = 'wager' THEN 'groove_bet' ELSE 'groove_win' END as transaction_type,
                    bet_amount as amount, game_id, game_session_id as session_id, created_at
             FROM groove_transactions
         ) all_transactions
@@ -279,6 +286,32 @@ main() {
     
     # Clean up temporary files
     rm -f /tmp/*_export.csv /tmp/*_snapshots.csv /tmp/user_analytics.csv
+    
+    # Recreate materialized view after migration
+    print_status "Recreating materialized views..."
+    docker exec tucanbit-clickhouse clickhouse-client --query "
+    CREATE MATERIALIZED VIEW IF NOT EXISTS daily_user_stats_mv
+    TO daily_user_stats
+    AS SELECT
+        user_id,
+        date,
+        sumIf(amount, transaction_type = 'deposit') as total_deposits,
+        sumIf(amount, transaction_type = 'withdrawal') as total_withdrawals,
+        sumIf(amount, transaction_type IN ('bet', 'groove_bet')) as total_bets,
+        sumIf(amount, transaction_type IN ('win', 'groove_win')) as total_wins,
+        sumIf(amount, transaction_type = 'bonus') as total_bonuses,
+        sumIf(amount, transaction_type = 'cashback') as total_cashback,
+        count() as transaction_count,
+        uniqExact(game_id) as unique_games_played,
+        uniqExact(session_id) as session_count,
+        avgIf(amount, transaction_type IN ('bet', 'groove_bet')) as avg_bet_amount,
+        maxIf(amount, transaction_type IN ('bet', 'groove_bet')) as max_bet_amount,
+        minIf(amount, transaction_type IN ('bet', 'groove_bet')) as min_bet_amount,
+        max(created_at) as last_activity
+    FROM transactions
+    GROUP BY user_id, date;"
+    
+    print_success "Materialized views recreated!"
     
     print_success "Data migration completed successfully!"
     

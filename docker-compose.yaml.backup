@@ -1,5 +1,6 @@
 name: tucanbit
 
+
 services:
  create-kafka-topic:
    image: confluentinc/cp-kafka:6.2.0
@@ -19,20 +20,21 @@ services:
    networks:
      - app-network
 
+
  app:
    build: .
    container_name: tucanbit-app
    ports:
      - "8080:8080"
    command: sh -c "
-     ./wait-for-it.sh db:5432 --
-     ./wait-for-it.sh kafka:9092 --
-     ./wait-for-it.sh tucanbit-clickhouse:9000 --
-     sleep 5;
-     echo '=== ENVIRONMENT VARIABLES ===';
-     printenv | grep KAFKA;
-     echo '=== STARTING APPLICATION ===';
-     ./tucanbit"
+    ./wait-for-it.sh db:5432 --
+    ./wait-for-it.sh kafka:9092 --
+    ./wait-for-it.sh tucanbit-clickhouse:9000 --
+    sleep 5;
+    echo '=== ENVIRONMENT VARIABLES ===';
+    printenv | grep KAFKA;
+    echo '=== STARTING APPLICATION ===';
+    ./tucanbit"
    environment:
      # Application Configuration
      DB_URL: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable"
@@ -74,23 +76,24 @@ services:
      - ./internal/constant/query/schemas:/app/internal/constant/query/schemas
    networks:
      - app-network
-   depends_on:
-     create-kafka-topic:
-        condition: service_completed_successfully
-     kafka:
-       condition: service_healthy
-     db:
-       condition: service_healthy
-     redis:
-       condition: service_healthy
-     clickhouse:
-       condition: service_healthy
+  depends_on:
+    create-kafka-topic:
+      condition: service_completed_successfully
+    kafka:
+      condition: service_healthy
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    clickhouse:
+      condition: service_healthy
    healthcheck:
      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
      interval: 10s
      timeout: 5s
      retries: 5
      start_period: 30s
+
 
  db:
    image: postgres:13
@@ -111,6 +114,7 @@ services:
    networks:
      - app-network
 
+
  redis:
    image: redis:6.2
    container_name: redis
@@ -125,6 +129,7 @@ services:
      - redis_data:/data
    networks:
      - app-network
+
 
  zookeeper:
    image: zookeeper:3.8.1
@@ -153,6 +158,7 @@ services:
        limits:
          memory: 1G
          cpus: '0.5'
+
 
  kafka:
    image: confluentinc/cp-kafka:6.2.0
@@ -192,6 +198,7 @@ services:
          memory: 1G
          cpus: '0.5'
 
+
  clickhouse:
    image: clickhouse/clickhouse-server:25.8
    container_name: tucanbit-clickhouse
@@ -224,6 +231,7 @@ volumes:
  redis_data:
  kafka_data:
  clickhouse_data:
+
 
 networks:
  app-network:
