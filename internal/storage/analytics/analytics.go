@@ -327,6 +327,13 @@ func (s *AnalyticsStorageImpl) GetUserAnalytics(ctx context.Context, userID uuid
 }
 
 func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error) {
+	s.logger.Info("GetRealTimeStats called - checking ClickHouse connection")
+
+	if s.clickhouse == nil {
+		s.logger.Error("ClickHouse client is nil")
+		return nil, fmt.Errorf("ClickHouse client is not initialized")
+	}
+
 	query := `
 		SELECT 
 			toUInt32(count()) as total_transactions,
@@ -341,9 +348,9 @@ func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealT
 			toUInt32(uniqExact(user_id)) as active_users,
 			toUInt32(uniqExact(game_id)) as active_games
 		FROM tucanbit_analytics.transactions
-		WHERE created_at >= now() - INTERVAL 1 HOUR
 	`
 
+	s.logger.Info("Executing ClickHouse query", zap.String("query", query))
 	row := s.clickhouse.QueryRow(ctx, query)
 
 	var stats dto.RealTimeStats
@@ -361,8 +368,15 @@ func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealT
 		&stats.ActiveGames,
 	)
 	if err != nil {
+		s.logger.Error("Failed to scan real-time stats", zap.Error(err))
 		return nil, fmt.Errorf("failed to scan real-time stats: %w", err)
 	}
+
+	s.logger.Info("Real-time stats scanned successfully",
+		zap.Uint32("totalTransactions", stats.TotalTransactions),
+		zap.Uint32("depositsCount", stats.DepositsCount),
+		zap.String("totalDeposits", stats.TotalDeposits.String()),
+		zap.Uint32("activeUsers", stats.ActiveUsers))
 
 	stats.Timestamp = time.Now()
 	stats.NetRevenue = stats.TotalBets.Sub(stats.TotalWins)
@@ -1238,6 +1252,13 @@ func (s *AnalyticsStorageImpl) InsertBalanceSnapshot(ctx context.Context, snapsh
 }
 
 func (s *AnalyticsStorageImpl) GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error) {
+	s.logger.Info("GetTransactionSummary called - checking ClickHouse connection")
+
+	if s.clickhouse == nil {
+		s.logger.Error("ClickHouse client is nil in GetTransactionSummary")
+		return nil, fmt.Errorf("ClickHouse client is not initialized")
+	}
+
 	query := `
 		SELECT 
 			count() as total_transactions,
@@ -1251,6 +1272,7 @@ func (s *AnalyticsStorageImpl) GetTransactionSummary(ctx context.Context) (*dto.
 		FROM tucanbit_analytics.transactions
 	`
 
+	s.logger.Info("Executing ClickHouse query for transaction summary", zap.String("query", query))
 	row := s.clickhouse.QueryRow(ctx, query)
 
 	var stats dto.TransactionSummaryStats
@@ -1269,11 +1291,13 @@ func (s *AnalyticsStorageImpl) GetTransactionSummary(ctx context.Context) (*dto.
 		return nil, fmt.Errorf("failed to scan transaction summary stats: %w", err)
 	}
 
-	s.logger.Debug("Transaction summary stats retrieved",
+	s.logger.Info("Transaction summary stats retrieved successfully",
 		zap.Int("totalTransactions", stats.TotalTransactions),
 		zap.String("totalVolume", stats.TotalVolume.String()),
 		zap.Int("successfulTransactions", stats.SuccessfulTransactions),
-		zap.Int("failedTransactions", stats.FailedTransactions))
+		zap.Int("failedTransactions", stats.FailedTransactions),
+		zap.Int("depositCount", stats.DepositCount),
+		zap.Int("withdrawalCount", stats.WithdrawalCount))
 
 	return &stats, nil
 }

@@ -141,6 +141,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Exchange: moduleExchange.Init(persistence.Exchange, log),
 		Bet: bet.Init(
 			persistence.Bet,
+			persistence.Analytics,
 			persistence.Balance,
 			log,
 			decimal.NewFromInt(int64(viper.GetInt("bet.max"))),

@@ -155,6 +155,8 @@ func (b *bet) GetGameSummary(ctx context.Context) (dto.GetGameSummaryResp, error
 }
 
 func (b *bet) GetTransactionSummary(ctx context.Context) (dto.GetTransactionSummaryResp, error) {
+	b.log.Info("GetTransactionSummary called in bet module")
+
 	// Get transaction data from available sources
 	var totalTransactions int
 	var totalVolume float64
@@ -170,6 +172,9 @@ func (b *bet) GetTransactionSummary(ctx context.Context) (dto.GetTransactionSumm
 	if err != nil {
 		b.log.Error("Failed to get airtime stats", zap.Error(err))
 	} else {
+		b.log.Info("Airtime stats retrieved",
+			zap.Int32("total", airtimeStats.Total),
+			zap.String("totalSpendBucks", airtimeStats.TotalSpendBucks.String()))
 		totalTransactions += int(airtimeStats.Total)
 		totalVolume += float64(airtimeStats.TotalSpendBucks.InexactFloat64())
 		successfulTransactions += int(airtimeStats.Total) // Assuming all airtime transactions are successful
@@ -177,11 +182,16 @@ func (b *bet) GetTransactionSummary(ctx context.Context) (dto.GetTransactionSumm
 
 	// Get real transaction data from ClickHouse directly
 	// This is a temporary solution until analytics storage is properly integrated
+	b.log.Info("Calling getClickHouseTransactionStats")
 	clickhouseStats, err := b.getClickHouseTransactionStats(ctx)
 	if err != nil {
 		b.log.Error("Failed to get ClickHouse transaction stats", zap.Error(err))
 		// Continue without ClickHouse data rather than failing completely
 	} else {
+		b.log.Info("ClickHouse stats retrieved",
+			zap.Int("totalTransactions", clickhouseStats.TotalTransactions),
+			zap.Float64("totalVolume", clickhouseStats.TotalVolume),
+			zap.Int("depositCount", clickhouseStats.DepositCount))
 		totalTransactions += clickhouseStats.TotalTransactions
 		totalVolume += clickhouseStats.TotalVolume
 		successfulTransactions += clickhouseStats.SuccessfulTransactions
@@ -237,19 +247,55 @@ type ClickHouseTransactionStats struct {
 	WinCount               int     `json:"win_count"`
 }
 
-// getClickHouseTransactionStats queries ClickHouse directly for transaction statistics
+// getClickHouseTransactionStats queries ClickHouse via analytics storage for transaction statistics
 func (b *bet) getClickHouseTransactionStats(ctx context.Context) (*ClickHouseTransactionStats, error) {
-	// For now, return empty stats since we don't have ClickHouse connection in bet storage
-	// This is a placeholder that can be implemented when ClickHouse integration is complete
+	b.log.Info("getClickHouseTransactionStats called")
+
+	if b.analyticsStorage == nil {
+		b.log.Error("Analytics storage is nil in bet module")
+		return &ClickHouseTransactionStats{
+			TotalTransactions:      0,
+			TotalVolume:            0,
+			SuccessfulTransactions: 0,
+			FailedTransactions:     0,
+			DepositCount:           0,
+			WithdrawalCount:        0,
+			BetCount:               0,
+			WinCount:               0,
+		}, nil
+	}
+
+	b.log.Info("Calling analytics storage GetTransactionSummary")
+	// Get transaction summary from analytics storage
+	summary, err := b.analyticsStorage.GetTransactionSummary(ctx)
+	if err != nil {
+		b.log.Error("Failed to get transaction summary from analytics storage", zap.Error(err))
+		return &ClickHouseTransactionStats{
+			TotalTransactions:      0,
+			TotalVolume:            0,
+			SuccessfulTransactions: 0,
+			FailedTransactions:     0,
+			DepositCount:           0,
+			WithdrawalCount:        0,
+			BetCount:               0,
+			WinCount:               0,
+		}, nil
+	}
+
+	b.log.Info("Transaction summary retrieved from analytics storage",
+		zap.Int("totalTransactions", summary.TotalTransactions),
+		zap.String("totalVolume", summary.TotalVolume.String()),
+		zap.Int("depositCount", summary.DepositCount))
+
 	return &ClickHouseTransactionStats{
-		TotalTransactions:      0,
-		TotalVolume:            0,
-		SuccessfulTransactions: 0,
-		FailedTransactions:     0,
-		DepositCount:           0,
-		WithdrawalCount:        0,
-		BetCount:               0,
-		WinCount:               0,
+		TotalTransactions:      summary.TotalTransactions,
+		TotalVolume:            summary.TotalVolume.InexactFloat64(),
+		SuccessfulTransactions: summary.SuccessfulTransactions,
+		FailedTransactions:     summary.FailedTransactions,
+		DepositCount:           summary.DepositCount,
+		WithdrawalCount:        summary.WithdrawalCount,
+		BetCount:               summary.BetCount,
+		WinCount:               summary.WinCount,
 	}, nil
 }
 

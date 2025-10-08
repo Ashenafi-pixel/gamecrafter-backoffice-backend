@@ -102,6 +102,12 @@ func Initiate() {
 		Password: "tucanbit_clickhouse_password",
 		Timeout:  30 * time.Second,
 	}
+	logger.Info("ClickHouse config",
+		zap.String("host", clickhouseConfig.Host),
+		zap.Int("port", clickhouseConfig.Port),
+		zap.String("database", clickhouseConfig.Database),
+		zap.String("username", clickhouseConfig.Username))
+
 	clickhouseClient, err := clickhouse.NewClickHouseClient(clickhouseConfig, logger)
 	if err != nil {
 		logger.Error("Failed to initialize ClickHouse client", zap.Error(err))
@@ -109,6 +115,17 @@ func Initiate() {
 		clickhouseClient = nil
 	} else {
 		logger.Info("ClickHouse client initialized successfully")
+
+		// Test the connection
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := clickhouseClient.HealthCheck(ctx); err != nil {
+			logger.Error("ClickHouse health check failed", zap.Error(err))
+			clickhouseClient = nil
+		} else {
+			logger.Info("ClickHouse health check passed")
+		}
 	}
 
 	// Initialize userWS first
