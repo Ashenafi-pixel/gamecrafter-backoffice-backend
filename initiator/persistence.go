@@ -31,6 +31,7 @@ import (
 	"github.com/tucanbit/internal/storage/sports"
 	"github.com/tucanbit/internal/storage/squads"
 	"github.com/tucanbit/internal/storage/user"
+	"github.com/tucanbit/internal/storage/twofactor"
 	"github.com/tucanbit/platform/clickhouse"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
@@ -67,11 +68,20 @@ type Persistence struct {
 	Cashback             cashback.CashbackStorage
 	Groove               groove.GrooveStorage
 	GameSession          groove.GameSessionStorage
+	TwoFactor           twofactor.TwoFactorStorage
 	Analytics            storage.Analytics
 	Database             *persistencedb.PersistenceDB
 }
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS, clickhouseClient *clickhouse.ClickHouseClient) *Persistence {
+	// Create analytics storage from clickhouse client
+	var analyticsStorageInstance storage.Analytics
+	if clickhouseClient != nil {
+		analyticsStorageInstance = analyticsStorage.NewAnalyticsStorage(clickhouseClient, log)
+	} else {
+		analyticsStorageInstance = nil
+	}
+
 	return &Persistence{
 		User:                 user.Init(persistencdb, log),
 		OperationalGroup:     operationalgroup.Init(persistencdb, log),
@@ -80,7 +90,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Balance:              balance.Init(persistencdb, log),
 		BalanageLogs:         balancelogs.Init(persistencdb, log),
 		Exchange:             exchange.Init(persistencdb, log),
-		Bet:                  bet.Init(persistencdb, log),
+		Bet:                  bet.Init(persistencdb, analyticsStorageInstance, log),
 		Departments:          departements.Init(persistencdb, log),
 		Performance:          performance.Init(persistencdb, log),
 		Authz:                authz.Init(gormDB, log, persistencdb),
@@ -101,6 +111,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Cashback:             cashback.NewCashbackStorage(persistencdb, log, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log)),
 		Groove:               groove.NewGrooveStorage(persistencdb, userWS, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log), log),
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
+		TwoFactor:           twofactor.Init(persistencdb, log),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		Database:             persistencdb,
 	}

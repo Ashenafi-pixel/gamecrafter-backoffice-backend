@@ -35,7 +35,7 @@
         <tucanbit_cluster>
             <shard>
                 <replica>
-                    <host>localhost</host>
+                    <host>tucanbit-clickhouse</host>
                     <port>9000</port>
                 </replica>
             </shard>
@@ -44,7 +44,7 @@
 
     <zookeeper>
         <node>
-            <host>localhost</host>
+            <host>zookeeper</host>
             <port>2181</port>
         </node>
     </zookeeper>

@@ -17,12 +17,14 @@ import (
 type authz struct {
 	Log          *zap.Logger
 	authzStorage storage.Authz
+	userStorage  storage.User
 	enforcer     *casbin.Enforcer
 }
 
-func Init(log *zap.Logger, authzStorage storage.Authz, enforcer *casbin.Enforcer) module.Authz {
+func Init(log *zap.Logger, authzStorage storage.Authz, userStorage storage.User, enforcer *casbin.Enforcer) module.Authz {
 	a := &authz{
 		authzStorage: authzStorage,
+		userStorage:  userStorage,
 		Log:          log,
 		enforcer:     enforcer,
 	}
@@ -350,4 +352,8 @@ func (a *authz) GetUserRoles(ctx context.Context, userID uuid.UUID) (dto.UserRol
 	resp.UserID = userID
 	resp.Roles = roles
 	return resp, nil
+}
+
+func (a *authz) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
+	return a.userStorage.GetAllAdminUsers(ctx, req)
 }

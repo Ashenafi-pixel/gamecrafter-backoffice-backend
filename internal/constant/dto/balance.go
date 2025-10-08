@@ -60,7 +60,7 @@ type ManualFundReq struct {
 	Type          string          `json:"type" swaggerignore:"true"`
 	Amount        decimal.Decimal `json:"amount"`
 	Reason        string          `json:"reason"`
-	Currency      string          `json:"currency"`
+	Currency      string          `json:"currency,omitempty"` // Make currency optional
 	Note          string          `json:"note"`
 	CreatedAt     time.Time       `json:"created_at" swaggerignore:"true"`
 }

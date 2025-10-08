@@ -7,17 +7,18 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/types"
 	"github.com/tucanbit/platform/logger"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/IBM/sarama"
 	"go.uber.org/zap"
 )
 
 type KafkaClient interface {
 	RegisterKafkaEventHandler(EventType string, handler types.EventHandler)
-	Route(ctx context.Context, message kafka.Message)
+	Route(ctx context.Context, message *sarama.ConsumerMessage)
 	StartConsumer(ctx context.Context)
 	WriteMessage(ctx context.Context, topic, key string, value interface{}) error
 	Close() error
@@ -33,7 +34,8 @@ type kafkaController struct {
 	Logger           logger.Logger
 	topics           []string
 	eventHandlers    map[string]types.EventHandler
-	kafkaProducer    *kafka.Producer
+	kafkaProducer    sarama.AsyncProducer
+	kafkaConsumer    sarama.ConsumerGroup
 }
 
 func NewKafkaClient(bootStrapServer,
@@ -58,17 +60,69 @@ func NewKafkaClient(bootStrapServer,
 		eventHandlers:    make(map[string]types.EventHandler),
 	}
 
-	kf.kafkaProducer, err = kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": kf.BootstrapServer,
-		"sasl.username":     kf.ClusterAPIKey,
-		"sasl.password":     kf.ClusterAPISecret,
-		"security.protocol": kf.SecurityProtocol,
-		"sasl.mechanisms":   kf.Mechanisms,
-		"acks":              kf.Acks,
-	})
+	// Create Sarama configuration
+	config := sarama.NewConfig()
+	config.Version = sarama.V2_8_0_0
 
+	// Configure producer
+	config.Producer.RequiredAcks = func() sarama.RequiredAcks {
+		switch acks {
+		case "0":
+			return sarama.NoResponse
+		case "1":
+			return sarama.WaitForLocal
+		case "all":
+			return sarama.WaitForAll
+		default:
+			return sarama.WaitForAll
+		}
+	}()
+	config.Producer.MaxMessageBytes = 1000000 // 1MB
+	config.Producer.Compression = sarama.CompressionSnappy
+	config.Producer.Idempotent = true
+	config.Net.MaxOpenRequests = 1 // Required for idempotent producer
+
+	// Configure consumer group
+	config.Consumer.Group.Session.Timeout = 20 * time.Second
+	config.Consumer.Group.Heartbeat.Interval = 3 * time.Second
+	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+
+	// Configure SASL if credentials are provided
+	if ClusterAPIKey != "" && ClusterAPISecret != "" {
+		config.Net.SASL.Enable = true
+		config.Net.SASL.Mechanism = func() sarama.SASLMechanism {
+			switch Mechanisms {
+			case "PLAIN":
+				return sarama.SASLTypePlaintext
+			case "SCRAM-SHA-256":
+				return sarama.SASLTypeSCRAMSHA256
+			case "SCRAM-SHA-512":
+				return sarama.SASLTypeSCRAMSHA512
+			default:
+				return sarama.SASLTypePlaintext
+			}
+		}()
+		config.Net.SASL.User = ClusterAPIKey
+		config.Net.SASL.Password = ClusterAPISecret
+	}
+
+	// Initialize producer
+	kf.kafkaProducer, err = sarama.NewAsyncProducer([]string{bootStrapServer}, config)
 	if err != nil {
 		kf.Logger.Fatal(context.Background(), "Failed to create Kafka producer", zap.Error(err))
+	}
+
+	// Handle producer errors
+	go func() {
+		for err := range kf.kafkaProducer.Errors() {
+			kf.Logger.Error(context.Background(), "Kafka producer error", zap.Error(err))
+		}
+	}()
+
+	// Initialize consumer group
+	kf.kafkaConsumer, err = sarama.NewConsumerGroup([]string{bootStrapServer}, "tucanbit-group", config)
+	if err != nil {
+		kf.Logger.Fatal(context.Background(), "Failed to create Kafka consumer group", zap.Error(err))
 	}
 
 	go kf.StartConsumer(context.Background())
@@ -78,11 +132,10 @@ func NewKafkaClient(bootStrapServer,
 func (k *kafkaController) Close() error {
 	var err error
 	if k.kafkaProducer != nil {
-		k.kafkaProducer.Flush(15 * 1000)
 		k.kafkaProducer.Close()
-		if events := k.kafkaProducer.Events(); len(events) > 0 {
-			err = errors.ErrKafkaEventNotSupported.New("kafka producer had pending events during close")
-		}
+	}
+	if k.kafkaConsumer != nil {
+		err = k.kafkaConsumer.Close()
 	}
 	return err
 }
@@ -97,7 +150,6 @@ func (k *kafkaController) RegisterKafkaEventHandler(topic string, handler types.
 }
 
 func (k *kafkaController) WriteMessage(ctx context.Context, topic, key string, value interface{}) error {
-
 	if k.kafkaProducer == nil {
 		return errors.ErrKafkaEventNotSupported.New("Kafka producer is not initialized")
 	}
@@ -105,30 +157,26 @@ func (k *kafkaController) WriteMessage(ctx context.Context, topic, key string, v
 	if err != nil {
 		return errors.ErrInvalidUserInput.Wrap(err, "Failed to marshal message value to JSON")
 	}
-	deliveryChan := make(chan kafka.Event, 1)
-	err = k.kafkaProducer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Key:            []byte(key),
-		Value:          message,
-	}, deliveryChan)
-	if err != nil {
-		return errors.ErrKafkaEventNotSupported.Wrap(err, "Failed to produce message to Kafka")
-	}
-	e := <-deliveryChan
-	if msg, ok := e.(*kafka.Message); ok {
-		if msg.TopicPartition.Error != nil {
-			return errors.ErrKafkaEventNotSupported.Wrap(err, "Failed to deliver message to Kafka")
 
-		}
-		k.Logger.Info(ctx, "Message delivered to Kafka", zap.String("topic", topic), zap.String("key", key))
-	} else {
-		return errors.ErrKafkaEventNotSupported.Wrap(err, "Unexpected event type received from Kafka delivery channel")
+	msg := &sarama.ProducerMessage{
+		Topic: topic,
+		Key:   sarama.StringEncoder(key),
+		Value: sarama.ByteEncoder(message),
+		Headers: []sarama.RecordHeader{
+			{
+				Key:   []byte("timestamp"),
+				Value: []byte(time.Now().UTC().Format(time.RFC3339)),
+			},
+		},
 	}
+
+	k.kafkaProducer.Input() <- msg
+	k.Logger.Info(ctx, "Message sent to Kafka", zap.String("topic", topic), zap.String("key", key))
 	return nil
 }
 
-func (k *kafkaController) Route(ctx context.Context, message kafka.Message) {
-	eventType := string(*message.TopicPartition.Topic)
+func (k *kafkaController) Route(ctx context.Context, message *sarama.ConsumerMessage) {
+	eventType := message.Topic
 	if handler, exists := k.eventHandlers[eventType]; exists {
 		handled, err := handler(ctx, message.Value)
 		if err != nil {
@@ -140,47 +188,63 @@ func (k *kafkaController) Route(ctx context.Context, message kafka.Message) {
 		k.Logger.Warn(ctx, "No handler registered for event type", zap.String("event_type", eventType))
 	}
 }
+
 func (k *kafkaController) StartConsumer(ctx context.Context) {
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": k.BootstrapServer,
-		"sasl.username":     k.ClusterAPIKey,
-		"sasl.password":     k.ClusterAPISecret,
-		"security.protocol": k.SecurityProtocol,
-		"sasl.mechanisms":   k.Mechanisms,
-		"group.id":          "lottery.draw.sync",
-		"auto.offset.reset": "earliest",
-	})
-	if err != nil {
-		k.Logger.Fatal(ctx, "Failed to create consumer", zap.Error(err))
+	if k.kafkaConsumer == nil {
+		k.Logger.Error(ctx, "Kafka consumer is not initialized")
+		return
 	}
-	defer c.Close()
+
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
-	err = c.SubscribeTopics(k.topics, nil)
-	if err != nil {
-		k.Logger.Fatal(ctx, "Failed to subscribe to topics", zap.Error(err))
+	// Start consuming messages
+	go func() {
+		for {
+			topics := k.topics
+			if len(topics) == 0 {
+				topics = []string{"events"} // Default topic
+			}
+
+			err := k.kafkaConsumer.Consume(ctx, topics, k)
+			if err != nil {
+				k.Logger.Error(ctx, "Error from consumer", zap.Error(err))
+			}
+
+			// Check if context is cancelled
+			if ctx.Err() != nil {
+				return
+			}
+		}
+	}()
+
+	k.Logger.Info(ctx, "Kafka consumer started successfully", zap.Strings("topics", k.topics))
+}
+
+// ConsumeClaim implements sarama.ConsumerGroupHandler
+func (k *kafkaController) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for message := range claim.Messages() {
+		k.Logger.Info(context.Background(), "Received Kafka message",
+			zap.String("topic", message.Topic),
+			zap.Int32("partition", message.Partition),
+			zap.Int64("offset", message.Offset),
+			zap.String("key", string(message.Key)),
+			zap.String("value", string(message.Value)))
+
+		// Process the message based on registered handlers
+		k.Route(context.Background(), message)
+		session.MarkMessage(message, "")
 	}
 
-	for {
-		select {
-		case sig := <-sigchan:
-			k.Logger.Info(ctx, "Received signal, shutting down consumer", zap.String("signal", sig.String()))
-			return
-		case <-ctx.Done():
-			k.Logger.Info(ctx, "Context canceled, shutting down consumer")
-			return
-		default:
-			ev, err := c.ReadMessage(time.Second)
-			if err != nil {
-				if err.(kafka.Error).Code() == kafka.ErrTimedOut {
-					continue
-				}
-				k.Logger.Error(ctx, "Error reading message", zap.Error(err))
-				continue
-			}
-			k.Logger.Info(ctx, "Consumed event from topic", zap.String("topic", *ev.TopicPartition.Topic))
-			k.Route(ctx, *ev)
-		}
-	}
+	return nil
+}
+
+// Setup implements sarama.ConsumerGroupHandler
+func (k *kafkaController) Setup(sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+// Cleanup implements sarama.ConsumerGroupHandler
+func (k *kafkaController) Cleanup(sarama.ConsumerGroupSession) error {
+	return nil
 }

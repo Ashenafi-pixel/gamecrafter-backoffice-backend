@@ -2,7 +2,9 @@ package initiator
 
 import (
 	"sync"
+	"time"
 
+	"github.com/pquerna/otp"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/adds"
 	"github.com/tucanbit/internal/module/agent"
@@ -24,13 +26,14 @@ import (
 	operationdefinition "github.com/tucanbit/internal/module/operationDefinition"
 	"github.com/tucanbit/internal/module/operationalgroup"
 	"github.com/tucanbit/internal/module/operationalgrouptype"
-	"github.com/tucanbit/internal/module/otp"
+	otpModule "github.com/tucanbit/internal/module/otp"
 	"github.com/tucanbit/internal/module/performance"
 	"github.com/tucanbit/internal/module/report"
 	"github.com/tucanbit/internal/module/risksettings"
 	"github.com/tucanbit/internal/module/sportsservice"
 	"github.com/tucanbit/internal/module/squads"
 	userModule "github.com/tucanbit/internal/module/user"
+	"github.com/tucanbit/internal/service/twofactor"
 	"github.com/tucanbit/platform"
 	"github.com/tucanbit/platform/pisi"
 	"github.com/tucanbit/platform/redis"
@@ -69,12 +72,13 @@ type Module struct {
 	SportsService         module.SportsService
 	RiskSettings          module.RiskSettings
 	Agent                 module.Agent
-	OTP                   otp.OTPModule
+	OTP                   otpModule.OTPModule
 	Cashback              *cashback.CashbackService
 	CashbackKafkaConsumer *cashback.CashbackKafkaConsumer
 	Groove                groove.GrooveService
 	Email                 email.EmailService
 	Redis                 *redis.RedisOTP
+	TwoFactor             twofactor.TwoFactorService
 	UserBalanceWS         utils.UserWS
 }
 
@@ -141,6 +145,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Exchange: moduleExchange.Init(persistence.Exchange, log),
 		Bet: bet.Init(
 			persistence.Bet,
+			persistence.Analytics,
 			persistence.Balance,
 			log,
 			decimal.NewFromInt(int64(viper.GetInt("bet.max"))),
@@ -157,7 +162,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		),
 		Departments:   department.Init(persistence.Departments, persistence.User, log),
 		Performance:   performance.Init(persistence.Performance, log),
-		Authz:         authz.Init(log, persistence.Authz, enforcer),
+		Authz:         authz.Init(log, persistence.Authz, persistence.User, enforcer),
 		UserBalanceWS: userBalanceWs,
 		SystemLogs:    logs.Init(log, persistence.Logs),
 		Company:       company.Init(persistence.Company, log),
@@ -193,11 +198,30 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		SportsService:         sportsservice.Init(log, spApiKey, apiSecret, persistence.Sports, persistence.BalanageLogs, persistence.OperationalGroup, persistence.OperationalGroupType),
 		RiskSettings:          risksettings.Init(persistence.RiskSettings, log),
 		Agent:                 agentModule,
-		OTP:                   otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
+		OTP:                   otpModule.NewOTPService(persistence.OTP, otpModule.NewUserStorageAdapter(persistence.User), emailService, log),
 		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log),
 		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), kafka, log),
 		Groove:                groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), persistence.User, userBalanceWs, log),
 		Email:                 emailService,
-		Redis:                 redis,
+		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, log, twofactor.TwoFactorConfig{
+			Issuer:           "TucanBIT",
+			Algorithm:        otp.AlgorithmSHA1,
+			Digits:           otp.DigitsSix,
+			Period:           30,
+			BackupCodesCount: 10,
+			MaxAttempts:      5,
+			LockoutDuration:  15 * time.Minute,
+			EnabledMethods:   []twofactor.TwoFactorMethod{
+				twofactor.MethodTOTP,
+				twofactor.MethodEmailOTP,
+				twofactor.MethodSMSOTP,
+				twofactor.MethodBiometric,
+				twofactor.MethodBackupCodes,
+			},
+			EmailOTPLength:   6,
+			SMSOTPLength:     6,
+			OTPExpiryMinutes: 5,
+		}),
+		Redis: redis,
 	}
 }

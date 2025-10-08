@@ -32,6 +32,7 @@ import (
 	"github.com/tucanbit/internal/handler/sportsservice"
 	"github.com/tucanbit/internal/handler/squads"
 	"github.com/tucanbit/internal/handler/user"
+	"github.com/tucanbit/internal/handler/twofactor"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	"github.com/tucanbit/platform/redis"
@@ -67,6 +68,7 @@ type Handler struct {
 	Cashback              *cashback.CashbackHandler
 	Groove                *groove.GrooveHandler
 	RegistrationService   *user.RegistrationService
+	TwoFactor           twofactor.TwoFactorHandler
 	Analytics             handler.Analytics
 }
 
@@ -117,6 +119,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Cashback:              cashback.NewCashbackHandler(module.Cashback, log),
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, persistence.Database, log),
 		RegistrationService:   registrationService,
+		TwoFactor:           twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
 	}
 }

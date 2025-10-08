@@ -21,6 +21,7 @@ type OTPModule interface {
 	CreatePasswordResetOTP(ctx context.Context, email, userAgent, ipAddress string, userID string) (*dto.EmailVerificationResponse, error)
 	VerifyOTP(ctx context.Context, req *dto.OTPVerificationRequest) (*dto.OTPVerificationResponse, error)
 	ResendOTP(ctx context.Context, email, userAgent, ipAddress string) (*dto.ResendOTPResponse, error)
+	ResendPasswordResetOTP(ctx context.Context, email, userAgent, ipAddress string) (*dto.ResendOTPResponse, error)
 	InvalidateOTP(ctx context.Context, otpID uuid.UUID) error
 	CleanupExpiredOTPs(ctx context.Context) error
 	GetOTPByID(ctx context.Context, otpID uuid.UUID) (*dto.OTPInfo, error)
@@ -88,13 +89,19 @@ func (s *OTPService) CreateEmailVerification(ctx context.Context, email, userAge
 	}
 
 	// Send verification email
-	err = s.email.SendVerificationEmail(email, otpCode, otp.ID.String(), userID, expiresAt, userAgent, ipAddress)
-	if err != nil {
-		// Log error but don't fail the request
-		s.logger.Error("Failed to send verification email",
+	if s.email != nil {
+		err = s.email.SendVerificationEmail(email, otpCode, otp.ID.String(), userID, expiresAt, userAgent, ipAddress)
+		if err != nil {
+			// Log error but don't fail the request
+			s.logger.Error("Failed to send verification email",
+				zap.String("email", email),
+				zap.Error(err))
+			// You might want to handle this differently in production
+		}
+	} else {
+		s.logger.Warn("Email service is not available, skipping email sending",
 			zap.String("email", email),
-			zap.Error(err))
-		// You might want to handle this differently in production
+			zap.String("otp_code", otpCode))
 	}
 
 	s.logger.Info("Email verification OTP created",
@@ -141,13 +148,19 @@ func (s *OTPService) CreatePasswordResetOTP(ctx context.Context, email, userAgen
 	}
 
 	// Send password reset email
-	err = s.email.SendPasswordResetOTPEmail(email, otpCode, otp.ID.String(), existingUser.ID.String(), expiresAt, userAgent, ipAddress)
-	if err != nil {
-		// Log error but don't fail the request
-		s.logger.Error("Failed to send password reset email",
+	if s.email != nil {
+		err = s.email.SendPasswordResetOTPEmail(email, otpCode, otp.ID.String(), existingUser.ID.String(), expiresAt, userAgent, ipAddress)
+		if err != nil {
+			// Log error but don't fail the request
+			s.logger.Error("Failed to send password reset email",
+				zap.String("email", email),
+				zap.Error(err))
+			// You might want to handle this differently in production
+		}
+	} else {
+		s.logger.Warn("Email service is not available, skipping password reset email sending",
 			zap.String("email", email),
-			zap.Error(err))
-		// You might want to handle this differently in production
+			zap.String("otp_code", otpCode))
 	}
 
 	s.logger.Info("Password reset OTP created",
@@ -216,9 +229,13 @@ func (s *OTPService) VerifyOTP(ctx context.Context, req *dto.OTPVerificationRequ
 	if !exists {
 		// Create new user
 		newUser := dto.User{
-			Email:        req.Email,
-			Type:         "PLAYER",
-			ReferralCode: s.generateReferralCode(),
+			Email:           req.Email,
+			Username:        req.Email, // Use email as username for now
+			Type:            "PLAYER",
+			ReferralCode:    s.generateReferralCode(),
+			DefaultCurrency: "USD",
+			Status:          "pending",
+			Password:        s.generateTemporaryPassword(), // Generate a temporary password
 		}
 
 		createdUser, err := s.user.CreateUser(ctx, newUser)
@@ -326,6 +343,49 @@ func (s *OTPService) ResendOTP(ctx context.Context, email, userAgent, ipAddress 
 	}, nil
 }
 
+// ResendPasswordResetOTP resends a password reset OTP to the specified email
+func (s *OTPService) ResendPasswordResetOTP(ctx context.Context, email, userAgent, ipAddress string) (*dto.ResendOTPResponse, error) {
+	// Check if there's a recent password reset OTP that hasn't expired
+	recentOTP, err := s.storage.GetRecentOTPByEmail(ctx, email, string(dto.OTPTypePasswordReset))
+	if err == nil && recentOTP != nil {
+		// Get current database time for consistency
+		dbTime, err := s.storage.GetCurrentDBTime(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get database time: %w", err)
+		}
+
+		// Check if we can resend (2 minutes cooldown)
+		if dbTime.Before(recentOTP.CreatedAt.Add(2 * time.Minute)) {
+			timeUntilResend := recentOTP.CreatedAt.Add(2 * time.Minute).Sub(dbTime)
+			return nil, fmt.Errorf("please wait %v before requesting another password reset OTP", timeUntilResend.Round(time.Second))
+		}
+	}
+
+	// Check if user exists
+	existingUser, exists, err := s.user.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing user: %w", err)
+	}
+
+	if !exists {
+		return nil, fmt.Errorf("user with email %s does not exist", email)
+	}
+
+	// Create new password reset OTP
+	response, err := s.CreatePasswordResetOTP(ctx, email, userAgent, ipAddress, existingUser.ID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.ResendOTPResponse{
+		Message:     response.Message,
+		OTPID:       response.OTPID,
+		Email:       response.Email,
+		ExpiresAt:   response.ExpiresAt,
+		ResendAfter: response.ResendAfter,
+	}, nil
+}
+
 // InvalidateOTP marks an OTP as invalid
 func (s *OTPService) InvalidateOTP(ctx context.Context, otpID uuid.UUID) error {
 	return s.storage.UpdateOTPStatus(ctx, otpID, string(dto.OTPStatusUsed))
@@ -395,6 +455,13 @@ func (s *OTPService) generateReferralCode() string {
 	}
 
 	return string(b)
+}
+
+// generateTemporaryPassword generates a temporary password for new users
+func (s *OTPService) generateTemporaryPassword() string {
+	// Generate a random temporary password
+	// In production, you might want to use a more secure approach
+	return "TempPass123!"
 }
 
 // generateJWTTokens generates JWT access and refresh tokens

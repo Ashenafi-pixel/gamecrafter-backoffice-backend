@@ -42,6 +42,13 @@ func Init(
 				middleware.RateLimiter(),
 			},
 		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/otp/resend-password-reset",
+			Handler: otpHandler.ResendPasswordResetOTP,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+			},
+		}, {
 			Method:  http.MethodGet,
 			Path:    "/api/otp/:otp_id",
 			Handler: otpHandler.GetOTPInfo,

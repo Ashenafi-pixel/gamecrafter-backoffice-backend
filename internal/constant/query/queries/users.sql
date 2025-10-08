@@ -50,7 +50,7 @@ WHERE $1::VARCHAR = ANY(dp.notifications);
 -- name: GetAllUsers :many 
 WITH users_data AS (
     SELECT *
-    FROM  users where default_currency  is not null AND user_type = 'PLAYER'
+    FROM  users where default_currency  is not null AND user_type = 'PLAYER' AND is_admin = false
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -68,6 +68,7 @@ WITH users_data AS (
     FROM users 
     WHERE default_currency IS NOT NULL 
     AND user_type = 'PLAYER'
+    AND is_admin = false
     AND (
         $1::text IS NULL OR $1 = '' OR username ILIKE '%' || $1 || '%'
     )

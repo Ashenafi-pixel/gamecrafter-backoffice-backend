@@ -10,7 +10,6 @@ require (
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/casbin/casbin/v2 v2.122.0
 	github.com/casbin/gorm-adapter/v3 v3.36.0
-	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/ethereum/go-ethereum v1.16.3
 	github.com/gin-gonic/gin v1.10.1
@@ -28,6 +27,7 @@ require (
 	github.com/joomcode/errorx v1.2.0
 	github.com/lib/pq v1.10.9
 	github.com/mr-tron/base58 v1.2.0
+	github.com/pquerna/otp v1.5.0
 	github.com/prometheus/client_golang v1.23.0
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/rmg/iso4217 v1.0.1
@@ -58,6 +58,7 @@ require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect

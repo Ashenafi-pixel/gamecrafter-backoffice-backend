@@ -189,6 +189,17 @@ func (a *analytics) GetUserAnalytics(c *gin.Context) {
 // @Failure 500 {object} dto.AnalyticsResponse
 // @Router /analytics/realtime [get]
 func (a *analytics) GetRealTimeStats(c *gin.Context) {
+	a.logger.Info("GetRealTimeStats handler called")
+
+	if a.analyticsStorage == nil {
+		a.logger.Error("Analytics storage is nil - ClickHouse client not initialized")
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Analytics service not available - ClickHouse not initialized",
+		})
+		return
+	}
+
 	stats, err := a.analyticsStorage.GetRealTimeStats(c.Request.Context())
 	if err != nil {
 		a.logger.Error("Failed to get real-time stats", zap.Error(err))

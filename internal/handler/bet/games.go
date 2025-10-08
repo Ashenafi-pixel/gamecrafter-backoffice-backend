@@ -67,6 +67,47 @@ func (b *bet) GetGames(c *gin.Context) {
 
 }
 
+// GetGameSummary  get game summary for dashboard cards
+//
+//	@Summary		GetGameSummary
+//	@Description	GetGameSummary allow admin to get game summary data for dashboard cards
+//	@Tags			Admin
+//	@Param			Authorization	header	string	true	"Bearer <token> "
+//	@Produce		json
+//	@Success		200	{object}	dto.GetGameSummaryResp
+//	@Failure		401	{object}	response.ErrorResponse
+//	@Router			/api/admin/games/summary [get]
+func (b *bet) GetGameSummary(c *gin.Context) {
+	resp, err := b.betModule.GetGameSummary(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// GetTransactionSummary get transaction summary statistics.
+//
+//	@Summary		GetTransactionSummary
+//	@Description	Get transaction summary statistics for dashboard
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header	string	true	"Bearer <token> "
+//	@Success		200	{object}	dto.GetTransactionSummaryResp
+//	@Failure		401	{object}	response.ErrorResponse
+//	@Router			/api/admin/transactions/summary [get]
+func (b *bet) GetTransactionSummary(c *gin.Context) {
+	resp, err := b.betModule.GetTransactionSummary(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
 // DisableAllGames  allow admin to disable all games from RGS.
 //
 //	@Summary		DisableAllGames

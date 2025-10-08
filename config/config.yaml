@@ -1,0 +1,139 @@
+# TucanBIT Configuration
+
+# Kafka Configuration
+kafka:
+  enabled: false
+  topic: "events"
+  bootstrap_servers: "localhost:9093"
+  cluster_api_key: ""
+  cluster_api_secret: ""
+  security_protocol: "PLAINTEXT"
+  mechanisms: "PLAIN"
+  acks: "all"
+
+# Redis Configuration
+redis:
+  enabled: true
+  addr: "localhost:63790"
+  password: ""
+  db: 0
+  key_prefix: "tucanbit:"
+  ttl: "5m"
+
+# ClickHouse Configuration
+clickhouse:
+  host: "localhost"
+  port: 8123
+  database: "tucanbit_analytics"
+  username: "tucanbit"
+  password: "tucanbit_clickhouse_password"
+  timeout: "10s"
+
+# Auth Configuration
+auth:
+  otp_attempt_limit: 3
+  otp_jwt_secret: "otp_jwt_secret_here"
+  jwt_secret: "tokensecrethere"
+
+# OAuth Configuration
+oauth:
+  frontend_oauth_handler_url: "http://localhost:3000/auth/callback"
+
+# Pisi Configuration
+pisi:
+  base_url: "http://localhost:8080"
+  password: "pisi_password"
+  vaspid: "pisi_vaspid"
+  timeout: "10s"
+  retry_count: 3
+  retry_delay: "5s"
+  sender_id: "tucanbit"
+
+# Database Configuration
+db:
+  url: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"
+  idle_conn_timeout: "4m"
+
+# Application Configuration
+app:
+  host: "0.0.0.0"
+  port: "8080"
+  timeout: "30s"
+
+# Logger Configuration
+logger:
+  level: 0
+  console: true
+  max_size_mb: 100
+  max_backups: 3
+  max_age_days: 7
+  compress: true
+  rotation_enabled: true
+  retention_enabled: true
+  local_retention_days: 30
+  aws_retention_days: 30
+
+# Sports Service Configuration
+sportsservice:
+  api_key: "dummy_sports_api_key"
+  api_secret: "dummy_sports_api_secret"
+
+# AWS Configuration
+aws:
+  bucket:
+    name: "tucanbit-bucket"
+  logging:
+    enabled: false
+    region: "us-east-1"
+    access_key_id: ""
+    secret_access_key: ""
+    log_group_name: "/tucanbit/application"
+    log_stream_name: "tucanbit-dev"
+    retention_days: 30
+    local_path: "./logs"
+
+# Google OAuth Configuration
+google:
+  oauth:
+    client_id: "google_client_id_here"
+    client_secret: "google_client_secret_here"
+    redirect_url: "http://localhost:8080/auth/google/callback"
+
+# Facebook OAuth Configuration
+facebook:
+  oauth:
+    client_id: "facebook_client_id_here"
+    client_secret: "facebook_client_secret_here"
+    redirect_url: "http://localhost:8080/auth/facebook/callback"
+
+# Bet Configuration
+bet:
+  max: 1000
+  open_duration: "5m"
+
+# Airtime Configuration
+airtime:
+  base_url: "http://localhost:8080"
+  password: "airtime_password"
+  timeout: "10s"
+  vaspid: 12345
+
+# SMTP Configuration
+smtp:
+  host: "smtp.gmail.com"
+  port: 465
+  username: "ashenafialemu66@gmail.com"
+  password: "dpfr mgcv tgnh skyo"
+  from: "noreply@tucanbit.com"
+  from_name: "TucanBIT"
+  use_tls: true 
+groove:
+  operator_id: "3818"
+  api_domain: "https://gprouter.groovegaming.com/game"
+  api_key: "our_groove_api_key_here"
+  home_url: "https://tucanbit.tv"
+  exit_url: "https://tucanbit.tv"
+  history_url: "https://tucanbit.tv"
+  license_type: "Curacao"
+  signature_validation: false
+  signature_secret: "test_key"  

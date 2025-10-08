@@ -95,13 +95,19 @@ func Initiate() {
 	// Initialize ClickHouse client
 	logger.Info("initializing ClickHouse client")
 	clickhouseConfig := clickhouse.ClickHouseConfig{
-		Host:     "localhost",
-		Port:     9000,
-		Database: "tucanbit_analytics",
-		Username: "tucanbit",
-		Password: "tucanbit_clickhouse_password",
-		Timeout:  30 * time.Second,
+		Host:     viper.GetString("clickhouse.host"),
+		Port:     viper.GetInt("clickhouse.port"),
+		Database: viper.GetString("clickhouse.database"),
+		Username: viper.GetString("clickhouse.username"),
+		Password: viper.GetString("clickhouse.password"),
+		Timeout:  viper.GetDuration("clickhouse.timeout"),
 	}
+	logger.Info("ClickHouse config",
+		zap.String("host", clickhouseConfig.Host),
+		zap.Int("port", clickhouseConfig.Port),
+		zap.String("database", clickhouseConfig.Database),
+		zap.String("username", clickhouseConfig.Username))
+
 	clickhouseClient, err := clickhouse.NewClickHouseClient(clickhouseConfig, logger)
 	if err != nil {
 		logger.Error("Failed to initialize ClickHouse client", zap.Error(err))
@@ -109,6 +115,17 @@ func Initiate() {
 		clickhouseClient = nil
 	} else {
 		logger.Info("ClickHouse client initialized successfully")
+
+		// Test the connection
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := clickhouseClient.HealthCheck(ctx); err != nil {
+			logger.Error("ClickHouse health check failed", zap.Error(err))
+			clickhouseClient = nil
+		} else {
+			logger.Info("ClickHouse health check passed")
+		}
 	}
 
 	// Initialize userWS first

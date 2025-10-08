@@ -2,12 +2,15 @@ package persistencedb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/model/db"
@@ -560,6 +563,84 @@ func (p *PersistenceDB) GetBalanceLogByTransactionID(ctx context.Context, transa
 }
 
 func (p *PersistenceDB) SaveBalanceLogs(ctx context.Context, arg db.SaveBalanceLogsParams) (db.BalanceLog, error) {
+	// Check if we're using server database (different schema)
+	if os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		// Use raw SQL for server database (with correct column names)
+		query := `
+			INSERT INTO balance_logs (
+				user_id,
+				component,
+				change_cents,
+				change_units,
+				operational_group_id,
+				operational_type_id,
+				description,
+				timestamp,
+				balance_after_cents,
+				balance_after_units,
+				transaction_id,
+				status,
+				currency_code
+			) VALUES (
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			) RETURNING id, user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code`
+
+		// Convert amounts to cents for server database
+		changeCents := arg.ChangeAmount.Decimal.Mul(decimal.NewFromInt(100)).IntPart()
+		balanceAfterCents := arg.BalanceAfterUpdate.Mul(decimal.NewFromInt(100)).IntPart()
+
+		row := p.pool.QueryRow(ctx, query,
+			arg.UserID,
+			arg.Component,
+			changeCents,
+			arg.ChangeAmount.Decimal,
+			arg.OperationalGroupID,
+			arg.OperationalTypeID,
+			arg.Description,
+			arg.Timestamp,
+			balanceAfterCents,
+			arg.BalanceAfterUpdate,
+			arg.TransactionID,
+			arg.Status,
+			arg.Currency.String,
+		)
+
+		var balanceLog db.BalanceLog
+		var changeCentsResult int64
+		var changeUnitsResult decimal.Decimal
+		var balanceAfterCentsResult int64
+		var balanceAfterUnitsResult decimal.Decimal
+		var currencyCodeResult string
+
+		err := row.Scan(
+			&balanceLog.ID,
+			&balanceLog.UserID,
+			&balanceLog.Component,
+			&changeCentsResult,
+			&changeUnitsResult,
+			&balanceLog.OperationalGroupID,
+			&balanceLog.OperationalTypeID,
+			&balanceLog.Description,
+			&balanceLog.Timestamp,
+			&balanceAfterCentsResult,
+			&balanceAfterUnitsResult,
+			&balanceLog.TransactionID,
+			&balanceLog.Status,
+			&currencyCodeResult,
+		)
+		if err != nil {
+			return balanceLog, err
+		}
+
+		// Convert back to original format for compatibility
+		balanceLog.Currency = sql.NullString{String: currencyCodeResult, Valid: true}
+		balanceLog.ChangeAmount = decimal.NullDecimal{Decimal: changeUnitsResult, Valid: true}
+		balanceLog.BalanceAfterUpdate = balanceAfterUnitsResult
+
+		return balanceLog, nil
+	}
+
+	// Use original query for local development
 	query := `
 		INSERT INTO balance_logs (
 			user_id,

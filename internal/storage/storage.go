@@ -29,6 +29,8 @@ type User interface {
 	GetBlockedAccountByUserID(ctx context.Context, userID uuid.UUID) ([]dto.AccountBlockReq, bool, error)
 	GetBlockedAccountByUserIDWithPagination(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.SuspensionHistory, error)
 	GetBalanceLogsByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.BalanceLog, error)
+	GetPlayerBettingStats(ctx context.Context, userID uuid.UUID) (dto.PlayerStatistics, error)
+	GetPlayerSessionCount(ctx context.Context, userID uuid.UUID) (int, error)
 	AaccountUnlock(ctx context.Context, ID uuid.UUID) (dto.AccountBlockReq, error)
 	GetBlockedAllAccount(ctx context.Context, getBlockedAcReq dto.GetBlockedAccountLogReq) ([]dto.GetBlockedAccountLogRep, bool, error)
 	GetBlockedByDurationAndTypeAndUserIDAccount(ctx context.Context, getBlockedAcReq dto.GetBlockedAccountLogReq) ([]dto.GetBlockedAccountLogRep, bool, error)
@@ -62,6 +64,7 @@ type User interface {
 	CreateUserPoint(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (dto.UserPoint, error)
 	UpdateIpFilter(ctx context.Context, req dto.IPFilter) (dto.IPFilter, error)
 	GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
+	GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByRole(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByStatus(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByRoleAndStatus(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
@@ -99,6 +102,9 @@ type Analytics interface {
 	GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error)
 	GetUserBalanceHistory(ctx context.Context, userID uuid.UUID, hours int) ([]*dto.BalanceSnapshot, error)
 	InsertBalanceSnapshot(ctx context.Context, snapshot *dto.BalanceSnapshot) error
+
+	// Summary methods
+	GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error)
 }
 
 type Balance interface {
@@ -231,6 +237,8 @@ type Bet interface {
 	GetSpinningWheelUserBetHistory(ctx context.Context, req dto.GetRequest, userID uuid.UUID) (dto.GetSpinningWheelHistoryResp, bool, error)
 	CreateGame(ctx context.Context, req dto.Game) (dto.Game, error)
 	GetGames(ctx context.Context, req dto.GetRequest) (dto.GetGamesResp, error)
+	GetGameSummary(ctx context.Context) (dto.GetGameSummaryResp, error)
+	GetTransactionSummary(ctx context.Context) (dto.GetTransactionSummaryResp, error)
 	GetAllGames(ctx context.Context) (dto.GetGamesResp, error)
 	GetGameByID(ctx context.Context, ID uuid.UUID) (dto.Game, error)
 	UpdageGame(ctx context.Context, game dto.Game) (dto.Game, error)
