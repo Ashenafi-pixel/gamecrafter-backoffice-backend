@@ -12,3 +12,4 @@ config/rsa_public_key.pembackups/
 tucanbit
 tucanbit-app
 *.log
+main
