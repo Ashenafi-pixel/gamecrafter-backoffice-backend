@@ -20,6 +20,8 @@ type EmailService interface {
 	SendVerificationEmail(email, otpCode, otpId, userId string, expiresAt time.Time, userAgent, ipAddress string) error
 	SendWelcomeEmail(email, firstName string) error
 	SendPasswordResetEmail(email, resetToken string, expiresAt time.Time) error
+	SendPasswordResetOTPEmail(email, otpCode, otpId, userId string, expiresAt time.Time, userAgent, ipAddress string) error
+	SendPasswordResetConfirmationEmail(email, firstName string, userAgent, ipAddress string) error
 	SendSecurityAlert(email, alertType, details string) error
 }
 
@@ -51,6 +53,8 @@ func NewEmailService(config SMTPConfig, logger *zap.Logger) (EmailService, error
 		templates = template.Must(templates.New("verification").Parse(verificationTemplate))
 		templates = template.Must(templates.New("welcome").Parse(welcomeTemplate))
 		templates = template.Must(templates.New("password_reset").Parse(passwordResetTemplate))
+		templates = template.Must(templates.New("password_reset_otp").Parse(passwordResetOTPTemplate))
+		templates = template.Must(templates.New("password_reset_confirmation").Parse(passwordResetConfirmationTemplate))
 		templates = template.Must(templates.New("security_alert").Parse(securityAlertTemplate))
 	}
 
@@ -173,6 +177,67 @@ func (e *EmailServiceImpl) SendPasswordResetEmail(email, resetToken string, expi
 	return e.sendEmail(email, subject, htmlBody)
 }
 
+// SendPasswordResetOTPEmail sends a password reset OTP email
+func (e *EmailServiceImpl) SendPasswordResetOTPEmail(email, otpCode, otpId, userId string, expiresAt time.Time, userAgent, ipAddress string) error {
+	subject := "Reset Your Password - TucanBIT"
+
+	// Get device and location info
+	device := "Unknown Device"
+	location := "Unknown Location"
+	if userAgent != "" {
+		device = GetDeviceInfo(userAgent)
+		location = GetLocationInfo(ipAddress)
+	}
+
+	data := map[string]interface{}{
+		"OTPCode":      otpCode,
+		"OTPID":        otpId,
+		"UserID":       userId,
+		"ExpiresAt":    expiresAt.Format("2006-01-02 15:04:05 UTC"),
+		"Email":        email,
+		"BrandName":    "TucanBIT",
+		"Device":       device,
+		"Location":     location,
+		"SupportEmail": "support@tucanbit.com",
+		"ResetURL":     fmt.Sprintf("http://localhost:8080/reset-password?otp_code=%s&otp_id=%s&user_id=%s", otpCode, otpId, userId),
+	}
+
+	htmlBody, err := e.renderTemplate("password_reset_otp", data)
+	if err != nil {
+		return fmt.Errorf("failed to render password reset OTP template: %w", err)
+	}
+
+	e.logger.Info("Attempting to send password reset OTP email",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("user_id", userId),
+		zap.String("otp_id", otpId),
+		zap.String("device", device),
+		zap.String("location", location),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)),
+		zap.String("smtp_username", e.config.Username),
+		zap.String("smtp_from", e.config.From),
+		zap.Bool("use_tls", e.config.UseTLS))
+
+	err = e.sendEmail(email, subject, htmlBody)
+	if err != nil {
+		e.logger.Error("Failed to send password reset OTP email",
+			zap.String("to", email),
+			zap.String("subject", subject),
+			zap.Error(err))
+		return err
+	}
+
+	e.logger.Info("Password reset OTP email sent successfully",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
+
+	return nil
+}
+
 // SendSecurityAlert sends a security alert email
 func (e *EmailServiceImpl) SendSecurityAlert(email, alertType, details string) error {
 	subject := fmt.Sprintf("Security Alert - %s", alertType)
@@ -192,6 +257,61 @@ func (e *EmailServiceImpl) SendSecurityAlert(email, alertType, details string) e
 	}
 
 	return e.sendEmail(email, subject, htmlBody)
+}
+
+// SendPasswordResetConfirmationEmail sends a professional password reset confirmation email
+func (e *EmailServiceImpl) SendPasswordResetConfirmationEmail(email, firstName string, userAgent, ipAddress string) error {
+	subject := "Password Successfully Reset - TucanBIT Security Confirmation"
+
+	// Get device and location information
+	device := GetDeviceInfo(userAgent)
+	location := GetLocationInfo(ipAddress)
+	currentTime := time.Now().UTC().Format("January 2, 2006 at 3:04 PM MST")
+
+	// Create template data
+	data := map[string]interface{}{
+		"FirstName":    firstName,
+		"Email":        email,
+		"BrandName":    "TucanBIT",
+		"ResetTime":    currentTime,
+		"Device":       device,
+		"Location":     location,
+		"IPAddress":    ipAddress,
+		"LoginURL":     "https://app.tucanbit.com/login",
+		"SupportEmail": "support@tucanbit.com",
+		"CurrentYear":  time.Now().Year(),
+	}
+
+	htmlBody, err := e.renderTemplate("password_reset_confirmation", data)
+	if err != nil {
+		return fmt.Errorf("failed to render password reset confirmation template: %w", err)
+	}
+
+	e.logger.Info("Attempting to send password reset confirmation email",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("device", device),
+		zap.String("location", location),
+		zap.String("ip_address", ipAddress),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
+
+	err = e.sendEmail(email, subject, htmlBody)
+	if err != nil {
+		e.logger.Error("Failed to send password reset confirmation email",
+			zap.String("to", email),
+			zap.String("subject", subject),
+			zap.Error(err))
+		return err
+	}
+
+	e.logger.Info("Password reset confirmation email sent successfully",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
+
+	return nil
 }
 
 // sendEmail sends an email using SMTP with logo attachment
@@ -851,6 +971,65 @@ const passwordResetTemplate = `
 </body>
 </html>`
 
+const passwordResetOTPTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Password - {{.BrandName}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #e74c3c; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .otp-code { background: #2c3e50; color: white; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .warning { background: #f39c12; color: white; padding: 10px; border-radius: 3px; margin: 15px 0; }
+        .security-info { background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Reset Your Password</h1>
+        </div>
+        <div class="content">
+            <h2>Password Reset Request</h2>
+            <p>Hello!</p>
+            <p>We received a request to reset your password for your {{.BrandName}} account.</p>
+            
+            <p>To complete the password reset process, please use the following One-Time Password (OTP):</p>
+            
+            <div class="otp-code">{{.OTPCode}}</div>
+            
+            <div class="warning">
+                ⚠️ This code will expire at {{.ExpiresAt}}
+            </div>
+            
+            <div class="security-info">
+                <strong>Security Information:</strong><br>
+                • Device: {{.Device}}<br>
+                • Location: {{.Location}}<br>
+                • Requested at: {{.ExpiresAt}}
+            </div>
+            
+            <p>Enter this code in the password reset page to create a new password.</p>
+            
+            <p>If you didn't request a password reset, please ignore this email and contact our support team immediately.</p>
+            
+            <p>For security reasons, this code can only be used once and will expire in 10 minutes.</p>
+            
+            <p>Best regards,<br>The {{.BrandName}} Team</p>
+        </div>
+        <div class="footer">
+            <p>Need help? Contact us at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a></p>
+            <p>&copy; 2025 {{.BrandName}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
 const securityAlertTemplate = `
 <!DOCTYPE html>
 <html lang="en">
@@ -898,6 +1077,278 @@ const securityAlertTemplate = `
         <div class="footer">
             <p>Need help? Contact us at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a></p>
             <p>&copy; 2025 {{.BrandName}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+const passwordResetConfirmationTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Successfully Reset - {{.BrandName}}</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f5f6fa;
+        }
+        .email-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background-color: white; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white; 
+            padding: 40px 30px; 
+            text-align: center;
+            position: relative;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 32px; 
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+        .header .subtitle {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: #27ae60;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+        .content { 
+            padding: 40px 30px; 
+            background: white;
+        }
+        .greeting {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .message {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            color: #555;
+        }
+        .security-info {
+            background: #f8f9fa;
+            border-left: 4px solid #27ae60;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .security-info h3 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        .security-info ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .security-info li {
+            margin-bottom: 8px;
+            color: #555;
+        }
+        .device-info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        .cta-section {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+            transition: all 0.3s ease;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(39, 174, 96, 0.4);
+        }
+        .footer { 
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 30px; 
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer p { 
+            margin: 5px 0; 
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer a:hover {
+            color: #5dade2;
+            text-decoration: underline;
+        }
+        .brand-logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .social-icons {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .social-icons a {
+            display: inline-block;
+            margin: 0 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #34495e;
+            text-align: center;
+            line-height: 40px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .social-icons a:hover {
+            background: #2c3e50;
+        }
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .header {
+                padding: 30px 20px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <img src="cid:tucan.png" alt="{{.BrandName}} Logo" class="brand-logo">
+            <div class="success-icon">✓</div>
+            <h1>Password Successfully Reset</h1>
+            <p class="subtitle">Your account security has been updated</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hello {{.FirstName}}!</div>
+            
+            <div class="message">
+                <p>We're writing to confirm that your password has been successfully reset for your {{.BrandName}} account.</p>
+                
+                <p><strong>This email serves as confirmation that:</strong></p>
+                <ul>
+                    <li>Your password reset request was completed successfully</li>
+                    <li>Your new password is now active and secure</li>
+                    <li>All previous login sessions have been terminated for security</li>
+                </ul>
+            </div>
+            
+            <div class="security-info">
+                <h3>🔒 Security Information</h3>
+                <p><strong>Reset Details:</strong></p>
+                <ul>
+                    <li><strong>Date & Time:</strong> {{.ResetTime}}</li>
+                    <li><strong>Device:</strong> {{.Device}}</li>
+                    <li><strong>Location:</strong> {{.Location}}</li>
+                    <li><strong>IP Address:</strong> {{.IPAddress}}</li>
+                </ul>
+            </div>
+            
+            <div class="message">
+                <p><strong>Important Security Reminders:</strong></p>
+                <ul>
+                    <li>Keep your password confidential and don't share it with anyone</li>
+                    <li>Use a unique password that you don't use for other accounts</li>
+                    <li>Consider enabling two-factor authentication for added security</li>
+                    <li>If you didn't request this password reset, contact our support team immediately</li>
+                </ul>
+            </div>
+            
+            <div class="cta-section">
+                <a href="{{.LoginURL}}" class="cta-button">Sign In to Your Account</a>
+            </div>
+            
+            <div class="message">
+                <p>If you have any questions or concerns about this password reset, please don't hesitate to contact our support team. We're here to help ensure your account remains secure.</p>
+                
+                <p>Thank you for choosing {{.BrandName}}!</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="social-icons">
+                <a href="https://discord.gg/tucanbit" title="Discord">D</a>
+                <a href="https://t.me/tucanbit" title="Telegram">T</a>
+                <a href="https://instagram.com/tucanbit" title="Instagram">I</a>
+                <a href="https://twitter.com/tucanbit" title="Twitter">X</a>
+            </div>
+            <p><strong>{{.BrandName}} Security Team</strong></p>
+            <p>Your account security is our priority</p>
+            <p>Need help? Contact us at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a></p>
+            <p>&copy; {{.CurrentYear}} {{.BrandName}}. All rights reserved.</p>
+            <p style="font-size: 12px; margin-top: 15px; opacity: 0.7;">
+                This email was automatically generated by the TucanBIT Security System.<br>
+                For security concerns, contact our support team at {{.SupportEmail}}
+            </p>
         </div>
     </div>
 </body>

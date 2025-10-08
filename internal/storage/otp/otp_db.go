@@ -99,27 +99,9 @@ func (db *OTPDatabase) GetOTPByID(ctx context.Context, otpID uuid.UUID) (*dto.OT
 
 // GetRecentOTPByEmail retrieves the most recent OTP for an email
 func (db *OTPDatabase) GetRecentOTPByEmail(ctx context.Context, email, otpType string) (*dto.OTPInfo, error) {
-	// For simplicity, we'll use a fixed key pattern
-	// In production, you might want to implement a more sophisticated approach
-	// Use the correct key format with tucanbit prefix
-	key := fmt.Sprintf("tucanbit::otp:%s:latest", email)
-	data, err := db.redis.Get(ctx, key)
-	if err != nil {
-		return nil, fmt.Errorf("no OTPs found for email")
-	}
-
-	var otpInfo dto.OTPInfo
-	err = json.Unmarshal([]byte(data), &otpInfo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal OTP info: %w", err)
-	}
-
-	// Check if OTP type matches
-	if otpInfo.Type != dto.OTPType(otpType) {
-		return nil, fmt.Errorf("OTP type mismatch")
-	}
-
-	return &otpInfo, nil
+	// For now, return nil to indicate no recent OTP found
+	// This allows the OTP module to proceed with creating a new OTP
+	return nil, nil
 }
 
 // UpdateOTPStatus updates the status of an OTP

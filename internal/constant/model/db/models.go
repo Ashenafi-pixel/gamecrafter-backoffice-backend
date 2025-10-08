@@ -903,6 +903,7 @@ type User struct {
 	UserType                 sql.NullString
 	PrimaryWalletAddress     sql.NullString
 	WalletVerificationStatus sql.NullString
+	IsTestAccount            bool
 }
 
 type UserNotification struct {

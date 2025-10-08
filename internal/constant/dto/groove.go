@@ -10,6 +10,22 @@ import (
 // GrooveTech API DTOs for game integration
 // Based on official documentation: https://groove-docs.pages.dev/transaction-api/
 
+// WinnerNotificationData represents the data structure for winner notifications
+type WinnerNotificationData struct {
+	Username    string          `json:"username"`
+	Email       string          `json:"email"`
+	GameName    string          `json:"game_name"`
+	GameID      string          `json:"game_id"`
+	BetAmount   decimal.Decimal `json:"bet_amount"`
+	WinAmount   decimal.Decimal `json:"win_amount"`
+	NetWinnings decimal.Decimal `json:"net_winnings"`
+	Currency    string          `json:"currency"`
+	Timestamp   time.Time       `json:"timestamp"`
+	SessionID   string          `json:"session_id"`
+	RoundID     string          `json:"round_id"`
+	TransactionID string        `json:"transaction_id"`
+}
+
 // GameSession represents a game session for tracking
 type GameSession struct {
 	ID                   string    `json:"id"`

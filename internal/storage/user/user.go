@@ -205,6 +205,13 @@ func (u *user) GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, boo
 		err = errors.ErrInternalServerError.Wrap(err, err.Error())
 		return dto.User{}, false, err
 	}
+
+	u.log.Info("User data from database",
+		zap.String("username", usr.Username.String),
+		zap.String("email", usr.Email.String),
+		zap.String("userID", usr.ID.String()),
+		zap.Bool("is_test_account", usr.IsTestAccount))
+
 	return dto.User{
 		ID:              usr.ID,
 		Username:        usr.Username.String,
@@ -230,6 +237,7 @@ func (u *user) GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, boo
 		Type:            dto.Type(usr.UserType.String),
 		Status:          usr.Status.String,
 		CreatedAt:       &usr.CreatedAt,
+		IsTestAccount:   usr.IsTestAccount,
 	}, true, nil
 }
 

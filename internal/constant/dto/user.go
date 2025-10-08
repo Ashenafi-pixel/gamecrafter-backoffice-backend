@@ -51,6 +51,7 @@ type User struct {
 	CreatedAt                *time.Time `json:"created_at,omitempty"`
 	IsEmailVerified          bool       `json:"is_email_verified,omitempty"`
 	WalletVerificationStatus string     `json:"wallet_verification_status,omitempty"`
+	IsTestAccount            bool       `json:"is_test_account,omitempty"`
 }
 
 // profileResponse
@@ -157,7 +158,9 @@ type ChangePasswordRes struct {
 }
 
 type ForgetPasswordRes struct {
-	Message string `json:"message"`
+	Message string    `json:"message"`
+	Email   string    `json:"email"`
+	OTPID   uuid.UUID `json:"otp_id"`
 }
 
 type ForgetPasswordOTPReq struct {
@@ -177,8 +180,9 @@ type ForgetPasswordReq struct {
 }
 
 type VerifyResetPasswordReq struct {
-	EmailOrPhoneOrUserame string `json:"phone_number"`
-	OTP                   string `json:"otp"`
+	EmailOrPhoneOrUserame string    `json:"phone_number"`
+	OTP                   string    `json:"otp"`
+	OTPID                 uuid.UUID `json:"otp_id"`
 }
 
 type VerifyResetPasswordRes struct {
@@ -314,13 +318,13 @@ func ValidateAdminResetPassword(u AdminResetPasswordReq) error {
 }
 
 type GetPlayersFilter struct {
-	UserID     uuid.UUID `json:"user_id"`
-	Username   string    `json:"username"`
-	Email      string    `json:"email"`
-	Phone      string    `json:"phone"`
-	Status     []string  `json:"status"`
-	KycStatus  []string  `json:"kyc_status"`
-	VipLevel   []string  `json:"vip_level"`
+	UserID    uuid.UUID `json:"user_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Status    []string  `json:"status"`
+	KycStatus []string  `json:"kyc_status"`
+	VipLevel  []string  `json:"vip_level"`
 }
 type GetPlayersReq struct {
 	Page    int              `json:"page"`

@@ -152,28 +152,6 @@ PARTITION BY toYYYYMM(created_at)
 ORDER BY (account_id, created_at, transaction_type)
 SETTINGS index_granularity = 8192;
 
--- Create materialized views for real-time aggregations
-CREATE MATERIALIZED VIEW IF NOT EXISTS daily_user_stats_mv
-TO daily_user_stats
-AS SELECT
-    user_id,
-    date,
-    sumIf(amount, transaction_type = 'deposit') as total_deposits,
-    sumIf(amount, transaction_type = 'withdrawal') as total_withdrawals,
-    sumIf(amount, transaction_type IN ('bet', 'groove_bet')) as total_bets,
-    sumIf(amount, transaction_type IN ('win', 'groove_win')) as total_wins,
-    sumIf(amount, transaction_type = 'bonus') as total_bonuses,
-    sumIf(amount, transaction_type = 'cashback') as total_cashback,
-    count() as transaction_count,
-    uniqExact(game_id) as unique_games_played,
-    uniqExact(session_id) as session_count,
-    avgIf(amount, transaction_type IN ('bet', 'groove_bet')) as avg_bet_amount,
-    maxIf(amount, transaction_type IN ('bet', 'groove_bet')) as max_bet_amount,
-    minIf(amount, transaction_type IN ('bet', 'groove_bet')) as min_bet_amount,
-    max(created_at) as last_activity
-FROM transactions
-GROUP BY user_id, date;
-
 -- Create the target table for the materialized view
 CREATE TABLE IF NOT EXISTS daily_user_stats (
     user_id String,
@@ -195,6 +173,28 @@ CREATE TABLE IF NOT EXISTS daily_user_stats (
 PARTITION BY toYYYYMM(date)
 ORDER BY (user_id, date)
 SETTINGS index_granularity = 8192;
+
+-- Create materialized views for real-time aggregations
+CREATE MATERIALIZED VIEW IF NOT EXISTS daily_user_stats_mv
+TO daily_user_stats
+AS SELECT
+    user_id,
+    date,
+    sumIf(amount, transaction_type = 'deposit') as total_deposits,
+    sumIf(amount, transaction_type = 'withdrawal') as total_withdrawals,
+    sumIf(amount, transaction_type IN ('bet', 'groove_bet')) as total_bets,
+    sumIf(amount, transaction_type IN ('win', 'groove_win')) as total_wins,
+    sumIf(amount, transaction_type = 'bonus') as total_bonuses,
+    sumIf(amount, transaction_type = 'cashback') as total_cashback,
+    count() as transaction_count,
+    uniqExact(game_id) as unique_games_played,
+    uniqExact(session_id) as session_count,
+    avgIf(amount, transaction_type IN ('bet', 'groove_bet')) as avg_bet_amount,
+    maxIf(amount, transaction_type IN ('bet', 'groove_bet')) as max_bet_amount,
+    minIf(amount, transaction_type IN ('bet', 'groove_bet')) as min_bet_amount,
+    max(created_at) as last_activity
+FROM transactions
+GROUP BY user_id, date;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions (user_id, date) TYPE minmax GRANULARITY 1;

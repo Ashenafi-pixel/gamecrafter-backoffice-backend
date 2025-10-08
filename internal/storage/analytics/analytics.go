@@ -170,7 +170,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			bet_amount, win_amount, net_result, balance_before, balance_after,
 			payment_method, external_transaction_id, metadata, created_at, updated_at
 		FROM transactions
-		WHERE user_id = ?
+		WHERE user_id = ? AND amount > 0
 	`
 
 	args := []interface{}{userID.String()}
@@ -273,7 +273,7 @@ func (s *AnalyticsStorageImpl) GetUserAnalytics(ctx context.Context, userID uuid
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, minIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as min_bet_amount,
 			max(created_at) as last_activity
 		FROM tucanbit_analytics.transactions
-		WHERE user_id = ?
+		WHERE user_id = ? AND amount > 0
 		GROUP BY user_id
 	`
 
@@ -392,7 +392,7 @@ func (s *AnalyticsStorageImpl) GetGameTransactions(ctx context.Context, gameID s
 			bet_amount, win_amount, net_result, balance_before, balance_after,
 			payment_method, external_transaction_id, metadata, created_at, updated_at
 		FROM transactions
-		WHERE game_id = ?
+		WHERE game_id = ? AND amount > 0
 	`
 
 	args := []interface{}{gameID}
@@ -615,14 +615,22 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt32(uniqExact(user_id)) as active_users,
 			toUInt32(uniqExact(game_id)) as active_games,
-			toUInt32(countIf(transaction_type = 'registration')) as new_users,
+			toUInt32(0) as new_users, -- TODO: Get from users table
 			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers
+			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
+			toUInt32(countIf(transaction_type = 'deposit')) as deposit_count,
+			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
+			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
+			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
+			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
 		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at) = ?
+		WHERE toDate(created_at) = ? AND amount > 0
 	`
 
-	row := s.clickhouse.QueryRow(ctx, query, date)
+	dateStr := date.Format("2006-01-02")
+	row := s.clickhouse.QueryRow(ctx, query, dateStr)
 
 	var report dto.DailyReport
 	err := row.Scan(
@@ -637,6 +645,13 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 		&report.NewUsers,
 		&report.UniqueDepositors,
 		&report.UniqueWithdrawers,
+		&report.DepositCount,
+		&report.WithdrawalCount,
+		&report.BetCount,
+		&report.WinCount,
+		&report.CashbackEarned,
+		&report.CashbackClaimed,
+		&report.AdminCorrections,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan daily report: %w", err)
@@ -703,6 +718,13 @@ func (s *AnalyticsStorageImpl) GetEnhancedDailyReport(ctx context.Context, date 
 		NewUsers:          baseReport.NewUsers,
 		UniqueDepositors:  baseReport.UniqueDepositors,
 		UniqueWithdrawers: baseReport.UniqueWithdrawers,
+		DepositCount:      baseReport.DepositCount,
+		WithdrawalCount:   baseReport.WithdrawalCount,
+		BetCount:          baseReport.BetCount,
+		WinCount:          baseReport.WinCount,
+		CashbackEarned:    baseReport.CashbackEarned,
+		CashbackClaimed:   baseReport.CashbackClaimed,
+		AdminCorrections:  baseReport.AdminCorrections,
 		TopGames:          baseReport.TopGames,
 		TopPlayers:        baseReport.TopPlayers,
 	}
@@ -777,20 +799,40 @@ func (s *AnalyticsStorageImpl) calculatePercentageChange(current, previous *dto.
 			decimal.NewFromInt(int64(current.UniqueWithdrawers)),
 			decimal.NewFromInt(int64(previous.UniqueWithdrawers)),
 		),
+		DepositCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.DepositCount)),
+			decimal.NewFromInt(int64(previous.DepositCount)),
+		),
+		WithdrawalCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.WithdrawalCount)),
+			decimal.NewFromInt(int64(previous.WithdrawalCount)),
+		),
+		BetCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.BetCount)),
+			decimal.NewFromInt(int64(previous.BetCount)),
+		),
+		WinCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(current.WinCount)),
+			decimal.NewFromInt(int64(previous.WinCount)),
+		),
+		CashbackEarnedChange:   s.calculatePercentageChangeDecimal(current.CashbackEarned, previous.CashbackEarned),
+		CashbackClaimedChange:  s.calculatePercentageChangeDecimal(current.CashbackClaimed, previous.CashbackClaimed),
+		AdminCorrectionsChange: s.calculatePercentageChangeDecimal(current.AdminCorrections, previous.AdminCorrections),
 	}
 }
 
-// calculatePercentageChangeDecimal calculates percentage change between two decimal values
-func (s *AnalyticsStorageImpl) calculatePercentageChangeDecimal(current, previous decimal.Decimal) decimal.Decimal {
+// calculatePercentageChangeDecimal calculates percentage change between two decimal values and returns as string with % sign
+func (s *AnalyticsStorageImpl) calculatePercentageChangeDecimal(current, previous decimal.Decimal) string {
 	if previous.IsZero() {
 		if current.IsZero() {
-			return decimal.Zero
+			return "0%"
 		}
-		return decimal.NewFromInt(100) // 100% increase from 0
+		// 100% increase from 0
+		return "100%"
 	}
 
 	change := current.Sub(previous).Div(previous).Mul(decimal.NewFromInt(100))
-	return change
+	return change.StringFixed(2) + "%"
 }
 
 // getMTDData gets Month To Date data for the given date
@@ -798,6 +840,81 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 	startOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 
 	query := `
+		WITH mtd_data AS (
+			-- Deposits from deposits table
+			SELECT 
+				user_id,
+				amount,
+				'deposit' as transaction_type,
+				created_at,
+				'deposits' as source
+			FROM tucanbit_analytics.deposits
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- Withdrawals from withdrawals table
+			SELECT 
+				user_id,
+				amount,
+				'withdrawal' as transaction_type,
+				created_at,
+				'withdrawals' as source
+			FROM tucanbit_analytics.withdrawals
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- GrooveTech wagers and results
+			SELECT 
+				account_id as user_id,
+				amount,
+				CASE 
+					WHEN type = 'wager' THEN 'groove_bet'
+					WHEN type = 'result' THEN 'groove_win'
+					ELSE type
+				END as transaction_type,
+				created_at,
+				'groove' as source
+			FROM tucanbit_analytics.groove_transactions
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- Regular bets
+			SELECT 
+				user_id,
+				amount,
+				'bet' as transaction_type,
+				timestamp as created_at,
+				'bets' as source
+			FROM tucanbit_analytics.bets
+			WHERE toDate(timestamp) >= ? AND toDate(timestamp) <= ?
+			
+			UNION ALL
+			
+			-- Cashback earnings
+			SELECT 
+				user_id,
+				earned_amount as amount,
+				'cashback_earned' as transaction_type,
+				created_at,
+				'cashback_earnings' as source
+			FROM tucanbit_analytics.cashback_earnings
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- Cashback claims
+			SELECT 
+				user_id,
+				claim_amount as amount,
+				'cashback_claimed' as transaction_type,
+				created_at,
+				'cashback_claims' as source
+			FROM tucanbit_analytics.cashback_claims
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+		)
 		SELECT 
 			toUInt32(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
@@ -806,15 +923,23 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(uniqExact(game_id)) as active_games,
-			toUInt32(countIf(transaction_type = 'registration')) as new_users,
+			toUInt32(0) as active_games, -- TODO: Get from games table
+			toUInt32(0) as new_users, -- TODO: Get from users table
 			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers
-		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
+			toUInt32(countIf(transaction_type = 'deposit')) as deposit_count,
+			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
+			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
+			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
+			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
+		FROM mtd_data
 	`
 
-	row := s.clickhouse.QueryRow(ctx, query, startOfMonth, date)
+	startOfMonthStr := startOfMonth.Format("2006-01-02")
+	dateStr := date.Format("2006-01-02")
+	row := s.clickhouse.QueryRow(ctx, query, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr)
 
 	var mtd dto.DailyReportMTD
 	err := row.Scan(
@@ -829,6 +954,13 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 		&mtd.NewUsers,
 		&mtd.UniqueDepositors,
 		&mtd.UniqueWithdrawers,
+		&mtd.DepositCount,
+		&mtd.WithdrawalCount,
+		&mtd.BetCount,
+		&mtd.WinCount,
+		&mtd.CashbackEarned,
+		&mtd.CashbackClaimed,
+		&mtd.AdminCorrections,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan MTD data: %w", err)
@@ -851,6 +983,81 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 	}
 
 	query := `
+		WITH splm_data AS (
+			-- Deposits from deposits table
+			SELECT 
+				user_id,
+				amount,
+				'deposit' as transaction_type,
+				created_at,
+				'deposits' as source
+			FROM tucanbit_analytics.deposits
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- Withdrawals from withdrawals table
+			SELECT 
+				user_id,
+				amount,
+				'withdrawal' as transaction_type,
+				created_at,
+				'withdrawals' as source
+			FROM tucanbit_analytics.withdrawals
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- GrooveTech wagers and results
+			SELECT 
+				account_id as user_id,
+				amount,
+				CASE 
+					WHEN type = 'wager' THEN 'groove_bet'
+					WHEN type = 'result' THEN 'groove_win'
+					ELSE type
+				END as transaction_type,
+				created_at,
+				'groove' as source
+			FROM tucanbit_analytics.groove_transactions
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- Regular bets
+			SELECT 
+				user_id,
+				amount,
+				'bet' as transaction_type,
+				timestamp as created_at,
+				'bets' as source
+			FROM tucanbit_analytics.bets
+			WHERE toDate(timestamp) >= ? AND toDate(timestamp) <= ?
+			
+			UNION ALL
+			
+			-- Cashback earnings
+			SELECT 
+				user_id,
+				earned_amount as amount,
+				'cashback_earned' as transaction_type,
+				created_at,
+				'cashback_earnings' as source
+			FROM tucanbit_analytics.cashback_earnings
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			
+			UNION ALL
+			
+			-- Cashback claims
+			SELECT 
+				user_id,
+				claim_amount as amount,
+				'cashback_claimed' as transaction_type,
+				created_at,
+				'cashback_claims' as source
+			FROM tucanbit_analytics.cashback_claims
+			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+		)
 		SELECT 
 			toUInt32(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
@@ -859,15 +1066,23 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(uniqExact(game_id)) as active_games,
-			toUInt32(countIf(transaction_type = 'registration')) as new_users,
+			toUInt32(0) as active_games, -- TODO: Get from games table
+			toUInt32(0) as new_users, -- TODO: Get from users table
 			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers
-		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
+			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
+			toUInt32(countIf(transaction_type = 'deposit')) as deposit_count,
+			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
+			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
+			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
+			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
+		FROM splm_data
 	`
 
-	row := s.clickhouse.QueryRow(ctx, query, startOfLastMonth, splmEndDate)
+	startOfLastMonthStr := startOfLastMonth.Format("2006-01-02")
+	splmEndDateStr := splmEndDate.Format("2006-01-02")
+	row := s.clickhouse.QueryRow(ctx, query, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr)
 
 	var splm dto.DailyReportSPLM
 	err := row.Scan(
@@ -882,6 +1097,13 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 		&splm.NewUsers,
 		&splm.UniqueDepositors,
 		&splm.UniqueWithdrawers,
+		&splm.DepositCount,
+		&splm.WithdrawalCount,
+		&splm.BetCount,
+		&splm.WinCount,
+		&splm.CashbackEarned,
+		&splm.CashbackClaimed,
+		&splm.AdminCorrections,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan SPLM data: %w", err)
@@ -922,6 +1144,25 @@ func (s *AnalyticsStorageImpl) calculateMTDvsSPLMChange(mtd *dto.DailyReportMTD,
 			decimal.NewFromInt(int64(mtd.UniqueWithdrawers)),
 			decimal.NewFromInt(int64(splm.UniqueWithdrawers)),
 		),
+		DepositCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.DepositCount)),
+			decimal.NewFromInt(int64(splm.DepositCount)),
+		),
+		WithdrawalCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.WithdrawalCount)),
+			decimal.NewFromInt(int64(splm.WithdrawalCount)),
+		),
+		BetCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.BetCount)),
+			decimal.NewFromInt(int64(splm.BetCount)),
+		),
+		WinCountChange: s.calculatePercentageChangeDecimal(
+			decimal.NewFromInt(int64(mtd.WinCount)),
+			decimal.NewFromInt(int64(splm.WinCount)),
+		),
+		CashbackEarnedChange:   s.calculatePercentageChangeDecimal(mtd.CashbackEarned, splm.CashbackEarned),
+		CashbackClaimedChange:  s.calculatePercentageChangeDecimal(mtd.CashbackClaimed, splm.CashbackClaimed),
+		AdminCorrectionsChange: s.calculatePercentageChangeDecimal(mtd.AdminCorrections, splm.AdminCorrections),
 	}
 }
 
@@ -1022,7 +1263,7 @@ func (s *AnalyticsStorageImpl) GetTopGames(ctx context.Context, limit int, dateR
 				ELSE 0 
 			END as rtp
 		FROM tucanbit_analytics.transactions
-		WHERE game_id IS NOT NULL AND game_id != ''
+		WHERE game_id IS NOT NULL AND game_id != '' AND amount > 0
 	`
 
 	args := []interface{}{}
@@ -1099,7 +1340,7 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			max(created_at) as last_activity
 		FROM tucanbit_analytics.transactions
-		WHERE user_id IS NOT NULL AND user_id != ''
+		WHERE user_id IS NOT NULL AND user_id != '' AND amount > 0
 	`
 
 	args := []interface{}{}
@@ -1151,9 +1392,15 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 			return nil, fmt.Errorf("failed to scan player stats: %w", err)
 		}
 
-		player.UserID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse user ID: %w", err)
+		// Handle both UUID and non-UUID user IDs
+		if len(userIDStr) == 36 { // UUID format
+			player.UserID, err = uuid.Parse(userIDStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse user ID: %w", err)
+			}
+		} else {
+			// For non-UUID IDs (like GrooveTech account_id), create a placeholder UUID
+			player.UserID = uuid.New()
 		}
 
 		player.Username = "Player_" + userIDStr[:8] // Placeholder username

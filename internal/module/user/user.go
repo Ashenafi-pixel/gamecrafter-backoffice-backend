@@ -20,8 +20,9 @@ import (
 	"github.com/tucanbit/internal/constant/errors/sqlcerr"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/email"
+	"github.com/tucanbit/internal/module/otp"
 	"github.com/tucanbit/internal/storage"
-	"github.com/tucanbit/internal/storage/otp"
+	otpStorage "github.com/tucanbit/internal/storage/otp"
 	"github.com/tucanbit/platform/pisi"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
@@ -64,6 +65,7 @@ type User struct {
 	redis                         *redis.RedisOTP
 	PisiClient                    pisi.PisiClient
 	EnterpriseRegistrationService *EnterpriseRegistrationService
+	otpModule                     otp.OTPModule
 }
 
 func Init(userStorage storage.User,
@@ -85,7 +87,7 @@ func Init(userStorage storage.User,
 	agentModule module.Agent,
 	redis *redis.RedisOTP,
 	pisiClient pisi.PisiClient,
-	otpStorage otp.OTP,
+	otpStorage otpStorage.OTP,
 	emailService email.EmailService,
 ) module.User {
 	gOauth := &oauth.Config{
@@ -127,6 +129,7 @@ func Init(userStorage storage.User,
 		stopChan:                    make(chan struct{}),
 		redis:                       redis,
 		PisiClient:                  pisiClient,
+		otpModule:                   otp.NewOTPService(otpStorage, userStorage, emailService, log),
 	}
 	// Initialize enterprise registration service
 	usr.EnterpriseRegistrationService = NewEnterpriseRegistrationService(
@@ -900,7 +903,7 @@ func (u *User) ChangePassword(ctx context.Context, changePasswordReq dto.ChangeP
 	}, nil
 }
 
-func (u *User) ForgetPassword(ctx context.Context, usernameOrPhoneOrEmail string) (*dto.ForgetPasswordRes, error) {
+func (u *User) ForgetPassword(ctx context.Context, usernameOrPhoneOrEmail, userAgent, ipAddress string) (*dto.ForgetPasswordRes, error) {
 	//check if the username or phone or email is valid
 	user, exist, err := u.userStorage.GetUserByEmail(ctx, usernameOrPhoneOrEmail)
 	if err != nil {
@@ -914,49 +917,60 @@ func (u *User) ForgetPassword(ctx context.Context, usernameOrPhoneOrEmail string
 		return nil, err
 	}
 
-	// save OTP to redis
-	otp := utils.GenerateOTP()
-
-	u.PisiClient.SendBulkSMS(ctx, pisi.SendBulkSMSRequest{
-		Message:    fmt.Sprintf("Your code is {%s}. Please do not share this code.", otp),
-		Recipients: usernameOrPhoneOrEmail,
-	})
-
-	//validate the username or phone or email
-	err = u.redis.SaveOTP(ctx, user.PhoneNumber, otp)
+	// Use the OTP module to create password reset OTP via email
+	otpResponse, err := u.otpModule.CreatePasswordResetOTP(ctx, user.Email, userAgent, ipAddress, user.ID.String())
 	if err != nil {
-		return nil, err
+		u.log.Error("Failed to create password reset OTP", zap.Error(err), zap.String("email", user.Email))
+		return nil, fmt.Errorf("failed to send password reset email: %w", err)
 	}
+
+	u.log.Info("Password reset OTP sent successfully",
+		zap.String("email", user.Email),
+		zap.String("otp_id", otpResponse.OTPID.String()))
+
 	return &dto.ForgetPasswordRes{
-		Message: constant.FORGOT_PASSWORD_RES,
+		Message: "Password reset email sent successfully. Please check your email for the OTP code.",
+		Email:   user.Email,
+		OTPID:   otpResponse.OTPID,
 	}, nil
 }
 
 func (u *User) VerifyResetPassword(ctx context.Context, resetPasswordReq dto.VerifyResetPasswordReq) (*dto.VerifyResetPasswordRes, error) {
-	valid, err := u.redis.VerifyAndRemoveOTP(ctx, resetPasswordReq.EmailOrPhoneOrUserame, resetPasswordReq.OTP)
+	// Verify OTP using the OTP module
+	_, err := u.otpModule.VerifyOTP(ctx, &dto.OTPVerificationRequest{
+		Email:   resetPasswordReq.EmailOrPhoneOrUserame,
+		OTPCode: resetPasswordReq.OTP,
+		OTPID:   resetPasswordReq.OTPID,
+	})
 	if err != nil {
-		if err.Error() == "Too many invalid attempts. Please request a new OTP." {
-			return nil, errors.ErrAcessError.New("Too many invalid attempts. Please request a new OTP.")
-		}
-		return nil, err
+		u.log.Error("Failed to verify password reset OTP", zap.Error(err), zap.String("email", resetPasswordReq.EmailOrPhoneOrUserame))
+		return nil, fmt.Errorf("invalid or expired OTP: %w", err)
 	}
-	if !valid {
-		err := errors.ErrAcessError.New("invalid otp")
-		return nil, err
-	}
+
+	// Get user by email
 	usr, exist, err := u.userStorage.GetUserByEmail(ctx, resetPasswordReq.EmailOrPhoneOrUserame)
 	if err != nil {
+		u.log.Error("Failed to get user by email", zap.Error(err), zap.String("email", resetPasswordReq.EmailOrPhoneOrUserame))
 		return nil, err
 	}
 	if !exist {
 		err := errors.ErrAcessError.New("invalid user")
+		u.log.Error("User not found", zap.String("email", resetPasswordReq.EmailOrPhoneOrUserame))
 		return nil, err
 	}
-	// generate jwt token for the user to reset password
+
+	// Generate JWT token for the user to reset password
 	token, err := utils.GenerateOTPJWT(usr.ID)
 	if err != nil {
+		u.log.Error("Failed to generate JWT token", zap.Error(err), zap.String("user_id", usr.ID.String()))
 		return nil, err
 	}
+
+	u.log.Info("Password reset OTP verified successfully",
+		zap.String("email", resetPasswordReq.EmailOrPhoneOrUserame),
+		zap.String("user_id", usr.ID.String()),
+		zap.String("otp_id", resetPasswordReq.OTPID.String()))
+
 	return &dto.VerifyResetPasswordRes{
 		UserID: usr.ID,
 		Token:  token,

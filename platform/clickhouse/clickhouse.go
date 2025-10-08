@@ -40,13 +40,14 @@ func NewClickHouseClient(config ClickHouseConfig, logger *zap.Logger) (*ClickHou
 			"max_execution_time": 60,
 		},
 		DialTimeout: config.Timeout,
+		Protocol:    clickhouse.HTTP,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to ClickHouse: %w", err)
 	}
 
 	// Create SQL connection for compatibility
-	db, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s?dial_timeout=10s&read_timeout=20s",
+	db, err := sql.Open("clickhouse", fmt.Sprintf("http://%s:%s@%s:%d/%s?dial_timeout=10s&read_timeout=20s",
 		config.Username, config.Password, config.Host, config.Port, config.Database))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SQL connection: %w", err)

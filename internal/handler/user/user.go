@@ -290,7 +290,12 @@ func (u *user) ForgetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.ForgetPassword(c, changePAsswordReq.EmailOrPhoneOrUserame)
+
+	// Extract user agent and IP address for email security features
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	res, err := u.userModule.ForgetPassword(c, changePAsswordReq.EmailOrPhoneOrUserame, userAgent, ipAddress)
 	if err != nil {
 		_ = c.Error(err)
 		return

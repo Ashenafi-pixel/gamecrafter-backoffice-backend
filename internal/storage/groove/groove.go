@@ -3,6 +3,7 @@ package groove
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -75,6 +76,13 @@ type GrooveStorage interface {
 
 	// User profile operations
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
+
+	// Player transaction history operations
+	GetPlayerTransactionHistory(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error)
+	GetPlayerTransactionHistoryCount(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (int, error)
+	GetPlayerTransactionHistorySummary(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (dto.PlayerTransactionSummary, error)
+	GetPlayerTransactionHistoryByAccountID(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error)
+	GetPlayerTransactionHistoryByAccountIDCount(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time) (int, error)
 }
 
 type GrooveStorageImpl struct {
@@ -496,13 +504,23 @@ func (s *GrooveStorageImpl) CreateGameSession(ctx context.Context, session dto.G
 		zap.String("session_id", session.SessionID),
 		zap.String("game_id", session.GameID))
 
+	// Get the user's test account status from the account
+	var isTestGameSession bool
+	err := s.db.GetPool().QueryRow(ctx,
+		"SELECT u.is_test_account FROM users u JOIN groove_accounts ga ON u.id = ga.user_id WHERE ga.account_id = $1",
+		session.AccountID).Scan(&isTestGameSession)
+	if err != nil {
+		// Default to true (test account) if we can't fetch the status
+		isTestGameSession = true
+	}
+
 	query := `
-		INSERT INTO groove_game_sessions (id, session_id, account_id, game_id, balance, currency, status, created_at, expires_at, last_activity)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO groove_game_sessions (id, session_id, account_id, game_id, balance, currency, status, created_at, expires_at, last_activity, is_test_game_session)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at, expires_at, last_activity`
 
 	var createdAt, expiresAt, lastActivity time.Time
-	err := s.db.GetPool().QueryRow(ctx, query,
+	err = s.db.GetPool().QueryRow(ctx, query,
 		uuid.New(), // Internal ID
 		session.SessionID,
 		session.AccountID,
@@ -513,6 +531,7 @@ func (s *GrooveStorageImpl) CreateGameSession(ctx context.Context, session dto.G
 		session.CreatedAt,
 		session.ExpiresAt,
 		session.LastActivity,
+		isTestGameSession, // is_test_game_session from database
 	).Scan(&createdAt, &expiresAt, &lastActivity)
 
 	if err != nil {
@@ -555,8 +574,8 @@ func (s *GrooveStorageImpl) EndGameSession(ctx context.Context, sessionID string
 func (s *GrooveStorageImpl) GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
 	s.logger.Info("Getting user balance", zap.String("user_id", userID.String()))
 
-	// Get balance from main balances table (source of truth) - using real_money
-	query := `SELECT real_money FROM balances WHERE user_id = $1 AND currency = 'USD' LIMIT 1`
+	// Get balance from main balances table (source of truth) - using amount_cents
+	query := `SELECT amount_cents FROM balances WHERE user_id = $1 AND currency_code = 'USD' LIMIT 1`
 
 	var balanceCents int64
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(&balanceCents)
@@ -653,9 +672,9 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	// Get current balance from main balances table - using real_money
 	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(real_money, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency = 'USD'
+		WHERE user_id = $1 AND currency_code = 'USD'
 	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
@@ -679,14 +698,13 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 
 	// Update main balances table - using real_money
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency, real_money, bonus_money, updated_at)
-		VALUES ($1, 'USD', $2, $3, NOW())
-		ON CONFLICT (user_id, currency)
+		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
+		VALUES ($1, 'USD', $2, NOW())
+		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
-			real_money = $2,
-			bonus_money = $3,
+			amount_cents = $2,
 			updated_at = NOW()
-	`, userID, newBalanceCents, newBalance)
+	`, userID, newBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -742,9 +760,9 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	// Get current balance from main balances table - using real_money
 	var currentBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(real_money, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency = 'USD'
+		WHERE user_id = $1 AND currency_code = 'USD'
 	`, userID).Scan(&currentBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get current balance", zap.Error(err))
@@ -760,14 +778,13 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 
 	// Update main balances table - using real_money
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency, real_money, bonus_money, updated_at)
-		VALUES ($1, 'USD', $2, $3, NOW())
-		ON CONFLICT (user_id, currency)
+		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
+		VALUES ($1, 'USD', $2, NOW())
+		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
-			real_money = $2,
-			bonus_money = $3,
+			amount_cents = $2,
 			updated_at = NOW()
-	`, userID, newBalanceCents, newBalance)
+	`, userID, newBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -813,6 +830,16 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		zap.String("account_transaction_id", transaction.AccountTransactionID),
 		zap.String("transaction_type", transactionType))
 
+	// Get the user's test account status
+	var isTestTransaction bool
+	err := s.db.GetPool().QueryRow(ctx,
+		"SELECT u.is_test_account FROM users u JOIN groove_accounts ga ON u.id = ga.user_id WHERE ga.account_id = $1",
+		transaction.AccountID).Scan(&isTestTransaction)
+	if err != nil {
+		// Default to true (test account) if we can't fetch the status
+		isTestTransaction = true
+	}
+
 	// Store transaction metadata in JSONB format according to existing table structure
 	metadata := map[string]interface{}{
 		"account_transaction_id": transaction.AccountTransactionID,
@@ -824,17 +851,18 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 		"user_id":                transaction.UserID.String(),
 	}
 
-	_, err := s.db.GetPool().Exec(ctx, `
+	_, err = s.db.GetPool().Exec(ctx, `
 		INSERT INTO groove_transactions (
-			transaction_id, account_id, session_id, amount, currency, type, status, metadata
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			transaction_id, account_id, session_id, amount, currency, type, status, metadata, is_test_transaction
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (transaction_id) DO UPDATE SET
 			type = EXCLUDED.type,
 			amount = EXCLUDED.amount,
 			metadata = EXCLUDED.metadata,
+			is_test_transaction = EXCLUDED.is_test_transaction,
 			created_at = EXCLUDED.created_at
 	`, transaction.TransactionID, transaction.AccountID, transaction.GameSessionID,
-		transaction.BetAmount, "USD", transactionType, "completed", metadata)
+		transaction.BetAmount, "USD", transactionType, "completed", metadata, isTestTransaction)
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		return fmt.Errorf("failed to store transaction: %w", err)
@@ -1110,9 +1138,9 @@ func (s *GrooveStorageImpl) ReconcileBalances(ctx context.Context, userID uuid.U
 	// Get main balance (source of truth) - using real_money
 	var mainBalanceCents int64
 	err = tx.QueryRow(ctx, `
-		SELECT COALESCE(real_money, 0) 
+		SELECT COALESCE(amount_cents, 0) 
 		FROM balances 
-		WHERE user_id = $1 AND currency = 'USD'
+		WHERE user_id = $1 AND currency_code = 'USD'
 	`, userID).Scan(&mainBalanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get main balance", zap.Error(err))
@@ -1248,4 +1276,632 @@ func (s *GrooveStorageImpl) GetTransactionGameInfo(ctx context.Context, transact
 		zap.String("game_type", gameType))
 
 	return gameID, gameType, nil
+}
+
+// GetPlayerTransactionHistory retrieves player transaction history
+func (s *GrooveStorageImpl) GetPlayerTransactionHistory(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error) {
+	s.logger.Info("Fetching player transaction history",
+		zap.String("user_id", userID.String()),
+		zap.Stringp("account_id", accountID),
+		zap.Stringp("transaction_type", transactionType),
+		zap.Stringp("status", status),
+		zap.Stringp("category", category),
+		zap.Int("limit", limit),
+		zap.Int("offset", offset))
+
+	query := `
+		WITH all_transactions AS (
+			-- GrooveTech transactions
+			SELECT 
+				gt.id,
+				gt.transaction_id,
+				gt.account_id,
+				gt.session_id,
+				gt.type,
+				gt.amount,
+				gt.currency,
+				gt.status,
+				gt.created_at,
+				gt.metadata::text,
+				'gaming' as category,
+				-- Extract game information from metadata
+				(gt.metadata->>'game_id')::text as game_id,
+				(gt.metadata->>'game_name')::text as game_name,
+				(gt.metadata->>'round_id')::text as round_id,
+				(gt.metadata->>'provider')::text as provider,
+				(gt.metadata->>'device')::text as device,
+				-- Null fields for other transaction types
+				NULL::text as bet_reference_num,
+				NULL::text as game_reference,
+				NULL::text as bet_mode,
+				NULL::text as description,
+				NULL::numeric as potential_win,
+				NULL::numeric as actual_win,
+				NULL::numeric as odds,
+				NULL::timestamp as placed_at,
+				NULL::timestamp as settled_at,
+				NULL::text as client_transaction_id,
+				NULL::numeric as cash_out_multiplier,
+				NULL::numeric as payout,
+				NULL::numeric as house_edge
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE ga.user_id = $1
+				AND ($2::text IS NULL OR gt.account_id = $2)
+				AND ($3::text IS NULL OR gt.type = $3)
+				AND ($4::text IS NULL OR gt.status = $4)
+				AND ($5::date IS NULL OR gt.created_at::date >= $5)
+				AND ($6::date IS NULL OR gt.created_at::date <= $6)
+				AND ($7::text IS NULL OR 'gaming' = $7)
+
+			UNION ALL
+
+			-- Sports betting transactions
+			SELECT 
+				sb.id,
+				sb.transaction_id,
+				NULL::text as account_id,
+				NULL::text as session_id,
+				'sport_bet' as type,
+				sb.bet_amount as amount,
+				sb.currency,
+				sb.status,
+				sb.created_at,
+				sb.bet_details::text as metadata,
+				'sports' as category,
+				-- Null fields for gaming
+				NULL::text as game_id,
+				NULL::text as game_name,
+				NULL::text as round_id,
+				NULL::text as provider,
+				NULL::text as device,
+				-- Sports betting fields
+				sb.bet_reference_num,
+				sb.game_reference,
+				sb.bet_mode,
+				sb.description,
+				sb.potential_win,
+				sb.actual_win,
+				sb.odds,
+				sb.placed_at,
+				sb.settled_at,
+				-- Null fields for general betting
+				NULL::text as client_transaction_id,
+				NULL::numeric as cash_out_multiplier,
+				NULL::numeric as payout,
+				NULL::numeric as house_edge
+			FROM sport_bets sb
+			WHERE sb.user_id = $1
+				AND ($2::text IS NULL OR sb.transaction_id = $2)
+				AND ($3::text IS NULL OR 'sport_bet' = $3)
+				AND ($4::text IS NULL OR sb.status = $4)
+				AND ($5::date IS NULL OR sb.created_at::date >= $5)
+				AND ($6::date IS NULL OR sb.created_at::date <= $6)
+				AND ($7::text IS NULL OR 'sports' = $7)
+
+			UNION ALL
+
+			-- General betting transactions
+			SELECT 
+				b.id,
+				b.client_transaction_id as transaction_id,
+				NULL::text as account_id,
+				NULL::text as session_id,
+				'bet' as type,
+				b.amount,
+				b.currency,
+				b.status,
+				COALESCE(b.timestamp, NOW()) as created_at,
+				NULL::text as metadata,
+				'general' as category,
+				-- Null fields for gaming
+				NULL::text as game_id,
+				NULL::text as game_name,
+				NULL::text as round_id,
+				NULL::text as provider,
+				NULL::text as device,
+				-- Null fields for sports betting
+				NULL::text as bet_reference_num,
+				NULL::text as game_reference,
+				NULL::text as bet_mode,
+				NULL::text as description,
+				NULL::numeric as potential_win,
+				NULL::numeric as actual_win,
+				NULL::numeric as odds,
+				NULL::timestamp as placed_at,
+				NULL::timestamp as settled_at,
+				-- General betting fields
+				b.client_transaction_id,
+				b.cash_out_multiplier,
+				b.payout,
+				b.house_edge
+			FROM bets b
+			WHERE b.user_id = $1
+				AND ($2::text IS NULL OR b.client_transaction_id = $2)
+				AND ($3::text IS NULL OR 'bet' = $3)
+				AND ($4::text IS NULL OR b.status = $4)
+				AND ($5::date IS NULL OR COALESCE(b.timestamp, NOW())::date >= $5)
+				AND ($6::date IS NULL OR COALESCE(b.timestamp, NOW())::date <= $6)
+				AND ($7::text IS NULL OR 'general' = $7)
+		)
+		SELECT * FROM all_transactions
+		ORDER BY created_at DESC
+		LIMIT $8 OFFSET $9`
+
+	rows, err := s.db.GetPool().Query(ctx, query, userID, accountID, transactionType, status, startDate, endDate, category, limit, offset)
+	if err != nil {
+		s.logger.Error("Failed to fetch player transaction history", zap.Error(err))
+		return nil, fmt.Errorf("failed to fetch player transaction history: %w", err)
+	}
+	defer rows.Close()
+
+	var transactions []dto.PlayerTransaction
+	for rows.Next() {
+		var tx dto.PlayerTransaction
+		var metadata, gameID, gameName, roundID, provider, device, betReferenceNum, gameReference, betMode, description, clientTransactionID *string
+		var potentialWin, actualWin, odds, cashOutMultiplier, payout, houseEdge *decimal.Decimal
+		var placedAt, settledAt *time.Time
+
+		err := rows.Scan(
+			&tx.ID,
+			&tx.TransactionID,
+			&tx.AccountID,
+			&tx.SessionID,
+			&tx.Type,
+			&tx.Amount,
+			&tx.Currency,
+			&tx.Status,
+			&tx.CreatedAt,
+			&metadata,
+			&tx.Category,
+			&gameID,
+			&gameName,
+			&roundID,
+			&provider,
+			&device,
+			&betReferenceNum,
+			&gameReference,
+			&betMode,
+			&description,
+			&potentialWin,
+			&actualWin,
+			&odds,
+			&placedAt,
+			&settledAt,
+			&clientTransactionID,
+			&cashOutMultiplier,
+			&payout,
+			&houseEdge,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan transaction row", zap.Error(err))
+			return nil, fmt.Errorf("failed to scan transaction row: %w", err)
+		}
+
+		// Set optional fields
+		tx.Metadata = metadata
+		tx.GameID = gameID
+		tx.GameName = gameName
+		tx.RoundID = roundID
+		tx.Provider = provider
+		tx.Device = device
+		tx.BetReferenceNum = betReferenceNum
+		tx.GameReference = gameReference
+		tx.BetMode = betMode
+		tx.Description = description
+		tx.PotentialWin = potentialWin
+		tx.ActualWin = actualWin
+		tx.Odds = odds
+		tx.PlacedAt = placedAt
+		tx.SettledAt = settledAt
+		tx.ClientTransactionID = clientTransactionID
+		tx.CashOutMultiplier = cashOutMultiplier
+		tx.Payout = payout
+		tx.HouseEdge = houseEdge
+
+		// Determine transaction type and win/loss status
+		tx.TransactionType = strings.Title(tx.Type)
+		if tx.Type == "result" && tx.Amount.GreaterThan(decimal.Zero) {
+			tx.IsWin = true
+			tx.IsLoss = false
+			tx.NetResult = tx.Amount
+		} else if tx.Type == "wager" && tx.Amount.LessThan(decimal.Zero) {
+			tx.IsWin = false
+			tx.IsLoss = true
+			tx.NetResult = tx.Amount
+		} else if tx.Type == "sport_bet" {
+			if actualWin != nil && actualWin.GreaterThan(decimal.Zero) {
+				tx.IsWin = true
+				tx.IsLoss = false
+				tx.NetResult = actualWin.Sub(tx.Amount)
+			} else {
+				tx.IsWin = false
+				tx.IsLoss = true
+				tx.NetResult = tx.Amount.Neg()
+			}
+		} else if tx.Type == "bet" {
+			if payout != nil && payout.GreaterThan(decimal.Zero) {
+				tx.IsWin = true
+				tx.IsLoss = false
+				tx.NetResult = payout.Sub(tx.Amount)
+			} else {
+				tx.IsWin = false
+				tx.IsLoss = true
+				tx.NetResult = tx.Amount.Neg()
+			}
+		}
+
+		transactions = append(transactions, tx)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.Error("Error iterating transaction rows", zap.Error(err))
+		return nil, fmt.Errorf("error iterating transaction rows: %w", err)
+	}
+
+	s.logger.Info("Successfully fetched player transaction history",
+		zap.String("user_id", userID.String()),
+		zap.Int("count", len(transactions)))
+
+	return transactions, nil
+}
+
+// GetPlayerTransactionHistoryCount retrieves the count of player transactions
+func (s *GrooveStorageImpl) GetPlayerTransactionHistoryCount(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (int, error) {
+	s.logger.Info("Fetching player transaction history count",
+		zap.String("user_id", userID.String()),
+		zap.Stringp("account_id", accountID),
+		zap.Stringp("transaction_type", transactionType),
+		zap.Stringp("status", status),
+		zap.Stringp("category", category))
+
+	query := `
+		WITH all_transactions AS (
+			-- GrooveTech transactions
+			SELECT gt.id
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE ga.user_id = $1
+				AND ($2::text IS NULL OR gt.account_id = $2)
+				AND ($3::text IS NULL OR gt.type = $3)
+				AND ($4::text IS NULL OR gt.status = $4)
+				AND ($5::date IS NULL OR gt.created_at::date >= $5)
+				AND ($6::date IS NULL OR gt.created_at::date <= $6)
+				AND ($7::text IS NULL OR 'gaming' = $7)
+
+			UNION ALL
+
+			-- Sports betting transactions
+			SELECT sb.id
+			FROM sport_bets sb
+			WHERE sb.user_id = $1
+				AND ($2::text IS NULL OR sb.transaction_id = $2)
+				AND ($3::text IS NULL OR 'sport_bet' = $3)
+				AND ($4::text IS NULL OR sb.status = $4)
+				AND ($5::date IS NULL OR sb.created_at::date >= $5)
+				AND ($6::date IS NULL OR sb.created_at::date <= $6)
+				AND ($7::text IS NULL OR 'sports' = $7)
+
+			UNION ALL
+
+			-- General betting transactions
+			SELECT b.id
+			FROM bets b
+			WHERE b.user_id = $1
+				AND ($2::text IS NULL OR b.client_transaction_id = $2)
+				AND ($3::text IS NULL OR 'bet' = $3)
+				AND ($4::text IS NULL OR b.status = $4)
+				AND ($5::date IS NULL OR COALESCE(b.timestamp, NOW())::date >= $5)
+				AND ($6::date IS NULL OR COALESCE(b.timestamp, NOW())::date <= $6)
+				AND ($7::text IS NULL OR 'general' = $7)
+		)
+		SELECT COUNT(*) as total FROM all_transactions`
+
+	var total int
+	err := s.db.GetPool().QueryRow(ctx, query, userID, accountID, transactionType, status, startDate, endDate, category).Scan(&total)
+	if err != nil {
+		s.logger.Error("Failed to fetch player transaction history count", zap.Error(err))
+		return 0, fmt.Errorf("failed to fetch player transaction history count: %w", err)
+	}
+
+	s.logger.Info("Successfully fetched player transaction history count",
+		zap.String("user_id", userID.String()),
+		zap.Int("total", total))
+
+	return total, nil
+}
+
+// GetPlayerTransactionHistorySummary retrieves player transaction summary
+func (s *GrooveStorageImpl) GetPlayerTransactionHistorySummary(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (dto.PlayerTransactionSummary, error) {
+	s.logger.Info("Fetching player transaction history summary",
+		zap.String("user_id", userID.String()),
+		zap.Stringp("account_id", accountID),
+		zap.Stringp("transaction_type", transactionType),
+		zap.Stringp("status", status),
+		zap.Stringp("category", category))
+
+	query := `
+		WITH all_transactions AS (
+			-- GrooveTech transactions
+			SELECT 
+				gt.amount,
+				gt.type,
+				gt.created_at,
+				CASE WHEN gt.type = 'result' AND gt.amount > 0 THEN 1 ELSE 0 END as is_win,
+				CASE WHEN gt.type = 'wager' AND gt.amount < 0 THEN 1 ELSE 0 END as is_loss,
+				CASE WHEN gt.type = 'wager' AND gt.amount < 0 THEN ABS(gt.amount) ELSE 0 END as wager_amount,
+				CASE WHEN gt.type = 'result' AND gt.amount > 0 THEN gt.amount ELSE 0 END as win_amount
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE ga.user_id = $1
+				AND ($2::text IS NULL OR gt.account_id = $2)
+				AND ($3::text IS NULL OR gt.type = $3)
+				AND ($4::text IS NULL OR gt.status = $4)
+				AND ($5::date IS NULL OR gt.created_at::date >= $5)
+				AND ($6::date IS NULL OR gt.created_at::date <= $6)
+				AND ($7::text IS NULL OR 'gaming' = $7)
+
+			UNION ALL
+
+			-- Sports betting transactions
+			SELECT 
+				sb.bet_amount as amount,
+				'sport_bet' as type,
+				sb.created_at,
+				CASE WHEN sb.actual_win > 0 THEN 1 ELSE 0 END as is_win,
+				CASE WHEN sb.actual_win = 0 OR sb.actual_win IS NULL THEN 1 ELSE 0 END as is_loss,
+				sb.bet_amount as wager_amount,
+				COALESCE(sb.actual_win, 0) as win_amount
+			FROM sport_bets sb
+			WHERE sb.user_id = $1
+				AND ($2::text IS NULL OR sb.transaction_id = $2)
+				AND ($3::text IS NULL OR 'sport_bet' = $3)
+				AND ($4::text IS NULL OR sb.status = $4)
+				AND ($5::date IS NULL OR sb.created_at::date >= $5)
+				AND ($6::date IS NULL OR sb.created_at::date <= $6)
+				AND ($7::text IS NULL OR 'sports' = $7)
+
+			UNION ALL
+
+			-- General betting transactions
+			SELECT 
+				b.amount,
+				'bet' as type,
+				COALESCE(b.timestamp, NOW()) as created_at,
+				CASE WHEN b.payout > 0 THEN 1 ELSE 0 END as is_win,
+				CASE WHEN b.payout = 0 OR b.payout IS NULL THEN 1 ELSE 0 END as is_loss,
+				b.amount as wager_amount,
+				COALESCE(b.payout, 0) as win_amount
+			FROM bets b
+			WHERE b.user_id = $1
+				AND ($2::text IS NULL OR b.client_transaction_id = $2)
+				AND ($3::text IS NULL OR 'bet' = $3)
+				AND ($4::text IS NULL OR b.status = $4)
+				AND ($5::date IS NULL OR COALESCE(b.timestamp, NOW())::date >= $5)
+				AND ($6::date IS NULL OR COALESCE(b.timestamp, NOW())::date <= $6)
+				AND ($7::text IS NULL OR 'general' = $7)
+		)
+		SELECT 
+			$1 as user_id,
+			COUNT(*) as transaction_count,
+			COALESCE(SUM(wager_amount), 0) as total_wagers,
+			COALESCE(SUM(win_amount), 0) as total_wins,
+			COALESCE(SUM(wager_amount), 0) as total_losses,
+			COALESCE(SUM(amount), 0) as net_result,
+			SUM(is_win) as win_count,
+			SUM(is_loss) as loss_count,
+			COALESCE(AVG(wager_amount), 0) as average_bet,
+			COALESCE(MAX(win_amount), 0) as max_win,
+			COALESCE(MAX(wager_amount), 0) as max_loss,
+			MIN(created_at) as first_transaction,
+			MAX(created_at) as last_transaction
+		FROM all_transactions`
+
+	var summary dto.PlayerTransactionSummary
+	err := s.db.GetPool().QueryRow(ctx, query, userID, accountID, transactionType, status, startDate, endDate, category).Scan(
+		&summary.UserID,
+		&summary.TransactionCount,
+		&summary.TotalWagers,
+		&summary.TotalWins,
+		&summary.TotalLosses,
+		&summary.NetResult,
+		&summary.WinCount,
+		&summary.LossCount,
+		&summary.AverageBet,
+		&summary.MaxWin,
+		&summary.MaxLoss,
+		&summary.FirstTransaction,
+		&summary.LastTransaction,
+	)
+	if err != nil {
+		s.logger.Error("Failed to fetch player transaction history summary", zap.Error(err))
+		return dto.PlayerTransactionSummary{}, fmt.Errorf("failed to fetch player transaction history summary: %w", err)
+	}
+
+	s.logger.Info("Successfully fetched player transaction history summary",
+		zap.String("user_id", userID.String()),
+		zap.Int("transaction_count", int(summary.TransactionCount)),
+		zap.String("total_wagers", summary.TotalWagers.String()),
+		zap.String("total_wins", summary.TotalWins.String()))
+
+	return summary, nil
+}
+
+// GetPlayerTransactionHistoryByAccountID retrieves player transaction history by account ID
+func (s *GrooveStorageImpl) GetPlayerTransactionHistoryByAccountID(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error) {
+	s.logger.Info("Fetching player transaction history by account ID",
+		zap.String("account_id", accountID),
+		zap.Stringp("transaction_type", transactionType),
+		zap.Stringp("status", status),
+		zap.Int("limit", limit),
+		zap.Int("offset", offset))
+
+	query := `
+		SELECT 
+			gt.id,
+			gt.transaction_id,
+			gt.account_id,
+			gt.session_id,
+			gt.type,
+			gt.amount,
+			gt.currency,
+			gt.status,
+			gt.created_at,
+			gt.metadata::text,
+			'gaming' as category,
+			-- Extract game information from metadata
+			(gt.metadata->>'game_id')::text as game_id,
+			(gt.metadata->>'game_name')::text as game_name,
+			(gt.metadata->>'round_id')::text as round_id,
+			(gt.metadata->>'provider')::text as provider,
+			(gt.metadata->>'device')::text as device,
+			-- Null fields for other transaction types
+			NULL::text as bet_reference_num,
+			NULL::text as game_reference,
+			NULL::text as bet_mode,
+			NULL::text as description,
+			NULL::numeric as potential_win,
+			NULL::numeric as actual_win,
+			NULL::numeric as odds,
+			NULL::timestamp as placed_at,
+			NULL::timestamp as settled_at,
+			NULL::text as client_transaction_id,
+			NULL::numeric as cash_out_multiplier,
+			NULL::numeric as payout,
+			NULL::numeric as house_edge
+		FROM groove_transactions gt
+		WHERE gt.account_id = $1
+			AND ($2::text IS NULL OR gt.type = $2)
+			AND ($3::text IS NULL OR gt.status = $3)
+			AND ($4::date IS NULL OR gt.created_at::date >= $4)
+			AND ($5::date IS NULL OR gt.created_at::date <= $5)
+		ORDER BY gt.created_at DESC
+		LIMIT $6 OFFSET $7`
+
+	rows, err := s.db.GetPool().Query(ctx, query, accountID, transactionType, status, startDate, endDate, limit, offset)
+	if err != nil {
+		s.logger.Error("Failed to fetch player transaction history by account ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to fetch player transaction history by account ID: %w", err)
+	}
+	defer rows.Close()
+
+	var transactions []dto.PlayerTransaction
+	for rows.Next() {
+		var tx dto.PlayerTransaction
+		var metadata, gameID, gameName, roundID, provider, device, betReferenceNum, gameReference, betMode, description, clientTransactionID *string
+		var potentialWin, actualWin, odds, cashOutMultiplier, payout, houseEdge *decimal.Decimal
+		var placedAt, settledAt *time.Time
+
+		err := rows.Scan(
+			&tx.ID,
+			&tx.TransactionID,
+			&tx.AccountID,
+			&tx.SessionID,
+			&tx.Type,
+			&tx.Amount,
+			&tx.Currency,
+			&tx.Status,
+			&tx.CreatedAt,
+			&metadata,
+			&tx.Category,
+			&gameID,
+			&gameName,
+			&roundID,
+			&provider,
+			&device,
+			&betReferenceNum,
+			&gameReference,
+			&betMode,
+			&description,
+			&potentialWin,
+			&actualWin,
+			&odds,
+			&placedAt,
+			&settledAt,
+			&clientTransactionID,
+			&cashOutMultiplier,
+			&payout,
+			&houseEdge,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan transaction row by account ID", zap.Error(err))
+			return nil, fmt.Errorf("failed to scan transaction row by account ID: %w", err)
+		}
+
+		// Set optional fields
+		tx.Metadata = metadata
+		tx.GameID = gameID
+		tx.GameName = gameName
+		tx.RoundID = roundID
+		tx.Provider = provider
+		tx.Device = device
+		tx.BetReferenceNum = betReferenceNum
+		tx.GameReference = gameReference
+		tx.BetMode = betMode
+		tx.Description = description
+		tx.PotentialWin = potentialWin
+		tx.ActualWin = actualWin
+		tx.Odds = odds
+		tx.PlacedAt = placedAt
+		tx.SettledAt = settledAt
+		tx.ClientTransactionID = clientTransactionID
+		tx.CashOutMultiplier = cashOutMultiplier
+		tx.Payout = payout
+		tx.HouseEdge = houseEdge
+
+		// Determine transaction type and win/loss status for GrooveTech transactions
+		tx.TransactionType = strings.Title(tx.Type)
+		if tx.Type == "result" && tx.Amount.GreaterThan(decimal.Zero) {
+			tx.IsWin = true
+			tx.IsLoss = false
+			tx.NetResult = tx.Amount
+		} else if tx.Type == "wager" && tx.Amount.LessThan(decimal.Zero) {
+			tx.IsWin = false
+			tx.IsLoss = true
+			tx.NetResult = tx.Amount
+		}
+
+		transactions = append(transactions, tx)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.Error("Error iterating transaction rows by account ID", zap.Error(err))
+		return nil, fmt.Errorf("error iterating transaction rows by account ID: %w", err)
+	}
+
+	s.logger.Info("Successfully fetched player transaction history by account ID",
+		zap.String("account_id", accountID),
+		zap.Int("count", len(transactions)))
+
+	return transactions, nil
+}
+
+// GetPlayerTransactionHistoryByAccountIDCount retrieves the count of player transactions by account ID
+func (s *GrooveStorageImpl) GetPlayerTransactionHistoryByAccountIDCount(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time) (int, error) {
+	s.logger.Info("Fetching player transaction history count by account ID",
+		zap.String("account_id", accountID),
+		zap.Stringp("transaction_type", transactionType),
+		zap.Stringp("status", status))
+
+	query := `
+		SELECT COUNT(*) as total
+		FROM groove_transactions gt
+		WHERE gt.account_id = $1
+			AND ($2::text IS NULL OR gt.type = $2)
+			AND ($3::text IS NULL OR gt.status = $3)
+			AND ($4::date IS NULL OR gt.created_at::date >= $4)
+			AND ($5::date IS NULL OR gt.created_at::date <= $5)`
+
+	var total int
+	err := s.db.GetPool().QueryRow(ctx, query, accountID, transactionType, status, startDate, endDate).Scan(&total)
+	if err != nil {
+		s.logger.Error("Failed to fetch player transaction history count by account ID", zap.Error(err))
+		return 0, fmt.Errorf("failed to fetch player transaction history count by account ID: %w", err)
+	}
+
+	s.logger.Info("Successfully fetched player transaction history count by account ID",
+		zap.String("account_id", accountID),
+		zap.Int("total", total))
+
+	return total, nil
 }

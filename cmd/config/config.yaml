@@ -1,5 +1,5 @@
 db:
-  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable
+  url: postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable&pool_max_conns=10&pool_min_conns=2&pool_max_conn_lifetime=1h&pool_max_conn_idle_time=30m&connect_timeout=10s
   
 app:
   host: 0.0.0.0
@@ -31,7 +31,7 @@ google:
 
 groove:
   operator_id: "3818"
-  api_domain: "https://routerstg.groovegaming.com"
+  api_domain: "https://gprouter.groovegaming.com/game"
   api_key: "our_groove_api_key_here"
   home_url: "https://tucanbit.tv"
   exit_url: "https://tucanbit.tv"

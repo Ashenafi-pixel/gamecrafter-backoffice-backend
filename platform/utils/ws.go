@@ -22,6 +22,7 @@ type UserWS interface {
 	GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBalanceResp, error)
 	TriggerBalanceWS(ctx context.Context, userID uuid.UUID)
 	TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashbackData dto.EnhancedUserCashbackSummary)
+	TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID, winnerData dto.WinnerNotificationData)
 }
 
 type User struct {
@@ -38,6 +39,14 @@ type CashbackWebSocketMessage struct {
 	UserID  uuid.UUID                       `json:"user_id"`
 	Data    dto.EnhancedUserCashbackSummary `json:"data"`
 	Message string                          `json:"message,omitempty"`
+}
+
+// WinnerNotificationWebSocketMessage represents the WebSocket message for winner notifications
+type WinnerNotificationWebSocketMessage struct {
+	Type    string                     `json:"type"`
+	UserID  uuid.UUID                  `json:"user_id"`
+	Data    dto.WinnerNotificationData `json:"data"`
+	Message string                     `json:"message,omitempty"`
 }
 
 func InitUserws(
@@ -244,5 +253,54 @@ func (b *User) TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashback
 		}
 	} else {
 		b.log.Info("No user balance socket connections found for cashback update", zap.String("userID", userID.String()))
+	}
+}
+
+// TriggerWinnerNotificationWS sends real-time winner notifications to connected WebSocket clients
+func (b *User) TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID, winnerData dto.WinnerNotificationData) {
+	winnerMessage := WinnerNotificationWebSocketMessage{
+		Type:    "winner_notification",
+		UserID:  userID,
+		Data:    winnerData,
+		Message: "Congratulations! You won!",
+	}
+
+	msg, err := json.Marshal(winnerMessage)
+	if err != nil {
+		b.log.Error("Failed to marshal winner notification message", zap.Error(err), zap.String("userID", userID.String()))
+		return
+	}
+
+	b.log.Info("Triggering winner notification WebSocket update",
+		zap.String("userID", userID.String()),
+		zap.String("username", winnerData.Username),
+		zap.String("game_name", winnerData.GameName),
+		zap.String("game_id", winnerData.GameID),
+		zap.String("bet_amount", winnerData.BetAmount.String()),
+		zap.String("win_amount", winnerData.WinAmount.String()))
+
+	if conns, exists := b.UserBalanceSocket[userID]; exists {
+		for conn := range conns {
+			b.getUserBalanceSocketLocker(conn).Lock()
+			if conn == nil {
+				if b.getUserBalanceSocketLocker(conn) != nil {
+					b.getUserBalanceSocketLocker(conn).Unlock()
+				}
+				continue
+			}
+
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				b.log.Warn("Failed to send winner notification", zap.Error(err), zap.String("userID", userID.String()))
+				if b.getUserBalanceSocketLocker(conn) != nil {
+					b.getUserBalanceSocketLocker(conn).Unlock()
+				}
+				continue
+			}
+			if b.getUserBalanceSocketLocker(conn) != nil {
+				b.getUserBalanceSocketLocker(conn).Unlock()
+			}
+		}
+	} else {
+		b.log.Info("No user balance socket connections found for winner notification", zap.String("userID", userID.String()))
 	}
 }

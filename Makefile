@@ -24,7 +24,7 @@ help:
 	@echo "make run-local      - Run app locally with local services"
 	@echo "make run-server-db  - Run app with server database (via SSH tunnel)"
 	@echo ""
-	@echo "🚀 Background App Management:"
+	@echo " Background App Management:"
 	@echo "make start-bg       - Start app in background"
 	@echo "make stop-bg        - Stop background app"
 	@echo "make logs-bg        - View background app logs"
@@ -51,7 +51,7 @@ test:
 
 # Run the application locally
 run: build
-	@echo "🚀 Starting TucanBIT..."
+	@echo " Starting TucanBIT..."
 	./tucanbit
 
 # Build Docker image
@@ -67,7 +67,7 @@ docker-run: docker-build
 
 # Start all services with Docker Compose
 up:
-	@echo "🚀 Starting all services..."
+	@echo " Starting all services..."
 	docker-compose up --build -d
 	@echo "Services started! Check status with: make status"
 
@@ -95,7 +95,7 @@ rebuild: clean docker-build up
 
 # Local development commands (bypass Docker network issues)
 services-up:
-	@echo "🚀 Starting local services..."
+	@echo " Starting local services..."
 	./start-services.sh
 
 services-down:
@@ -109,7 +109,7 @@ migrate-up:
 	./run-migrations.sh
 
 run-local: build
-	@echo "🚀 Starting TucanBIT locally..."
+	@echo " Starting TucanBIT locally..."
 	./run-local.sh
 
 run-server-db: build
@@ -118,7 +118,7 @@ run-server-db: build
 
 # Background app management commands
 start-bg:
-	@echo "🚀 Starting TucanBIT in background..."
+	@echo " Starting TucanBIT in background..."
 	./start-app-background.sh
 
 stop-bg:

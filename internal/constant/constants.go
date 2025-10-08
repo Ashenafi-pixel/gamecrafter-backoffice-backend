@@ -52,7 +52,7 @@ const (
 	BET_CRASHPOINT_REACHED      = "crash point is reached"
 	BET_NO_OPEN_ROUND_AVAILABLE = "no open round available"
 	BET_SUCCESS_MESSAGE         = "Bet placed successfully."
-	FORGOT_PASSWORD_RES         = "we will send you otp if the user is exist"
+	FORGOT_PASSWORD_RES         = "Password reset email sent successfully. Please check your email for the OTP code."
 	FORGOT_PASSWORD_SUBJECT     = "Password Reset Request"
 	BET_OPERATIONAL_TYPE        = "place_bet"
 	BET_CASHOUT                 = "bet_cashout"

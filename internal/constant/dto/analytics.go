@@ -139,8 +139,18 @@ type DailyReport struct {
 	NewUsers          uint32          `json:"new_users"`
 	UniqueDepositors  uint32          `json:"unique_depositors"`
 	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
-	TopGames          []GameStats     `json:"top_games"`
-	TopPlayers        []PlayerStats   `json:"top_players"`
+
+	// Additional metrics for comprehensive reporting
+	DepositCount     uint32          `json:"deposit_count"`
+	WithdrawalCount  uint32          `json:"withdrawal_count"`
+	BetCount         uint32          `json:"bet_count"`
+	WinCount         uint32          `json:"win_count"`
+	CashbackEarned   decimal.Decimal `json:"cashback_earned"`
+	CashbackClaimed  decimal.Decimal `json:"cashback_claimed"`
+	AdminCorrections decimal.Decimal `json:"admin_corrections"`
+
+	TopGames   []GameStats   `json:"top_games"`
+	TopPlayers []PlayerStats `json:"top_players"`
 }
 
 // EnhancedDailyReport represents daily analytics report with comparison metrics
@@ -158,6 +168,15 @@ type EnhancedDailyReport struct {
 	UniqueDepositors  uint32          `json:"unique_depositors"`
 	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
 
+	// Additional metrics for comprehensive reporting
+	DepositCount     uint32          `json:"deposit_count"`
+	WithdrawalCount  uint32          `json:"withdrawal_count"`
+	BetCount         uint32          `json:"bet_count"`
+	WinCount         uint32          `json:"win_count"`
+	CashbackEarned   decimal.Decimal `json:"cashback_earned"`
+	CashbackClaimed  decimal.Decimal `json:"cashback_claimed"`
+	AdminCorrections decimal.Decimal `json:"admin_corrections"`
+
 	// Comparison metrics
 	PreviousDayChange DailyReportComparison `json:"previous_day_change"`
 	MTD               DailyReportMTD        `json:"mtd"`
@@ -170,17 +189,24 @@ type EnhancedDailyReport struct {
 
 // DailyReportComparison represents percentage change comparison
 type DailyReportComparison struct {
-	TotalTransactionsChange decimal.Decimal `json:"total_transactions_change"`
-	TotalDepositsChange     decimal.Decimal `json:"total_deposits_change"`
-	TotalWithdrawalsChange  decimal.Decimal `json:"total_withdrawals_change"`
-	TotalBetsChange         decimal.Decimal `json:"total_bets_change"`
-	TotalWinsChange         decimal.Decimal `json:"total_wins_change"`
-	NetRevenueChange        decimal.Decimal `json:"net_revenue_change"`
-	ActiveUsersChange       decimal.Decimal `json:"active_users_change"`
-	ActiveGamesChange       decimal.Decimal `json:"active_games_change"`
-	NewUsersChange          decimal.Decimal `json:"new_users_change"`
-	UniqueDepositorsChange  decimal.Decimal `json:"unique_depositors_change"`
-	UniqueWithdrawersChange decimal.Decimal `json:"unique_withdrawers_change"`
+	TotalTransactionsChange string `json:"total_transactions_change"`
+	TotalDepositsChange     string `json:"total_deposits_change"`
+	TotalWithdrawalsChange  string `json:"total_withdrawals_change"`
+	TotalBetsChange         string `json:"total_bets_change"`
+	TotalWinsChange         string `json:"total_wins_change"`
+	NetRevenueChange        string `json:"net_revenue_change"`
+	ActiveUsersChange       string `json:"active_users_change"`
+	ActiveGamesChange       string `json:"active_games_change"`
+	NewUsersChange          string `json:"new_users_change"`
+	UniqueDepositorsChange  string `json:"unique_depositors_change"`
+	UniqueWithdrawersChange string `json:"unique_withdrawers_change"`
+	DepositCountChange      string `json:"deposit_count_change"`
+	WithdrawalCountChange   string `json:"withdrawal_count_change"`
+	BetCountChange          string `json:"bet_count_change"`
+	WinCountChange          string `json:"win_count_change"`
+	CashbackEarnedChange    string `json:"cashback_earned_change"`
+	CashbackClaimedChange   string `json:"cashback_claimed_change"`
+	AdminCorrectionsChange  string `json:"admin_corrections_change"`
 }
 
 // DailyReportMTD represents Month To Date metrics
@@ -196,6 +222,13 @@ type DailyReportMTD struct {
 	NewUsers          uint32          `json:"new_users"`
 	UniqueDepositors  uint32          `json:"unique_depositors"`
 	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
+	DepositCount      uint32          `json:"deposit_count"`
+	WithdrawalCount   uint32          `json:"withdrawal_count"`
+	BetCount          uint32          `json:"bet_count"`
+	WinCount          uint32          `json:"win_count"`
+	CashbackEarned    decimal.Decimal `json:"cashback_earned"`
+	CashbackClaimed   decimal.Decimal `json:"cashback_claimed"`
+	AdminCorrections  decimal.Decimal `json:"admin_corrections"`
 }
 
 // DailyReportSPLM represents Same Period Last Month metrics
@@ -211,6 +244,13 @@ type DailyReportSPLM struct {
 	NewUsers          uint32          `json:"new_users"`
 	UniqueDepositors  uint32          `json:"unique_depositors"`
 	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
+	DepositCount      uint32          `json:"deposit_count"`
+	WithdrawalCount   uint32          `json:"withdrawal_count"`
+	BetCount          uint32          `json:"bet_count"`
+	WinCount          uint32          `json:"win_count"`
+	CashbackEarned    decimal.Decimal `json:"cashback_earned"`
+	CashbackClaimed   decimal.Decimal `json:"cashback_claimed"`
+	AdminCorrections  decimal.Decimal `json:"admin_corrections"`
 }
 
 // MonthlyReport represents monthly analytics report
