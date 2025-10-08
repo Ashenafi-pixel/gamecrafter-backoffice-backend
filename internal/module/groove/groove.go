@@ -832,6 +832,9 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 	}
 
+	// Process cashback for the wager
+	s.processWagerAndResultCashback(ctx, req, userID)
+
 	// Trigger winner notification if player won (netResult > 0)
 	if netResult.GreaterThan(decimal.Zero) && s.userWS != nil {
 		// Get user information for winner notification
@@ -2213,6 +2216,51 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 		}
 	} else {
 		s.logger.Warn("Cashback service not available - skipping result-based cashback processing",
+			zap.String("transaction_id", req.TransactionID))
+	}
+}
+
+// processWagerAndResultCashback processes cashback for combined wager and result transactions
+func (s *GrooveServiceImpl) processWagerAndResultCashback(ctx context.Context, req dto.GrooveWagerAndResultRequest, userID uuid.UUID) {
+	s.logger.Info("Processing cashback for GrooveTech wager and result",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("user_id", userID.String()),
+		zap.String("bet_amount", req.BetAmount.String()),
+		zap.String("win_amount", req.WinAmount.String()))
+
+	// Process cashback for every wager (per-spin cashback based on house edge)
+	if s.cashbackService != nil {
+		// Create a bet DTO for cashback processing
+		bet := dto.Bet{
+			BetID:               uuid.New(),
+			RoundID:             uuid.New(),
+			UserID:              userID,
+			ClientTransactionID: req.TransactionID,
+			Amount:              req.BetAmount, // Use bet amount for GGR calculation
+			Currency:            "USD",
+			Timestamp:           time.Now(),
+			Payout:              req.WinAmount, // Actual winnings
+			CashOutMultiplier:   decimal.Zero,
+			Status:              "completed",
+		}
+
+		// Process the bet for cashback
+		err := s.cashbackService.ProcessBetCashback(ctx, bet)
+		if err != nil {
+			s.logger.Error("Failed to process cashback for GrooveTech wager and result",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", userID.String()),
+				zap.String("bet_amount", req.BetAmount.String()),
+				zap.Error(err))
+		} else {
+			s.logger.Info("Cashback processed successfully for GrooveTech wager and result",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", userID.String()),
+				zap.String("bet_amount", req.BetAmount.String()),
+				zap.String("win_amount", req.WinAmount.String()))
+		}
+	} else {
+		s.logger.Warn("Cashback service not available - skipping cashback processing",
 			zap.String("transaction_id", req.TransactionID))
 	}
 }
