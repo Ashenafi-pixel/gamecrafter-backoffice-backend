@@ -95,7 +95,7 @@ func Initiate() {
 	// Initialize ClickHouse client
 	logger.Info("initializing ClickHouse client")
 	clickhouseConfig := clickhouse.ClickHouseConfig{
-		Host:     "localhost",
+		Host:     "tucanbit-clickhouse",
 		Port:     8123,
 		Database: "tucanbit_analytics",
 		Username: "tucanbit",

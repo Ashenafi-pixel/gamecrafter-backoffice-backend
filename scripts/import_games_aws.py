@@ -13,11 +13,11 @@ from typing import Dict, Any
 
 # Database connection parameters - UPDATE THESE FOR YOUR AWS SERVER
 DB_CONFIG = {
-    'host': 'your-aws-rds-endpoint.amazonaws.com',  # Update with your RDS endpoint
-    'port': '5432',  # Standard PostgreSQL port
+    'host': 'localhost',  # Update with your RDS endpoint
+    'port': '5433',  # Standard PostgreSQL port
     'database': 'tucanbit',
-    'user': 'your-db-username',  # Update with your DB username
-    'password': 'your-db-password'  # Update with your DB password
+    'user': 'tucanbit',  # Update with your DB username
+    'password': '5kj0YmV5FKKpU9D50B7yH5A'  # Update with your DB password
 }
 
 def get_db_connection() -> psycopg2.extensions.connection:
