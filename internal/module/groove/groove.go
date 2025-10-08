@@ -1479,7 +1479,7 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 
 	grooveDomain := viper.GetString("groove.api_domain")
 	if grooveDomain == "" {
-		grooveDomain = "https://routerstg.groovegaming.com" // Real GrooveTech domain
+		grooveDomain = "https://gprouter.groovegaming.com" // Real GrooveTech domain
 	}
 
 	// Build URL with all required parameters
