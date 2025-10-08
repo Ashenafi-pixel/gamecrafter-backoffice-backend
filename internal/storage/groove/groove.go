@@ -78,6 +78,9 @@ type GrooveStorage interface {
 	// User profile operations
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
 
+	// Game information operations
+	GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error)
+
 	// Player transaction history operations
 	GetPlayerTransactionHistory(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error)
 	GetPlayerTransactionHistoryCount(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (int, error)
@@ -897,16 +900,26 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 
 	_, err = s.db.GetPool().Exec(ctx, `
 		INSERT INTO groove_transactions (
-			transaction_id, account_id, session_id, amount, currency, type, status, metadata, is_test_transaction
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			transaction_id, account_id, session_id, amount, currency, type, status, metadata, is_test_transaction, game_id, round_id, bet_amount, device, frbid, user_id, balance_before, balance_after
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (transaction_id) DO UPDATE SET
 			type = EXCLUDED.type,
 			amount = EXCLUDED.amount,
 			metadata = EXCLUDED.metadata,
 			is_test_transaction = EXCLUDED.is_test_transaction,
+			game_id = EXCLUDED.game_id,
+			round_id = EXCLUDED.round_id,
+			bet_amount = EXCLUDED.bet_amount,
+			device = EXCLUDED.device,
+			frbid = EXCLUDED.frbid,
+			user_id = EXCLUDED.user_id,
+			balance_before = EXCLUDED.balance_before,
+			balance_after = EXCLUDED.balance_after,
 			created_at = EXCLUDED.created_at
 	`, transaction.TransactionID, transaction.AccountID, transaction.GameSessionID,
-		transaction.BetAmount, "USD", transactionType, "completed", metadata, isTestTransaction)
+		transaction.BetAmount, "USD", transactionType, "completed", metadata, isTestTransaction,
+		transaction.GameID, transaction.RoundID, transaction.BetAmount, transaction.Device, transaction.FRBID, transaction.UserID,
+		transaction.BalanceBefore, transaction.BalanceAfter)
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		return fmt.Errorf("failed to store transaction: %w", err)
@@ -1769,6 +1782,51 @@ func (s *GrooveStorageImpl) GetPlayerTransactionHistorySummary(ctx context.Conte
 		zap.String("total_wins", summary.TotalWins.String()))
 
 	return summary, nil
+}
+
+// GetGameInfo retrieves game information by game ID
+func (s *GrooveStorageImpl) GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error) {
+	s.logger.Info("Getting game information", zap.String("game_id", gameID))
+
+	// Query the games table for game information
+	query := `
+		SELECT game_id, name, internal_name, provider, integration_partner
+		FROM games
+		WHERE game_id = $1
+		LIMIT 1
+	`
+
+	var gameInfo dto.GameInfo
+	err := s.db.GetPool().QueryRow(ctx, query, gameID).Scan(
+		&gameInfo.GameID,
+		&gameInfo.GameName,
+		&gameInfo.InternalName,
+		&gameInfo.Provider,
+		&gameInfo.IntegrationPartner,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			s.logger.Warn("Game not found in database", zap.String("game_id", gameID))
+			// Return default game info if not found
+			return &dto.GameInfo{
+				GameID:             gameID,
+				GameName:           fmt.Sprintf("GrooveTech Game %s", gameID),
+				InternalName:       fmt.Sprintf("GrooveTech Game %s", gameID),
+				Provider:           "GrooveTech",
+				IntegrationPartner: "groovetech",
+			}, nil
+		}
+		s.logger.Error("Failed to get game information", zap.Error(err))
+		return nil, fmt.Errorf("failed to get game information: %w", err)
+	}
+
+	s.logger.Info("Game information retrieved successfully",
+		zap.String("game_id", gameInfo.GameID),
+		zap.String("game_name", gameInfo.GameName),
+		zap.String("provider", gameInfo.Provider))
+
+	return &gameInfo, nil
 }
 
 // GetPlayerTransactionHistoryByAccountID retrieves player transaction history by account ID

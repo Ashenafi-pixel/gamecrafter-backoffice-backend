@@ -4,7 +4,7 @@
 
 # Default target
 help:
-	@echo "🔧 TucanBIT Build Commands"
+	@echo " TucanBIT Build Commands"
 	@echo "=========================="
 	@echo "make build          - Build the application locally"
 	@echo "make clean          - Clean build artifacts"

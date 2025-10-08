@@ -893,7 +893,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
+							"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/groove/launch-game",
@@ -925,7 +925,7 @@
 						],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
+									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
 								},
 						"url": {
 									"raw": "{{base_url}}/api/groove/launch-game",
@@ -2981,7 +2981,7 @@
 						],
 						"body": {
 							"mode": "raw",
-									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n  \"is_test_account\": false,\n  \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
+									"raw": "{\n  \"game_id\": \"82695\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"real\",\n  \"country\": \"US\",\n  \"currency\": \"USD\",\n  \"language\": \"en_US\",\n \"reality_check_elapsed\": 0,\n  \"reality_check_interval\": 60\n}"
 						},
 						"url": {
 									"raw": "{{base_url}}/api/groove/launch-game",

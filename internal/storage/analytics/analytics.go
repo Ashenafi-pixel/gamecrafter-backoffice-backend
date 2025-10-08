@@ -213,6 +213,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 	for rows.Next() {
 		var transaction dto.AnalyticsTransaction
 		var userIDStr string
+		var gameID, gameName, provider, sessionID, roundID, paymentMethod, externalTransactionID, metadata *string
 
 		err := rows.Scan(
 			&transaction.ID,
@@ -221,24 +222,73 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			&transaction.Amount,
 			&transaction.Currency,
 			&transaction.Status,
-			&transaction.GameID,
-			&transaction.GameName,
-			&transaction.Provider,
-			&transaction.SessionID,
-			&transaction.RoundID,
+			&gameID,
+			&gameName,
+			&provider,
+			&sessionID,
+			&roundID,
 			&transaction.BetAmount,
 			&transaction.WinAmount,
 			&transaction.NetResult,
 			&transaction.BalanceBefore,
 			&transaction.BalanceAfter,
-			&transaction.PaymentMethod,
-			&transaction.ExternalTransactionID,
-			&transaction.Metadata,
+			&paymentMethod,
+			&externalTransactionID,
+			&metadata,
 			&transaction.CreatedAt,
 			&transaction.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+
+		// Handle NULL values by converting empty strings to nil pointers
+		if gameID != nil && *gameID == "" {
+			transaction.GameID = nil
+		} else {
+			transaction.GameID = gameID
+		}
+
+		if gameName != nil && *gameName == "" {
+			transaction.GameName = nil
+		} else {
+			transaction.GameName = gameName
+		}
+
+		if provider != nil && *provider == "" {
+			transaction.Provider = nil
+		} else {
+			transaction.Provider = provider
+		}
+
+		if sessionID != nil && *sessionID == "" {
+			transaction.SessionID = nil
+		} else {
+			transaction.SessionID = sessionID
+		}
+
+		if roundID != nil && *roundID == "" {
+			transaction.RoundID = nil
+		} else {
+			transaction.RoundID = roundID
+		}
+
+		if paymentMethod != nil && *paymentMethod == "" {
+			transaction.PaymentMethod = nil
+		} else {
+			transaction.PaymentMethod = paymentMethod
+		}
+
+		if externalTransactionID != nil && *externalTransactionID == "" {
+			transaction.ExternalTransactionID = nil
+		} else {
+			transaction.ExternalTransactionID = externalTransactionID
+		}
+
+		if metadata != nil && *metadata == "" {
+			transaction.Metadata = nil
+		} else {
+			transaction.Metadata = metadata
 		}
 
 		transaction.UserID, err = uuid.Parse(userIDStr)

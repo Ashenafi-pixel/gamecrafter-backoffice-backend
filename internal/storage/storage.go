@@ -440,3 +440,9 @@ type Agent interface {
 	GetAgentProviderByID(ctx context.Context, id uuid.UUID) (db.AgentProvider, error)
 	GetAgentProviderByClientID(ctx context.Context, clientID string) (db.AgentProvider, error)
 }
+
+
+// GameInfoProvider provides game information for analytics
+type GameInfoProvider interface {
+	GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error)
+}

@@ -205,7 +205,7 @@ EOF
 }
 
 # Main execution
-echo -e "${BLUE}🔧 Starting Daily Report Email Setup...${NC}"
+echo -e "${BLUE} Starting Daily Report Email Setup...${NC}"
 
 # Check application status
 if ! check_app_status; then

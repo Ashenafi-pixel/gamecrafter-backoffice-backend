@@ -95,7 +95,7 @@ func Initiate() {
 	// Initialize ClickHouse client
 	logger.Info("initializing ClickHouse client")
 	clickhouseConfig := clickhouse.ClickHouseConfig{
-		Host:     "tucanbit-clickhouse",
+		Host:     "localhost",
 		Port:     8123,
 		Database: "tucanbit_analytics",
 		Username: "tucanbit",
@@ -152,7 +152,7 @@ func Initiate() {
 	var dailyReportCronjobService analyticsModule.DailyReportCronjobService
 	if clickhouseClient != nil {
 		analyticsStorageInstance := analyticsStorage.NewAnalyticsStorage(clickhouseClient, logger)
-		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, logger)
+		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, persistence.Groove, logger)
 		realtimeSyncService := analyticsModule.NewRealtimeSyncService(syncService, analyticsStorageInstance, logger)
 		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(realtimeSyncService, logger)
 

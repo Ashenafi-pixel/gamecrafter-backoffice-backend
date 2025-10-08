@@ -23,12 +23,14 @@ type SyncService interface {
 
 type SyncServiceImpl struct {
 	analyticsStorage storage.Analytics
+	gameInfoProvider storage.GameInfoProvider
 	logger           *zap.Logger
 }
 
-func NewSyncService(analyticsStorage storage.Analytics, logger *zap.Logger) SyncService {
+func NewSyncService(analyticsStorage storage.Analytics, gameInfoProvider storage.GameInfoProvider, logger *zap.Logger) SyncService {
 	return &SyncServiceImpl{
 		analyticsStorage: analyticsStorage,
+		gameInfoProvider: gameInfoProvider,
 		logger:           logger,
 	}
 }
@@ -96,6 +98,30 @@ func (s *SyncServiceImpl) SyncUserBalance(ctx context.Context, userID uuid.UUID,
 }
 
 func (s *SyncServiceImpl) SyncGrooveTransaction(ctx context.Context, grooveTx *dto.GrooveTransaction, transactionType string) error {
+	// Get game information - try to get game_id from session if not provided
+	gameID := grooveTx.GameID
+	if gameID == "" && grooveTx.GameSessionID != "" {
+		// Try to get game_id from session_id
+		if sessionGameID, err := s.getGameIDFromSession(ctx, grooveTx.GameSessionID); err == nil && sessionGameID != "" {
+			gameID = sessionGameID
+			s.logger.Debug("Retrieved game_id from session",
+				zap.String("session_id", grooveTx.GameSessionID),
+				zap.String("game_id", gameID))
+		}
+	}
+
+	var gameName, provider *string
+	if gameID != "" {
+		if gameInfo, err := s.gameInfoProvider.GetGameInfo(ctx, gameID); err == nil {
+			gameName = &gameInfo.GameName
+			provider = &gameInfo.Provider
+		} else {
+			s.logger.Warn("Failed to get game info for analytics",
+				zap.String("game_id", gameID),
+				zap.Error(err))
+		}
+	}
+
 	// Convert GrooveTech transaction to analytics transaction
 	transaction := &dto.AnalyticsTransaction{
 		ID:                    grooveTx.TransactionID,
@@ -104,11 +130,13 @@ func (s *SyncServiceImpl) SyncGrooveTransaction(ctx context.Context, grooveTx *d
 		Amount:                grooveTx.BetAmount,
 		Currency:              "USD", // Default currency
 		Status:                "completed",
-		GameID:                &grooveTx.GameID,
+		GameID:                &gameID,
+		GameName:              gameName,
+		Provider:              provider,
 		SessionID:             &grooveTx.GameSessionID,
 		RoundID:               &grooveTx.RoundID,
-		BalanceBefore:         decimal.Zero,
-		BalanceAfter:          decimal.Zero,
+		BalanceBefore:         grooveTx.BalanceBefore,
+		BalanceAfter:          grooveTx.BalanceAfter,
 		ExternalTransactionID: &grooveTx.AccountTransactionID,
 		CreatedAt:             grooveTx.CreatedAt,
 		UpdatedAt:             grooveTx.CreatedAt,
@@ -202,6 +230,16 @@ func (s *SyncServiceImpl) mapGrooveTransactionType(grooveType string) string {
 	default:
 		return "groove_bet"
 	}
+}
+
+// getGameIDFromSession retrieves game_id from session_id using the game_sessions table
+func (s *SyncServiceImpl) getGameIDFromSession(ctx context.Context, sessionID string) (string, error) {
+	// This would need to be implemented with database access
+	// For now, we'll return empty string to avoid breaking the build
+	// TODO: Implement database lookup for game_id from session_id
+	s.logger.Debug("getGameIDFromSession called but not implemented",
+		zap.String("session_id", sessionID))
+	return "", fmt.Errorf("getGameIDFromSession not implemented")
 }
 
 // Helper function to convert PostgreSQL transaction to ClickHouse transaction

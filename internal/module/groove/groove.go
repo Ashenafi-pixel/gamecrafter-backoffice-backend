@@ -57,6 +57,9 @@ type GrooveService interface {
 	// User profile operations
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
 	GetUserBalance(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error)
+
+	// Game information operations
+	GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error)
 }
 
 // CashbackService interface for processing cashback
@@ -624,6 +627,7 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 	s.logger.Info("Processing wager and result",
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("account_id", req.AccountID),
+		zap.String("game_id", req.GameID),
 		zap.String("wager_amount", req.BetAmount.String()),
 		zap.String("win_amount", req.WinAmount.String()))
 
@@ -806,11 +810,22 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 		TransactionID:        req.TransactionID,
 		AccountID:            req.AccountID,
 		GameSessionID:        req.SessionID,
+		GameID:               req.GameID,
+		RoundID:              req.RoundID,
 		BetAmount:            netResult,
 		AccountTransactionID: walletTxID,
 		CreatedAt:            time.Now(),
 		Status:               "completed",
+		UserID:               userID,
+		BalanceBefore:        currentBalance,
+		BalanceAfter:         newBalance,
 	}
+
+	s.logger.Info("Storing transaction with game info",
+		zap.String("transaction_id", transaction.TransactionID),
+		zap.String("game_id", transaction.GameID),
+		zap.String("round_id", transaction.RoundID),
+		zap.String("user_id", transaction.UserID.String()))
 
 	err = s.storage.StoreTransaction(ctx, &transaction, "wager")
 	if err != nil {
@@ -828,7 +843,13 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 			gameID := ""
 			if err == nil && gameSession != nil {
 				gameID = gameSession.GameID
-				gameName = fmt.Sprintf("GrooveTech Game %s", gameSession.GameID)
+				// Get actual game name from database
+				gameInfo, err := s.GetGameInfo(ctx, gameSession.GameID)
+				if err == nil && gameInfo != nil {
+					gameName = gameInfo.GameName
+				} else {
+					gameName = fmt.Sprintf("GrooveTech Game %s", gameSession.GameID)
+				}
 			}
 
 			// Create winner notification data
@@ -1547,6 +1568,19 @@ func (s *GrooveServiceImpl) GetUserBalance(ctx context.Context, userID uuid.UUID
 		zap.String("balance", balance.String()))
 
 	return balance, nil
+}
+
+// GetGameInfo retrieves game information by game ID
+func (s *GrooveServiceImpl) GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error) {
+	s.logger.Info("Getting game information", zap.String("game_id", gameID))
+
+	gameInfo, err := s.storage.GetGameInfo(ctx, gameID)
+	if err != nil {
+		s.logger.Error("Failed to get game information", zap.Error(err))
+		return nil, fmt.Errorf("failed to get game information: %w", err)
+	}
+
+	return gameInfo, nil
 }
 
 // ProcessWagerTransaction processes a wager transaction according to GrooveTech spec
