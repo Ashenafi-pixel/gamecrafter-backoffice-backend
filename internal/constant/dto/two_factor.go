@@ -29,13 +29,41 @@ type TwoFactorDisableRequest struct {
 	Token string `json:"token" binding:"required"`
 }
 
+// TwoFactorAuthSetupResponse represents the response for 2FA setup
+type TwoFactorAuthSetupResponse struct {
+	Secret     string `json:"secret"`
+	QRCodeData string `json:"qr_code_data"` // Base64 encoded image or data URI
+	RecoveryCodes []string `json:"recovery_codes,omitempty"`
+}
+
+// TwoFactorAuthEnableResponse represents the response for enabling 2FA
+type TwoFactorAuthEnableResponse struct {
+	Message string `json:"message"`
+	UserID  uuid.UUID `json:"user_id"`
+}
+
+// TwoFactorAuthStatusResponse represents the current 2FA status for a user
+type TwoFactorAuthStatusResponse struct {
+	IsEnabled bool      `json:"is_enabled"`
+	SetupAt   *time.Time `json:"setup_at,omitempty"`
+}
+
+// TwoFactorBackupCodesResponse represents backup codes response
+type TwoFactorBackupCodesResponse struct {
+	BackupCodes []string `json:"backup_codes"`
+}
+
+// TwoFactorVerifyResponse represents the response for 2FA verification
+type TwoFactorVerifyResponse struct {
+	Message string `json:"message"`
+	UserID  uuid.UUID `json:"user_id"`
+}
+
 // TwoFactorSettings represents user's 2FA settings
 type TwoFactorSettings struct {
-	IsEnabled     bool      `json:"is_enabled"`
-	EnabledAt     time.Time `json:"enabled_at,omitempty"`
-	LastUsedAt    time.Time `json:"last_used_at,omitempty"`
-	BackupCodes   []string  `json:"backup_codes,omitempty"`
-	HasBackupCodes bool     `json:"has_backup_codes"`
+	UserID    uuid.UUID `json:"user_id"`
+	IsEnabled bool      `json:"is_enabled"`
+	EnabledAt *time.Time `json:"enabled_at,omitempty"`
 }
 
 // TwoFactorAttempt represents a 2FA attempt log

@@ -95,12 +95,12 @@ func Initiate() {
 	// Initialize ClickHouse client
 	logger.Info("initializing ClickHouse client")
 	clickhouseConfig := clickhouse.ClickHouseConfig{
-		Host:     "tucanbit-clickhouse",
-		Port:     8123,
-		Database: "tucanbit_analytics",
-		Username: "tucanbit",
-		Password: "tucanbit_clickhouse_password",
-		Timeout:  30 * time.Second,
+		Host:     viper.GetString("clickhouse.host"),
+		Port:     viper.GetInt("clickhouse.port"),
+		Database: viper.GetString("clickhouse.database"),
+		Username: viper.GetString("clickhouse.username"),
+		Password: viper.GetString("clickhouse.password"),
+		Timeout:  viper.GetDuration("clickhouse.timeout"),
 	}
 	logger.Info("ClickHouse config",
 		zap.String("host", clickhouseConfig.Host),

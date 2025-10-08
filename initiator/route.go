@@ -30,6 +30,7 @@ import (
 	"github.com/tucanbit/internal/glue/squads"
 	"github.com/tucanbit/internal/glue/user"
 	"github.com/tucanbit/internal/glue/ws"
+	"github.com/tucanbit/internal/glue/twofactor"
 	"go.uber.org/zap"
 )
 
@@ -61,4 +62,5 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	cashback.Init(grp, *log, handler.Cashback, module.Authz, enforcer, module.SystemLogs)
 	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, enforcer, module.SystemLogs)
 	analytics.Init(grp, log, handler.Analytics)
+	twofactor.Init(grp, log, handler.TwoFactor)
 }
