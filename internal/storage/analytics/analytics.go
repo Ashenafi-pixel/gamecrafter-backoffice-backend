@@ -659,7 +659,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
 		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at) = ? AND amount > 0
+		WHERE toDate(created_at + INTERVAL 3 HOUR) = ? AND amount > 0
 	`
 
 	dateStr := date.Format("2006-01-02")
