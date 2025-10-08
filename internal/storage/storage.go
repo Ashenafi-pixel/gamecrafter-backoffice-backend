@@ -102,6 +102,9 @@ type Analytics interface {
 	GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error)
 	GetUserBalanceHistory(ctx context.Context, userID uuid.UUID, hours int) ([]*dto.BalanceSnapshot, error)
 	InsertBalanceSnapshot(ctx context.Context, snapshot *dto.BalanceSnapshot) error
+
+	// Summary methods
+	GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error)
 }
 
 type Balance interface {
@@ -234,6 +237,8 @@ type Bet interface {
 	GetSpinningWheelUserBetHistory(ctx context.Context, req dto.GetRequest, userID uuid.UUID) (dto.GetSpinningWheelHistoryResp, bool, error)
 	CreateGame(ctx context.Context, req dto.Game) (dto.Game, error)
 	GetGames(ctx context.Context, req dto.GetRequest) (dto.GetGamesResp, error)
+	GetGameSummary(ctx context.Context) (dto.GetGameSummaryResp, error)
+	GetTransactionSummary(ctx context.Context) (dto.GetTransactionSummaryResp, error)
 	GetAllGames(ctx context.Context) (dto.GetGamesResp, error)
 	GetGameByID(ctx context.Context, ID uuid.UUID) (dto.Game, error)
 	UpdageGame(ctx context.Context, game dto.Game) (dto.Game, error)

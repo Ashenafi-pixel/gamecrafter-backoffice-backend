@@ -35,6 +35,9 @@ type AnalyticsStorage interface {
 	GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error)
 	GetUserBalanceHistory(ctx context.Context, userID uuid.UUID, hours int) ([]*dto.BalanceSnapshot, error)
 	InsertBalanceSnapshot(ctx context.Context, snapshot *dto.BalanceSnapshot) error
+
+	// Summary methods
+	GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error)
 }
 
 type AnalyticsStorageImpl struct {
@@ -1232,4 +1235,45 @@ func (s *AnalyticsStorageImpl) InsertBalanceSnapshot(ctx context.Context, snapsh
 		zap.String("balance", snapshot.Balance.String()))
 
 	return nil
+}
+
+func (s *AnalyticsStorageImpl) GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error) {
+	query := `
+		SELECT 
+			count() as total_transactions,
+			sum(amount) as total_volume,
+			countIf(status = 'completed') as successful_transactions,
+			countIf(status = 'failed') as failed_transactions,
+			countIf(transaction_type = 'deposit') as deposit_count,
+			countIf(transaction_type = 'withdrawal') as withdrawal_count,
+			countIf(transaction_type IN ('bet', 'groove_bet')) as bet_count,
+			countIf(transaction_type IN ('win', 'groove_win')) as win_count
+		FROM tucanbit_analytics.transactions
+	`
+
+	row := s.clickhouse.QueryRow(ctx, query)
+
+	var stats dto.TransactionSummaryStats
+	err := row.Scan(
+		&stats.TotalTransactions,
+		&stats.TotalVolume,
+		&stats.SuccessfulTransactions,
+		&stats.FailedTransactions,
+		&stats.DepositCount,
+		&stats.WithdrawalCount,
+		&stats.BetCount,
+		&stats.WinCount,
+	)
+	if err != nil {
+		s.logger.Error("Failed to scan transaction summary stats", zap.Error(err))
+		return nil, fmt.Errorf("failed to scan transaction summary stats: %w", err)
+	}
+
+	s.logger.Debug("Transaction summary stats retrieved",
+		zap.Int("totalTransactions", stats.TotalTransactions),
+		zap.String("totalVolume", stats.TotalVolume.String()),
+		zap.Int("successfulTransactions", stats.SuccessfulTransactions),
+		zap.Int("failedTransactions", stats.FailedTransactions))
+
+	return &stats, nil
 }

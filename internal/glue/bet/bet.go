@@ -440,6 +440,24 @@ func Init(
 				middleware.Authz(authModule, enforcer, "get games", http.MethodGet),
 			},
 		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/admin/games/summary",
+			Handler: bet.GetGameSummary,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get game summary", http.MethodGet),
+			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/admin/transactions/summary",
+			Handler: bet.GetTransactionSummary,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get transaction summary", http.MethodGet),
+			},
+		}, {
 			Method:  http.MethodPut,
 			Path:    "/api/admin/games",
 			Handler: bet.UpdateGame,

@@ -165,6 +165,8 @@ type Bet interface {
 	GetSpinningWheelUserBetHistory(ctx context.Context, req dto.GetRequest, userID uuid.UUID) (dto.GetSpinningWheelHistoryResp, error)
 	UpdateGame(ctx context.Context, game dto.Game) (dto.Game, error)
 	GetGames(ctx context.Context, req dto.GetRequest) (dto.GetGamesResp, error)
+	GetGameSummary(ctx context.Context) (dto.GetGameSummaryResp, error)
+	GetTransactionSummary(ctx context.Context) (dto.GetTransactionSummaryResp, error)
 	DisableAllGames(ctx context.Context) (dto.BlockGamesResp, error)
 	ListInactiveGames(ctx context.Context) ([]dto.Game, error)
 	DeleteGame(ctx context.Context, req dto.Game) (dto.DeleteResponse, error)

@@ -172,6 +172,8 @@ type Bet interface {
 	GetSpinningWheelUserBetHistory(c *gin.Context)
 	UpdateGame(c *gin.Context)
 	GetGames(c *gin.Context)
+	GetGameSummary(c *gin.Context)
+	GetTransactionSummary(c *gin.Context)
 	DisableAllGames(c *gin.Context)
 	GetAvailableGames(c *gin.Context)
 	DeleteGame(c *gin.Context)
