@@ -47,6 +47,7 @@ type GrooveStorage interface {
 	GetAccountByAccountID(ctx context.Context, accountID string) (*dto.GrooveAccount, error)
 	UpdateAccount(ctx context.Context, account dto.GrooveAccount) (*dto.GrooveAccount, error)
 	GetAccountBalance(ctx context.Context, accountID string) (decimal.Decimal, error)
+	SyncGrooveAccountBalance(ctx context.Context, accountID string) error
 
 	// Transaction operations
 	ProcessTransaction(ctx context.Context, transaction dto.GrooveTransaction) (*dto.GrooveTransactionResponse, error)
@@ -257,25 +258,66 @@ func (s *GrooveStorageImpl) UpdateAccount(ctx context.Context, account dto.Groov
 	return &account, nil
 }
 
-// GetAccountBalance retrieves account balance
+// GetAccountBalance retrieves account balance from the main balances table (source of truth)
 func (s *GrooveStorageImpl) GetAccountBalance(ctx context.Context, accountID string) (decimal.Decimal, error) {
 	s.logger.Info("Getting account balance", zap.String("account_id", accountID))
 
-	query := `SELECT balance FROM groove_accounts WHERE account_id = $1`
+	// Get balance from main balances table (source of truth) - using amount_cents
+	query := `
+		SELECT b.amount_cents 
+		FROM balances b
+		JOIN groove_accounts ga ON b.user_id = ga.user_id
+		WHERE ga.account_id = $1 AND b.currency_code = 'USD'
+		LIMIT 1`
 
-	var balance decimal.Decimal
-	err := s.db.GetPool().QueryRow(ctx, query, accountID).Scan(&balance)
-
+	var balanceCents int64
+	err := s.db.GetPool().QueryRow(ctx, query, accountID).Scan(&balanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get account balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("account not found: %w", err)
 	}
 
+	// Convert cents to dollars
+	balance := decimal.NewFromInt(balanceCents).Div(decimal.NewFromInt(100))
+
 	s.logger.Info("Account balance retrieved successfully",
 		zap.String("account_id", accountID),
-		zap.String("balance", balance.String()))
+		zap.String("balance_cents", fmt.Sprintf("%d", balanceCents)),
+		zap.String("balance_dollars", balance.String()))
 
 	return balance, nil
+}
+
+// SyncGrooveAccountBalance synchronizes groove_accounts.balance with the main balances table
+func (s *GrooveStorageImpl) SyncGrooveAccountBalance(ctx context.Context, accountID string) error {
+	s.logger.Info("Synchronizing GrooveTech account balance", zap.String("account_id", accountID))
+
+	// Get the main balance for this account
+	mainBalance, err := s.GetAccountBalance(ctx, accountID)
+	if err != nil {
+		s.logger.Error("Failed to get main balance for sync", zap.Error(err))
+		return fmt.Errorf("failed to get main balance: %w", err)
+	}
+
+	// Update groove_accounts.balance to match main balance
+	query := `UPDATE groove_accounts SET balance = $2, last_activity = NOW() WHERE account_id = $1`
+	result, err := s.db.GetPool().Exec(ctx, query, accountID, mainBalance)
+	if err != nil {
+		s.logger.Error("Failed to sync GrooveTech balance", zap.Error(err))
+		return fmt.Errorf("failed to sync GrooveTech balance: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		s.logger.Warn("No GrooveTech account found for sync", zap.String("account_id", accountID))
+		return fmt.Errorf("no GrooveTech account found")
+	}
+
+	s.logger.Info("GrooveTech account balance synchronized successfully",
+		zap.String("account_id", accountID),
+		zap.String("balance", mainBalance.String()))
+
+	return nil
 }
 
 // ProcessTransaction processes a GrooveTech transaction (legacy method - use ProcessWagerTransaction instead)
@@ -696,15 +738,16 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	newBalance := currentBalance.Sub(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table - using real_money
+	// Update main balances table - using both amount_cents and amount_units
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
-		VALUES ($1, 'USD', $2, NOW())
+		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		VALUES ($1, 'USD', $2, $3, NOW())
 		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
 			amount_cents = $2,
+			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalanceCents)
+	`, userID, newBalanceCents, newBalance)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -776,15 +819,16 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	newBalance := currentBalance.Add(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table - using real_money
+	// Update main balances table - using both amount_cents and amount_units
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
-		VALUES ($1, 'USD', $2, NOW())
+		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		VALUES ($1, 'USD', $2, $3, NOW())
 		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
 			amount_cents = $2,
+			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalanceCents)
+	`, userID, newBalanceCents, newBalance)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -1190,16 +1234,16 @@ func (s *GrooveStorageImpl) GetBalanceDiscrepancies(ctx context.Context) ([]Bala
 			u.id as user_id,
 			u.username,
 			u.email,
-			COALESCE(b.bonus_money, 0) as main_balance,
+			COALESCE(b.amount_cents, 0) / 100.0 as main_balance,
 			COALESCE(ga.balance, 0) as groove_balance,
-			COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0) as discrepancy,
+			(COALESCE(b.amount_cents, 0) / 100.0) - COALESCE(ga.balance, 0) as discrepancy,
 			ga.last_activity
 		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency = 'USD'
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
 		LEFT JOIN groove_accounts ga ON u.id = ga.user_id
 		WHERE ga.user_id IS NOT NULL
-		AND ABS(COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0)) > 0.01
-		ORDER BY ABS(COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0)) DESC`
+		AND ABS((COALESCE(b.amount_cents, 0) / 100.0) - COALESCE(ga.balance, 0)) > 0.01
+		ORDER BY ABS((COALESCE(b.amount_cents, 0) / 100.0) - COALESCE(ga.balance, 0)) DESC`
 
 	rows, err := s.db.GetPool().Query(ctx, query)
 	if err != nil {

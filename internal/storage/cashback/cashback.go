@@ -487,17 +487,38 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 		return nil, err
 	}
 
-	// Get available earnings
+	// Get available earnings for available cashback calculation
 	availableEarnings, err := s.GetAvailableCashbackEarnings(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate total available cashback
+	// Get ALL earnings (including claimed ones) for total claimed calculation
+	allEarnings, err := s.GetUserCashbackEarnings(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate total available cashback and total claimed
 	totalAvailable := decimal.Zero
+	totalClaimed := decimal.Zero
 	for _, earning := range availableEarnings {
 		totalAvailable = totalAvailable.Add(earning.AvailableAmount)
 	}
+	for _, earning := range allEarnings {
+		totalClaimed = totalClaimed.Add(earning.ClaimedAmount)
+		s.logger.Debug("Adding to total claimed",
+			zap.String("earning_id", earning.ID.String()),
+			zap.String("claimed_amount", earning.ClaimedAmount.String()),
+			zap.String("running_total", totalClaimed.String()))
+	}
+
+	s.logger.Info("Cashback summary calculation",
+		zap.String("user_id", userID.String()),
+		zap.String("total_available", totalAvailable.String()),
+		zap.String("total_claimed", totalClaimed.String()),
+		zap.Int("available_earnings_count", len(availableEarnings)),
+		zap.Int("all_earnings_count", len(allEarnings)))
 
 	// Get next tier GGR requirement
 	nextTierGGR := decimal.Zero
@@ -515,7 +536,7 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 		TotalGGR:          userLevel.TotalExpectedGGR,
 		AvailableCashback: totalAvailable,
 		PendingCashback:   decimal.Zero,
-		TotalClaimed:      decimal.Zero,
+		TotalClaimed:      totalClaimed,
 		NextTierGGR:       nextTierGGR,
 		DailyLimit:        tier.DailyCashbackLimit,
 		WeeklyLimit:       tier.WeeklyCashbackLimit,

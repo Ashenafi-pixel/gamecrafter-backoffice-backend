@@ -2141,13 +2141,10 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 		zap.String("win_amount", winAmount.String()),
 		zap.String("net_loss", netLoss.String()))
 
-	// Only process cashback if there's a net loss (player lost money)
-	if netLoss.LessThanOrEqual(decimal.Zero) {
-		s.logger.Info("No net loss - skipping cashback processing",
-			zap.String("transaction_id", req.TransactionID),
-			zap.String("net_loss", netLoss.String()))
-		return
-	}
+	// Process cashback on every wager bet (per-spin cashback)
+	s.logger.Info("Processing per-spin cashback for every wager",
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("bet_amount", betAmount.String()))
 
 	// Process cashback for the net loss
 	if s.cashbackService != nil {
