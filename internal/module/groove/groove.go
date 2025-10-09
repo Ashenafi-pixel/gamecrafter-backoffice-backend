@@ -1549,7 +1549,7 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 	if exitURL != "" {
 		url += fmt.Sprintf("&exitUrl=%s", exitURL)
 	}
-	
+
 	// Add reality check parameters only if they are provided (non-zero values)
 	if realityCheckElapsed > 0 {
 		url += fmt.Sprintf("&realityCheckElapsed=%d", realityCheckElapsed)

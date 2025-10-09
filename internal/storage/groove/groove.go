@@ -741,6 +741,18 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	newBalance := currentBalance.Sub(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
+	// Ensure amount_units is stored in dollars (not cents)
+	amountUnitsInDollars := newBalance
+
+	// Debug logging to understand the values
+	s.logger.Info("DeductBalance calculation debug",
+		zap.String("current_balance_cents", fmt.Sprintf("%d", currentBalanceCents)),
+		zap.String("current_balance_dollars", currentBalance.String()),
+		zap.String("amount_to_deduct", amount.String()),
+		zap.String("new_balance_dollars", newBalance.String()),
+		zap.String("new_balance_cents", fmt.Sprintf("%d", newBalanceCents)),
+		zap.String("amount_units_to_store", amountUnitsInDollars.String()))
+
 	// Update main balances table - using both amount_cents and amount_units
 	_, err = tx.Exec(ctx, `
 		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
@@ -750,7 +762,7 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 			amount_cents = $2,
 			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalanceCents, newBalance)
+	`, userID, newBalanceCents, amountUnitsInDollars)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -822,6 +834,18 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	newBalance := currentBalance.Add(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
+	// Ensure amount_units is stored in dollars (not cents)
+	amountUnitsInDollars := newBalance
+
+	// Debug logging to understand the values
+	s.logger.Info("AddBalance calculation debug",
+		zap.String("current_balance_cents", fmt.Sprintf("%d", currentBalanceCents)),
+		zap.String("current_balance_dollars", currentBalance.String()),
+		zap.String("amount_to_add", amount.String()),
+		zap.String("new_balance_dollars", newBalance.String()),
+		zap.String("new_balance_cents", fmt.Sprintf("%d", newBalanceCents)),
+		zap.String("amount_units_to_store", amountUnitsInDollars.String()))
+
 	// Update main balances table - using both amount_cents and amount_units
 	_, err = tx.Exec(ctx, `
 		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
@@ -831,7 +855,7 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 			amount_cents = $2,
 			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalanceCents, newBalance)
+	`, userID, newBalanceCents, amountUnitsInDollars)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
