@@ -39,7 +39,10 @@ jobs:
         run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
 
       - name: Fetch config
-        run: aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/.env ./.env.local
+        run: |
+          aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/config.yaml ./config.yaml
+          aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/cmd/config/config.yaml ./cmd/config/config.yaml
+          aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/config/production.yaml ./config/production.yaml
 
       - name: Build
         env:
