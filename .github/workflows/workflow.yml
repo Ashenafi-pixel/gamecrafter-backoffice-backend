@@ -30,6 +30,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set variable for main branch
+        if: github.ref == 'refs/heads/main'
+        run: echo "ENVIRONMENT=production" >> $GITHUB_ENV
+
+      - name: Set variable for develop branch
+        if: github.ref == 'refs/heads/develop'
+        run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+
       - name: Fetch config
         run: aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/.env ./.env.local
 
