@@ -1526,7 +1526,7 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 	}
 
 	// Build URL with all required parameters
-	url := fmt.Sprintf("%s/game/?accountid=%s&country=%s&nogsgameid=%s&nogslang=%s&nogsmode=%s&nogsoperatorid=%s&nogscurrency=%s&sessionid=%s&homeurl=%s&license=%s&is_test_account=%t&device_type=%s&realityCheckElapsed=%d&realityCheckInterval=%d",
+	url := fmt.Sprintf("%s/game/?accountid=%s&country=%s&nogsgameid=%s&nogslang=%s&nogsmode=%s&nogsoperatorid=%s&nogscurrency=%s&sessionid=%s&homeurl=%s&license=%s&is_test_account=%t&device_type=%s",
 		grooveDomain,
 		accountID,
 		country,
@@ -1540,8 +1540,6 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 		licenseType,
 		isTestAccount,
 		deviceType,
-		realityCheckElapsed,
-		realityCheckInterval,
 	)
 
 	// Add optional parameters if provided
@@ -1550,6 +1548,14 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 	}
 	if exitURL != "" {
 		url += fmt.Sprintf("&exitUrl=%s", exitURL)
+	}
+	
+	// Add reality check parameters only if they are provided (non-zero values)
+	if realityCheckElapsed > 0 {
+		url += fmt.Sprintf("&realityCheckElapsed=%d", realityCheckElapsed)
+	}
+	if realityCheckInterval > 0 {
+		url += fmt.Sprintf("&realityCheckInterval=%d", realityCheckInterval)
 	}
 
 	return url
@@ -1623,6 +1629,15 @@ func (s *GrooveServiceImpl) callGrooveTechAPI(ctx context.Context, apiURL string
 		s.logger.Info("GrooveTech API success - redirect to game URL",
 			zap.String("game_url", location),
 			zap.Int("status_code", resp.StatusCode))
+		return location, nil
+
+	case http.StatusSeeOther: // 303 - See Other redirect
+		location := resp.Header.Get("Location")
+		if location == "" {
+			return "", fmt.Errorf("303 response but no Location header found")
+		}
+		s.logger.Info("GrooveTech API success - 303 redirect to game URL",
+			zap.String("game_url", location))
 		return location, nil
 
 	default: // Error responses
