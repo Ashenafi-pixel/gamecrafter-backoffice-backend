@@ -991,12 +991,17 @@ func (s *CashbackStorageImpl) GetGameHouseEdge(ctx context.Context, gameType, ga
 		}
 	}
 
+	maxBetStr := "nil"
+	if houseEdge.MaxBet != nil {
+		maxBetStr = houseEdge.MaxBet.String()
+	}
+	
 	s.logger.Info("Retrieved game house edge",
 		zap.String("game_type", gameType),
 		zap.String("game_variant", gameVariant),
 		zap.String("house_edge", houseEdge.HouseEdge.String()),
 		zap.String("min_bet", houseEdge.MinBet.String()),
-		zap.String("max_bet", houseEdge.MaxBet.String()))
+		zap.String("max_bet", maxBetStr))
 
 	return &houseEdge, nil
 }
