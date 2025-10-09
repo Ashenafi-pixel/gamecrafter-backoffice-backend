@@ -832,7 +832,13 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 	}
 
+	s.logger.Info("Transaction storage completed, about to process cashback", 
+		zap.String("transaction_id", req.TransactionID))
+
 	// Process cashback for the wager
+	s.logger.Info("About to call processWagerAndResultCashback", 
+		zap.String("transaction_id", req.TransactionID),
+		zap.String("user_id", userID.String()))
 	s.processWagerAndResultCashback(ctx, req, userID)
 
 	// Trigger winner notification if player won (netResult > 0)
