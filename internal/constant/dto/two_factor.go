@@ -22,6 +22,7 @@ type TwoFactorSetupRequest struct {
 type TwoFactorVerifyRequest struct {
 	Token      string `json:"token" binding:"required"`
 	BackupCode string `json:"backup_code,omitempty"`
+	Method     string `json:"method,omitempty"` // Method can be: totp, email_otp, sms_otp, backup_codes
 }
 
 // TwoFactorDisableRequest represents a request to disable 2FA

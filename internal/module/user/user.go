@@ -735,6 +735,14 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		u.log.Error("Failed to check 2FA status", zap.Error(err), zap.String("user_id", usr.ID.String()))
 		// Continue with login if 2FA check fails
 	} else if status.IsEnabled {
+		// Get available 2FA methods for the user
+		availableMethods, err := u.twoFactorService.GetEnabledMethods(ctx, usr.ID)
+		if err != nil {
+			u.log.Error("Failed to get available 2FA methods", zap.Error(err), zap.String("user_id", usr.ID.String()))
+			// Fallback to basic methods if we can't get the list
+			availableMethods = []string{"totp", "backup_codes"}
+		}
+
 		// Return early with 2FA required response
 		userProfile := dto.UserProfile{
 			Username:     usr.Username,
@@ -748,11 +756,12 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		}
 
 		return dto.UserLoginRes{
-			Message:     "2FA verification required",
-			AccessToken: "", // No token until 2FA is verified
-			UserProfile: &userProfile,
-			Requires2FA: true,
-			UserID:      usr.ID.String(),
+			Message:             "2FA verification required",
+			AccessToken:         "", // No token until 2FA is verified
+			UserProfile:         &userProfile,
+			Requires2FA:         true,
+			UserID:              usr.ID.String(),
+			Available2FAMethods: availableMethods,
 		}, "", nil
 	}
 

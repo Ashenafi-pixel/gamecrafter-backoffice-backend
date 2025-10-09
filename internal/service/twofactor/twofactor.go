@@ -14,6 +14,7 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/module/email"
 	"go.uber.org/zap"
 )
 
@@ -64,9 +65,10 @@ type TwoFactorStorage interface {
 }
 
 type twoFactorService struct {
-	storage TwoFactorStorage
-	log     *zap.Logger
-	config  TwoFactorConfig
+	storage      TwoFactorStorage
+	log          *zap.Logger
+	config       TwoFactorConfig
+	emailService email.EmailService
 }
 
 type TwoFactorConfig struct {
@@ -100,6 +102,7 @@ type TwoFactorService interface {
 
 	// Backup codes
 	GenerateBackupCodes() []string
+	GetBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ValidateBackupCode(ctx context.Context, userID uuid.UUID, code string) (bool, error)
 	RegenerateBackupCodes(ctx context.Context, userID uuid.UUID, token, ip, userAgent string) (*dto.TwoFactorBackupCodesResponse, error)
 
@@ -122,11 +125,12 @@ type TwoFactorService interface {
 	VerifyLoginWithMethod(ctx context.Context, userID uuid.UUID, method, token, ip, userAgent string) (bool, error)
 }
 
-func NewTwoFactorService(storage TwoFactorStorage, log *zap.Logger, config TwoFactorConfig) TwoFactorService {
+func NewTwoFactorService(storage TwoFactorStorage, log *zap.Logger, config TwoFactorConfig, emailService email.EmailService) TwoFactorService {
 	return &twoFactorService{
-		storage: storage,
-		log:     log,
-		config:  config,
+		storage:      storage,
+		log:          log,
+		config:       config,
+		emailService: emailService,
 	}
 }
 
@@ -256,6 +260,13 @@ func (t *twoFactorService) VerifyAndEnable2FA(ctx context.Context, userID uuid.U
 		return fmt.Errorf("failed to save backup codes: %w", err)
 	}
 
+	// Enable backup codes method
+	err = t.storage.EnableMethod(ctx, userID, string(MethodBackupCodes))
+	if err != nil {
+		t.log.Error("Failed to enable backup codes method", zap.Error(err), zap.String("user_id", userID.String()))
+		return fmt.Errorf("failed to enable backup codes method: %w", err)
+	}
+
 	// Enable 2FA
 	now := time.Now()
 	settings := &dto.TwoFactorSettings{
@@ -358,6 +369,16 @@ func (t *twoFactorService) GenerateBackupCodes() []string {
 		codes[i] = strings.ToUpper(encoded[:8])
 	}
 	return codes
+}
+
+// GetBackupCodes retrieves backup codes for a user
+func (t *twoFactorService) GetBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	codes, err := t.storage.GetBackupCodes(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to get backup codes", zap.Error(err), zap.String("user_id", userID.String()))
+		return nil, fmt.Errorf("failed to get backup codes: %w", err)
+	}
+	return codes, nil
 }
 
 // ValidateBackupCode validates and consumes a backup code
@@ -489,8 +510,20 @@ func (t *twoFactorService) GenerateEmailOTP(ctx context.Context, userID uuid.UUI
 		return fmt.Errorf("failed to save email OTP: %w", err)
 	}
 
-	// TODO: Send email via email service
-	t.log.Info("Email OTP generated", zap.String("user_id", userID.String()), zap.String("email", email))
+	// Send email via email service
+	expiresAt := time.Now().Add(time.Duration(t.config.OTPExpiryMinutes) * time.Minute)
+	err = t.emailService.SendTwoFactorOTPEmail(email, "User", otp, expiresAt, "", "")
+	if err != nil {
+		t.log.Error("Failed to send 2FA OTP email",
+			zap.Error(err),
+			zap.String("user_id", userID.String()),
+			zap.String("email", email))
+		return fmt.Errorf("failed to send 2FA OTP email: %w", err)
+	}
+
+	t.log.Info("Email OTP generated and sent successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("email", email))
 
 	return nil
 }
@@ -609,6 +642,10 @@ func (t *twoFactorService) EnableMethod(ctx context.Context, userID uuid.UUID, m
 
 	case MethodSMSOTP:
 		// Enable SMS OTP method
+		return t.storage.EnableMethod(ctx, userID, method)
+
+	case MethodBackupCodes:
+		// Enable backup codes method (backup codes are already generated)
 		return t.storage.EnableMethod(ctx, userID, method)
 
 	case MethodBiometric:

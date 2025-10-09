@@ -85,11 +85,12 @@ type UserLoginReq struct {
 
 // UserLoginRes hold response to the User login response
 type UserLoginRes struct {
-	Message     string       `json:"message"`
-	AccessToken string       `json:"access_token"`
-	UserProfile *UserProfile `json:"user_profile,omitempty"`
-	Requires2FA bool         `json:"requires_2fa,omitempty"`
-	UserID      string       `json:"user_id,omitempty"`
+	Message           string       `json:"message"`
+	AccessToken       string       `json:"access_token"`
+	UserProfile       *UserProfile `json:"user_profile,omitempty"`
+	Requires2FA       bool         `json:"requires_2fa,omitempty"`
+	UserID            string       `json:"user_id,omitempty"`
+	Available2FAMethods []string   `json:"available_2fa_methods,omitempty"`
 }
 
 func IsValidCurrency(currency string) bool {

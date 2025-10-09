@@ -369,9 +369,14 @@ func (t *twoFactorStorage) DeleteBackupCodes(ctx context.Context, userID uuid.UU
 
 // UseBackupCode validates and consumes a backup code
 func (t *twoFactorStorage) UseBackupCode(ctx context.Context, userID uuid.UUID, code string) error {
-	// This would need to implement proper backup code validation and consumption
-	// For now, we'll just return an error indicating the code was used
-	return fmt.Errorf("backup code validation not implemented")
+	valid, err := t.ValidateAndConsumeBackupCode(ctx, userID, code)
+	if err != nil {
+		return err
+	}
+	if !valid {
+		return fmt.Errorf("invalid backup code")
+	}
+	return nil
 }
 
 // SaveSettings saves 2FA settings
@@ -484,18 +489,50 @@ func generateBackupCodes(count int) []string {
 
 // SaveOTP saves an OTP for a specific method
 func (t *twoFactorStorage) SaveOTP(ctx context.Context, userID uuid.UUID, method, otp string, expiry time.Duration) error {
-	// TODO: Implement OTP storage in database
-	// For now, just log the OTP
-	t.log.Info("OTP saved", zap.String("user_id", userID.String()), zap.String("method", method), zap.String("otp", otp))
+	query := `
+		INSERT INTO user_2fa_otps (user_id, method, otp_code, expires_at, created_at)
+		VALUES ($1, $2, $3, NOW() + INTERVAL '%d seconds', NOW())
+		ON CONFLICT (user_id, method) 
+		DO UPDATE SET 
+			otp_code = EXCLUDED.otp_code,
+			expires_at = EXCLUDED.expires_at,
+			created_at = NOW()
+	`
+
+	_, err := t.db.GetPool().Exec(ctx, fmt.Sprintf(query, int(expiry.Seconds())), userID, method, otp)
+	if err != nil {
+		t.log.Error("Failed to save OTP", zap.Error(err), zap.String("user_id", userID.String()), zap.String("method", method))
+		return fmt.Errorf("failed to save OTP: %w", err)
+	}
+
+	t.log.Info("OTP saved successfully", zap.String("user_id", userID.String()), zap.String("method", method), zap.String("otp", otp))
 	return nil
 }
 
 // VerifyOTP verifies an OTP for a specific method
 func (t *twoFactorStorage) VerifyOTP(ctx context.Context, userID uuid.UUID, method, otp string) (bool, error) {
-	// TODO: Implement OTP verification from database
-	// For now, return false
-	t.log.Info("OTP verification attempted", zap.String("user_id", userID.String()), zap.String("method", method), zap.String("otp", otp))
-	return false, nil
+	query := `
+		SELECT otp_code FROM user_2fa_otps 
+		WHERE user_id = $1 AND method = $2 AND otp_code = $3 AND expires_at > NOW()
+	`
+
+	var storedOTP string
+	err := t.db.GetPool().QueryRow(ctx, query, userID, method, otp).Scan(&storedOTP)
+	if err != nil {
+		t.log.Warn("OTP verification failed", zap.Error(err), zap.String("user_id", userID.String()), zap.String("method", method), zap.String("otp", otp))
+		return false, nil // Return false, not error, for invalid/expired OTPs
+	}
+
+	// OTP is valid, delete it to prevent reuse
+	deleteQuery := `DELETE FROM user_2fa_otps WHERE user_id = $1 AND method = $2 AND otp_code = $3`
+	_, err = t.db.GetPool().Exec(ctx, deleteQuery, userID, method, otp)
+	if err != nil {
+		t.log.Error("Failed to delete used OTP", zap.Error(err), zap.String("user_id", userID.String()), zap.String("method", method))
+		// Don't return error here, OTP was still valid
+	}
+
+	t.log.Info("OTP verified successfully", zap.String("user_id", userID.String()), zap.String("method", method), zap.String("otp", otp))
+	return true, nil
 }
 
 // DeleteOTP deletes an OTP for a specific method

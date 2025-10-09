@@ -50,6 +50,11 @@ func setup2FARoutes(router *gin.RouterGroup, handler twofactor.TwoFactorHandler,
 		// Get enabled methods (for login flow - requires user_id query param)
 		verifyGroup.GET("/enabled-methods", handler.GetEnabledMethods)
 
+		// Generate OTPs for login (no auth required, but needs user_id)
+		verifyGroup.POST("/generate-email-otp", handler.GenerateEmailOTPForLogin)
+		verifyGroup.POST("/generate-sms-otp", handler.GenerateSMSOTPForLogin)
+		verifyGroup.POST("/get-backup-codes", handler.GetBackupCodes)
+
 		// Enable/disable methods (for settings - requires user_id in body)
 		verifyGroup.POST("/methods/enable", handler.EnableMethod)
 		verifyGroup.POST("/methods/disable", handler.DisableMethod)

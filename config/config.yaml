@@ -122,10 +122,10 @@ airtime:
 smtp:
   host: "smtp.gmail.com"
   port: 465
-  username: "ashenafialemu66@gmail.com"
-  password: "dpfr mgcv tgnh skyo"
-  from: "noreply@tucanbit.com"
-  from_name: "TucanBIT"
+  username: "kirub.hel@gmail.com"
+  password: "dacc uhlb etak tpoo"
+  from: "kirub.hel@gmail.com"
+  from_name: "TucanBIT Security"
   use_tls: true 
 groove:
   operator_id: "3818"

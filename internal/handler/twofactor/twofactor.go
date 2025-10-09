@@ -18,6 +18,7 @@ type TwoFactorService interface {
 	Get2FAStatus(ctx context.Context, userID uuid.UUID) (*dto.TwoFactorSettings, error)
 	Disable2FA(ctx context.Context, userID uuid.UUID, token, ip, userAgent string) error
 	ValidateBackupCode(ctx context.Context, userID uuid.UUID, code string) (bool, error)
+	GetBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error)
 	VerifyLoginToken(ctx context.Context, userID uuid.UUID, token, backupCode, ip, userAgent string) (bool, error)
 	IsRateLimited(ctx context.Context, userID uuid.UUID) (bool, error)
 
@@ -56,6 +57,11 @@ type TwoFactorHandler interface {
 	VerifyWithMethod(c *gin.Context)
 	GenerateEmailOTP(c *gin.Context)
 	GenerateSMSOTP(c *gin.Context)
+
+	// Login-specific endpoints (no auth required)
+	GenerateEmailOTPForLogin(c *gin.Context)
+	GenerateSMSOTPForLogin(c *gin.Context)
+	GetBackupCodes(c *gin.Context)
 }
 
 func NewTwoFactorHandler(service TwoFactorService, log *zap.Logger) TwoFactorHandler {
@@ -267,8 +273,16 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 	ip := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	// Verify the token
-	success, err := h.service.VerifyLoginToken(c.Request.Context(), userID, req.Token, req.BackupCode, ip, userAgent)
+	// Determine verification method
+	var success bool
+
+	if req.Method != "" {
+		// Use method-specific verification
+		success, err = h.service.VerifyLoginWithMethod(c.Request.Context(), userID, req.Method, req.Token, ip, userAgent)
+	} else {
+		// Fallback to legacy verification (for backward compatibility)
+		success, err = h.service.VerifyLoginToken(c.Request.Context(), userID, req.Token, req.BackupCode, ip, userAgent)
+	}
 	if err != nil {
 		h.log.Error("Failed to verify 2FA token", zap.Error(err), zap.String("user_id", userID.String()))
 
@@ -281,7 +295,7 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+		c.JSON(http.StatusUnauthorized, dto.TwoFactorResponse{
 			Success: false,
 			Error:   "Failed to verify token",
 		})
@@ -960,5 +974,139 @@ func (h *twoFactorHandler) GenerateSMSOTP(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.TwoFactorResponse{
 		Success: true,
 		Message: "SMS OTP sent successfully",
+	})
+}
+
+// GenerateEmailOTPForLogin generates and sends an email OTP during login (no auth required)
+func (h *twoFactorHandler) GenerateEmailOTPForLogin(c *gin.Context) {
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+		Email  string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	err = h.service.GenerateEmailOTP(c.Request.Context(), userUUID, req.Email)
+	if err != nil {
+		h.log.Error("Failed to generate email OTP for login", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to generate email OTP",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Email OTP generated for login", zap.String("user_id", userUUID.String()), zap.String("email", req.Email))
+
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Email OTP sent successfully",
+	})
+}
+
+// GenerateSMSOTPForLogin generates and sends an SMS OTP during login (no auth required)
+func (h *twoFactorHandler) GenerateSMSOTPForLogin(c *gin.Context) {
+	var req struct {
+		UserID      string `json:"user_id" binding:"required"`
+		PhoneNumber string `json:"phone_number" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	err = h.service.GenerateSMSOTP(c.Request.Context(), userUUID, req.PhoneNumber)
+	if err != nil {
+		h.log.Error("Failed to generate SMS OTP for login", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to generate SMS OTP",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("SMS OTP generated for login", zap.String("user_id", userUUID.String()), zap.String("phone", req.PhoneNumber))
+
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "SMS OTP sent successfully",
+	})
+}
+
+// GetBackupCodes retrieves backup codes for a user (for login flow)
+func (h *twoFactorHandler) GetBackupCodes(c *gin.Context) {
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	codes, err := h.service.GetBackupCodes(c.Request.Context(), userUUID)
+	if err != nil {
+		h.log.Error("Failed to get backup codes", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to retrieve backup codes",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Backup codes retrieved", zap.String("user_id", userUUID.String()), zap.Int("count", len(codes)))
+
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Backup codes retrieved successfully",
+		Data: map[string]interface{}{
+			"backup_codes": codes,
+		},
 	})
 }

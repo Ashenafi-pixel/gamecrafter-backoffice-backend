@@ -136,7 +136,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 				BackupCodesCount: 10,
 				MaxAttempts:      5,
 				LockoutDuration:  15 * time.Minute,
-				EnabledMethods:   []twofactor.TwoFactorMethod{
+				EnabledMethods: []twofactor.TwoFactorMethod{
 					twofactor.MethodTOTP,
 					twofactor.MethodEmailOTP,
 					twofactor.MethodSMSOTP,
@@ -146,7 +146,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 				EmailOTPLength:   6,
 				SMSOTPLength:     6,
 				OTPExpiryMinutes: 5,
-			}),
+			}, emailService),
 		),
 		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
@@ -230,7 +230,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			BackupCodesCount: 10,
 			MaxAttempts:      5,
 			LockoutDuration:  15 * time.Minute,
-			EnabledMethods:   []twofactor.TwoFactorMethod{
+			EnabledMethods: []twofactor.TwoFactorMethod{
 				twofactor.MethodTOTP,
 				twofactor.MethodEmailOTP,
 				twofactor.MethodSMSOTP,
@@ -240,7 +240,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			EmailOTPLength:   6,
 			SMSOTPLength:     6,
 			OTPExpiryMinutes: 5,
-		}),
+		}, emailService),
 		Redis: redis,
 	}
 }
