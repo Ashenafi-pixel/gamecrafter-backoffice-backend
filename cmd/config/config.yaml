@@ -32,7 +32,6 @@ google:
 groove:
   operator_id: "3818"
   api_domain: "https://gprouter.groovegaming.com"
-  api_key: "our_groove_api_key_here"
   home_url: "https://tucanbit.tv"
   exit_url: "https://tucanbit.tv"
   history_url: "https://tucanbit.tv"
