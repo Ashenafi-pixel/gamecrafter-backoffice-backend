@@ -21,10 +21,10 @@ import (
 type TwoFactorMethod string
 
 const (
-	MethodTOTP        TwoFactorMethod = "totp"        // Authenticator apps
+	MethodTOTP        TwoFactorMethod = "totp"         // Authenticator apps
 	MethodEmailOTP    TwoFactorMethod = "email_otp"    // Email OTP
 	MethodSMSOTP      TwoFactorMethod = "sms_otp"      // SMS OTP
-	MethodBiometric   TwoFactorMethod = "biometric"     // Biometric (WebAuthn)
+	MethodBiometric   TwoFactorMethod = "biometric"    // Biometric (WebAuthn)
 	MethodBackupCodes TwoFactorMethod = "backup_codes" // Backup codes
 )
 
@@ -51,12 +51,12 @@ type TwoFactorStorage interface {
 	LogAttempt(ctx context.Context, attempt *dto.TwoFactorAttempt) error
 	GetAttempts(ctx context.Context, userID uuid.UUID, limit int) ([]dto.TwoFactorAttempt, error)
 	IsRateLimited(ctx context.Context, userID uuid.UUID) (bool, error)
-	
+
 	// OTP management for multiple methods
 	SaveOTP(ctx context.Context, userID uuid.UUID, method, otp string, expiry time.Duration) error
 	VerifyOTP(ctx context.Context, userID uuid.UUID, method, otp string) (bool, error)
 	DeleteOTP(ctx context.Context, userID uuid.UUID, method string) error
-	
+
 	// Method management
 	EnableMethod(ctx context.Context, userID uuid.UUID, method string) error
 	DisableMethod(ctx context.Context, userID uuid.UUID, method string) error
@@ -77,7 +77,7 @@ type TwoFactorConfig struct {
 	BackupCodesCount int
 	MaxAttempts      int
 	LockoutDuration  time.Duration
-	
+
 	// Multiple method support
 	EnabledMethods   []TwoFactorMethod
 	EmailOTPLength   int
@@ -109,7 +109,7 @@ type TwoFactorService interface {
 	// Rate limiting
 	IsRateLimited(ctx context.Context, userID uuid.UUID) (bool, error)
 	LogAttempt(ctx context.Context, userID uuid.UUID, attemptType string, success bool, ip, userAgent string) error
-	
+
 	// Multiple 2FA methods
 	GenerateEmailOTP(ctx context.Context, userID uuid.UUID, email string) error
 	GenerateSMSOTP(ctx context.Context, userID uuid.UUID, phoneNumber string) error
@@ -177,7 +177,7 @@ func (t *twoFactorService) GenerateQRCode(secret, email string) (string, error) 
 	q := u.Query()
 	q.Set("secret", secret)
 	q.Set("issuer", t.config.Issuer)
-	
+
 	// Convert algorithm enum to proper string representation
 	var algorithmStr string
 	switch t.config.Algorithm {
@@ -191,7 +191,7 @@ func (t *twoFactorService) GenerateQRCode(secret, email string) (string, error) 
 		algorithmStr = "SHA1" // Default to SHA1
 	}
 	q.Set("algorithm", algorithmStr)
-	
+
 	// Convert digits enum to proper string representation
 	var digitsStr string
 	switch t.config.Digits {
@@ -481,17 +481,17 @@ func (t *twoFactorService) LogAttempt(ctx context.Context, userID uuid.UUID, att
 func (t *twoFactorService) GenerateEmailOTP(ctx context.Context, userID uuid.UUID, email string) error {
 	// Generate random OTP
 	otp := t.generateRandomOTP(t.config.EmailOTPLength)
-	
+
 	// Store OTP with expiry
 	err := t.storage.SaveOTP(ctx, userID, "email_otp", otp, time.Duration(t.config.OTPExpiryMinutes)*time.Minute)
 	if err != nil {
 		t.log.Error("Failed to save email OTP", zap.Error(err), zap.String("user_id", userID.String()))
 		return fmt.Errorf("failed to save email OTP: %w", err)
 	}
-	
+
 	// TODO: Send email via email service
 	t.log.Info("Email OTP generated", zap.String("user_id", userID.String()), zap.String("email", email))
-	
+
 	return nil
 }
 
@@ -499,17 +499,17 @@ func (t *twoFactorService) GenerateEmailOTP(ctx context.Context, userID uuid.UUI
 func (t *twoFactorService) GenerateSMSOTP(ctx context.Context, userID uuid.UUID, phoneNumber string) error {
 	// Generate random OTP
 	otp := t.generateRandomOTP(t.config.SMSOTPLength)
-	
+
 	// Store OTP with expiry
 	err := t.storage.SaveOTP(ctx, userID, "sms_otp", otp, time.Duration(t.config.OTPExpiryMinutes)*time.Minute)
 	if err != nil {
 		t.log.Error("Failed to save SMS OTP", zap.Error(err), zap.String("user_id", userID.String()))
 		return fmt.Errorf("failed to save SMS OTP: %w", err)
 	}
-	
+
 	// TODO: Send SMS via SMS service
 	t.log.Info("SMS OTP generated", zap.String("user_id", userID.String()), zap.String("phone", phoneNumber))
-	
+
 	return nil
 }
 
@@ -520,7 +520,7 @@ func (t *twoFactorService) VerifyEmailOTP(ctx context.Context, userID uuid.UUID,
 		t.log.Error("Failed to verify email OTP", zap.Error(err), zap.String("user_id", userID.String()))
 		return false, fmt.Errorf("failed to verify email OTP: %w", err)
 	}
-	
+
 	if valid {
 		// Log successful attempt
 		t.LogAttempt(ctx, userID, "email_otp_verify", true, "", "")
@@ -528,7 +528,7 @@ func (t *twoFactorService) VerifyEmailOTP(ctx context.Context, userID uuid.UUID,
 		// Log failed attempt
 		t.LogAttempt(ctx, userID, "email_otp_verify", false, "", "")
 	}
-	
+
 	return valid, nil
 }
 
@@ -539,7 +539,7 @@ func (t *twoFactorService) VerifySMSOTP(ctx context.Context, userID uuid.UUID, o
 		t.log.Error("Failed to verify SMS OTP", zap.Error(err), zap.String("user_id", userID.String()))
 		return false, fmt.Errorf("failed to verify SMS OTP: %w", err)
 	}
-	
+
 	if valid {
 		// Log successful attempt
 		t.LogAttempt(ctx, userID, "sms_otp_verify", true, "", "")
@@ -547,18 +547,26 @@ func (t *twoFactorService) VerifySMSOTP(ctx context.Context, userID uuid.UUID, o
 		// Log failed attempt
 		t.LogAttempt(ctx, userID, "sms_otp_verify", false, "", "")
 	}
-	
+
 	return valid, nil
 }
 
-// GetAvailableMethods returns available 2FA methods from config
+// GetAvailableMethods returns enabled 2FA methods for a user
 func (t *twoFactorService) GetAvailableMethods(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	// Return available methods from config (what can be enabled)
-	var methods []string
-	for _, method := range t.config.EnabledMethods {
-		methods = append(methods, string(method))
+	// Get user's enabled methods instead of all configured methods
+	enabledMethods, err := t.storage.GetEnabledMethods(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to get enabled methods", zap.Error(err), zap.String("user_id", userID.String()))
+		return []string{}, fmt.Errorf("failed to get enabled methods: %w", err)
 	}
-	return methods, nil
+
+	// Ensure we always return an array, never nil
+	if enabledMethods == nil {
+		return []string{}, nil
+	}
+
+	// Return the user's actual enabled methods
+	return enabledMethods, nil
 }
 
 // GetEnabledMethods returns enabled 2FA methods for a user
@@ -567,9 +575,14 @@ func (t *twoFactorService) GetEnabledMethods(ctx context.Context, userID uuid.UU
 	enabledMethods, err := t.storage.GetEnabledMethods(ctx, userID)
 	if err != nil {
 		t.log.Error("Failed to get enabled methods", zap.Error(err), zap.String("user_id", userID.String()))
-		return nil, fmt.Errorf("failed to get enabled methods: %w", err)
+		return []string{}, fmt.Errorf("failed to get enabled methods: %w", err)
 	}
-	
+
+	// Ensure we always return an array, never nil
+	if enabledMethods == nil {
+		return []string{}, nil
+	}
+
 	// Return the user's actual enabled methods (empty if none enabled)
 	return enabledMethods, nil
 }
@@ -580,22 +593,28 @@ func (t *twoFactorService) EnableMethod(ctx context.Context, userID uuid.UUID, m
 	case MethodTOTP:
 		// Enable TOTP method
 		if secret, ok := data["secret"].(string); ok {
-			return t.storage.SaveSecret(ctx, userID, secret)
+			// Save the secret first
+			err := t.storage.SaveSecret(ctx, userID, secret)
+			if err != nil {
+				return err
+			}
+			// Also enable the method in the multi-method system
+			return t.storage.EnableMethod(ctx, userID, method)
 		}
 		return fmt.Errorf("secret required for TOTP method")
-		
+
 	case MethodEmailOTP:
 		// Enable email OTP method
 		return t.storage.EnableMethod(ctx, userID, method)
-		
+
 	case MethodSMSOTP:
 		// Enable SMS OTP method
 		return t.storage.EnableMethod(ctx, userID, method)
-		
+
 	case MethodBiometric:
 		// Enable biometric method (WebAuthn)
 		return t.storage.EnableMethod(ctx, userID, method)
-		
+
 	default:
 		return fmt.Errorf("unsupported 2FA method: %s", method)
 	}
@@ -610,17 +629,17 @@ func (t *twoFactorService) DisableMethod(ctx context.Context, userID uuid.UUID, 
 		if err != nil {
 			return fmt.Errorf("failed to get secret: %w", err)
 		}
-		
+
 		if !t.VerifyToken(secret, verificationData) {
 			return fmt.Errorf("invalid verification token")
 		}
-		
+
 		return t.storage.DeleteSecret(ctx, userID)
-		
+
 	case MethodEmailOTP, MethodSMSOTP, MethodBiometric:
 		// For other methods, just disable them
 		return t.storage.DisableMethod(ctx, userID, method)
-		
+
 	default:
 		return fmt.Errorf("unsupported 2FA method: %s", method)
 	}
@@ -658,7 +677,7 @@ func (t *twoFactorService) VerifyLoginWithMethod(ctx context.Context, userID uui
 			t.log.Error("Failed to get TOTP secret", zap.Error(err), zap.String("user_id", userID.String()))
 			return false, fmt.Errorf("failed to get TOTP secret: %w", err)
 		}
-		
+
 		isValid = t.VerifyToken(secret, token)
 		attemptType = "totp_login"
 
@@ -701,13 +720,13 @@ func (t *twoFactorService) VerifyLoginWithMethod(ctx context.Context, userID uui
 	}
 
 	if isValid {
-		t.log.Info("2FA login verification successful", 
-			zap.String("user_id", userID.String()), 
+		t.log.Info("2FA login verification successful",
+			zap.String("user_id", userID.String()),
 			zap.String("method", method),
 			zap.String("ip", ip))
 	} else {
-		t.log.Warn("2FA login verification failed", 
-			zap.String("user_id", userID.String()), 
+		t.log.Warn("2FA login verification failed",
+			zap.String("user_id", userID.String()),
 			zap.String("method", method),
 			zap.String("ip", ip))
 	}

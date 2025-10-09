@@ -18,7 +18,7 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, handler twofactor.TwoFactorHand
 // setup2FARoutes configures all 2FA routes
 func setup2FARoutes(router *gin.RouterGroup, handler twofactor.TwoFactorHandler, log *zap.Logger) {
 	// 2FA setup and management routes (require authentication)
-	authGroup := router.Group("/api/auth/2fa")
+	authGroup := router.Group("/api/admin/auth/2fa")
 	authGroup.Use(middleware.RateLimiter(), middleware.Auth())
 	{
 		// Generate secret and QR code
@@ -35,7 +35,7 @@ func setup2FARoutes(router *gin.RouterGroup, handler twofactor.TwoFactorHandler,
 	}
 
 	// 2FA verification routes (used during login) - no auth required
-	verifyGroup := router.Group("/api/auth/2fa")
+	verifyGroup := router.Group("/api/admin/auth/2fa")
 	verifyGroup.Use(middleware.RateLimiter())
 	{
 		// Verify 2FA token during login
@@ -46,17 +46,17 @@ func setup2FARoutes(router *gin.RouterGroup, handler twofactor.TwoFactorHandler,
 
 		// Get available methods (for login flow - requires user_id query param)
 		verifyGroup.GET("/available-methods", handler.GetAvailableMethods)
-		
+
 		// Get enabled methods (for login flow - requires user_id query param)
 		verifyGroup.GET("/enabled-methods", handler.GetEnabledMethods)
-		
+
 		// Enable/disable methods (for settings - requires user_id in body)
 		verifyGroup.POST("/methods/enable", handler.EnableMethod)
 		verifyGroup.POST("/methods/disable", handler.DisableMethod)
 	}
 
 	// Multi-method management routes (require authentication)
-	multiMethodGroup := router.Group("/api/auth/2fa/methods")
+	multiMethodGroup := router.Group("/api/admin/auth/2fa/methods")
 	multiMethodGroup.Use(middleware.RateLimiter(), middleware.Auth())
 	{
 		// Generate OTPs for different methods

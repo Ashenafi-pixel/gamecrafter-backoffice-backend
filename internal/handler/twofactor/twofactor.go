@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -169,17 +170,6 @@ func (h *twoFactorHandler) VerifyAndEnable(c *gin.Context) {
 		return
 	}
 
-	var req dto.TwoFactorSetupRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.log.Error("Failed to bind request", zap.Error(err))
-		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
-			Success: false,
-			Error:   "Invalid request format",
-		})
-		return
-	}
-
-	// Get the secret from the request (it should be stored temporarily)
 	var secretReq struct {
 		Secret string `json:"secret" binding:"required"`
 		Token  string `json:"token" binding:"required"`
@@ -235,7 +225,10 @@ func (h *twoFactorHandler) VerifyAndEnable(c *gin.Context) {
 // @Failure 500 {object} dto.TwoFactorResponse
 // @Router /api/auth/2fa/verify [post]
 func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
-	var req dto.TwoFactorVerifyRequest
+	var req struct {
+		dto.TwoFactorVerifyRequest
+		UserID string `json:"user_id"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.log.Error("Failed to bind request", zap.Error(err))
 		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
@@ -245,10 +238,14 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 		return
 	}
 
-	// Get user ID from request (this endpoint is used during login)
+	// Get user ID from request body or header
 	userIDStr := c.GetHeader("X-User-ID")
 	if userIDStr == "" {
-		h.log.Error("User ID not provided in header")
+		userIDStr = req.UserID
+	}
+
+	if userIDStr == "" {
+		h.log.Error("User ID not provided")
 		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
 			Success: false,
 			Error:   "User ID is required",
@@ -301,9 +298,24 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 	}
 
 	h.log.Info("2FA token verified successfully", zap.String("user_id", userID.String()))
+
+	// Generate JWT token for successful 2FA verification
+	token, err := utils.GenerateJWTWithVerification(userID, true, true, true)
+	if err != nil {
+		h.log.Error("Failed to generate JWT token after 2FA", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Error:   "Failed to complete login",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, dto.TwoFactorResponse{
 		Success: true,
-		Message: "Token verified successfully",
+		Message: "2FA verification successful",
+		Data: map[string]interface{}{
+			"access_token": token,
+		},
 	})
 }
 
@@ -442,7 +454,7 @@ func (h *twoFactorHandler) GetEnabledMethods(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		userUUID, err := uuid.Parse(userIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
@@ -451,7 +463,7 @@ func (h *twoFactorHandler) GetEnabledMethods(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		methods, err := h.service.GetEnabledMethods(c.Request.Context(), userUUID)
 		if err != nil {
 			h.log.Error("Failed to get enabled methods", zap.Error(err), zap.String("user_id", userUUID.String()))

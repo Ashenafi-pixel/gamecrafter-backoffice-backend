@@ -119,18 +119,21 @@ func (t *twoFactorStorage) DeleteSecret(ctx context.Context, userID uuid.UUID) e
 // SaveBackupCodes saves backup codes for a user
 func (t *twoFactorStorage) SaveBackupCodes(ctx context.Context, userID uuid.UUID, codes []string) error {
 	query := `
-		INSERT INTO user_2fa_settings (user_id, backup_codes, created_at, updated_at)
-		VALUES ($1, $2, NOW(), NOW())
-		ON CONFLICT (user_id) 
-		DO UPDATE SET 
-			backup_codes = EXCLUDED.backup_codes,
-			updated_at = NOW()
+		UPDATE user_2fa_settings 
+		SET backup_codes = $2, updated_at = NOW()
+		WHERE user_id = $1
 	`
 
-	_, err := t.db.GetPool().Exec(ctx, query, userID, codes)
+	result, err := t.db.GetPool().Exec(ctx, query, userID, codes)
 	if err != nil {
 		t.log.Error("Failed to save backup codes", zap.Error(err), zap.String("user_id", userID.String()))
 		return fmt.Errorf("failed to save backup codes: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		t.log.Error("No 2FA settings found for user", zap.String("user_id", userID.String()))
+		return fmt.Errorf("no 2FA settings found for user")
 	}
 
 	t.log.Info("Backup codes saved successfully", zap.String("user_id", userID.String()))
@@ -373,12 +376,24 @@ func (t *twoFactorStorage) UseBackupCode(ctx context.Context, userID uuid.UUID, 
 
 // SaveSettings saves 2FA settings
 func (t *twoFactorStorage) SaveSettings(ctx context.Context, settings *dto.TwoFactorSettings) error {
-	query := `INSERT INTO user_2fa_settings (user_id, is_enabled, enabled_at) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET is_enabled = $2, enabled_at = $3`
-	_, err := t.db.GetPool().Exec(ctx, query, settings.UserID, settings.IsEnabled, settings.EnabledAt)
+	query := `
+		UPDATE user_2fa_settings 
+		SET is_enabled = $2, enabled_at = $3, updated_at = NOW()
+		WHERE user_id = $1
+	`
+
+	result, err := t.db.GetPool().Exec(ctx, query, settings.UserID, settings.IsEnabled, settings.EnabledAt)
 	if err != nil {
 		t.log.Error("Failed to save 2FA settings", zap.Error(err), zap.String("user_id", settings.UserID.String()))
 		return fmt.Errorf("failed to save 2FA settings: %w", err)
 	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		t.log.Error("No 2FA settings found for user", zap.String("user_id", settings.UserID.String()))
+		return fmt.Errorf("no 2FA settings found for user")
+	}
+
 	return nil
 }
 
@@ -532,7 +547,7 @@ func (t *twoFactorStorage) DisableMethod(ctx context.Context, userID uuid.UUID, 
 	// Save to database
 	query := `
 		UPDATE user_2fa_methods 
-		SET enabled_at = NULL, updated_at = NOW()
+		SET enabled_at = NULL, disabled_at = NOW(), updated_at = NOW()
 		WHERE user_id = $1 AND method = $2
 	`
 
@@ -608,6 +623,11 @@ func (t *twoFactorStorage) GetEnabledMethods(ctx context.Context, userID uuid.UU
 	t.enabledMethods[userID] = methods
 	t.mu.Unlock()
 
+	// Ensure we always return an array, never nil
+	if methods == nil {
+		return []string{}, nil
+	}
+
 	return methods, nil
 }
 
@@ -617,6 +637,10 @@ func (t *twoFactorStorage) getEnabledMethodsFromMemory(userID uuid.UUID) []strin
 	defer t.mu.RUnlock()
 
 	if methods, exists := t.enabledMethods[userID]; exists {
+		// Ensure we always return an array, never nil
+		if methods == nil {
+			return []string{}
+		}
 		return methods
 	}
 
