@@ -438,89 +438,89 @@ func (e *EmailServiceImpl) sendEmail(to, subject, htmlBody string) error {
 	if e.config.Port == 465 {
 		// Port 465 requires SSL (not TLS)
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: true, // Skip certificate verification for development
 			ServerName:         e.config.Host,
 		}
 
 		conn, err := tls.Dial("tcp", addr, tlsConfig)
 		if err != nil {
-			return fmt.Errorf("failed to establish SSL connection to %s: %w", addr, err)
+			return fmt.Errorf("failed to establish SSL connection to %s %w", addr, err)
 		}
 		defer conn.Close()
 
 		client, err := smtp.NewClient(conn, e.config.Host)
 		if err != nil {
-			return fmt.Errorf("failed to create SMTP client: %w", err)
+			return fmt.Errorf("failed to create SMTP client %w", err)
 		}
 		defer client.Close()
 
 		if err = client.Auth(auth); err != nil {
-			return fmt.Errorf("failed to authenticate with SMTP server: %w", err)
+			return fmt.Errorf("failed to authenticate with SMTP server %w", err)
 		}
 
 		if err = client.Mail(e.config.From); err != nil {
-			return fmt.Errorf("failed to set sender: %w", err)
+			return fmt.Errorf("failed to set sender %w", err)
 		}
 
 		if err = client.Rcpt(to); err != nil {
-			return fmt.Errorf("failed to set recipient: %w", err)
+			return fmt.Errorf("failed to set recipient %w", err)
 		}
 
 		writer, err := client.Data()
 		if err != nil {
-			return fmt.Errorf("failed to get data writer: %w", err)
+			return fmt.Errorf("failed to get data writer %w", err)
 		}
 
 		_, err = writer.Write(message.Bytes())
 		if err != nil {
-			return fmt.Errorf("failed to write message: %w", err)
+			return fmt.Errorf("failed to write message %w", err)
 		}
 
 		if err = writer.Close(); err != nil {
-			return fmt.Errorf("failed to close writer: %w", err)
+			return fmt.Errorf("failed to close writer %w", err)
 		}
 	} else if e.config.UseTLS {
 		// Use STARTTLS for other ports (like 587)
 		conn, err := smtp.Dial(addr)
 		if err != nil {
-			return fmt.Errorf("failed to connect to SMTP server: %w", err)
+			return fmt.Errorf("failed to connect to SMTP server %w", err)
 		}
 		defer conn.Close()
 
-		if err = conn.StartTLS(&tls.Config{ServerName: e.config.Host}); err != nil {
-			return fmt.Errorf("failed to start TLS: %w", err)
+		if err = conn.StartTLS(&tls.Config{InsecureSkipVerify: true, ServerName: e.config.Host}); err != nil {
+			return fmt.Errorf("failed to start TLS %w", err)
 		}
 
 		if err = conn.Auth(auth); err != nil {
-			return fmt.Errorf("failed to authenticate: %w", err)
+			return fmt.Errorf("failed to authenticate %w", err)
 		}
 
 		if err = conn.Mail(e.config.From); err != nil {
-			return fmt.Errorf("failed to set sender: %w", err)
+			return fmt.Errorf("failed to set sender %w", err)
 		}
 
 		if err = conn.Rcpt(to); err != nil {
-			return fmt.Errorf("failed to set recipient: %w", err)
+			return fmt.Errorf("failed to set recipient %w", err)
 		}
 
 		writer, err := conn.Data()
 		if err != nil {
-			return fmt.Errorf("failed to get data writer: %w", err)
+			return fmt.Errorf("failed to get data writer%w", err)
 		}
 
 		_, err = writer.Write(message.Bytes())
 		if err != nil {
-			return fmt.Errorf("failed to write message: %w", err)
+			return fmt.Errorf("failed to write message %w", err)
 		}
 
 		if err = writer.Close(); err != nil {
-			return fmt.Errorf("failed to close writer: %w", err)
+			return fmt.Errorf("failed to close writer %w", err)
 		}
 	} else {
 		// Use regular SMTP without TLS
 		err := smtp.SendMail(addr, auth, e.config.From, []string{to}, message.Bytes())
 		if err != nil {
-			return fmt.Errorf("failed to send email: %w", err)
+			return fmt.Errorf("failed to send email %w", err)
 		}
 	}
 

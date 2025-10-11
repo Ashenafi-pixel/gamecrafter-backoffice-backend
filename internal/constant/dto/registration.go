@@ -70,3 +70,18 @@ type Account struct {
 	BonusMoney float64 `json:"bonus_money"`
 	UpdatedAt  string  `json:"updated_at"`
 }
+
+// ResendRegistrationOTPRequest represents resend registration OTP request
+type ResendRegistrationOTPRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+// ResendRegistrationOTPResponse represents resend registration OTP response
+type ResendRegistrationOTPResponse struct {
+	Message     string    `json:"message"`
+	UserID      uuid.UUID `json:"user_id"`
+	Email       string    `json:"email"`
+	OTPID       uuid.UUID `json:"otp_id"`
+	ExpiresAt   string    `json:"expires_at"`
+	ResendAfter string    `json:"resend_after"`
+}

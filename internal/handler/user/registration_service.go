@@ -183,6 +183,19 @@ func (rs *RegistrationService) handleDetailedRegistration(c *gin.Context, req *d
 		return
 	}
 
+	// Store email-to-user-id mapping for resend OTP functionality
+	err = rs.redisClient.Set(c.Request.Context(),
+		fmt.Sprintf("email_to_user_id:%s", req.Email),
+		userID.String(),
+		24*time.Hour)
+	if err != nil {
+		rs.logger.Error("Failed to store email-to-user-id mapping",
+			zap.Error(err),
+			zap.String("email", req.Email),
+			zap.String("user_id", userID.String()))
+		// Don't fail the registration for this, just log the error
+	}
+
 	// Send email verification OTP
 	otpResponse, err := rs.otpModule.CreateEmailVerification(c.Request.Context(), req.Email, c.Request.UserAgent(), c.ClientIP(), userID.String())
 	if err != nil {
@@ -301,6 +314,19 @@ func (rs *RegistrationService) handleSimpleRegistration(c *gin.Context, req *dto
 			Message: "Failed to process registration request",
 		})
 		return
+	}
+
+	// Store email-to-user-id mapping for resend OTP functionality
+	err = rs.redisClient.Set(c.Request.Context(),
+		fmt.Sprintf("email_to_user_id:%s", req.Email),
+		userID.String(),
+		24*time.Hour)
+	if err != nil {
+		rs.logger.Error("Failed to store email-to-user-id mapping",
+			zap.Error(err),
+			zap.String("email", req.Email),
+			zap.String("user_id", userID.String()))
+		// Don't fail the registration for this, just log the error
 	}
 
 	// Send email verification OTP
@@ -502,13 +528,14 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 // @Tags User
 // @Accept json
 // @Produce json
-// @Param request body dto.ResendOTPRequest true "Resend verification request"
-// @Success 200 {object} dto.ResendOTPResponse
+// @Param request body dto.ResendRegistrationOTPRequest true "Resend verification request"
+// @Success 200 {object} dto.ResendRegistrationOTPResponse
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /register/resend-verification [post]
 func (rs *RegistrationService) ResendVerificationEmail(c *gin.Context) {
-	var req dto.ResendOTPRequest
+	var req dto.ResendRegistrationOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rs.logger.Error("Failed to bind resend verification request",
 			zap.Error(err),
@@ -520,22 +547,74 @@ func (rs *RegistrationService) ResendVerificationEmail(c *gin.Context) {
 		return
 	}
 
-	// Resend OTP
-	response, err := rs.otpModule.ResendOTP(c.Request.Context(), req.Email, c.Request.UserAgent(), c.ClientIP())
-	if err != nil {
-		rs.logger.Error("Failed to resend verification email",
-			zap.Error(err),
-			zap.String("email", req.Email))
+	// Validate email
+	if req.Email == "" {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Code:    http.StatusBadRequest,
-			Message: err.Error(),
+			Message: "Email is required",
+		})
+		return
+	}
+
+	// Find registration data in Redis by email
+	registrationData, err := rs.findRegistrationDataByEmail(c.Request.Context(), req.Email)
+	if err != nil {
+		rs.logger.Error("Failed to find registration data",
+			zap.Error(err),
+			zap.String("email", req.Email))
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Code:    http.StatusNotFound,
+			Message: "Registration not found or expired",
+		})
+		return
+	}
+
+	// Check if registration data is expired
+	if time.Now().After(registrationData.ExpiresAt) {
+		rs.logger.Warn("Registration data expired",
+			zap.String("email", req.Email),
+			zap.Time("expires_at", registrationData.ExpiresAt))
+
+		// Clean up expired data
+		_ = rs.redisClient.Delete(c.Request.Context(), fmt.Sprintf("registration:%s", registrationData.ID))
+		_ = rs.redisClient.Delete(c.Request.Context(), fmt.Sprintf("email_to_user_id:%s", req.Email))
+
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Code:    http.StatusNotFound,
+			Message: "Registration expired. Please register again.",
+		})
+		return
+	}
+
+	// Generate new OTP for the registration
+	otpResponse, err := rs.otpModule.CreateEmailVerification(c.Request.Context(), req.Email, c.Request.UserAgent(), c.ClientIP(), registrationData.ID)
+	if err != nil {
+		rs.logger.Error("Failed to create new email verification OTP",
+			zap.Error(err),
+			zap.String("email", req.Email))
+
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to send verification email",
 		})
 		return
 	}
 
 	rs.logger.Info("Verification email resent successfully",
 		zap.String("email", req.Email),
+		zap.String("user_id", registrationData.ID),
+		zap.String("otp_id", otpResponse.OTPID.String()),
 		zap.String("ip", c.ClientIP()))
+
+	// Return response with new OTP details
+	response := dto.ResendRegistrationOTPResponse{
+		Message:     "Verification email resent successfully",
+		UserID:      uuid.MustParse(registrationData.ID),
+		Email:       req.Email,
+		OTPID:       otpResponse.OTPID,
+		ExpiresAt:   otpResponse.ExpiresAt.Format(time.RFC3339),
+		ResendAfter: otpResponse.ResendAfter.Format(time.RFC3339),
+	}
 
 	c.JSON(http.StatusOK, response)
 }
@@ -829,4 +908,28 @@ func (rs *RegistrationService) validatePasswordStrength(password string) error {
 	}
 
 	return nil
+}
+
+// findRegistrationDataByEmail finds registration data in Redis by email
+func (rs *RegistrationService) findRegistrationDataByEmail(ctx context.Context, email string) (*dto.RegistrationData, error) {
+	// Use email-to-user-id mapping to find the registration data
+	emailToUserIDKey := fmt.Sprintf("email_to_user_id:%s", email)
+	userIDStr, err := rs.redisClient.Get(ctx, emailToUserIDKey)
+	if err != nil {
+		return nil, fmt.Errorf("registration not found for email: %s", email)
+	}
+
+	// Get the registration data using the user ID
+	registrationKey := fmt.Sprintf("registration:%s", userIDStr)
+	registrationDataJSON, err := rs.redisClient.Get(ctx, registrationKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get registration data: %w", err)
+	}
+
+	var registrationData dto.RegistrationData
+	if err := json.Unmarshal([]byte(registrationDataJSON), &registrationData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal registration data: %w", err)
+	}
+
+	return &registrationData, nil
 }

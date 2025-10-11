@@ -12,6 +12,7 @@ kafka:
 
 # Redis Configuration
 redis:
+  enabled: true
   addr: "localhost:63790"
   password: ""
   db: 0
