@@ -504,15 +504,8 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 		return nil, fmt.Errorf("failed to set primary wallet: %w", err)
 	}
 
-	// Create initial balance
-	balance := dto.Balance{
-		UserId:       user.ID,
-		CurrencyCode: "USD",
-		RealMoney:    decimal.NewFromInt(0),
-		BonusMoney:   decimal.NewFromInt(0),
-		Points:       0,
-	}
-	_, err = s.balance.CreateBalance(ctx, balance)
+	// Create initial balance using raw SQL to avoid sqlc issues
+	err = s.storage.CreateBalanceRaw(ctx, user.ID, "USD", decimal.NewFromInt(0))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user balance: %w", err)
 	}

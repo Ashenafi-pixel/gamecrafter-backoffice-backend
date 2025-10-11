@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/db"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -40,6 +41,9 @@ type CryptoWallet interface {
 	// User wallet info
 	GetUserWallets(ctx context.Context, userID uuid.UUID) ([]*db.UserWalletInfo, error)
 	CountUserWallets(ctx context.Context, userID uuid.UUID) (int, error)
+	
+	// Balance operations (to avoid sqlc issues)
+	CreateBalanceRaw(ctx context.Context, userID uuid.UUID, currencyCode string, amount decimal.Decimal) error
 }
 
 // cryptoWalletStorage implements the CryptoWallet interface with production database
@@ -581,4 +585,42 @@ func (c *cryptoWalletStorage) CountUserWallets(ctx context.Context, userID uuid.
 	}
 
 	return count, nil
+}
+
+// CreateBalanceRaw creates a balance using raw SQL to avoid sqlc issues
+func (c *cryptoWalletStorage) CreateBalanceRaw(ctx context.Context, userID uuid.UUID, currencyCode string, amount decimal.Decimal) error {
+	// Convert decimal amount to cents (multiply by 100)
+	amountCents := amount.Mul(decimal.NewFromInt(100)).IntPart()
+	
+	// Use raw SQL query to match current database structure
+	query := `
+		INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, updated_at) 
+		VALUES ($1, $2, $3, $4, $5) 
+		RETURNING id`
+	
+	var balanceID uuid.UUID
+	err := c.db.GetPool().QueryRow(ctx, query, 
+		userID,
+		currencyCode,
+		amountCents,
+		amount,
+		time.Now(),
+	).Scan(&balanceID)
+	
+	if err != nil {
+		c.log.Error("failed to create balance with raw SQL",
+			zap.Error(err),
+			zap.String("userID", userID.String()),
+			zap.String("currencyCode", currencyCode),
+			zap.String("amount", amount.String()))
+		return errors.ErrUnableTocreate.Wrap(err, "unable to create balance")
+	}
+	
+	c.log.Info("Balance created successfully with raw SQL",
+		zap.String("balanceID", balanceID.String()),
+		zap.String("userID", userID.String()),
+		zap.String("currencyCode", currencyCode),
+		zap.String("amount", amount.String()))
+	
+	return nil
 }
