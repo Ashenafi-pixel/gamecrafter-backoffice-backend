@@ -481,17 +481,18 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 	// Check if wallet connection already exists
 	existingConnection, err := s.storage.GetWalletConnectionByAddress(ctx, req.WalletAddress)
 	if err != nil {
-		// If no connection exists, create a new one
-		_, err = s.storage.CreateWalletConnection(ctx, user.ID, req.WalletAddress, string(req.WalletType))
+		// If no connection exists, create a new one with the correct chain type
+		_, err = s.storage.CreateWalletConnectionWithChain(ctx, user.ID, req.WalletAddress, string(req.WalletType), string(chainType))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create wallet connection: %w", err)
 		}
 	} else {
-		// If connection exists, update it to link to the new user
+		// If connection exists, update it to link to the new user and correct chain type
 		updates := map[string]interface{}{
 			"user_id":      user.ID,
 			"is_verified":  true,
 			"last_used_at": time.Now(),
+			"wallet_chain": string(chainType), // Update to correct chain type
 		}
 		err = s.storage.UpdateWalletConnection(ctx, existingConnection.ID, updates)
 		if err != nil {

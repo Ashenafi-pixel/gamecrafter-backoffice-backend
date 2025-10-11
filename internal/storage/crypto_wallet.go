@@ -20,6 +20,7 @@ import (
 type CryptoWallet interface {
 	// Wallet connection operations
 	CreateWalletConnection(ctx context.Context, userID uuid.UUID, walletAddress, walletType string) (*db.CryptoWalletConnection, error)
+	CreateWalletConnectionWithChain(ctx context.Context, userID uuid.UUID, walletAddress, walletType, walletChain string) (*db.CryptoWalletConnection, error)
 	GetWalletConnectionByAddress(ctx context.Context, walletAddress string) (*db.CryptoWalletConnection, error)
 	GetUserWalletConnections(ctx context.Context, userID uuid.UUID) ([]*db.CryptoWalletConnection, error)
 	UpdateWalletConnection(ctx context.Context, connectionID uuid.UUID, updates map[string]interface{}) error
@@ -41,7 +42,7 @@ type CryptoWallet interface {
 	// User wallet info
 	GetUserWallets(ctx context.Context, userID uuid.UUID) ([]*db.UserWalletInfo, error)
 	CountUserWallets(ctx context.Context, userID uuid.UUID) (int, error)
-	
+
 	// Balance operations (to avoid sqlc issues)
 	CreateBalanceRaw(ctx context.Context, userID uuid.UUID, currencyCode string, amount decimal.Decimal) error
 }
@@ -91,6 +92,39 @@ func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID
 			zap.String("walletType", walletType),
 			zap.String("walletChain", walletChain))
 		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to create wallet connection")
+	}
+
+	return &connection, nil
+}
+
+// CreateWalletConnectionWithChain creates a new wallet connection with specified chain type
+func (c *cryptoWalletStorage) CreateWalletConnectionWithChain(ctx context.Context, userID uuid.UUID, walletAddress, walletType, walletChain string) (*db.CryptoWalletConnection, error) {
+	query := `
+		INSERT INTO crypto_wallet_connections (
+			user_id, wallet_type, wallet_address, wallet_chain, wallet_name, wallet_icon_url
+		) VALUES (
+			$1, $2, $3, $4, $5, $6
+		) RETURNING *;
+	`
+
+	var connection db.CryptoWalletConnection
+	err := c.db.GetPool().QueryRow(ctx, query,
+		userID, walletType, walletAddress, walletChain, nil, nil,
+	).Scan(
+		&connection.ID, &connection.UserID, &connection.WalletType, &connection.WalletAddress,
+		&connection.WalletChain, &connection.WalletName, &connection.WalletIconURL,
+		&connection.IsVerified, &connection.VerificationSignature, &connection.VerificationMessage,
+		&connection.VerificationTimestamp, &connection.LastUsedAt, &connection.CreatedAt, &connection.UpdatedAt,
+	)
+
+	if err != nil {
+		c.log.Error("failed to create wallet connection with chain",
+			zap.Error(err),
+			zap.String("userID", userID.String()),
+			zap.String("walletAddress", walletAddress),
+			zap.String("walletType", walletType),
+			zap.String("walletChain", walletChain))
+		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to create wallet connection with chain")
 	}
 
 	return &connection, nil
@@ -591,22 +625,22 @@ func (c *cryptoWalletStorage) CountUserWallets(ctx context.Context, userID uuid.
 func (c *cryptoWalletStorage) CreateBalanceRaw(ctx context.Context, userID uuid.UUID, currencyCode string, amount decimal.Decimal) error {
 	// Convert decimal amount to cents (multiply by 100)
 	amountCents := amount.Mul(decimal.NewFromInt(100)).IntPart()
-	
+
 	// Use raw SQL query to match current database structure
 	query := `
 		INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, updated_at) 
 		VALUES ($1, $2, $3, $4, $5) 
 		RETURNING id`
-	
+
 	var balanceID uuid.UUID
-	err := c.db.GetPool().QueryRow(ctx, query, 
+	err := c.db.GetPool().QueryRow(ctx, query,
 		userID,
 		currencyCode,
 		amountCents,
 		amount,
 		time.Now(),
 	).Scan(&balanceID)
-	
+
 	if err != nil {
 		c.log.Error("failed to create balance with raw SQL",
 			zap.Error(err),
@@ -615,12 +649,12 @@ func (c *cryptoWalletStorage) CreateBalanceRaw(ctx context.Context, userID uuid.
 			zap.String("amount", amount.String()))
 		return errors.ErrUnableTocreate.Wrap(err, "unable to create balance")
 	}
-	
+
 	c.log.Info("Balance created successfully with raw SQL",
 		zap.String("balanceID", balanceID.String()),
 		zap.String("userID", userID.String()),
 		zap.String("currencyCode", currencyCode),
 		zap.String("amount", amount.String()))
-	
+
 	return nil
 }
