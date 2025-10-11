@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,6 +58,9 @@ func Init(db *persistencedb.PersistenceDB, log *zap.Logger) CryptoWallet {
 
 // CreateWalletConnection creates a new wallet connection
 func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID uuid.UUID, walletAddress, walletType string) (*db.CryptoWalletConnection, error) {
+	// Detect wallet chain based on address format
+	walletChain := c.detectWalletChain(walletAddress)
+
 	query := `
 		INSERT INTO crypto_wallet_connections (
 			user_id, wallet_type, wallet_address, wallet_chain, wallet_name, wallet_icon_url
@@ -67,7 +71,7 @@ func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID
 
 	var connection db.CryptoWalletConnection
 	err := c.db.GetPool().QueryRow(ctx, query,
-		userID, walletType, walletAddress, "ethereum", nil, nil,
+		userID, walletType, walletAddress, walletChain, nil, nil,
 	).Scan(
 		&connection.ID, &connection.UserID, &connection.WalletType, &connection.WalletAddress,
 		&connection.WalletChain, &connection.WalletName, &connection.WalletIconURL,
@@ -80,11 +84,35 @@ func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID
 			zap.Error(err),
 			zap.String("userID", userID.String()),
 			zap.String("walletAddress", walletAddress),
-			zap.String("walletType", walletType))
+			zap.String("walletType", walletType),
+			zap.String("walletChain", walletChain))
 		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to create wallet connection")
 	}
 
 	return &connection, nil
+}
+
+// detectWalletChain detects the blockchain chain based on wallet address format
+func (c *cryptoWalletStorage) detectWalletChain(address string) string {
+	address = strings.TrimSpace(strings.ToLower(address))
+
+	// Ethereum-style addresses (0x prefix, 42 chars)
+	if strings.HasPrefix(address, "0x") && len(address) == 42 {
+		return "ethereum"
+	}
+
+	// Solana-style addresses (base58, 32-44 chars, no 0x prefix)
+	if len(address) >= 32 && len(address) <= 44 && !strings.HasPrefix(address, "0x") {
+		return "solana"
+	}
+
+	// Bitcoin-style addresses
+	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3") || strings.HasPrefix(address, "bc1") {
+		return "bitcoin"
+	}
+
+	// Default to ethereum for unknown formats
+	return "ethereum"
 }
 
 // GetWalletConnectionByAddress retrieves wallet connection by address
