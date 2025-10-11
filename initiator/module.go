@@ -169,6 +169,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			persistence.User,
 			persistence.Balance,
 			persistence.Groove,
+			persistence.Cashback,
 			viper.GetString("app.jwt_secret"),
 		),
 		// Crypto: crypto.Init(

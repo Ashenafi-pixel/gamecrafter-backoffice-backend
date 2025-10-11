@@ -50,6 +50,7 @@ type CasinoWalletService struct {
 	user          storage.User
 	balance       storage.Balance
 	grooveStorage groove.GrooveStorage
+	cashbackStorage storage.CashbackStorage
 	jwtSecret     string
 }
 
@@ -58,6 +59,7 @@ func NewCasinoWalletService(
 	user storage.User,
 	balance storage.Balance,
 	grooveStorage groove.GrooveStorage,
+	cashbackStorage storage.CashbackStorage,
 	jwtSecret string,
 ) *CasinoWalletService {
 	return &CasinoWalletService{
@@ -65,6 +67,7 @@ func NewCasinoWalletService(
 		user:          user,
 		balance:       balance,
 		grooveStorage: grooveStorage,
+		cashbackStorage: cashbackStorage,
 		jwtSecret:     jwtSecret,
 	}
 }
@@ -513,7 +516,7 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 
 	// Create GrooveTech account
 	grooveAccount := dto.GrooveAccount{
-		AccountID:    fmt.Sprintf("USD_%d_%s", 1000+int(time.Now().Unix()%9000), user.ID.String()),
+		AccountID:    user.ID.String(), // Use user_id as account_id
 		SessionID:    "",
 		Balance:      decimal.NewFromInt(0),
 		Currency:     "USD",
@@ -524,6 +527,12 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 	_, err = s.grooveStorage.CreateAccount(ctx, grooveAccount, user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GrooveTech account: %w", err)
+	}
+
+	// Create user level (Bronze tier by default)
+	_, err = s.cashbackStorage.InitializeUserLevel(ctx, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user level: %w", err)
 	}
 
 	dbUser := &db.User{
