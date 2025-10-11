@@ -16,6 +16,7 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/model/db"
 	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/internal/utils"
 )
@@ -46,12 +47,12 @@ const (
 )
 
 type CasinoWalletService struct {
-	storage       storage.CryptoWallet
-	user          storage.User
-	balance       storage.Balance
-	grooveStorage groove.GrooveStorage
-	cashbackStorage storage.CashbackStorage
-	jwtSecret     string
+	storage         storage.CryptoWallet
+	user            storage.User
+	balance         storage.Balance
+	grooveStorage   groove.GrooveStorage
+	cashbackStorage cashback.CashbackStorage
+	jwtSecret       string
 }
 
 func NewCasinoWalletService(
@@ -59,16 +60,16 @@ func NewCasinoWalletService(
 	user storage.User,
 	balance storage.Balance,
 	grooveStorage groove.GrooveStorage,
-	cashbackStorage storage.CashbackStorage,
+	cashbackStorage cashback.CashbackStorage,
 	jwtSecret string,
 ) *CasinoWalletService {
 	return &CasinoWalletService{
-		storage:       storage,
-		user:          user,
-		balance:       balance,
-		grooveStorage: grooveStorage,
+		storage:         storage,
+		user:            user,
+		balance:         balance,
+		grooveStorage:   grooveStorage,
 		cashbackStorage: cashbackStorage,
-		jwtSecret:     jwtSecret,
+		jwtSecret:       jwtSecret,
 	}
 }
 
@@ -274,6 +275,7 @@ func (s *CasinoWalletService) LoginWithWallet(ctx context.Context, req *dto.Wall
 		IsNewUser:     isNewUser,
 		ExpiresAt:     time.Now().Add(24 * time.Hour),
 		UserProfile: dto.UserProfile{
+			Username:       dbUser.Username.String,
 			PhoneNumber:    dbUser.PhoneNumber.String,
 			Email:          dbUser.Email.String,
 			UserID:         dbUser.ID,
