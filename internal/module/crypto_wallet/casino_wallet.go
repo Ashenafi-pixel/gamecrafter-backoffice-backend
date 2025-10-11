@@ -16,6 +16,7 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/model/db"
 	"github.com/tucanbit/internal/storage"
+	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/internal/utils"
 )
 
@@ -45,23 +46,26 @@ const (
 )
 
 type CasinoWalletService struct {
-	storage   storage.CryptoWallet
-	user      storage.User
-	balance   storage.Balance
-	jwtSecret string
+	storage       storage.CryptoWallet
+	user          storage.User
+	balance       storage.Balance
+	grooveStorage groove.GrooveStorage
+	jwtSecret     string
 }
 
 func NewCasinoWalletService(
 	storage storage.CryptoWallet,
 	user storage.User,
 	balance storage.Balance,
+	grooveStorage groove.GrooveStorage,
 	jwtSecret string,
 ) *CasinoWalletService {
 	return &CasinoWalletService{
-		storage:   storage,
-		user:      user,
-		balance:   balance,
-		jwtSecret: jwtSecret,
+		storage:       storage,
+		user:          user,
+		balance:       balance,
+		grooveStorage: grooveStorage,
+		jwtSecret:     jwtSecret,
 	}
 }
 
@@ -423,9 +427,32 @@ func (s *CasinoWalletService) DisconnectWallet(ctx context.Context, req *dto.Wal
 	}, nil
 }
 
+// generateUniqueUsername generates a unique username for wallet users
+func (s *CasinoWalletService) generateUniqueUsername(ctx context.Context) string {
+	maxAttempts := 10
+	for i := 0; i < maxAttempts; i++ {
+		// Generate a random username with timestamp and random suffix
+		timestamp := time.Now().Unix() % 10000 // Last 4 digits of timestamp
+		randomSuffix := uuid.New().String()[:4]
+		username := fmt.Sprintf("player_%d%s", timestamp, randomSuffix)
+
+		// Check if username exists
+		exists, err := s.user.CheckUsernameExists(ctx, username)
+		if err != nil {
+			return fmt.Sprintf("player_%s", uuid.New().String()[:8])
+		}
+
+		if !exists {
+			return username
+		}
+	}
+
+	// Fallback to UUID-based username if all attempts fail
+	return fmt.Sprintf("player_%s", uuid.New().String()[:8])
+}
+
 func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *dto.WalletLoginRequest, chainType ChainType) (*db.User, error) {
-	userID := uuid.New()
-	username := fmt.Sprintf("player_%s", userID.String()[:8])
+	username := s.generateUniqueUsername(ctx)
 
 	newUser := dto.User{
 		Username:        username,
@@ -477,6 +504,7 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 		return nil, fmt.Errorf("failed to set primary wallet: %w", err)
 	}
 
+	// Create initial balance
 	balance := dto.Balance{
 		UserId:       user.ID,
 		CurrencyCode: "USD",
@@ -487,6 +515,21 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 	_, err = s.balance.CreateBalance(ctx, balance)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user balance: %w", err)
+	}
+
+	// Create GrooveTech account
+	grooveAccount := dto.GrooveAccount{
+		AccountID:    fmt.Sprintf("USD_%d_%s", 1000+int(time.Now().Unix()%9000), user.ID.String()),
+		SessionID:    "",
+		Balance:      decimal.NewFromInt(0),
+		Currency:     "USD",
+		Status:       "active",
+		CreatedAt:    time.Now(),
+		LastActivity: time.Now(),
+	}
+	_, err = s.grooveStorage.CreateAccount(ctx, grooveAccount, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GrooveTech account: %w", err)
 	}
 
 	dbUser := &db.User{
