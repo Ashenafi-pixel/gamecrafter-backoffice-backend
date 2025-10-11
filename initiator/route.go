@@ -15,6 +15,7 @@ import (
 	"github.com/tucanbit/internal/glue/company"
 	"github.com/tucanbit/internal/glue/department"
 	"github.com/tucanbit/internal/glue/exchange"
+	"github.com/tucanbit/internal/glue/game"
 	"github.com/tucanbit/internal/glue/groove"
 	"github.com/tucanbit/internal/glue/logs"
 	"github.com/tucanbit/internal/glue/lottery"
@@ -60,5 +61,6 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	otp.Init(grp, *log, handler.OTP, module.OTP)
 	cashback.Init(grp, *log, handler.Cashback, module.Authz, enforcer, module.SystemLogs)
 	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, enforcer, module.SystemLogs)
+	game.Init(grp, *log, handler.Game, handler.HouseEdge, module.Authz, module.SystemLogs, enforcer)
 	analytics.Init(grp, log, handler.Analytics)
 }

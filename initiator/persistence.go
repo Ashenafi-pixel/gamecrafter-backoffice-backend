@@ -18,6 +18,7 @@ import (
 	"github.com/tucanbit/internal/storage/config"
 	"github.com/tucanbit/internal/storage/departements"
 	"github.com/tucanbit/internal/storage/exchange"
+	"github.com/tucanbit/internal/storage/game"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/internal/storage/logs"
 	"github.com/tucanbit/internal/storage/lottery"
@@ -67,6 +68,8 @@ type Persistence struct {
 	Cashback             cashback.CashbackStorage
 	Groove               groove.GrooveStorage
 	GameSession          groove.GameSessionStorage
+	Game                 game.GameStorage
+	HouseEdge            game.HouseEdgeStorage
 	Analytics            storage.Analytics
 	Database             *persistencedb.PersistenceDB
 }
@@ -101,6 +104,8 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Cashback:             cashback.NewCashbackStorage(persistencdb, log, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), groove.NewGrooveStorage(persistencdb, userWS, nil, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log)),
 		Groove:               groove.NewGrooveStorage(persistencdb, userWS, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), groove.NewGrooveStorage(persistencdb, userWS, nil, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log), log),
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
+		Game:                 game.NewGameStorage(persistencdb, log),
+		HouseEdge:            game.NewHouseEdgeStorage(persistencdb, log),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		Database:             persistencdb,
 	}

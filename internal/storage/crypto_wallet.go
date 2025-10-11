@@ -277,7 +277,8 @@ func (c *cryptoWalletStorage) SetPrimaryWallet(ctx context.Context, userID uuid.
 // GetUserByWalletAddress gets user by wallet address
 func (c *cryptoWalletStorage) GetUserByWalletAddress(ctx context.Context, walletAddress, walletType string) (*db.User, error) {
 	query := `
-		SELECT u.* FROM users u
+		SELECT u.id, u.username, u.phone_number, u.password, u.created_at, u.default_currency, u.profile, u.email, u.first_name, u.last_name, u.date_of_birth, u.source, u.is_email_verified, u.referal_code, u.street_address, u.country, u.state, u.city, u.postal_code, u.kyc_status, u.created_by, u.is_admin, u.status, u.referal_type, u.refered_by_code, u.user_type, u.primary_wallet_address, u.wallet_verification_status, u.is_test_account, u.two_factor_enabled, u.two_factor_setup_at
+		FROM users u
 		JOIN crypto_wallet_connections cwc ON u.id = cwc.user_id
 		WHERE cwc.wallet_address = $1 AND cwc.wallet_type = $2;
 	`
@@ -289,7 +290,8 @@ func (c *cryptoWalletStorage) GetUserByWalletAddress(ctx context.Context, wallet
 		&user.DateOfBirth, &user.Source, &user.IsEmailVerified, &user.ReferalCode, &user.StreetAddress,
 		&user.Country, &user.State, &user.City, &user.PostalCode, &user.KycStatus,
 		&user.CreatedBy, &user.IsAdmin, &user.Status, &user.ReferalType, &user.ReferedByCode,
-		&user.UserType, &user.PrimaryWalletAddress, &user.WalletVerificationStatus,
+		&user.UserType, &user.PrimaryWalletAddress, &user.WalletVerificationStatus, &user.IsTestAccount,
+		&user.TwoFactorEnabled, &user.TwoFactorSetupAt,
 	)
 
 	if err != nil {

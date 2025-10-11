@@ -904,6 +904,8 @@ type User struct {
 	PrimaryWalletAddress     sql.NullString
 	WalletVerificationStatus sql.NullString
 	IsTestAccount            bool
+	TwoFactorEnabled         sql.NullBool
+	TwoFactorSetupAt         sql.NullTime
 }
 
 type UserNotification struct {

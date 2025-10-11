@@ -447,7 +447,6 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 		zap.String("net_amount", netAmount.String()))
 
 	// Create cashback claim record
-	processedAt := time.Now()
 	cashbackClaim := dto.CashbackClaim{
 		ID:              claimID,
 		UserID:          userID,
@@ -457,7 +456,7 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 		ProcessingFee:   processingFee,
 		NetAmount:       netAmount,
 		ClaimedEarnings: claimedEarnings,
-		ProcessedAt:     &processedAt,
+		ProcessedAt:     &time.Time{},
 	}
 
 	_, err = s.storage.CreateCashbackClaim(ctx, cashbackClaim)

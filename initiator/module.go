@@ -14,6 +14,7 @@ import (
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
 	"github.com/tucanbit/internal/module/crypto_wallet"
+	"github.com/tucanbit/internal/module/game"
 	"github.com/tucanbit/internal/module/groove"
 
 	"github.com/tucanbit/internal/module/department"
@@ -73,6 +74,8 @@ type Module struct {
 	Cashback              *cashback.CashbackService
 	CashbackKafkaConsumer *cashback.CashbackKafkaConsumer
 	Groove                groove.GrooveService
+	Game                  *game.GameService
+	HouseEdge             *game.HouseEdgeService
 	Email                 email.EmailService
 	Redis                 *redis.RedisOTP
 	UserBalanceWS         utils.UserWS
@@ -197,6 +200,8 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log),
 		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), kafka, log),
 		Groove:                groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), persistence.User, userBalanceWs, log),
+		Game:                  game.NewGameService(persistence.Game, log),
+		HouseEdge:             game.NewHouseEdgeService(persistence.HouseEdge, log),
 		Email:                 emailService,
 		Redis:                 redis,
 	}
