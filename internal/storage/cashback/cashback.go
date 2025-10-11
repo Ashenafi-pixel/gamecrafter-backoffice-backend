@@ -3,7 +3,6 @@ package cashback
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -795,26 +794,17 @@ func (s *CashbackStorageImpl) CreateCashbackClaim(ctx context.Context, claim dto
 		zap.String("amount", claim.ClaimAmount.String()))
 
 	query := `
-		INSERT INTO cashback_claims (id, user_id, claim_amount, net_amount, processing_fee, status, currency_code, claimed_earnings, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		INSERT INTO cashback_claims (id, user_id, claim_amount, net_amount, processing_fee, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 	`
 
-	// Convert claimed earnings map to JSON
-	claimedEarningsJSON, err := json.Marshal(claim.ClaimedEarnings)
-	if err != nil {
-		s.logger.Error("Failed to marshal claimed earnings", zap.Error(err))
-		return claim, fmt.Errorf("failed to marshal claimed earnings: %w", err)
-	}
-
-	_, err = s.db.GetPool().Exec(ctx, query,
+	_, err := s.db.GetPool().Exec(ctx, query,
 		claim.ID,
 		claim.UserID,
 		claim.ClaimAmount,
 		claim.NetAmount,
 		claim.ProcessingFee,
 		claim.Status,
-		claim.CurrencyCode,
-		claimedEarningsJSON,
 	)
 	if err != nil {
 		s.logger.Error("Failed to create cashback claim", zap.Error(err))
@@ -1005,7 +995,7 @@ func (s *CashbackStorageImpl) GetGameHouseEdge(ctx context.Context, gameType, ga
 	if houseEdge.MaxBet != nil {
 		maxBetStr = houseEdge.MaxBet.String()
 	}
-	
+
 	s.logger.Info("Retrieved game house edge",
 		zap.String("game_type", gameType),
 		zap.String("game_variant", gameVariant),
@@ -1169,7 +1159,32 @@ func (s *CashbackStorageImpl) GetTierDistribution(ctx context.Context) ([]dto.Ti
 }
 
 func (s *CashbackStorageImpl) GetUserDailyCashbackLimit(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
-	return decimal.Zero, nil
+	s.logger.Info("Getting user daily cashback limit", zap.String("user_id", userID.String()))
+
+	// Get today's date in UTC
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	tomorrow := today.Add(24 * time.Hour)
+
+	query := `
+		SELECT COALESCE(SUM(claimed_amount), 0) as daily_claimed
+		FROM cashback_earnings
+		WHERE user_id = $1 
+		AND claimed_at >= $2 
+		AND claimed_at < $3`
+
+	var dailyClaimed decimal.Decimal
+	err := s.db.GetPool().QueryRow(ctx, query, userID, today, tomorrow).Scan(&dailyClaimed)
+	if err != nil {
+		s.logger.Error("Failed to get user daily cashback limit", zap.Error(err))
+		return decimal.Zero, fmt.Errorf("failed to get user daily cashback limit: %w", err)
+	}
+
+	s.logger.Info("Retrieved user daily cashback limit",
+		zap.String("user_id", userID.String()),
+		zap.String("daily_claimed", dailyClaimed.String()),
+		zap.String("date", today.Format("2006-01-02")))
+
+	return dailyClaimed, nil
 }
 
 func (s *CashbackStorageImpl) GetUserWeeklyCashbackLimit(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
