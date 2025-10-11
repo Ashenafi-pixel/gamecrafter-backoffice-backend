@@ -2326,7 +2326,7 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 			BetID:               uuid.New(),
 			RoundID:             uuid.New(),
 			UserID:              userID,
-			ClientTransactionID: req.TransactionID,
+			ClientTransactionID: wagerTransaction.TransactionID, // Use wager transaction ID for game info lookup
 			Amount:              betAmount, // Use bet amount for GGR calculation
 			Currency:            "USD",
 			Timestamp:           time.Now(),
