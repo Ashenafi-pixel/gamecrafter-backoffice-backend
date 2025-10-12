@@ -1601,9 +1601,10 @@ func (s *GrooveServiceImpl) buildGrooveGameURL(sessionID, accountID, gameID, cou
 	if realityCheckElapsed > 0 {
 		url += fmt.Sprintf("&realityCheckElapsed=%d", realityCheckElapsed)
 	}
-	if realityCheckInterval > 0 {
-		url += fmt.Sprintf("&realityCheckInterval=%d", realityCheckInterval)
-	}
+	// Removed realityCheckInterval parameter - not sending to GrooveTech API
+	// if realityCheckInterval > 0 {
+	//	url += fmt.Sprintf("&realityCheckInterval=%d", realityCheckInterval)
+	// }
 
 	return url
 }
