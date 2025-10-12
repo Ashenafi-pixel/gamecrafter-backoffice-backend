@@ -24,6 +24,7 @@ type UserWS interface {
 	TriggerBalanceWS(ctx context.Context, userID uuid.UUID)
 	TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashbackData dto.EnhancedUserCashbackSummary)
 	TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID, winnerData dto.WinnerNotificationData)
+	TriggerWinnerNotificationBroadcast(ctx context.Context, winnerData dto.WinnerNotificationData)
 	StoreWinnerNotification(ctx context.Context, winnerData dto.WinnerNotificationData) error
 	GetWinnerNotifications(ctx context.Context, userID uuid.UUID) ([]dto.WinnerNotificationData, error)
 }
@@ -314,6 +315,79 @@ func (b *User) TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID
 	} else {
 		b.log.Info("No user balance socket connections found for winner notification", zap.String("userID", userID.String()))
 	}
+}
+
+// TriggerWinnerNotificationBroadcast broadcasts winner notification to ALL connected users
+func (b *User) TriggerWinnerNotificationBroadcast(ctx context.Context, winnerData dto.WinnerNotificationData) {
+	// Store winner notification in Redis with 1-hour expiration
+	if err := b.StoreWinnerNotification(ctx, winnerData); err != nil {
+		b.log.Error("Failed to store winner notification in Redis", zap.Error(err))
+	}
+
+	winnerMessage := WinnerNotificationWebSocketMessage{
+		Type:    "winner_notification",
+		UserID:  uuid.Nil, // No specific user ID for broadcast
+		Data:    winnerData,
+		Message: "Live Winner!",
+	}
+
+	msg, err := json.Marshal(winnerMessage)
+	if err != nil {
+		b.log.Error("Failed to marshal winner notification broadcast message", zap.Error(err))
+		return
+	}
+
+	b.log.Info("Broadcasting winner notification to ALL connected users",
+		zap.String("username", winnerData.Username),
+		zap.String("game_name", winnerData.GameName),
+		zap.String("game_id", winnerData.GameID),
+		zap.String("bet_amount", winnerData.BetAmount.String()),
+		zap.String("win_amount", winnerData.WinAmount.String()))
+
+	// Broadcast to ALL connected users
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	totalConnections := 0
+	successfulBroadcasts := 0
+
+	for userID, conns := range b.UserBalanceSocket {
+		for conn := range conns {
+			totalConnections++
+			
+			// Get the lock for this connection
+			locker := b.getUserBalanceSocketLocker(conn)
+			if locker == nil {
+				continue
+			}
+			
+			locker.Lock()
+			
+			if conn == nil {
+				locker.Unlock()
+				continue
+			}
+
+			// Send the winner notification to this connection
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				b.log.Warn("Failed to broadcast winner notification to user",
+					zap.Error(err),
+					zap.String("userID", userID.String()),
+					zap.String("username", winnerData.Username))
+				locker.Unlock()
+				continue
+			}
+			
+			successfulBroadcasts++
+			locker.Unlock()
+		}
+	}
+
+	b.log.Info("Winner notification broadcast completed",
+		zap.String("username", winnerData.Username),
+		zap.String("win_amount", winnerData.WinAmount.String()),
+		zap.Int("total_connections", totalConnections),
+		zap.Int("successful_broadcasts", successfulBroadcasts))
 }
 
 // StoreWinnerNotification stores winner notification data in Redis with 1-hour expiration

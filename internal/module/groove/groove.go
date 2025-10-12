@@ -642,9 +642,9 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 				TransactionID: req.TransactionID,
 			}
 
-			// Trigger winner notification WebSocket
-			s.userWS.TriggerWinnerNotificationWS(ctx, userUUID, winnerData)
-			s.logger.Info("Winner notification triggered",
+			// Trigger winner notification broadcast to ALL users
+			s.userWS.TriggerWinnerNotificationBroadcast(ctx, winnerData)
+			s.logger.Info("Winner notification broadcast triggered",
 				zap.String("user_id", userUUID.String()),
 				zap.String("username", user.Username),
 				zap.String("game_name", gameName),
@@ -928,9 +928,9 @@ func (s *GrooveServiceImpl) ProcessWagerAndResult(ctx context.Context, req dto.G
 				TransactionID: req.TransactionID,
 			}
 
-			// Trigger winner notification WebSocket
-			s.userWS.TriggerWinnerNotificationWS(ctx, userID, winnerData)
-			s.logger.Info("Winner notification triggered",
+			// Trigger winner notification broadcast to ALL users
+			s.userWS.TriggerWinnerNotificationBroadcast(ctx, winnerData)
+			s.logger.Info("Winner notification broadcast triggered",
 				zap.String("user_id", userID.String()),
 				zap.String("username", user.Username),
 				zap.String("game_name", gameName),
