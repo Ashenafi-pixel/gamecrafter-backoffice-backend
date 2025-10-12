@@ -354,15 +354,15 @@ func (b *User) TriggerWinnerNotificationBroadcast(ctx context.Context, winnerDat
 	for userID, conns := range b.UserBalanceSocket {
 		for conn := range conns {
 			totalConnections++
-			
+
 			// Get the lock for this connection
 			locker := b.getUserBalanceSocketLocker(conn)
 			if locker == nil {
 				continue
 			}
-			
+
 			locker.Lock()
-			
+
 			if conn == nil {
 				locker.Unlock()
 				continue
@@ -377,7 +377,7 @@ func (b *User) TriggerWinnerNotificationBroadcast(ctx context.Context, winnerDat
 				locker.Unlock()
 				continue
 			}
-			
+
 			successfulBroadcasts++
 			locker.Unlock()
 		}

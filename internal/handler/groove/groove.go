@@ -107,10 +107,21 @@ func (h *GrooveHandler) GetBalance(c *gin.Context) {
 		sessionID = sessionID[7:]
 	}
 
-	// Get balance
-	balance, err := h.grooveService.GetBalance(c.Request.Context(), sessionID)
+	// Extract user ID from JWT token
+	userID, err := h.extractUserIDFromTokenString(sessionID)
 	if err != nil {
-		h.logger.Error("Failed to get balance", zap.Error(err))
+		h.logger.Error("Failed to extract user ID from token", zap.Error(err))
+		c.JSON(http.StatusUnauthorized, response.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Invalid token",
+		})
+		return
+	}
+
+	// Get user balance using user ID
+	balance, err := h.grooveService.GetUserBalance(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user balance", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
 			Code:    http.StatusInternalServerError,
 			Message: "Failed to get balance",
@@ -118,8 +129,10 @@ func (h *GrooveHandler) GetBalance(c *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Balance retrieved successfully", zap.String("balance", balance.Balance.String()))
-	c.JSON(http.StatusOK, balance)
+	h.logger.Info("Balance retrieved successfully", zap.String("balance", balance.String()))
+	c.JSON(http.StatusOK, gin.H{
+		"balance": balance.String(),
+	})
 }
 
 // DebitTransaction - POST /groove/debit
@@ -436,6 +449,39 @@ func (h *GrooveHandler) HealthCheck(c *gin.Context) {
 		"service": "groove-tech-api",
 		"time":    time.Now().UTC(),
 	})
+}
+
+// extractUserIDFromTokenString extracts user ID from JWT token string
+func (h *GrooveHandler) extractUserIDFromTokenString(tokenString string) (uuid.UUID, error) {
+	// Parse JWT token
+	claims := &dto.Claim{}
+	key := viper.GetString("app.jwt_secret")
+	if key == "" {
+		key = viper.GetString("auth.jwt_secret")
+	}
+	if key == "" {
+		return uuid.Nil, fmt.Errorf("JWT secret not configured")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(key), nil
+	})
+
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	if !token.Valid {
+		return uuid.Nil, fmt.Errorf("invalid token")
+	}
+
+	// Extract user ID from claims
+	userID := claims.UserID
+	if userID == uuid.Nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID in token")
+	}
+
+	return userID, nil
 }
 
 // extractUserIDFromToken extracts user ID from JWT token in Authorization header
