@@ -606,6 +606,53 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 	// Process cashback after result is known for accurate GGR calculation
 	s.processResultCashback(ctx, req, account.UserID)
 
+	// Trigger winner notification if player won (result > 0)
+	if req.Result.GreaterThan(decimal.Zero) && s.userWS != nil {
+		// Get user information for winner notification
+		user, exists, err := s.userStorage.GetUserByID(ctx, userUUID)
+		if err == nil && exists {
+			// Get game information from session
+			gameSession, err := s.gameSessionStorage.GetGameSessionBySessionID(ctx, req.GameSessionID)
+			gameName := "GrooveTech Game"
+			gameID := ""
+			if err == nil && gameSession != nil {
+				gameID = gameSession.GameID
+				// Get actual game name from database
+				gameInfo, err := s.GetGameInfo(ctx, gameSession.GameID)
+				if err == nil && gameInfo != nil {
+					gameName = gameInfo.GameName
+				} else {
+					gameName = fmt.Sprintf("GrooveTech Game %s", gameSession.GameID)
+				}
+			}
+
+			// Create winner notification data
+			winnerData := dto.WinnerNotificationData{
+				Username:      user.Username,
+				Email:         user.Email,
+				GameName:      gameName,
+				GameID:        gameID,
+				BetAmount:     decimal.Zero, // We don't have bet amount in result-only flow
+				WinAmount:     req.Result,
+				NetWinnings:   req.Result, // For result-only, net winnings = result
+				Currency:      "USD",
+				Timestamp:     time.Now(),
+				SessionID:     req.GameSessionID,
+				RoundID:       req.RoundID,
+				TransactionID: req.TransactionID,
+			}
+
+			// Trigger winner notification WebSocket
+			s.userWS.TriggerWinnerNotificationWS(ctx, userUUID, winnerData)
+			s.logger.Info("Winner notification triggered",
+				zap.String("user_id", userUUID.String()),
+				zap.String("username", user.Username),
+				zap.String("game_name", gameName),
+				zap.String("win_amount", req.Result.String()),
+				zap.String("net_winnings", req.Result.String()))
+		}
+	}
+
 	return &dto.GrooveResultResponse{
 		Code:          200,
 		Status:        "Success",
@@ -2304,12 +2351,26 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 		return
 	}
 
+	// Check if cashback has already been processed for this wager transaction
+	// This prevents duplicate cashback calculation when result is processed multiple times
+	existingCashback, err := s.storage.CheckCashbackProcessed(ctx, userID, wagerTransaction.TransactionID)
+	if err != nil {
+		s.logger.Error("Failed to check if cashback was already processed", zap.Error(err))
+		// Continue processing to avoid missing cashback due to check failure
+	} else if existingCashback {
+		s.logger.Info("Cashback already processed for this wager transaction - skipping duplicate processing",
+			zap.String("wager_transaction_id", wagerTransaction.TransactionID),
+			zap.String("result_transaction_id", req.TransactionID),
+			zap.String("user_id", userID.String()))
+		return
+	}
+
 	// Calculate net loss (bet amount - winnings)
 	betAmount := wagerTransaction.BetAmount
 	winAmount := req.Result
 	netLoss := betAmount.Sub(winAmount)
 
-	s.logger.Info("Calculating cashback based on net loss",
+	s.logger.Info("Calculating cashback based on bet amount (per-spin cashback)",
 		zap.String("bet_amount", betAmount.String()),
 		zap.String("win_amount", winAmount.String()),
 		zap.String("net_loss", netLoss.String()))
@@ -2319,9 +2380,9 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 		zap.String("transaction_id", req.TransactionID),
 		zap.String("bet_amount", betAmount.String()))
 
-	// Process cashback for the net loss
+	// Process cashback for the bet amount (not net loss) - per-spin cashback
 	if s.cashbackService != nil {
-		// Create a bet DTO for cashback processing based on bet amount (not net loss)
+		// Create a bet DTO for cashback processing based on bet amount (per-spin cashback)
 		bet := dto.Bet{
 			BetID:               uuid.New(),
 			RoundID:             uuid.New(),
@@ -2341,14 +2402,14 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 			s.logger.Error("Failed to process result-based cashback",
 				zap.String("transaction_id", req.TransactionID),
 				zap.String("user_id", userID.String()),
-				zap.String("net_loss", netLoss.String()),
+				zap.String("bet_amount", betAmount.String()),
 				zap.Error(err))
 		} else {
 			s.logger.Info("Result-based cashback processed successfully",
 				zap.String("transaction_id", req.TransactionID),
 				zap.String("user_id", userID.String()),
-				zap.String("net_loss", netLoss.String()),
-				zap.String("cashback_based_on", "net_loss"))
+				zap.String("bet_amount", betAmount.String()),
+				zap.String("cashback_based_on", "bet_amount_per_spin"))
 		}
 	} else {
 		s.logger.Warn("Cashback service not available - skipping result-based cashback processing",

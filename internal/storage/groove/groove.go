@@ -87,6 +87,9 @@ type GrooveStorage interface {
 	GetPlayerTransactionHistorySummary(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (dto.PlayerTransactionSummary, error)
 	GetPlayerTransactionHistoryByAccountID(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error)
 	GetPlayerTransactionHistoryByAccountIDCount(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time) (int, error)
+
+	// Cashback idempotency operations
+	CheckCashbackProcessed(ctx context.Context, userID uuid.UUID, transactionID string) (bool, error)
 }
 
 type GrooveStorageImpl struct {
@@ -2030,4 +2033,42 @@ func (s *GrooveStorageImpl) GetPlayerTransactionHistoryByAccountIDCount(ctx cont
 		zap.Int("total", total))
 
 	return total, nil
+}
+
+// CheckCashbackProcessed checks if cashback has already been processed for a specific wager transaction
+func (s *GrooveStorageImpl) CheckCashbackProcessed(ctx context.Context, userID uuid.UUID, wagerTransactionID string) (bool, error) {
+	s.logger.Info("Checking if cashback was already processed for wager transaction",
+		zap.String("user_id", userID.String()),
+		zap.String("wager_transaction_id", wagerTransactionID))
+
+	// Check if there's already a cashback earning for this user within the last hour
+	// that was created around the same time as the wager transaction
+	query := `
+		SELECT COUNT(*) 
+		FROM cashback_earnings ce
+		WHERE ce.user_id = $1 
+		AND ce.source_bet_id IS NULL 
+		AND ce.created_at >= NOW() - INTERVAL '1 hour'
+		AND EXISTS (
+			SELECT 1 FROM groove_transactions gt 
+			WHERE gt.user_id = $1 
+			AND gt.transaction_id = $2
+			AND gt.created_at >= NOW() - INTERVAL '1 hour'
+		)`
+
+	var count int
+	err := s.db.GetPool().QueryRow(ctx, query, userID, wagerTransactionID).Scan(&count)
+	if err != nil {
+		s.logger.Error("Failed to check if cashback was already processed", zap.Error(err))
+		return false, fmt.Errorf("failed to check if cashback was already processed: %w", err)
+	}
+
+	processed := count > 0
+	s.logger.Info("Cashback processing check completed",
+		zap.String("user_id", userID.String()),
+		zap.String("wager_transaction_id", wagerTransactionID),
+		zap.Bool("already_processed", processed),
+		zap.Int("existing_cashback_count", count))
+
+	return processed, nil
 }

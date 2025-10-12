@@ -13,6 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/contracts"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
 )
@@ -23,11 +24,14 @@ type UserWS interface {
 	TriggerBalanceWS(ctx context.Context, userID uuid.UUID)
 	TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashbackData dto.EnhancedUserCashbackSummary)
 	TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID, winnerData dto.WinnerNotificationData)
+	StoreWinnerNotification(ctx context.Context, winnerData dto.WinnerNotificationData) error
+	GetWinnerNotifications(ctx context.Context, userID uuid.UUID) ([]dto.WinnerNotificationData, error)
 }
 
 type User struct {
 	log                     *zap.Logger
 	balanceStorage          storage.Balance
+	redisClient             contracts.Redis
 	UserBalanceSocket       map[uuid.UUID]map[*websocket.Conn]bool
 	UserBalanceSocketLocker map[*websocket.Conn]*sync.Mutex
 	mutex                   sync.Mutex
@@ -52,10 +56,12 @@ type WinnerNotificationWebSocketMessage struct {
 func InitUserws(
 	log *zap.Logger,
 	balanceStorage storage.Balance,
+	redisClient contracts.Redis,
 ) UserWS {
 	return &User{
 		log:                     log,
 		balanceStorage:          balanceStorage,
+		redisClient:             redisClient,
 		UserBalanceSocket:       make(map[uuid.UUID]map[*websocket.Conn]bool),
 		UserBalanceSocketLocker: make(map[*websocket.Conn]*sync.Mutex),
 	}
@@ -258,6 +264,11 @@ func (b *User) TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashback
 
 // TriggerWinnerNotificationWS sends real-time winner notifications to connected WebSocket clients
 func (b *User) TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID, winnerData dto.WinnerNotificationData) {
+	// Store winner notification in Redis with 1-hour expiration
+	if err := b.StoreWinnerNotification(ctx, winnerData); err != nil {
+		b.log.Error("Failed to store winner notification in Redis", zap.Error(err))
+	}
+
 	winnerMessage := WinnerNotificationWebSocketMessage{
 		Type:    "winner_notification",
 		UserID:  userID,
@@ -303,4 +314,61 @@ func (b *User) TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID
 	} else {
 		b.log.Info("No user balance socket connections found for winner notification", zap.String("userID", userID.String()))
 	}
+}
+
+// StoreWinnerNotification stores winner notification data in Redis with 1-hour expiration
+func (b *User) StoreWinnerNotification(ctx context.Context, winnerData dto.WinnerNotificationData) error {
+	if b.redisClient == nil {
+		b.log.Warn("Redis client not available, skipping winner notification storage")
+		return nil
+	}
+
+	// Create a unique key for this winner notification
+	key := fmt.Sprintf("winner_notification:%s:%s", winnerData.Username, winnerData.TransactionID)
+
+	// Convert to JSON for Redis storage
+	jsonData, err := json.Marshal(winnerData)
+	if err != nil {
+		b.log.Error("Failed to marshal winner notification data",
+			zap.String("username", winnerData.Username),
+			zap.String("transaction_id", winnerData.TransactionID),
+			zap.Error(err))
+		return err
+	}
+
+	// Store with 1-hour expiration
+	err = b.redisClient.Set(ctx, key, string(jsonData), time.Hour)
+	if err != nil {
+		b.log.Error("Failed to store winner notification in Redis",
+			zap.String("key", key),
+			zap.String("username", winnerData.Username),
+			zap.String("transaction_id", winnerData.TransactionID),
+			zap.Error(err))
+		return err
+	}
+
+	b.log.Info("Winner notification stored in Redis",
+		zap.String("key", key),
+		zap.String("username", winnerData.Username),
+		zap.String("game_name", winnerData.GameName),
+		zap.String("win_amount", winnerData.WinAmount.String()))
+
+	return nil
+}
+
+// GetWinnerNotifications retrieves all winner notifications for a user from Redis
+func (b *User) GetWinnerNotifications(ctx context.Context, userID uuid.UUID) ([]dto.WinnerNotificationData, error) {
+	if b.redisClient == nil {
+		b.log.Warn("Redis client not available, returning empty winner notifications")
+		return []dto.WinnerNotificationData{}, nil
+	}
+
+	// For now, we'll return empty since we need to implement pattern matching
+	// In a real implementation, you'd use Redis SCAN with pattern matching
+	// to find all keys matching "winner_notification:*" and filter by user
+	b.log.Info("Retrieving winner notifications from Redis", zap.String("userID", userID.String()))
+
+	// TODO: Implement Redis pattern matching to get all winner notifications
+	// This would require extending the Redis interface to support SCAN operations
+	return []dto.WinnerNotificationData{}, nil
 }

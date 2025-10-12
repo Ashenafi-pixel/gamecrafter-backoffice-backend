@@ -112,7 +112,7 @@ func Initiate() {
 	}
 
 	// Initialize userWS first
-	userBalanceWs := utils.InitUserws(logger, nil) // Will be updated after persistence is created
+	userBalanceWs := utils.InitUserws(logger, nil, nil) // Will be updated after persistence is created
 
 	// Now initialize persistence with Redis, userWS, and ClickHouse
 	var redisOTP *redis.RedisOTP
@@ -124,8 +124,8 @@ func Initiate() {
 	}
 	persistence := initPersistence(&persistenceDB, logger, gormDB, redisOTP, userBalanceWs, clickhouseClient)
 
-	// Update userWS with the actual balance storage
-	userBalanceWs = utils.InitUserws(logger, persistence.Balance)
+	// Update userWS with the actual balance storage and Redis client
+	userBalanceWs = utils.InitUserws(logger, persistence.Balance, platformInstance.Redis)
 
 	// Initialize email services
 	logger.Info("initializing email services")
