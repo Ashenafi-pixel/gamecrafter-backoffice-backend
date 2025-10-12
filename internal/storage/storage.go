@@ -390,6 +390,7 @@ type Squads interface {
 type Notification interface {
 	StoreNotification(ctx context.Context, req dto.NotificationPayload, delivered bool) (dto.NotificationResponse, error)
 	GetUserNotifications(ctx context.Context, req dto.GetNotificationsRequest) (dto.GetNotificationsResponse, error)
+	GetAllNotifications(ctx context.Context, req dto.GetNotificationsRequest) (dto.GetNotificationsResponse, error)
 	MarkNotificationRead(ctx context.Context, req dto.MarkNotificationReadRequest) (dto.MarkNotificationReadResponse, error)
 	MarkAllNotificationsRead(ctx context.Context, req dto.MarkAllNotificationsReadRequest) (dto.MarkAllNotificationsReadResponse, error)
 	DeleteNotification(ctx context.Context, req dto.DeleteNotificationRequest) (dto.DeleteNotificationResponse, error)
@@ -447,4 +448,20 @@ type Agent interface {
 	CreateAgentProvider(ctx context.Context, req dto.CreateAgentProviderReq) (dto.AgentProviderRes, error)
 	GetAgentProviderByID(ctx context.Context, id uuid.UUID) (db.AgentProvider, error)
 	GetAgentProviderByClientID(ctx context.Context, clientID string) (db.AgentProvider, error)
+}
+
+type Campaign interface {
+	CreateCampaign(ctx context.Context, req dto.CreateCampaignRequest, createdBy uuid.UUID) (dto.CampaignResponse, error)
+	GetCampaigns(ctx context.Context, req dto.GetCampaignsRequest) (dto.GetCampaignsResponse, error)
+	GetCampaignByID(ctx context.Context, campaignID uuid.UUID) (dto.CampaignResponse, error)
+	UpdateCampaign(ctx context.Context, campaignID uuid.UUID, req dto.UpdateCampaignRequest) (dto.CampaignResponse, error)
+	DeleteCampaign(ctx context.Context, campaignID uuid.UUID) error
+	GetCampaignRecipients(ctx context.Context, req dto.GetCampaignRecipientsRequest) (dto.GetCampaignRecipientsResponse, error)
+	GetCampaignStats(ctx context.Context, campaignID uuid.UUID) (dto.CampaignStatsResponse, error)
+	GetScheduledCampaigns(ctx context.Context) ([]dto.CampaignResponse, error)
+	UpdateRecipientStatus(ctx context.Context, recipientID uuid.UUID, status dto.RecipientStatus, errorMessage string) error
+	UpdateRecipientNotificationID(ctx context.Context, recipientID uuid.UUID, notificationID uuid.UUID) error
+	MarkCampaignAsSent(ctx context.Context, campaignID uuid.UUID) error
+	GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, error)
+	GetCampaignNotificationStats(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) (dto.CampaignNotificationStats, error)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/tucanbit/internal/module/balancelogs"
 	"github.com/tucanbit/internal/module/banner"
 	"github.com/tucanbit/internal/module/bet"
+	"github.com/tucanbit/internal/module/campaign"
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
 	"github.com/tucanbit/internal/module/crypto_wallet"
@@ -66,6 +67,7 @@ type Module struct {
 	Report                module.Report
 	Squads                module.Squads
 	Notification          module.Notification
+	Campaign              module.Campaign
 	Adds                  module.Adds
 	Banner                module.Banner
 	Lottery               module.Lottery
@@ -201,6 +203,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Report:       report.Init(persistence.Report, log),
 		Squads:       squads.Init(log, persistence.Squad, persistence.User),
 		Notification: notification.Init(persistence.Notification, log),
+		Campaign:     campaign.Init(persistence.Campaign, persistence.Notification, log),
 		Adds:         adds.Init(persistence.Adds, persistence.Balance, persistence.BalanageLogs, log),
 		Banner:       banner.Init(persistence.Banner, log, viper.GetString("aws.bucket.name")),
 		Lottery: lottery.Init(
