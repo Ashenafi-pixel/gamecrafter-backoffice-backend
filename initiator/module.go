@@ -3,6 +3,7 @@ package initiator
 import (
 	"sync"
 
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/adds"
 	"github.com/tucanbit/internal/module/agent"
@@ -14,6 +15,7 @@ import (
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
 	"github.com/tucanbit/internal/module/crypto_wallet"
+	"github.com/tucanbit/internal/module/falcon_liquidity"
 	"github.com/tucanbit/internal/module/game"
 	"github.com/tucanbit/internal/module/groove"
 
@@ -201,10 +203,22 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		OTP:                   otp.NewOTPService(persistence.OTP, otp.NewUserStorageAdapter(persistence.User), emailService, log),
 		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log),
 		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), kafka, log),
-		Groove:                groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), persistence.User, userBalanceWs, log),
-		Game:                  game.NewGameService(persistence.Game, log),
-		HouseEdge:             game.NewHouseEdgeService(persistence.HouseEdge, log),
-		Email:                 emailService,
-		Redis:                 redis,
+		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), persistence.User, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
+			Enabled:        viper.GetBool("falcon_liquidity.enabled"),
+			Host:           viper.GetString("falcon_liquidity.host"),
+			Port:           viper.GetInt("falcon_liquidity.port"),
+			VirtualHost:    viper.GetString("falcon_liquidity.virtual_host"),
+			Username:       viper.GetString("falcon_liquidity.username"),
+			Password:       viper.GetString("falcon_liquidity.password"),
+			ExchangeName:   viper.GetString("falcon_liquidity.exchange_name"),
+			QueueName:      viper.GetString("falcon_liquidity.queue_name"),
+			RoutingKey:     viper.GetString("falcon_liquidity.routing_key"),
+			ClientName:     viper.GetString("falcon_liquidity.client_name"),
+			ManagementPort: viper.GetInt("falcon_liquidity.management_port"),
+		}, persistence.FalconMessage), log),
+		Game:      game.NewGameService(persistence.Game, log),
+		HouseEdge: game.NewHouseEdgeService(persistence.HouseEdge, log),
+		Email:     emailService,
+		Redis:     redis,
 	}
 }
