@@ -345,7 +345,35 @@ func (s *GrooveServiceImpl) ProcessWin(ctx context.Context, req dto.GrooveTransa
 func (s *GrooveServiceImpl) GetBalance(ctx context.Context, accountID string) (*dto.GrooveGetBalanceResponse, error) {
 	s.logger.Info("Getting account balance", zap.String("account_id", accountID))
 
-	balance, err := s.storage.GetAccountBalance(ctx, accountID)
+	// Check if accountID is a JWT token (contains dots) or a UUID
+	var userID string
+	if strings.Contains(accountID, ".") {
+		// It's a JWT token, parse it to get the user ID
+		claims := &dto.Claim{}
+		token, err := jwt.ParseWithClaims(accountID, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(viper.GetString("auth.jwt_secret")), nil
+		})
+		
+		if err != nil || !token.Valid {
+			s.logger.Error("Invalid JWT token for balance request", zap.Error(err))
+			return &dto.GrooveGetBalanceResponse{
+				Code:       1,
+				Status:     "Technical error",
+				Message:    "Invalid token",
+				APIVersion: "1.2",
+			}, nil
+		}
+		
+		userID = claims.UserID.String()
+		s.logger.Info("Extracted user ID from JWT token", 
+			zap.String("user_id", userID),
+			zap.String("original_account_id", accountID))
+	} else {
+		// It's already a UUID, use it directly
+		userID = accountID
+	}
+
+	balance, err := s.storage.GetAccountBalance(ctx, userID)
 	if err != nil {
 		s.logger.Error("Failed to get account balance", zap.Error(err))
 		return &dto.GrooveGetBalanceResponse{
@@ -368,7 +396,7 @@ func (s *GrooveServiceImpl) GetBalance(ctx context.Context, accountID string) (*
 	}
 
 	s.logger.Info("Balance retrieved successfully",
-		zap.String("account_id", accountID),
+		zap.String("account_id", userID),
 		zap.String("balance", balance.String()))
 
 	return response, nil

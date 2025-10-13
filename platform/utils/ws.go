@@ -201,6 +201,9 @@ func (b *User) TriggerBalanceWS(ctx context.Context, userID uuid.UUID) {
 
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				b.log.Warn("Failed to send player level response", zap.Error(err), zap.String("userID", userID.String()))
+				// Remove the broken connection from the map
+				delete(b.UserBalanceSocket[userID], conn)
+				delete(b.UserBalanceSocketLocker, conn)
 				if b.getUserBalanceSocketLocker(conn) != nil {
 					b.getUserBalanceSocketLocker(conn).Unlock()
 				}
