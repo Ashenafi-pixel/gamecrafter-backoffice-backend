@@ -1812,10 +1812,46 @@ func (s *GrooveServiceImpl) ProcessWagerTransaction(ctx context.Context, req dto
 		// Don't fail the transaction if storage fails, but log it
 	}
 
-	// Cashback will be processed after result is known for accurate GGR calculation
-	s.logger.Info("Wager processed - cashback will be calculated after result",
+	// Process cashback immediately on every wager transaction
+	s.logger.Info("Processing cashback immediately on wager transaction",
 		zap.String("transaction_id", req.TransactionID),
-		zap.String("user_id", req.UserID.String()))
+		zap.String("user_id", req.UserID.String()),
+		zap.String("bet_amount", req.BetAmount.String()))
+
+	// Process cashback for every wager (per-spin cashback based on house edge)
+	if s.cashbackService != nil {
+		// Create a bet DTO for cashback processing
+		bet := dto.Bet{
+			BetID:               uuid.New(),
+			RoundID:             uuid.New(),
+			UserID:              req.UserID,
+			ClientTransactionID: req.TransactionID,
+			Amount:              req.BetAmount, // Use bet amount for GGR calculation
+			Currency:            "USD",
+			Timestamp:           time.Now(),
+			Payout:              decimal.Zero, // No payout yet for wager-only transaction
+			CashOutMultiplier:   decimal.Zero,
+			Status:              "wager", // Mark as wager status
+		}
+
+		// Process the bet for cashback
+		err := s.cashbackService.ProcessBetCashback(ctx, bet)
+		if err != nil {
+			s.logger.Error("Failed to process cashback for wager transaction",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", req.UserID.String()),
+				zap.String("bet_amount", req.BetAmount.String()),
+				zap.Error(err))
+		} else {
+			s.logger.Info("Cashback processed successfully for wager transaction",
+				zap.String("transaction_id", req.TransactionID),
+				zap.String("user_id", req.UserID.String()),
+				zap.String("bet_amount", req.BetAmount.String()))
+		}
+	} else {
+		s.logger.Warn("Cashback service not available - skipping cashback processing",
+			zap.String("transaction_id", req.TransactionID))
+	}
 
 	s.logger.Info("Wager transaction processed successfully",
 		zap.String("transaction_id", req.TransactionID),
@@ -2352,70 +2388,23 @@ func (s *GrooveServiceImpl) processResultCashback(ctx context.Context, req dto.G
 		return
 	}
 
-	// Check if cashback has already been processed for this wager transaction
-	// This prevents duplicate cashback calculation when result is processed multiple times
-	existingCashback, err := s.storage.CheckCashbackProcessed(ctx, userID, wagerTransaction.TransactionID)
-	if err != nil {
-		s.logger.Error("Failed to check if cashback was already processed", zap.Error(err))
-		// Continue processing to avoid missing cashback due to check failure
-	} else if existingCashback {
-		s.logger.Info("Cashback already processed for this wager transaction - skipping duplicate processing",
-			zap.String("wager_transaction_id", wagerTransaction.TransactionID),
-			zap.String("result_transaction_id", req.TransactionID),
-			zap.String("user_id", userID.String()))
-		return
-	}
+	// Cashback is now processed immediately on wager, so we don't need to process it again on result
+	// This is just for logging purposes to show the final transaction state
+	s.logger.Info("Result transaction processed - cashback was already calculated on wager",
+		zap.String("wager_transaction_id", wagerTransaction.TransactionID),
+		zap.String("result_transaction_id", req.TransactionID),
+		zap.String("user_id", userID.String()))
 
-	// Calculate net loss (bet amount - winnings)
+	// Log transaction details for audit purposes
 	betAmount := wagerTransaction.BetAmount
 	winAmount := req.Result
 	netLoss := betAmount.Sub(winAmount)
 
-	s.logger.Info("Calculating cashback based on bet amount (per-spin cashback)",
+	s.logger.Info("Transaction details",
 		zap.String("bet_amount", betAmount.String()),
 		zap.String("win_amount", winAmount.String()),
-		zap.String("net_loss", netLoss.String()))
-
-	// Process cashback on every wager bet (per-spin cashback)
-	s.logger.Info("Processing per-spin cashback for every wager",
-		zap.String("transaction_id", req.TransactionID),
-		zap.String("bet_amount", betAmount.String()))
-
-	// Process cashback for the bet amount (not net loss) - per-spin cashback
-	if s.cashbackService != nil {
-		// Create a bet DTO for cashback processing based on bet amount (per-spin cashback)
-		bet := dto.Bet{
-			BetID:               uuid.New(),
-			RoundID:             uuid.New(),
-			UserID:              userID,
-			ClientTransactionID: wagerTransaction.TransactionID, // Use wager transaction ID for game info lookup
-			Amount:              betAmount,                      // Use bet amount for GGR calculation
-			Currency:            "USD",
-			Timestamp:           time.Now(),
-			Payout:              winAmount, // Actual winnings
-			CashOutMultiplier:   decimal.Zero,
-			Status:              "completed",
-		}
-
-		// Process the bet for cashback
-		err := s.cashbackService.ProcessBetCashback(ctx, bet)
-		if err != nil {
-			s.logger.Error("Failed to process result-based cashback",
-				zap.String("transaction_id", req.TransactionID),
-				zap.String("user_id", userID.String()),
-				zap.String("bet_amount", betAmount.String()),
-				zap.Error(err))
-		} else {
-			s.logger.Info("Result-based cashback processed successfully",
-				zap.String("transaction_id", req.TransactionID),
-				zap.String("user_id", userID.String()),
-				zap.String("bet_amount", betAmount.String()),
-				zap.String("cashback_based_on", "bet_amount_per_spin"))
-		}
-	} else {
-		s.logger.Warn("Cashback service not available - skipping result-based cashback processing",
-			zap.String("transaction_id", req.TransactionID))
-	}
+		zap.String("net_loss", netLoss.String()),
+		zap.String("cashback_status", "already_processed_on_wager"))
 }
 
 // processWagerAndResultCashback processes cashback for combined wager and result transactions
