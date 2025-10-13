@@ -45,7 +45,7 @@ func NewDailyReportCronjobService(
 		},
 		appURL:               fmt.Sprintf("http://%s:%d", viper.GetString("app.host"), viper.GetInt("app.port")),
 		configuredRecipients: []string{"ashenafialemu27@gmail.com", "joshjones612@gmail.com"},
-		scheduleTime:         "59 23 * * *", // 23:59 (end of day)
+		scheduleTime:         "0 59 23 * * *", // 23:59:00 (end of day)
 		timezone:             "UTC",
 		isRunning:            false,
 	}
