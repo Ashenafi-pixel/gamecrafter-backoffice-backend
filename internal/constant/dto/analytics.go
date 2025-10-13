@@ -59,9 +59,9 @@ type UserAnalytics struct {
 	TotalBonuses      decimal.Decimal `json:"total_bonuses"`
 	TotalCashback     decimal.Decimal `json:"total_cashback"`
 	NetLoss           decimal.Decimal `json:"net_loss"`
-	TransactionCount  uint32          `json:"transaction_count"`
-	UniqueGamesPlayed uint32          `json:"unique_games_played"`
-	SessionCount      uint32          `json:"session_count"`
+	TransactionCount  uint64          `json:"transaction_count"`
+	UniqueGamesPlayed uint64          `json:"unique_games_played"`
+	SessionCount      uint64          `json:"session_count"`
 	AvgBetAmount      decimal.Decimal `json:"avg_bet_amount"`
 	MaxBetAmount      decimal.Decimal `json:"max_bet_amount"`
 	MinBetAmount      decimal.Decimal `json:"min_bet_amount"`
@@ -75,9 +75,9 @@ type GameAnalytics struct {
 	Provider      string          `json:"provider"`
 	TotalBets     decimal.Decimal `json:"total_bets"`
 	TotalWins     decimal.Decimal `json:"total_wins"`
-	TotalPlayers  uint32          `json:"total_players"`
-	TotalSessions uint32          `json:"total_sessions"`
-	TotalRounds   uint32          `json:"total_rounds"`
+	TotalPlayers  uint64          `json:"total_players"`
+	TotalSessions uint64          `json:"total_sessions"`
+	TotalRounds   uint64          `json:"total_rounds"`
 	AvgBetAmount  decimal.Decimal `json:"avg_bet_amount"`
 	MaxBetAmount  decimal.Decimal `json:"max_bet_amount"`
 	MinBetAmount  decimal.Decimal `json:"min_bet_amount"`
@@ -94,12 +94,12 @@ type SessionAnalytics struct {
 	Provider        *string         `json:"provider,omitempty"`
 	StartTime       time.Time       `json:"start_time"`
 	EndTime         *time.Time      `json:"end_time,omitempty"`
-	DurationSeconds *uint32         `json:"duration_seconds,omitempty"`
+	DurationSeconds *uint64         `json:"duration_seconds,omitempty"`
 	TotalBets       decimal.Decimal `json:"total_bets"`
 	TotalWins       decimal.Decimal `json:"total_wins"`
 	NetResult       decimal.Decimal `json:"net_result"`
-	BetCount        uint32          `json:"bet_count"`
-	WinCount        uint32          `json:"win_count"`
+	BetCount        uint64          `json:"bet_count"`
+	WinCount        uint64          `json:"win_count"`
 	MaxBalance      decimal.Decimal `json:"max_balance"`
 	MinBalance      decimal.Decimal `json:"min_balance"`
 	SessionType     string          `json:"session_type"` // regular, bonus, free_play
@@ -111,40 +111,40 @@ type SessionAnalytics struct {
 // RealTimeStats represents real-time statistics
 type RealTimeStats struct {
 	Timestamp         time.Time       `json:"timestamp"`
-	TotalTransactions uint32          `json:"total_transactions"`
-	DepositsCount     uint32          `json:"deposits_count"`
-	WithdrawalsCount  uint32          `json:"withdrawals_count"`
-	BetsCount         uint32          `json:"bets_count"`
-	WinsCount         uint32          `json:"wins_count"`
+	TotalTransactions uint64          `json:"total_transactions"`
+	DepositsCount     uint64          `json:"deposits_count"`
+	WithdrawalsCount  uint64          `json:"withdrawals_count"`
+	BetsCount         uint64          `json:"bets_count"`
+	WinsCount         uint64          `json:"wins_count"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
-	ActiveUsers       uint32          `json:"active_users"`
-	ActiveGames       uint32          `json:"active_games"`
+	ActiveUsers       uint64          `json:"active_users"`
+	ActiveGames       uint64          `json:"active_games"`
 }
 
 // DailyReport represents daily analytics report
 type DailyReport struct {
 	Date              time.Time       `json:"date"`
-	TotalTransactions uint32          `json:"total_transactions"`
+	TotalTransactions uint64          `json:"total_transactions"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
-	ActiveUsers       uint32          `json:"active_users"`
-	ActiveGames       uint32          `json:"active_games"`
-	NewUsers          uint32          `json:"new_users"`
-	UniqueDepositors  uint32          `json:"unique_depositors"`
-	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
+	ActiveUsers       uint64          `json:"active_users"`
+	ActiveGames       uint64          `json:"active_games"`
+	NewUsers          uint64          `json:"new_users"`
+	UniqueDepositors  uint64          `json:"unique_depositors"`
+	UniqueWithdrawers uint64          `json:"unique_withdrawers"`
 
 	// Additional metrics for comprehensive reporting
-	DepositCount     uint32          `json:"deposit_count"`
-	WithdrawalCount  uint32          `json:"withdrawal_count"`
-	BetCount         uint32          `json:"bet_count"`
-	WinCount         uint32          `json:"win_count"`
+	DepositCount     uint64          `json:"deposit_count"`
+	WithdrawalCount  uint64          `json:"withdrawal_count"`
+	BetCount         uint64          `json:"bet_count"`
+	WinCount         uint64          `json:"win_count"`
 	CashbackEarned   decimal.Decimal `json:"cashback_earned"`
 	CashbackClaimed  decimal.Decimal `json:"cashback_claimed"`
 	AdminCorrections decimal.Decimal `json:"admin_corrections"`
@@ -156,23 +156,23 @@ type DailyReport struct {
 // EnhancedDailyReport represents daily analytics report with comparison metrics
 type EnhancedDailyReport struct {
 	Date              time.Time       `json:"date"`
-	TotalTransactions uint32          `json:"total_transactions"`
+	TotalTransactions uint64          `json:"total_transactions"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
-	ActiveUsers       uint32          `json:"active_users"`
-	ActiveGames       uint32          `json:"active_games"`
-	NewUsers          uint32          `json:"new_users"`
-	UniqueDepositors  uint32          `json:"unique_depositors"`
-	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
+	ActiveUsers       uint64          `json:"active_users"`
+	ActiveGames       uint64          `json:"active_games"`
+	NewUsers          uint64          `json:"new_users"`
+	UniqueDepositors  uint64          `json:"unique_depositors"`
+	UniqueWithdrawers uint64          `json:"unique_withdrawers"`
 
 	// Additional metrics for comprehensive reporting
-	DepositCount     uint32          `json:"deposit_count"`
-	WithdrawalCount  uint32          `json:"withdrawal_count"`
-	BetCount         uint32          `json:"bet_count"`
-	WinCount         uint32          `json:"win_count"`
+	DepositCount     uint64          `json:"deposit_count"`
+	WithdrawalCount  uint64          `json:"withdrawal_count"`
+	BetCount         uint64          `json:"bet_count"`
+	WinCount         uint64          `json:"win_count"`
 	CashbackEarned   decimal.Decimal `json:"cashback_earned"`
 	CashbackClaimed  decimal.Decimal `json:"cashback_claimed"`
 	AdminCorrections decimal.Decimal `json:"admin_corrections"`
@@ -211,21 +211,21 @@ type DailyReportComparison struct {
 
 // DailyReportMTD represents Month To Date metrics
 type DailyReportMTD struct {
-	TotalTransactions uint32          `json:"total_transactions"`
+	TotalTransactions uint64          `json:"total_transactions"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
-	ActiveUsers       uint32          `json:"active_users"`
-	ActiveGames       uint32          `json:"active_games"`
-	NewUsers          uint32          `json:"new_users"`
-	UniqueDepositors  uint32          `json:"unique_depositors"`
-	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
-	DepositCount      uint32          `json:"deposit_count"`
-	WithdrawalCount   uint32          `json:"withdrawal_count"`
-	BetCount          uint32          `json:"bet_count"`
-	WinCount          uint32          `json:"win_count"`
+	ActiveUsers       uint64          `json:"active_users"`
+	ActiveGames       uint64          `json:"active_games"`
+	NewUsers          uint64          `json:"new_users"`
+	UniqueDepositors  uint64          `json:"unique_depositors"`
+	UniqueWithdrawers uint64          `json:"unique_withdrawers"`
+	DepositCount      uint64          `json:"deposit_count"`
+	WithdrawalCount   uint64          `json:"withdrawal_count"`
+	BetCount          uint64          `json:"bet_count"`
+	WinCount          uint64          `json:"win_count"`
 	CashbackEarned    decimal.Decimal `json:"cashback_earned"`
 	CashbackClaimed   decimal.Decimal `json:"cashback_claimed"`
 	AdminCorrections  decimal.Decimal `json:"admin_corrections"`
@@ -233,21 +233,21 @@ type DailyReportMTD struct {
 
 // DailyReportSPLM represents Same Period Last Month metrics
 type DailyReportSPLM struct {
-	TotalTransactions uint32          `json:"total_transactions"`
+	TotalTransactions uint64          `json:"total_transactions"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
-	ActiveUsers       uint32          `json:"active_users"`
-	ActiveGames       uint32          `json:"active_games"`
-	NewUsers          uint32          `json:"new_users"`
-	UniqueDepositors  uint32          `json:"unique_depositors"`
-	UniqueWithdrawers uint32          `json:"unique_withdrawers"`
-	DepositCount      uint32          `json:"deposit_count"`
-	WithdrawalCount   uint32          `json:"withdrawal_count"`
-	BetCount          uint32          `json:"bet_count"`
-	WinCount          uint32          `json:"win_count"`
+	ActiveUsers       uint64          `json:"active_users"`
+	ActiveGames       uint64          `json:"active_games"`
+	NewUsers          uint64          `json:"new_users"`
+	UniqueDepositors  uint64          `json:"unique_depositors"`
+	UniqueWithdrawers uint64          `json:"unique_withdrawers"`
+	DepositCount      uint64          `json:"deposit_count"`
+	WithdrawalCount   uint64          `json:"withdrawal_count"`
+	BetCount          uint64          `json:"bet_count"`
+	WinCount          uint64          `json:"win_count"`
 	CashbackEarned    decimal.Decimal `json:"cashback_earned"`
 	CashbackClaimed   decimal.Decimal `json:"cashback_claimed"`
 	AdminCorrections  decimal.Decimal `json:"admin_corrections"`
@@ -257,15 +257,15 @@ type DailyReportSPLM struct {
 type MonthlyReport struct {
 	Year              int             `json:"year"`
 	Month             int             `json:"month"`
-	TotalTransactions uint32          `json:"total_transactions"`
+	TotalTransactions uint64          `json:"total_transactions"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
-	ActiveUsers       uint32          `json:"active_users"`
-	ActiveGames       uint32          `json:"active_games"`
-	NewUsers          uint32          `json:"new_users"`
+	ActiveUsers       uint64          `json:"active_users"`
+	ActiveGames       uint64          `json:"active_games"`
+	NewUsers          uint64          `json:"new_users"`
 	AvgDailyRevenue   decimal.Decimal `json:"avg_daily_revenue"`
 	TopGames          []GameStats     `json:"top_games"`
 	TopPlayers        []PlayerStats   `json:"top_players"`
@@ -279,8 +279,8 @@ type GameStats struct {
 	TotalBets    decimal.Decimal `json:"total_bets"`
 	TotalWins    decimal.Decimal `json:"total_wins"`
 	NetRevenue   decimal.Decimal `json:"net_revenue"`
-	PlayerCount  uint32          `json:"player_count"`
-	SessionCount uint32          `json:"session_count"`
+	PlayerCount  uint64          `json:"player_count"`
+	SessionCount uint64          `json:"session_count"`
 	AvgBetAmount decimal.Decimal `json:"avg_bet_amount"`
 	RTP          decimal.Decimal `json:"rtp"`
 	Rank         int             `json:"rank"`
@@ -295,9 +295,9 @@ type PlayerStats struct {
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
 	NetLoss           decimal.Decimal `json:"net_loss"`
-	TransactionCount  uint32          `json:"transaction_count"`
-	UniqueGamesPlayed uint32          `json:"unique_games_played"`
-	SessionCount      uint32          `json:"session_count"`
+	TransactionCount  uint64          `json:"transaction_count"`
+	UniqueGamesPlayed uint64          `json:"unique_games_played"`
+	SessionCount      uint64          `json:"session_count"`
 	AvgBetAmount      decimal.Decimal `json:"avg_bet_amount"`
 	LastActivity      time.Time       `json:"last_activity"`
 	Rank              int             `json:"rank"`

@@ -312,9 +312,9 @@ func (s *AnalyticsStorageImpl) GetUserAnalytics(ctx context.Context, userID uuid
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type = 'bonus'), 8) as total_bonuses,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as total_cashback,
-			toUInt32(count()) as transaction_count,
-			toUInt32(uniqExact(game_id)) as unique_games_played,
-			toUInt32(uniqExact(session_id)) as session_count,
+			toUInt64(count()) as transaction_count,
+			toUInt64(uniqExact(game_id)) as unique_games_played,
+			toUInt64(uniqExact(session_id)) as session_count,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, maxIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as max_bet_amount,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, minIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as min_bet_amount,
@@ -376,17 +376,17 @@ func (s *AnalyticsStorageImpl) GetUserAnalytics(ctx context.Context, userID uuid
 func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error) {
 	query := `
 		SELECT 
-			toUInt32(count()) as total_transactions,
-			toUInt32(countIf(transaction_type = 'deposit')) as deposits_count,
-			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawals_count,
-			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bets_count,
-			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as wins_count,
+			toUInt64(count()) as total_transactions,
+			toUInt64(countIf(transaction_type = 'deposit')) as deposits_count,
+			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawals_count,
+			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bets_count,
+			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as wins_count,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
 			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
-			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(uniqExact(game_id)) as active_games
+			toUInt64(uniqExact(user_id)) as active_users,
+			toUInt64(uniqExact(game_id)) as active_games
 		FROM tucanbit_analytics.transactions
 		WHERE created_at >= now() - INTERVAL 1 HOUR
 	`
@@ -600,7 +600,7 @@ func (s *AnalyticsStorageImpl) GetSessionAnalytics(ctx context.Context, sessionI
 	var analytics dto.SessionAnalytics
 	var userIDStr string
 	var gameID, gameName, provider *string
-	var durationSeconds *uint32
+	var durationSeconds *uint64
 
 	err := row.Scan(
 		&analytics.SessionID,
@@ -640,21 +640,21 @@ func (s *AnalyticsStorageImpl) GetSessionAnalytics(ctx context.Context, sessionI
 func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error) {
 	query := `
 		SELECT 
-			toUInt32(count()) as total_transactions,
+			toUInt64(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
 			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(uniqExact(game_id)) as active_games,
-			toUInt32(0) as new_users, -- TODO: Get from users table
-			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
-			toUInt32(countIf(transaction_type = 'deposit')) as deposit_count,
-			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
-			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
-			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
+			toUInt64(uniqExact(user_id)) as active_users,
+			toUInt64(uniqExact(game_id)) as active_games,
+			toUInt64(0) as new_users, -- TODO: Get from users table
+			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
+			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
+			toUInt64(countIf(transaction_type = 'deposit')) as deposit_count,
+			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
+			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
+			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
@@ -949,21 +949,21 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
 		)
 		SELECT 
-			toUInt32(count()) as total_transactions,
+			toUInt64(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
 			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(0) as active_games, -- TODO: Get from games table
-			toUInt32(0) as new_users, -- TODO: Get from users table
-			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
-			toUInt32(countIf(transaction_type = 'deposit')) as deposit_count,
-			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
-			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
-			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
+			toUInt64(uniqExact(user_id)) as active_users,
+			toUInt64(0) as active_games, -- TODO: Get from games table
+			toUInt64(0) as new_users, -- TODO: Get from users table
+			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
+			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
+			toUInt64(countIf(transaction_type = 'deposit')) as deposit_count,
+			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
+			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
+			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
@@ -1092,21 +1092,21 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
 		)
 		SELECT 
-			toUInt32(count()) as total_transactions,
+			toUInt64(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
 			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt32(uniqExact(user_id)) as active_users,
-			toUInt32(0) as active_games, -- TODO: Get from games table
-			toUInt32(0) as new_users, -- TODO: Get from users table
-			toUInt32(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt32(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
-			toUInt32(countIf(transaction_type = 'deposit')) as deposit_count,
-			toUInt32(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
-			toUInt32(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
-			toUInt32(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
+			toUInt64(uniqExact(user_id)) as active_users,
+			toUInt64(0) as active_games, -- TODO: Get from games table
+			toUInt64(0) as new_users, -- TODO: Get from users table
+			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
+			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
+			toUInt64(countIf(transaction_type = 'deposit')) as deposit_count,
+			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
+			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
+			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
 			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
@@ -1287,8 +1287,8 @@ func (s *AnalyticsStorageImpl) GetTopGames(ctx context.Context, limit int, dateR
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt32(uniqExact(user_id)) as player_count,
-			toUInt32(uniqExact(session_id)) as session_count,
+			toUInt64(uniqExact(user_id)) as player_count,
+			toUInt64(uniqExact(session_id)) as session_count,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			CASE 
 				WHEN sumIf(amount, transaction_type IN ('bet', 'groove_bet')) > 0 
@@ -1367,9 +1367,9 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_loss,
-			toUInt32(count()) as transaction_count,
-			toUInt32(uniqExact(game_id)) as unique_games_played,
-			toUInt32(uniqExact(session_id)) as session_count,
+			toUInt64(count()) as transaction_count,
+			toUInt64(uniqExact(game_id)) as unique_games_played,
+			toUInt64(uniqExact(session_id)) as session_count,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			max(created_at) as last_activity
 		FROM tucanbit_analytics.transactions

@@ -55,10 +55,10 @@ func (d *DailyReportServiceImpl) GenerateDailyReportForDate(ctx context.Context,
 
 	d.logger.Info("Enhanced daily report generated successfully",
 		zap.String("date", date.Format("2006-01-02")),
-		zap.Uint32("total_transactions", report.TotalTransactions),
-		zap.Uint32("active_users", report.ActiveUsers),
-		zap.Uint32("new_users", report.NewUsers),
-		zap.Uint32("active_games", report.ActiveGames),
+		zap.Uint64("total_transactions", report.TotalTransactions),
+		zap.Uint64("active_users", report.ActiveUsers),
+		zap.Uint64("new_users", report.NewUsers),
+		zap.Uint64("active_games", report.ActiveGames),
 		zap.String("net_revenue", report.NetRevenue.String()))
 
 	return report, nil
@@ -125,7 +125,7 @@ func (d *DailyReportServiceImpl) GenerateLastWeekReport(ctx context.Context, rec
 		}
 		d.logger.Info("Daily report generated successfully",
 			zap.String("date", date.Format("2006-01-02")),
-			zap.Uint32("total_transactions", report.TotalTransactions),
+			zap.Uint64("total_transactions", report.TotalTransactions),
 			zap.String("total_bets", report.TotalBets.String()),
 			zap.String("net_revenue", report.NetRevenue.String()))
 		weeklyReports = append(weeklyReports, report)
