@@ -262,7 +262,7 @@ func (s *falconLiquidityServiceImpl) PublishCasinoBet(ctx context.Context, betDa
 		s.messageStorage.UpdateFalconMessage(ctx, messageID, updateReq)
 	}
 
-	s.logger.Info("✅ Successfully published casino bet to Falcon Liquidity",
+	s.logger.Info("Successfully published casino bet to Falcon Liquidity",
 		zap.String("message_id", messageID),
 		zap.String("bet_id", betData.BetID),
 		zap.String("user_id", betData.UserID),
