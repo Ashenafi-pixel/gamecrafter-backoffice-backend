@@ -1,8 +1,8 @@
 version: "2"
 
 sql:
-  - schema: "../internal/constant/query/schemas"
-    queries: "../internal/constant/query/queries"
+  - schema: "../internal/constant/query/schemas/campaign_tables.sql"
+    queries: "../internal/constant/query/queries/campaign.sql"
     engine: "postgresql"
 
     gen:

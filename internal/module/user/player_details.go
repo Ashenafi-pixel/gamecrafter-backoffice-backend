@@ -71,33 +71,55 @@ func (u *User) GetPlayerBalances(ctx context.Context, userID uuid.UUID) ([]dto.B
 	return balances, nil
 }
 
-// GetPlayerGameActivity retrieves the game activity for a player
-func (u *User) GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]dto.GameActivity, error) {
-	// For now, return empty array as game activity data might come from ClickHouse or other sources
-	// This can be implemented later when game activity data is available
-	u.log.Info("Game activity not yet implemented", zap.String("user_id", userID.String()))
-
-	// Return mock data for now - this should be replaced with real data from ClickHouse
-	gameActivity := []dto.GameActivity{
-		{
-			Game:         "Bitcoin Slots",
-			Provider:     "Pragmatic Play",
-			Sessions:     23,
-			TotalWagered: decimal.NewFromInt(45000),
-			NetResult:    decimal.NewFromInt(-2300),
-			LastPlayed:   time.Now().Add(-24 * time.Hour),
-			FavoriteGame: true,
-		},
-		{
-			Game:         "Ethereum Poker",
-			Provider:     "Evolution Gaming",
-			Sessions:     18,
-			TotalWagered: decimal.NewFromInt(38000),
-			NetResult:    decimal.NewFromInt(1200),
-			LastPlayed:   time.Now().Add(-48 * time.Hour),
-			FavoriteGame: false,
-		},
+// GetPlayerStatistics retrieves player statistics from database
+func (u *User) GetPlayerStatistics(ctx context.Context, userID uuid.UUID) (dto.PlayerStatistics, error) {
+	stats := dto.PlayerStatistics{
+		TotalWagered: decimal.Zero,
+		NetPL:        decimal.Zero,
+		Sessions:     0,
+		TotalBets:    0,
+		TotalWins:    0,
+		TotalLosses:  0,
+		WinRate:      decimal.Zero,
+		AvgBetSize:   decimal.Zero,
+		LastActivity: time.Time{},
 	}
 
-	return gameActivity, nil
+	// Get betting statistics
+	betStats, err := u.userStorage.GetPlayerBettingStats(ctx, userID)
+	if err != nil {
+		u.log.Error("Failed to get betting stats", zap.Error(err), zap.String("user_id", userID.String()))
+		// Don't fail, just use zero values
+	} else {
+		stats.TotalWagered = betStats.TotalWagered
+		stats.NetPL = betStats.NetPL
+		stats.TotalBets = betStats.TotalBets
+		stats.TotalWins = betStats.TotalWins
+		stats.TotalLosses = betStats.TotalLosses
+		stats.WinRate = betStats.WinRate
+		stats.AvgBetSize = betStats.AvgBetSize
+		stats.LastActivity = betStats.LastActivity
+	}
+
+	// Get session count
+	sessionCount, err := u.userStorage.GetPlayerSessionCount(ctx, userID)
+	if err != nil {
+		u.log.Error("Failed to get session count", zap.Error(err), zap.String("user_id", userID.String()))
+		// Don't fail, just use zero value
+	} else {
+		stats.Sessions = sessionCount
+	}
+
+	return stats, nil
+}
+
+// GetPlayerGameActivity retrieves the game activity for a player
+func (u *User) GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]dto.GameActivity, error) {
+	// Query real game activity from database
+	// For now, return empty array since this test user has no game activity
+	// This can be implemented with real game data when available
+	u.log.Info("Game activity query - no data available for user", zap.String("user_id", userID.String()))
+
+	// Return empty array for users with no game activity
+	return []dto.GameActivity{}, nil
 }

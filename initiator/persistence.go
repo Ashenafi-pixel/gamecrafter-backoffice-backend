@@ -13,6 +13,7 @@ import (
 	"github.com/tucanbit/internal/storage/balancelogs"
 	"github.com/tucanbit/internal/storage/banner"
 	"github.com/tucanbit/internal/storage/bet"
+	"github.com/tucanbit/internal/storage/campaign"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/company"
 	"github.com/tucanbit/internal/storage/config"
@@ -31,6 +32,7 @@ import (
 	"github.com/tucanbit/internal/storage/risksettings"
 	"github.com/tucanbit/internal/storage/sports"
 	"github.com/tucanbit/internal/storage/squads"
+	"github.com/tucanbit/internal/storage/twofactor"
 	"github.com/tucanbit/internal/storage/user"
 	"github.com/tucanbit/platform/clickhouse"
 	"github.com/tucanbit/platform/redis"
@@ -58,6 +60,7 @@ type Persistence struct {
 	Report               storage.Report
 	Squad                storage.Squads
 	Notification         storage.Notification
+	Campaign             storage.Campaign
 	Adds                 storage.Adds
 	Banner               storage.Banner
 	Lottery              storage.Lottery
@@ -70,11 +73,20 @@ type Persistence struct {
 	GameSession          groove.GameSessionStorage
 	Game                 game.GameStorage
 	HouseEdge            game.HouseEdgeStorage
+	TwoFactor            twofactor.TwoFactorStorage
 	Analytics            storage.Analytics
 	Database             *persistencedb.PersistenceDB
 }
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS, clickhouseClient *clickhouse.ClickHouseClient) *Persistence {
+	// Create analytics storage from clickhouse client
+	var analyticsStorageInstance storage.Analytics
+	if clickhouseClient != nil {
+		analyticsStorageInstance = analyticsStorage.NewAnalyticsStorage(clickhouseClient, log)
+	} else {
+		analyticsStorageInstance = nil
+	}
+
 	return &Persistence{
 		User:                 user.Init(persistencdb, log),
 		OperationalGroup:     operationalgroup.Init(persistencdb, log),
@@ -83,7 +95,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Balance:              balance.Init(persistencdb, log),
 		BalanageLogs:         balancelogs.Init(persistencdb, log),
 		Exchange:             exchange.Init(persistencdb, log),
-		Bet:                  bet.Init(persistencdb, log),
+		Bet:                  bet.Init(persistencdb, analyticsStorageInstance, log),
 		Departments:          departements.Init(persistencdb, log),
 		Performance:          performance.Init(persistencdb, log),
 		Authz:                authz.Init(gormDB, log, persistencdb),
@@ -94,6 +106,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Report:               report.Init(persistencdb, log),
 		Squad:                squads.Init(persistencdb, log),
 		Notification:         notification.Init(persistencdb, log),
+		Campaign:             campaign.Init(persistencdb, log),
 		Adds:                 adds.Init(persistencdb, log),
 		Banner:               banner.Init(persistencdb, log),
 		Lottery:              lottery.Init(persistencdb, log),
@@ -106,6 +119,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
 		Game:                 game.NewGameStorage(persistencdb, log),
 		HouseEdge:            game.NewHouseEdgeStorage(persistencdb, log),
+		TwoFactor:            twofactor.Init(persistencdb, log),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		Database:             persistencdb,
 	}

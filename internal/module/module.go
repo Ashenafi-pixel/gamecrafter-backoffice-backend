@@ -65,6 +65,7 @@ type User interface {
 	GetPlayerBalanceLogs(ctx context.Context, userID uuid.UUID) ([]dto.BalanceLog, error)
 	GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]dto.GameActivity, error)
 	GetPlayerBalances(ctx context.Context, userID uuid.UUID) ([]dto.Balance, error)
+	GetPlayerStatistics(ctx context.Context, userID uuid.UUID) (dto.PlayerStatistics, error)
 	VerifyUser(ctx context.Context, req dto.VerifyPhoneNumberReq) (dto.UserRegisterResponse, string, error)
 	GetOtp(ctx context.Context, phone string) string
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
@@ -165,6 +166,8 @@ type Bet interface {
 	GetSpinningWheelUserBetHistory(ctx context.Context, req dto.GetRequest, userID uuid.UUID) (dto.GetSpinningWheelHistoryResp, error)
 	UpdateGame(ctx context.Context, game dto.Game) (dto.Game, error)
 	GetGames(ctx context.Context, req dto.GetRequest) (dto.GetGamesResp, error)
+	GetGameSummary(ctx context.Context) (dto.GetGameSummaryResp, error)
+	GetTransactionSummary(ctx context.Context) (dto.GetTransactionSummaryResp, error)
 	DisableAllGames(ctx context.Context) (dto.BlockGamesResp, error)
 	ListInactiveGames(ctx context.Context) ([]dto.Game, error)
 	DeleteGame(ctx context.Context, req dto.Game) (dto.DeleteResponse, error)
@@ -224,6 +227,7 @@ type Authz interface {
 	RevokeUserRole(ctx context.Context, req dto.UserRole) error
 	GetRoleUsers(ctx context.Context, roleID uuid.UUID) ([]dto.User, error)
 	GetUserRoles(ctx context.Context, userID uuid.UUID) (dto.UserRolesRes, error)
+	GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 }
 
 type AirtimeProvider interface {
@@ -288,6 +292,7 @@ type Squads interface {
 type Notification interface {
 	StoreNotification(ctx context.Context, req dto.NotificationPayload, delivered bool) (dto.NotificationResponse, error)
 	GetUserNotifications(ctx context.Context, req dto.GetNotificationsRequest) (dto.GetNotificationsResponse, error)
+	GetAllNotifications(ctx context.Context, req dto.GetNotificationsRequest) (dto.GetNotificationsResponse, error)
 	MarkNotificationRead(ctx context.Context, req dto.MarkNotificationReadRequest) (dto.MarkNotificationReadResponse, error)
 	MarkAllNotificationsRead(ctx context.Context, req dto.MarkAllNotificationsReadRequest) (dto.MarkAllNotificationsReadResponse, error)
 	DeleteNotification(ctx context.Context, req dto.DeleteNotificationRequest) (dto.DeleteNotificationResponse, error)
@@ -295,6 +300,19 @@ type Notification interface {
 	AddNotificationSocketConnection(userID uuid.UUID, conn *websocket.Conn)
 	RemoveNotificationSocketConnection(userID uuid.UUID, conn *websocket.Conn)
 	SendNotificationToUser(userID uuid.UUID, payload dto.NotificationPayload) bool
+}
+
+type Campaign interface {
+	CreateCampaign(ctx context.Context, req dto.CreateCampaignRequest, createdBy uuid.UUID) (dto.CampaignResponse, error)
+	GetCampaigns(ctx context.Context, req dto.GetCampaignsRequest) (dto.GetCampaignsResponse, error)
+	GetCampaignByID(ctx context.Context, campaignID uuid.UUID) (dto.CampaignResponse, error)
+	UpdateCampaign(ctx context.Context, campaignID uuid.UUID, req dto.UpdateCampaignRequest) (dto.CampaignResponse, error)
+	DeleteCampaign(ctx context.Context, campaignID uuid.UUID) error
+	GetCampaignRecipients(ctx context.Context, req dto.GetCampaignRecipientsRequest) (dto.GetCampaignRecipientsResponse, error)
+	GetCampaignStats(ctx context.Context, campaignID uuid.UUID) (dto.CampaignStatsResponse, error)
+	SendCampaign(ctx context.Context, campaignID uuid.UUID) error
+	GetScheduledCampaigns(ctx context.Context) ([]dto.CampaignResponse, error)
+	GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) (dto.CampaignNotificationsDashboardResponse, error)
 }
 
 type Adds interface {

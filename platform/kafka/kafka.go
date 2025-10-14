@@ -80,6 +80,7 @@ func NewKafkaClient(bootStrapServer,
 	config.Producer.MaxMessageBytes = 1000000 // 1MB
 	config.Producer.Compression = sarama.CompressionSnappy
 	config.Producer.Idempotent = true
+	config.Net.MaxOpenRequests = 1 // Required for idempotent producer
 
 	// Configure consumer group
 	config.Consumer.Group.Session.Timeout = 20 * time.Second

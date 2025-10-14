@@ -14,6 +14,7 @@ import (
 	"github.com/tucanbit/internal/handler/balancelogs"
 	"github.com/tucanbit/internal/handler/banner"
 	"github.com/tucanbit/internal/handler/bet"
+	"github.com/tucanbit/internal/handler/campaign"
 	"github.com/tucanbit/internal/handler/cashback"
 	"github.com/tucanbit/internal/handler/company"
 	"github.com/tucanbit/internal/handler/department"
@@ -32,6 +33,7 @@ import (
 	"github.com/tucanbit/internal/handler/risksettings"
 	"github.com/tucanbit/internal/handler/sportsservice"
 	"github.com/tucanbit/internal/handler/squads"
+	"github.com/tucanbit/internal/handler/twofactor"
 	"github.com/tucanbit/internal/handler/user"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
@@ -70,6 +72,8 @@ type Handler struct {
 	Game                  *game.GameHandler
 	HouseEdge             *game.HouseEdgeHandler
 	RegistrationService   *user.RegistrationService
+	Campaign              handler.Campaign
+	TwoFactor             handler.TwoFactor
 	Analytics             handler.Analytics
 }
 
@@ -122,6 +126,8 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Game:                  game.NewGameHandler(module.Game),
 		HouseEdge:             game.NewHouseEdgeHandler(module.HouseEdge),
 		RegistrationService:   registrationService,
+		Campaign:              campaign.Init(module.Campaign, log),
+		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
 	}
 }

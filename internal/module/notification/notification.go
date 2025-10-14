@@ -34,7 +34,7 @@ func Init(notificationStorage storage.Notification, log *zap.Logger) *Notificati
 
 func (n *Notification) StoreNotification(ctx context.Context, req dto.NotificationPayload, delivered bool) (dto.NotificationResponse, error) {
 	if err := dto.ValidateNotificationPayload(req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "invalid notification payload")
 		return dto.NotificationResponse{}, err
 	}
 
@@ -49,11 +49,23 @@ func (n *Notification) GetUserNotifications(ctx context.Context, req dto.GetNoti
 		req.PerPage = 10
 	}
 
-	offset := (req.Page - 1) * req.PerPage
-
-	req.Page = offset
-
 	notifRes, err := n.notificationStorage.GetUserNotifications(ctx, req)
+	if err != nil {
+		return dto.GetNotificationsResponse{}, err
+	}
+
+	return notifRes, nil
+}
+
+func (n *Notification) GetAllNotifications(ctx context.Context, req dto.GetNotificationsRequest) (dto.GetNotificationsResponse, error) {
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PerPage <= 0 {
+		req.PerPage = 10
+	}
+
+	notifRes, err := n.notificationStorage.GetAllNotifications(ctx, req)
 	if err != nil {
 		return dto.GetNotificationsResponse{}, err
 	}

@@ -43,6 +43,14 @@ func (b *bet) GetGames(ctx context.Context, req dto.GetRequest) (dto.GetGamesRes
 	return b.betStorage.GetGames(ctx, req)
 }
 
+func (b *bet) GetGameSummary(ctx context.Context) (dto.GetGameSummaryResp, error) {
+	return b.betStorage.GetGameSummary(ctx)
+}
+
+func (b *bet) GetTransactionSummary(ctx context.Context) (dto.GetTransactionSummaryResp, error) {
+	return b.betStorage.GetTransactionSummary(ctx)
+}
+
 func (b *bet) DisableAllGames(ctx context.Context) (dto.BlockGamesResp, error) {
 	var games []dto.Game
 	for _, gameIDs := range constant.GAMES {

@@ -319,3 +319,48 @@ func (a *authz) GetUserRoles(c *gin.Context) {
 
 	response.SendSuccessResponse(c, http.StatusOK, resp)
 }
+
+// SearchAdminUsers Get list of admin users for RBAC role assignments.
+//
+//	@Summary		SearchAdminUsers
+//	@Description	SearchAdminUsers Retrieve list of admin users for RBAC role assignments
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string	true	"Bearer <token> "
+//	@Param			page			query		string	true	"page type (required)"
+//	@Param			per-page		query		string	true	"per-page type (required)"
+//	@Success		200				{object}	[]dto.Admin
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		401				{object}	response.ErrorResponse
+//	@Router			/api/admin/rbac/users [get]
+func (a *authz) SearchAdminUsers(c *gin.Context) {
+	page := c.Query("page")
+	perpage := c.Query("per-page")
+	if perpage == "" || page == "" {
+		err := fmt.Errorf("page and per_page query required")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	pageParsed, err := strconv.Atoi(page)
+	if err != nil {
+		err := fmt.Errorf("unable to convert page to number")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	perPageParsed, err := strconv.Atoi(perpage)
+	if err != nil {
+		err := fmt.Errorf("unable to convert per_page to number")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := a.authzModule.GetAdmins(c, dto.GetAdminsReq{Page: pageParsed, PerPage: perPageParsed})
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}

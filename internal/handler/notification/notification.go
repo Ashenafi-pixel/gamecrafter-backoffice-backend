@@ -120,6 +120,42 @@ func (n *Notification) GetUserNotifications(ctx *gin.Context) {
 //	@Success		200				{object}	dto.MarkNotificationReadResponse
 //	@Failure		400				{object}	response.ErrorResponse
 //	@Router			/api/notifications/{id}/mark-read [patch]
+//
+// GetAdminNotifications Get all notifications for admin management.
+//
+//	@Summary		GetAdminNotifications
+//	@Description	Get paginated notifications for admin management (all users)
+//	@Tags			Admin Notification
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string	true	"Bearer <token>"
+//	@Param			page			query		int		false	"Page number"
+//	@Param			per_page		query		int		false	"Items per page"
+//	@Success		200				{object}	dto.GetNotificationsResponse
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Router			/api/admin/notifications [get]
+func (n *Notification) GetAdminNotifications(ctx *gin.Context) {
+	var req dto.GetNotificationsRequest
+
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, "invalid query parameters")
+		_ = ctx.Error(err)
+		return
+	}
+
+	n.log.Info("GetAdminNotifications parsed request", zap.Int("page", req.Page), zap.Int("per_page", req.PerPage))
+
+	// For admin, we don't filter by user ID - get all notifications
+	req.UserID = uuid.Nil // This will be handled in the storage layer
+
+	resp, err := n.notificationModule.GetAllNotifications(ctx, req)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, resp)
+}
+
 func (n *Notification) MarkNotificationRead(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	userID := ctx.GetString("user-id")

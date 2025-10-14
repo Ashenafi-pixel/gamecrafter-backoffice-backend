@@ -73,12 +73,21 @@ func (u *user) GetPlayerDetails(c *gin.Context) {
 		gameActivity = []dto.GameActivity{}
 	}
 
+	// Get player statistics from database
+	playerStats, err := u.userModule.GetPlayerStatistics(c.Request.Context(), userID)
+	if err != nil {
+		u.log.Error("Failed to get player statistics", zap.Error(err))
+		// Don't fail the entire request, just log the error
+		playerStats = dto.PlayerStatistics{}
+	}
+
 	playerDetails := dto.PlayerDetailsResponse{
 		Player:            player,
 		SuspensionHistory: suspensionHistory,
 		BalanceLogs:       balanceLogs,
 		Balances:          balances,
 		GameActivity:      gameActivity,
+		Statistics:        playerStats,
 	}
 
 	c.JSON(http.StatusOK, gin.H{

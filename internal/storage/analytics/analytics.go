@@ -35,6 +35,9 @@ type AnalyticsStorage interface {
 	GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error)
 	GetUserBalanceHistory(ctx context.Context, userID uuid.UUID, hours int) ([]*dto.BalanceSnapshot, error)
 	InsertBalanceSnapshot(ctx context.Context, snapshot *dto.BalanceSnapshot) error
+
+	// Summary methods
+	GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error)
 }
 
 type AnalyticsStorageImpl struct {
@@ -374,6 +377,13 @@ func (s *AnalyticsStorageImpl) GetUserAnalytics(ctx context.Context, userID uuid
 }
 
 func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealTimeStats, error) {
+	s.logger.Info("GetRealTimeStats called - checking ClickHouse connection")
+
+	if s.clickhouse == nil {
+		s.logger.Error("ClickHouse client is nil")
+		return nil, fmt.Errorf("ClickHouse client is not initialized")
+	}
+
 	query := `
 		SELECT 
 			toUInt64(count()) as total_transactions,
@@ -388,9 +398,9 @@ func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealT
 			toUInt64(uniqExact(user_id)) as active_users,
 			toUInt64(uniqExact(game_id)) as active_games
 		FROM tucanbit_analytics.transactions
-		WHERE created_at >= now() - INTERVAL 1 HOUR
 	`
 
+	s.logger.Info("Executing ClickHouse query", zap.String("query", query))
 	row := s.clickhouse.QueryRow(ctx, query)
 
 	var stats dto.RealTimeStats
@@ -408,8 +418,15 @@ func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealT
 		&stats.ActiveGames,
 	)
 	if err != nil {
+		s.logger.Error("Failed to scan real-time stats", zap.Error(err))
 		return nil, fmt.Errorf("failed to scan real-time stats: %w", err)
 	}
+
+	s.logger.Info("Real-time stats scanned successfully",
+		zap.Uint32("totalTransactions", stats.TotalTransactions),
+		zap.Uint32("depositsCount", stats.DepositsCount),
+		zap.String("totalDeposits", stats.TotalDeposits.String()),
+		zap.Uint32("activeUsers", stats.ActiveUsers))
 
 	stats.Timestamp = time.Now()
 	stats.NetRevenue = stats.TotalBets.Sub(stats.TotalWins)
@@ -1529,4 +1546,55 @@ func (s *AnalyticsStorageImpl) InsertBalanceSnapshot(ctx context.Context, snapsh
 		zap.String("balance", snapshot.Balance.String()))
 
 	return nil
+}
+
+func (s *AnalyticsStorageImpl) GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error) {
+	s.logger.Info("GetTransactionSummary called - checking ClickHouse connection")
+
+	if s.clickhouse == nil {
+		s.logger.Error("ClickHouse client is nil in GetTransactionSummary")
+		return nil, fmt.Errorf("ClickHouse client is not initialized")
+	}
+
+	query := `
+		SELECT 
+			count() as total_transactions,
+			sum(amount) as total_volume,
+			countIf(status = 'completed') as successful_transactions,
+			countIf(status = 'failed') as failed_transactions,
+			countIf(transaction_type = 'deposit') as deposit_count,
+			countIf(transaction_type = 'withdrawal') as withdrawal_count,
+			countIf(transaction_type IN ('bet', 'groove_bet')) as bet_count,
+			countIf(transaction_type IN ('win', 'groove_win')) as win_count
+		FROM tucanbit_analytics.transactions
+	`
+
+	s.logger.Info("Executing ClickHouse query for transaction summary", zap.String("query", query))
+	row := s.clickhouse.QueryRow(ctx, query)
+
+	var stats dto.TransactionSummaryStats
+	err := row.Scan(
+		&stats.TotalTransactions,
+		&stats.TotalVolume,
+		&stats.SuccessfulTransactions,
+		&stats.FailedTransactions,
+		&stats.DepositCount,
+		&stats.WithdrawalCount,
+		&stats.BetCount,
+		&stats.WinCount,
+	)
+	if err != nil {
+		s.logger.Error("Failed to scan transaction summary stats", zap.Error(err))
+		return nil, fmt.Errorf("failed to scan transaction summary stats: %w", err)
+	}
+
+	s.logger.Info("Transaction summary stats retrieved successfully",
+		zap.Int("totalTransactions", stats.TotalTransactions),
+		zap.String("totalVolume", stats.TotalVolume.String()),
+		zap.Int("successfulTransactions", stats.SuccessfulTransactions),
+		zap.Int("failedTransactions", stats.FailedTransactions),
+		zap.Int("depositCount", stats.DepositCount),
+		zap.Int("withdrawalCount", stats.WithdrawalCount))
+
+	return &stats, nil
 }

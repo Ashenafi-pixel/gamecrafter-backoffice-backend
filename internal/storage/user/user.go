@@ -622,6 +622,7 @@ func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points de
 }
 
 func (u *user) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
+	// Use the existing SQLC query for admins with roles
 	var admins []dto.Admin
 
 	adminResp, err := u.db.Queries.GetAdmins(ctx, db.GetAdminsParams{
@@ -635,6 +636,100 @@ func (u *user) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin
 	}
 
 	for _, admin := range adminResp {
+
+		var adminRoles []dto.AdminRoleRes
+		if admin.Roles.Status == pgtype.Present {
+			err := json.Unmarshal(admin.Roles.Bytes, &adminRoles)
+			if err != nil {
+				u.log.Error("Failed to unmarshal roles", zap.Error(err), zap.Any("raw", string(admin.Roles.Bytes)))
+				continue
+			}
+		}
+
+		admins = append(admins, dto.Admin{
+			ID:          admin.UserID,
+			PhoneNumber: admin.PhoneNumber.String,
+			FirstName:   admin.FirstName.String,
+			LastName:    admin.LastName.String,
+			Email:       admin.Email.String,
+			Status:      admin.Status.String,
+			Roles:       adminRoles,
+		})
+	}
+	return admins, nil
+}
+
+func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
+	var admins []dto.Admin
+
+	// Use direct query to get all admin users (including those without roles)
+	query := `
+		SELECT 
+			us.id AS user_id,
+			us.username,
+			us.phone_number,
+			us.profile,
+			us.status,
+			us.email,
+			us.first_name,
+			us.last_name,
+			us.date_of_birth,
+			COALESCE(
+				JSON_AGG(
+					JSON_BUILD_OBJECT(
+						'role_id', r.id,
+						'name', r.name
+					)
+				) FILTER (WHERE r.id IS NOT NULL),
+				'[]'::json
+			) AS roles
+		FROM users us
+		LEFT JOIN user_roles ur ON ur.user_id = us.id
+		LEFT JOIN roles r ON r.id = ur.role_id
+		WHERE us.is_admin = true
+		GROUP BY us.id, us.username, us.phone_number, us.profile, us.email, us.first_name, us.last_name, us.date_of_birth
+		ORDER BY us.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := u.db.GetPool().Query(ctx, query, req.PerPage, req.Page)
+	if err != nil {
+		u.log.Error(err.Error(), zap.Any("req", req))
+		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var admin struct {
+			UserID      uuid.UUID
+			Username    sql.NullString
+			PhoneNumber sql.NullString
+			Profile     sql.NullString
+			Status      sql.NullString
+			Email       sql.NullString
+			FirstName   sql.NullString
+			LastName    sql.NullString
+			DateOfBirth sql.NullString
+			Roles       pgtype.JSON
+		}
+
+		err := rows.Scan(
+			&admin.UserID,
+			&admin.Username,
+			&admin.PhoneNumber,
+			&admin.Profile,
+			&admin.Status,
+			&admin.Email,
+			&admin.FirstName,
+			&admin.LastName,
+			&admin.DateOfBirth,
+			&admin.Roles,
+		)
+		if err != nil {
+			u.log.Error("Failed to scan admin user", zap.Error(err))
+			continue
+		}
 
 		var adminRoles []dto.AdminRoleRes
 		if admin.Roles.Status == pgtype.Present {

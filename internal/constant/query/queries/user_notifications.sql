@@ -55,3 +55,35 @@ WHERE id = $1 AND user_id = $2;
 -- name: GetUnreadNotificationCount :one
 SELECT COUNT(*) FROM user_notifications
 WHERE user_id = $1 AND read = FALSE;
+
+-- name: GetAllUnreadNotificationCount :one
+SELECT COUNT(*) FROM user_notifications
+WHERE read = FALSE;
+
+-- name: GetAllDeliveredNotificationCount :one
+SELECT COUNT(*) FROM user_notifications
+WHERE delivered = TRUE;
+
+-- name: GetAllReadNotificationCount :one
+SELECT COUNT(*) FROM user_notifications
+WHERE read = TRUE;
+
+-- name: GetAllNotifications :many
+SELECT
+    id,
+    user_id,
+    title,
+    content,
+    type,
+    metadata,
+    read,
+    delivered,
+    created_by,
+    read_at,
+    created_at,
+    COUNT(*) OVER() AS total
+FROM
+    user_notifications
+ORDER BY
+    created_at DESC
+LIMIT $1 OFFSET $2;

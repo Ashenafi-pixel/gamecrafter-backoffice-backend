@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -33,6 +34,57 @@ func Init(db *persistencedb.PersistenceDB, log *zap.Logger) storage.BalanceLogs 
 
 func (b *balance_logs) SaveBalanceLogs(ctx context.Context, blanceLogReq dto.BalanceLogs) (dto.BalanceLogs, error) {
 	balanceStatus := utils.NullString(blanceLogReq.Status)
+
+	// Check if we're using server database (different schema)
+	if os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		// Use raw SQL for server database (without currency column)
+		var id uuid.UUID
+		var userID uuid.UUID
+		var component string
+		var changeCents int64
+		var changeAmount decimal.Decimal
+		var operationalGroupID uuid.UUID
+		var operationalTypeID uuid.UUID
+		var description string
+		var timestamp time.Time
+		var balanceAfterCents int64
+		var balanceAfterUpdate decimal.Decimal
+		var transactionID string
+		var status string
+		var currencyCode string
+
+		// Convert amount to cents and units for server database
+		changeCents = blanceLogReq.ChangeAmount.Mul(decimal.NewFromInt(100)).IntPart()
+		balanceAfterCents = blanceLogReq.BalanceAfterUpdate.Mul(decimal.NewFromInt(100)).IntPart()
+
+		err := b.db.GetPool().QueryRow(ctx, `
+			INSERT INTO balance_logs (user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+			RETURNING id, user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code
+		`, blanceLogReq.UserID, blanceLogReq.Component, changeCents, blanceLogReq.ChangeAmount, blanceLogReq.OperationalGroupID, blanceLogReq.OperationalTypeID, blanceLogReq.Description, time.Now(), balanceAfterCents, *blanceLogReq.BalanceAfterUpdate, *blanceLogReq.TransactionID, balanceStatus.String, constant.DEFAULT_CURRENCY).Scan(
+			&id, &userID, &component, &changeCents, &changeAmount, &operationalGroupID, &operationalTypeID, &description, &timestamp, &balanceAfterCents, &balanceAfterUpdate, &transactionID, &status, &currencyCode,
+		)
+		if err != nil {
+			b.log.Error(fmt.Sprintf("unable to save balance logs error %s ", err.Error()), zap.Any("blanceLogReq", blanceLogReq))
+			err = errors.ErrUnableTocreate.Wrap(err, err.Error())
+			return dto.BalanceLogs{}, err
+		}
+		return dto.BalanceLogs{
+			ID:                 id,
+			UserID:             userID,
+			Component:          component,
+			Currency:           constant.DEFAULT_CURRENCY, // Use default currency for server database
+			Description:        description,
+			ChangeAmount:       changeAmount,
+			OperationalGroupID: operationalGroupID,
+			OperationalTypeID:  operationalTypeID,
+			Status:             status,
+			BalanceAfterUpdate: blanceLogReq.BalanceAfterUpdate,
+			TransactionID:      blanceLogReq.TransactionID,
+		}, nil
+	}
+
+	// Use original query with currency for local development
 	blanceRes, err := b.db.SaveBalanceLogs(ctx, db.SaveBalanceLogsParams{
 		UserID:             uuid.NullUUID{UUID: blanceLogReq.UserID, Valid: true},
 		Component:          db.Components(blanceLogReq.Component),

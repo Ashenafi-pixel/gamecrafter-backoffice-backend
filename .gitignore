@@ -1,5 +1,6 @@
 ./.vscode
 ./trunk
+.idea
 config/config.yaml
 migrate.exe
 __debug_bin*

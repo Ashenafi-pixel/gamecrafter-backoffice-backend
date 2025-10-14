@@ -2,6 +2,7 @@
 
 # Kafka Configuration
 kafka:
+  enabled: false
   topic: "events"
   bootstrap_servers: "localhost:9093"
   cluster_api_key: ""
@@ -19,11 +20,24 @@ redis:
   key_prefix: "tucanbit:"
   ttl: "5m"
 
+# ClickHouse Configuration
+clickhouse:
+  host: "localhost"
+  port: 8123
+  database: "tucanbit_analytics"
+  username: "tucanbit"
+  password: "tucanbit_clickhouse_password"
+  timeout: "10s"
+
 # Auth Configuration
 auth:
   otp_attempt_limit: 3
   otp_jwt_secret: "otp_jwt_secret_here"
   jwt_secret: "tokensecrethere"
+
+# OAuth Configuration
+oauth:
+  frontend_oauth_handler_url: "http://localhost:3000/auth/callback"
 
 # Pisi Configuration
 pisi:
@@ -44,8 +58,20 @@ db:
 app:
   host: "0.0.0.0"
   port: "8080"
-  jwt_secret: "tokensecrethere"
   timeout: "30s"
+
+# Logger Configuration
+logger:
+  level: 0
+  console: true
+  max_size_mb: 100
+  max_backups: 3
+  max_age_days: 7
+  compress: true
+  rotation_enabled: true
+  retention_enabled: true
+  local_retention_days: 30
+  aws_retention_days: 30
 
 # Sports Service Configuration
 sportsservice:
@@ -56,6 +82,15 @@ sportsservice:
 aws:
   bucket:
     name: "tucanbit-bucket"
+  logging:
+    enabled: false
+    region: "us-east-1"
+    access_key_id: ""
+    secret_access_key: ""
+    log_group_name: "/tucanbit/application"
+    log_stream_name: "tucanbit-dev"
+    retention_days: 30
+    local_path: "./logs"
 
 # Google OAuth Configuration
 google:
@@ -87,10 +122,10 @@ airtime:
 smtp:
   host: "smtp.gmail.com"
   port: 465
-  username: "ashenafialemu66@gmail.com"
-  password: "dpfr mgcv tgnh skyo"
-  from: "noreply@tucanbit.com"
-  from_name: "TucanBIT"
+  username: "kirub.hel@gmail.com"
+  password: "dacc uhlb etak tpoo"
+  from: "kirub.hel@gmail.com"
+  from_name: "TucanBIT Security"
   use_tls: true 
 groove:
   operator_id: "3818"

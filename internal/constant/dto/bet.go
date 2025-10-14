@@ -826,16 +826,54 @@ type GetSpinningWheelHistoryResp struct {
 }
 
 type Game struct {
-	ID      uuid.UUID `json:"id"`
-	Status  string    `json:"status"`
-	Name    string    `json:"name"`
-	Photo   string    `json:"photo"`
-	Enabled bool      `json:"enabled"`
+	ID           uuid.UUID `json:"id"`
+	Status       string    `json:"status"`
+	Name         string    `json:"name"`
+	Photo        string    `json:"photo"`
+	Enabled      bool      `json:"enabled"`
+	GameType     string    `json:"game_type"`
+	Provider     string    `json:"provider"`
+	TotalPlayers int       `json:"total_players"`
+	TotalRounds  int       `json:"total_rounds"`
+	TotalWagered float64   `json:"total_wagered"`
+	TotalWon     float64   `json:"total_won"`
+	RTP          float64   `json:"rtp"`
+	Popularity   int       `json:"popularity"`
 }
 
 type GetGamesData struct {
 	TotalPages int    `json:"total_pages"`
 	Games      []Game `json:"games"`
+}
+
+type GameSummary struct {
+	TotalGames   int     `json:"total_games"`
+	ActiveGames  int     `json:"active_games"`
+	TotalWagered float64 `json:"total_wagered"`
+	AvgRTP       float64 `json:"avg_rtp"`
+}
+
+type GetGameSummaryResp struct {
+	Message string      `json:"message"`
+	Data    GameSummary `json:"data"`
+}
+
+type TransactionSummary struct {
+	TotalTransactions      int     `json:"total_transactions"`
+	TotalVolume            float64 `json:"total_volume"`
+	SuccessfulTransactions int     `json:"successful_transactions"`
+	FailedTransactions     int     `json:"failed_transactions"`
+	SuccessRate            float64 `json:"success_rate"`
+	AvgTransactionValue    float64 `json:"avg_transaction_value"`
+	DepositCount           int     `json:"deposit_count"`
+	WithdrawalCount        int     `json:"withdrawal_count"`
+	BetCount               int     `json:"bet_count"`
+	WinCount               int     `json:"win_count"`
+}
+
+type GetTransactionSummaryResp struct {
+	Message string             `json:"message"`
+	Data    TransactionSummary `json:"data"`
 }
 type GetGamesResp struct {
 	Message string       `json:"message"`

@@ -16,6 +16,9 @@ const (
 	NOTIFICATION_TYPE_WELCOME     NotificationType = "Welcome"
 	NOTIFICATION_TYPE_SYSTEM      NotificationType = "System"
 	NOTIFICATION_TYPE_ALERT       NotificationType = "Alert"
+	NOTIFICATION_TYPE_PAYMENTS    NotificationType = "payments"
+	NOTIFICATION_TYPE_SECURITY    NotificationType = "security"
+	NOTIFICATION_TYPE_GENERAL     NotificationType = "general"
 )
 
 type NotificationMetadata struct {
@@ -27,7 +30,7 @@ type NotificationPayload struct {
 	UserID    uuid.UUID             `json:"user_id" validate:"required"`
 	Title     string                `json:"title" validate:"required,min=1,max=200"`
 	Content   string                `json:"content" validate:"required,min=1,max=1000"`
-	Type      NotificationType      `json:"type" validate:"required,oneof=Promotional KYC Bonus Welcome System Alert"`
+	Type      NotificationType      `json:"type" validate:"required,oneof=Promotional KYC Bonus Welcome System Alert payments security general"`
 	Metadata  *NotificationMetadata `json:"metadata,omitempty"`
 	CreatedBy *uuid.UUID            `json:"created_by,omitempty"`
 }
@@ -53,18 +56,20 @@ type UserNotification struct {
 }
 
 type GetNotificationsRequest struct {
-	UserID     uuid.UUID        `json:"user_id"`
-	Page       int              `json:"page" validate:"min=1"`
-	PerPage    int              `json:"per_page" validate:"min=1,max=100"`
-	Type       NotificationType `json:"type,omitempty"`
-	UnreadOnly bool             `json:"unread_only,omitempty"`
+	UserID     uuid.UUID        `form:"user_id" json:"user_id"`
+	Page       int              `form:"page" json:"page" validate:"min=1"`
+	PerPage    int              `form:"per_page" json:"per_page" validate:"min=1,max=100"`
+	Type       NotificationType `form:"type" json:"type,omitempty"`
+	UnreadOnly bool             `form:"unread_only" json:"unread_only,omitempty"`
 }
 
 type GetNotificationsResponse struct {
-	Message       string             `json:"message"`
-	Notifications []UserNotification `json:"notifications"`
-	Total         int                `json:"total"`
-	UnreadCount   int                `json:"unread_count"`
+	Message             string             `json:"message"`
+	Notifications       []UserNotification `json:"notifications"`
+	Total               int                `json:"total"`
+	UnreadCount         int                `json:"unread_count"`
+	DeliveredCount      int                `json:"delivered_count"`
+	ReadCount           int                `json:"read_count"`
 }
 
 type MarkNotificationReadRequest struct {

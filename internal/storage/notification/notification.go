@@ -27,6 +27,8 @@ func Init(db *persistencedb.PersistenceDB, log *zap.Logger) *Notification {
 
 func (n *Notification) StoreNotification(ctx context.Context, req dto.NotificationPayload, delivered bool) (dto.NotificationResponse, error) {
 	var metaJSON pgtype.JSONB
+	metaJSON.Status = pgtype.Null // Initialize as null
+
 	if req.Metadata != nil {
 		b, err := json.Marshal(req.Metadata)
 		if err != nil {
@@ -61,6 +63,7 @@ func (n *Notification) StoreNotification(ctx context.Context, req dto.Notificati
 		Content:   req.Content,
 		Type:      string(req.Type),
 		Metadata:  metaJSON,
+		Read:      false, // Default to unread
 		Delivered: delivered,
 		CreatedBy: createdBy,
 	})
@@ -80,7 +83,7 @@ func (n *Notification) GetUserNotifications(ctx context.Context, req dto.GetNoti
 	notifs, err := n.db.Queries.GetUserNotifications(ctx, db.GetUserNotificationsParams{
 		UserID: req.UserID,
 		Limit:  int32(req.PerPage),
-		Offset: int32(req.Page),
+		Offset: int32((req.Page - 1) * req.PerPage),
 	})
 
 	if err != nil {
@@ -128,6 +131,105 @@ func (n *Notification) GetUserNotifications(ctx context.Context, req dto.GetNoti
 		Total:         int(total),
 		UnreadCount:   int(unreadCount),
 	}, nil
+}
+
+func (n *Notification) GetAllNotifications(ctx context.Context, req dto.GetNotificationsRequest) (dto.GetNotificationsResponse, error) {
+	n.log.Info("GetAllNotifications called", zap.Int("page", req.Page), zap.Int("per_page", req.PerPage))
+	
+	offset := (req.Page - 1) * req.PerPage
+	n.log.Info("Calculated offset", zap.Int("offset", offset))
+	
+	notifs, err := n.db.Queries.GetAllNotifications(ctx, db.GetAllNotificationsParams{
+		Limit:  int32(req.PerPage),
+		Offset: int32(offset),
+	})
+
+	if err != nil {
+		n.log.Error("unable to get all notifications", zap.Error(err))
+		err = errors.ErrUnableToGet.Wrap(err, "unable to get all notifications")
+		return dto.GetNotificationsResponse{}, err
+	}
+
+	var total int32
+	if len(notifs) > 0 {
+		total = int32(notifs[0].Total)
+	}
+
+	// Get additional counts
+	unreadCount, err := n.GetAllUnreadNotificationCount(ctx)
+	if err != nil {
+		n.log.Error("unable to get unread count", zap.Error(err))
+		unreadCount = 0
+	}
+
+	deliveredCount, err := n.GetAllDeliveredNotificationCount(ctx)
+	if err != nil {
+		n.log.Error("unable to get delivered count", zap.Error(err))
+		deliveredCount = 0
+	}
+
+	readCount, err := n.GetAllReadNotificationCount(ctx)
+	if err != nil {
+		n.log.Error("unable to get read count", zap.Error(err))
+		readCount = 0
+	}
+
+	result := make([]dto.UserNotification, len(notifs))
+	for i, r := range notifs {
+		var meta dto.NotificationMetadata
+		if r.Metadata.Status == pgtype.Present && r.Metadata.Bytes != nil {
+			_ = json.Unmarshal(r.Metadata.Bytes, &meta)
+		}
+		// Handle nullable CreatedBy field
+		createdByUUID := dto.NullToUUID(r.CreatedBy)
+		var createdBy *uuid.UUID
+		if createdByUUID != uuid.Nil {
+			createdBy = &createdByUUID
+		}
+
+		result[i] = dto.UserNotification{
+			ID:        r.ID,
+			UserID:    r.UserID,
+			Title:     r.Title,
+			Content:   r.Content,
+			Type:      dto.NotificationType(r.Type),
+			Metadata:  meta,
+			Read:      r.Read,
+			Delivered: r.Delivered,
+			CreatedBy: createdBy,
+			ReadAt:    dto.NullToTime(r.ReadAt),
+			CreatedAt: r.CreatedAt,
+		}
+	}
+	return dto.GetNotificationsResponse{
+		Message:        "All notifications retrieved successfully",
+		Notifications:  result,
+		Total:          int(total),
+		UnreadCount:    int(unreadCount),
+		DeliveredCount: int(deliveredCount),
+		ReadCount:      int(readCount),
+	}, nil
+}
+
+func (n *Notification) GetAllUnreadNotificationCount(ctx context.Context) (int64, error) {
+	query := `SELECT COUNT(*) FROM user_notifications WHERE read = FALSE`
+	var count int64
+	err := n.db.GetPool().QueryRow(ctx, query).Scan(&count)
+	return count, err
+}
+
+func (n *Notification) GetAllDeliveredNotificationCount(ctx context.Context) (int64, error) {
+	query := `SELECT COUNT(*) FROM user_notifications WHERE delivered = TRUE`
+	var count int64
+	err := n.db.GetPool().QueryRow(ctx, query).Scan(&count)
+	return count, err
+}
+
+func (n *Notification) GetAllReadNotificationCount(ctx context.Context) (int64, error) {
+	query := `SELECT COUNT(*) FROM user_notifications WHERE read = TRUE`
+	var count int64
+	err := n.db.GetPool().QueryRow(ctx, query).Scan(&count)
+	return count, err
 }
 
 func (n *Notification) MarkNotificationRead(ctx context.Context, req dto.MarkNotificationReadRequest) (dto.MarkNotificationReadResponse, error) {

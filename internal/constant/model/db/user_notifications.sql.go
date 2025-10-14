@@ -118,6 +118,80 @@ func (q *Queries) GetUserNotifications(ctx context.Context, arg GetUserNotificat
 	return items, nil
 }
 
+const getAllNotifications = `-- name: GetAllNotifications :many
+SELECT
+    id,
+    user_id,
+    title,
+    content,
+    type,
+    metadata,
+    read,
+    delivered,
+    created_by,
+    read_at,
+    created_at,
+    COUNT(*) OVER() AS total
+FROM
+    user_notifications
+ORDER BY
+    created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetAllNotificationsParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetAllNotificationsRow struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Title     string
+	Content   string
+	Type      string
+	Metadata  pgtype.JSONB
+	Read      bool
+	Delivered bool
+	CreatedBy uuid.NullUUID
+	ReadAt    sql.NullTime
+	CreatedAt time.Time
+	Total     int64
+}
+
+func (q *Queries) GetAllNotifications(ctx context.Context, arg GetAllNotificationsParams) ([]GetAllNotificationsRow, error) {
+	rows, err := q.db.Query(ctx, getAllNotifications, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllNotificationsRow
+	for rows.Next() {
+		var i GetAllNotificationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Content,
+			&i.Type,
+			&i.Metadata,
+			&i.Read,
+			&i.Delivered,
+			&i.CreatedBy,
+			&i.ReadAt,
+			&i.CreatedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertUserNotification = `-- name: InsertUserNotification :one
 INSERT INTO user_notifications (
     user_id, title, content, type, metadata, read, delivered, created_by

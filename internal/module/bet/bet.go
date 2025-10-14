@@ -24,6 +24,7 @@ import (
 type bet struct {
 	log                          *zap.Logger
 	betStorage                   storage.Bet
+	analyticsStorage             storage.Analytics
 	balanceStorage               storage.Balance
 	betMax                       decimal.Decimal
 	cron                         *cron.Cron
@@ -73,6 +74,7 @@ type bet struct {
 }
 
 func Init(betStorage storage.Bet,
+	analyticsStorage storage.Analytics,
 	balanceStorage storage.Balance,
 	log *zap.Logger,
 	betMax decimal.Decimal,
@@ -92,6 +94,7 @@ func Init(betStorage storage.Bet,
 	betPointer := &bet{
 		log:                          log,
 		betStorage:                   betStorage,
+		analyticsStorage:             analyticsStorage,
 		streaming:                    make(map[uuid.UUID]bool),
 		userConn:                     make(map[uuid.UUID]map[*websocket.Conn]bool),
 		betMax:                       betMax,

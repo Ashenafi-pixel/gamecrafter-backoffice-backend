@@ -328,3 +328,15 @@ type Meta struct {
 	PageSize int `json:"page_size"`
 	Pages    int `json:"pages"`
 }
+
+// TransactionSummaryStats represents transaction summary statistics from ClickHouse
+type TransactionSummaryStats struct {
+	TotalTransactions      int             `json:"total_transactions"`
+	TotalVolume            decimal.Decimal `json:"total_volume"`
+	SuccessfulTransactions int             `json:"successful_transactions"`
+	FailedTransactions     int             `json:"failed_transactions"`
+	DepositCount           int             `json:"deposit_count"`
+	WithdrawalCount        int             `json:"withdrawal_count"`
+	BetCount               int             `json:"bet_count"`
+	WinCount               int             `json:"win_count"`
+}
