@@ -423,10 +423,10 @@ func (s *AnalyticsStorageImpl) GetRealTimeStats(ctx context.Context) (*dto.RealT
 	}
 
 	s.logger.Info("Real-time stats scanned successfully",
-		zap.Uint32("totalTransactions", stats.TotalTransactions),
-		zap.Uint32("depositsCount", stats.DepositsCount),
+		zap.Uint64("totalTransactions", stats.TotalTransactions),
+		zap.Uint64("depositsCount", stats.DepositsCount),
 		zap.String("totalDeposits", stats.TotalDeposits.String()),
-		zap.Uint32("activeUsers", stats.ActiveUsers))
+		zap.Uint64("activeUsers", stats.ActiveUsers))
 
 	stats.Timestamp = time.Now()
 	stats.NetRevenue = stats.TotalBets.Sub(stats.TotalWins)
