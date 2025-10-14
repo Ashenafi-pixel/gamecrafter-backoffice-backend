@@ -19,6 +19,7 @@ import (
 	"github.com/tucanbit/internal/storage/config"
 	"github.com/tucanbit/internal/storage/departements"
 	"github.com/tucanbit/internal/storage/exchange"
+	"github.com/tucanbit/internal/storage/falcon_liquidity"
 	"github.com/tucanbit/internal/storage/game"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/internal/storage/logs"
@@ -74,6 +75,7 @@ type Persistence struct {
 	Game                 game.GameStorage
 	HouseEdge            game.HouseEdgeStorage
 	TwoFactor            twofactor.TwoFactorStorage
+	FalconMessage        falcon_liquidity.FalconMessageStorage
 	Analytics            storage.Analytics
 	Database             *persistencedb.PersistenceDB
 }
@@ -120,6 +122,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Game:                 game.NewGameStorage(persistencdb, log),
 		HouseEdge:            game.NewHouseEdgeStorage(persistencdb, log),
 		TwoFactor:            twofactor.Init(persistencdb, log),
+		FalconMessage:        falcon_liquidity.NewFalconMessageStorage(log, persistencdb),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		Database:             persistencdb,
 	}

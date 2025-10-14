@@ -15,6 +15,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/module/falcon_liquidity"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform/utils"
@@ -69,6 +70,7 @@ type GrooveService interface {
 // CashbackService interface for processing cashback
 type CashbackService interface {
 	ProcessBetCashback(ctx context.Context, bet dto.Bet) error
+	GetGameHouseEdge(ctx context.Context, gameType, gameVariant string) (*dto.GameHouseEdge, error)
 }
 
 type GrooveServiceImpl struct {
@@ -77,16 +79,18 @@ type GrooveServiceImpl struct {
 	cashbackService    CashbackService
 	userStorage        storage.User
 	userWS             utils.UserWS
+	falconService      falcon_liquidity.FalconLiquidityService
 	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, userWS utils.UserWS, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, userWS utils.UserWS, falconService falcon_liquidity.FalconLiquidityService, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
 		storage:            storage,
 		gameSessionStorage: gameSessionStorage,
 		cashbackService:    cashbackService,
 		userStorage:        userStorage,
 		userWS:             userWS,
+		falconService:      falconService,
 		logger:             logger,
 	}
 }
@@ -568,6 +572,12 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 			s.logger.Error("Failed to store transaction", zap.Error(err))
 		}
 
+		// Send bet data to Falcon Liquidity for zero result (loss)
+		userUUID, parseErr := uuid.Parse(account.UserID)
+		if parseErr == nil {
+			s.sendBetDataToFalconLiquidity(ctx, req, account, userUUID)
+		}
+
 		// Process cashback for zero result (player lost everything)
 		s.processResultCashback(ctx, req, account.UserID)
 
@@ -625,6 +635,9 @@ func (s *GrooveServiceImpl) ProcessResultTransaction(ctx context.Context, req dt
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 	}
+
+	// Send bet data to Falcon Liquidity for big wins
+	s.sendBetDataToFalconLiquidity(ctx, req, account, userUUID)
 
 	s.logger.Info("Result transaction processed successfully",
 		zap.String("transaction_id", req.TransactionID),
@@ -2478,4 +2491,105 @@ func (s *GrooveServiceImpl) processWagerAndResultCashback(ctx context.Context, r
 		s.logger.Warn("Cashback service not available - skipping cashback processing",
 			zap.String("transaction_id", req.TransactionID))
 	}
+}
+
+// sendBetDataToFalconLiquidity sends bet data to Falcon Liquidity for big wins/losses
+func (s *GrooveServiceImpl) sendBetDataToFalconLiquidity(ctx context.Context, req dto.GrooveResultRequest, account *dto.GrooveAccount, userUUID uuid.UUID) {
+	if s.falconService == nil {
+		s.logger.Debug("Falcon Liquidity service not available, skipping bet data publication")
+		return
+	}
+
+	// Get user information
+	user, exists, err := s.userStorage.GetUserByID(ctx, userUUID)
+	if err != nil || !exists {
+		s.logger.Warn("Failed to get user information for Falcon Liquidity",
+			zap.String("user_id", userUUID.String()),
+			zap.Error(err))
+		return
+	}
+
+	// Get game information
+	gameSession, err := s.gameSessionStorage.GetGameSessionBySessionID(ctx, req.GameSessionID)
+	gameName := "GrooveTech Game"
+	edge := 0.05 // Default house edge of 5%
+
+	if err == nil && gameSession != nil {
+		// Get actual game name and house edge from database
+		gameInfo, err := s.GetGameInfo(ctx, gameSession.GameID)
+		if err == nil && gameInfo != nil {
+			gameName = gameInfo.GameName
+		} else {
+			gameName = fmt.Sprintf("GrooveTech Game %s", gameSession.GameID)
+		}
+
+		// Get house edge for this game from database (same as cashback system)
+		if s.cashbackService != nil {
+			// Extract game variant from transaction ID or use game ID
+			gameVariant := gameSession.GameID
+			gameType := "groovetech"
+
+			// Use the same method as cashback system to get house edge
+			houseEdgeData, err := s.cashbackService.GetGameHouseEdge(ctx, gameType, gameVariant)
+			if err == nil && houseEdgeData != nil {
+				edge = decimalToFloat64(houseEdgeData.HouseEdge)
+				s.logger.Info("Retrieved house edge from database for Falcon Liquidity",
+					zap.String("game_type", gameType),
+					zap.String("game_variant", gameVariant),
+					zap.Float64("house_edge", edge))
+			} else {
+				s.logger.Warn("Failed to get house edge from database, using default",
+					zap.String("game_variant", gameVariant),
+					zap.Error(err))
+				edge = 0.05 // Default 5% house edge
+			}
+		} else {
+			s.logger.Warn("Cashback service not available, using default house edge")
+			edge = 0.05 // Default 5% house edge
+		}
+	}
+
+	// Get the original wager transaction to calculate bet amount
+	wagerTransaction, err := s.storage.GetWagerTransactionBySessionID(ctx, req.GameSessionID)
+	betAmount := req.Result // Default to result amount if no wager found
+	if err == nil && wagerTransaction != nil {
+		betAmount = wagerTransaction.BetAmount
+	}
+
+	// Create Falcon casino bet data
+	falconBet := falcon_liquidity.CreateCasinoBetFromGrooveTransaction(
+		req.TransactionID,
+		userUUID.String(),
+		user.Username,
+		gameName,
+		betAmount,
+		req.Result,
+		edge,
+	)
+
+	// Send to Falcon Liquidity
+	err = s.falconService.PublishCasinoBet(ctx, falconBet)
+	if err != nil {
+		s.logger.Error("Failed to publish bet data to Falcon Liquidity",
+			zap.String("transaction_id", req.TransactionID),
+			zap.String("user_id", userUUID.String()),
+			zap.String("game_name", gameName),
+			zap.Float64("bet_amount", decimalToFloat64(betAmount)),
+			zap.Float64("payout", decimalToFloat64(req.Result)),
+			zap.Error(err))
+	} else {
+		s.logger.Info("Successfully published bet data to Falcon Liquidity",
+			zap.String("transaction_id", req.TransactionID),
+			zap.String("user_id", userUUID.String()),
+			zap.String("game_name", gameName),
+			zap.Float64("bet_amount", decimalToFloat64(betAmount)),
+			zap.Float64("payout", decimalToFloat64(req.Result)),
+			zap.Float64("house_edge", edge))
+	}
+}
+
+// decimalToFloat64 converts decimal.Decimal to float64
+func decimalToFloat64(d decimal.Decimal) float64 {
+	f, _ := d.Float64()
+	return f
 }

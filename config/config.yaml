@@ -136,4 +136,18 @@ groove:
   history_url: "https://tucanbit.tv"
   license_type: "Curacao"
   signature_validation: false
-  signature_secret: "test_key"  
+  signature_secret: "test_key"
+
+# Falcon Liquidity Configuration
+falcon_liquidity:
+  enabled: true
+  host: "b-72b0d5f8-fd98-47f3-97f9-c4dff10c8040.mq.eu-west-2.on.aws"
+  port: 5671
+  virtual_host: "client_acme"
+  username: "acme"
+  password: "acme-123"
+  exchange_name: "falcon_liquidity"
+  queue_name: "client_acme_queue"
+  routing_key: "client.acme"
+  client_name: "tucanbit"
+  management_port: 15672  
