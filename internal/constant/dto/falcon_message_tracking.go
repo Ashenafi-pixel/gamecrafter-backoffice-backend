@@ -46,23 +46,23 @@ type FalconLiquidityMessage struct {
 	BetAmount            decimal.Decimal            `json:"bet_amount"`
 	PayoutAmount         decimal.Decimal            `json:"payout_amount"`
 	Currency             string                     `json:"currency"`
-	GameName             string                     `json:"game_name"`
-	GameID               string                     `json:"game_id"`
-	HouseEdge            decimal.Decimal            `json:"house_edge"`
-	FalconRoutingKey     string                     `json:"falcon_routing_key"`
-	FalconExchange       string                     `json:"falcon_exchange"`
-	FalconQueue          string                     `json:"falcon_queue"`
+	GameName             *string                    `json:"game_name"`
+	GameID               *string                    `json:"game_id"`
+	HouseEdge            *decimal.Decimal           `json:"house_edge"`
+	FalconRoutingKey     *string                    `json:"falcon_routing_key"`
+	FalconExchange       *string                    `json:"falcon_exchange"`
+	FalconQueue          *string                    `json:"falcon_queue"`
 	Status               FalconMessageStatus        `json:"status"`
 	RetryCount           int                        `json:"retry_count"`
 	LastRetryAt          *time.Time                 `json:"last_retry_at"`
 	CreatedAt            time.Time                  `json:"created_at"`
 	SentAt               *time.Time                 `json:"sent_at"`
 	AcknowledgedAt       *time.Time                 `json:"acknowledged_at"`
-	ErrorMessage         string                     `json:"error_message"`
-	ErrorCode            string                     `json:"error_code"`
+	ErrorMessage         *string                    `json:"error_message"`
+	ErrorCode            *string                    `json:"error_code"`
 	FalconResponse       json.RawMessage            `json:"falcon_response"`
 	ReconciliationStatus FalconReconciliationStatus `json:"reconciliation_status"`
-	ReconciliationNotes  string                     `json:"reconciliation_notes"`
+	ReconciliationNotes  *string                    `json:"reconciliation_notes"`
 }
 
 // CreateFalconMessageRequest represents a request to create a new Falcon message record

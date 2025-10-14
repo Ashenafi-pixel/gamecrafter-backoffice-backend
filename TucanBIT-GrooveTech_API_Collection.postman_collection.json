@@ -7373,8 +7373,7 @@
 					"response": []
 				}
 			]
-		}
-	},
+		},
 	{
 		"name": "Falcon Liquidity APIs",
 		"description": "APIs for accessing Falcon Liquidity data without authentication - includes data retrieval, filtering, and summary statistics",
