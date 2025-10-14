@@ -191,11 +191,11 @@ func (b *User) TriggerBalanceWS(ctx context.Context, userID uuid.UUID) {
 	if conns, exists := b.UserBalanceSocket[userID]; exists {
 
 		for conn := range conns {
-			b.getUserBalanceSocketLocker(conn).Lock()
+			locker := b.getUserBalanceSocketLocker(conn)
+			locker.Lock()
+			defer locker.Unlock()
+			
 			if conn == nil {
-				if b.getUserBalanceSocketLocker(conn) != nil {
-					b.getUserBalanceSocketLocker(conn).Unlock()
-				}
 				continue
 			}
 
@@ -204,15 +204,8 @@ func (b *User) TriggerBalanceWS(ctx context.Context, userID uuid.UUID) {
 				// Remove the broken connection from the map
 				delete(b.UserBalanceSocket[userID], conn)
 				delete(b.UserBalanceSocketLocker, conn)
-				if b.getUserBalanceSocketLocker(conn) != nil {
-					b.getUserBalanceSocketLocker(conn).Unlock()
-				}
 				continue
 			}
-			if b.getUserBalanceSocketLocker(conn) != nil {
-				b.getUserBalanceSocketLocker(conn).Unlock()
-			}
-
 		}
 	} else {
 		b.log.Info("No user balance socket connections found for user", zap.String("userID", userID.String()))
@@ -241,23 +234,17 @@ func (b *User) TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashback
 
 	if conns, exists := b.UserBalanceSocket[userID]; exists {
 		for conn := range conns {
-			b.getUserBalanceSocketLocker(conn).Lock()
+			locker := b.getUserBalanceSocketLocker(conn)
+			locker.Lock()
+			defer locker.Unlock()
+			
 			if conn == nil {
-				if b.getUserBalanceSocketLocker(conn) != nil {
-					b.getUserBalanceSocketLocker(conn).Unlock()
-				}
 				continue
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				b.log.Warn("Failed to send cashback update", zap.Error(err), zap.String("userID", userID.String()))
-				if b.getUserBalanceSocketLocker(conn) != nil {
-					b.getUserBalanceSocketLocker(conn).Unlock()
-				}
 				continue
-			}
-			if b.getUserBalanceSocketLocker(conn) != nil {
-				b.getUserBalanceSocketLocker(conn).Unlock()
 			}
 		}
 	} else {
@@ -295,23 +282,17 @@ func (b *User) TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID
 
 	if conns, exists := b.UserBalanceSocket[userID]; exists {
 		for conn := range conns {
-			b.getUserBalanceSocketLocker(conn).Lock()
+			locker := b.getUserBalanceSocketLocker(conn)
+			locker.Lock()
+			defer locker.Unlock()
+			
 			if conn == nil {
-				if b.getUserBalanceSocketLocker(conn) != nil {
-					b.getUserBalanceSocketLocker(conn).Unlock()
-				}
 				continue
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 				b.log.Warn("Failed to send winner notification", zap.Error(err), zap.String("userID", userID.String()))
-				if b.getUserBalanceSocketLocker(conn) != nil {
-					b.getUserBalanceSocketLocker(conn).Unlock()
-				}
 				continue
-			}
-			if b.getUserBalanceSocketLocker(conn) != nil {
-				b.getUserBalanceSocketLocker(conn).Unlock()
 			}
 		}
 	} else {
