@@ -87,6 +87,8 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		module.OTP,
 		module.Email,
 		persistence.Balance,
+		module.Cashback,
+		module.Groove,
 		redisAdapter,
 		log,
 	)

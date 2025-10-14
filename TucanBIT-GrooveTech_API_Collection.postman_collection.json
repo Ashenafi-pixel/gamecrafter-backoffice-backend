@@ -148,6 +148,12 @@
 			"value": "NewSecurePass123!",
 			"type": "string",
 			"description": "New password for reset testing"
+		},
+		{
+			"key": "user_id",
+			"value": "5b414ccd-6397-469b-8f1f-7b9b28db14e3",
+			"type": "string",
+			"description": "User ID for Falcon Liquidity API testing"
 		}
 	],
 	"item": [
@@ -7368,6 +7374,151 @@
 				}
 			]
 		}
+	},
+	{
+		"name": "Falcon Liquidity APIs",
+		"description": "APIs for accessing Falcon Liquidity data without authentication - includes data retrieval, filtering, and summary statistics",
+		"item": [
+			{
+				"name": "Get All Falcon Liquidity Data",
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{base_url}}/api/falcon-liquidity/data?limit=100&offset=0&message_type=&status=&transaction_id=",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"api",
+							"falcon-liquidity",
+							"data"
+						],
+						"query": [
+							{
+								"key": "limit",
+								"value": "100",
+								"description": "Limit number of results (default: 100, max: 1000)"
+							},
+							{
+								"key": "offset",
+								"value": "0",
+								"description": "Offset for pagination (default: 0)"
+							},
+							{
+								"key": "message_type",
+								"value": "",
+								"description": "Filter by message type (casino, sport)"
+							},
+							{
+								"key": "status",
+								"value": "",
+								"description": "Filter by status (pending, sent, failed, acknowledged)"
+							},
+							{
+								"key": "transaction_id",
+								"value": "",
+								"description": "Filter by transaction ID"
+							}
+						]
+					},
+					"description": "Retrieve all Falcon Liquidity messages and data with optional filtering and pagination. No authentication required."
+				},
+				"response": []
+			},
+			{
+				"name": "Get Falcon Liquidity by Transaction ID",
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{base_url}}/api/falcon-liquidity/transaction/{{transaction_id}}",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"api",
+							"falcon-liquidity",
+							"transaction",
+							"{{transaction_id}}"
+						]
+					},
+					"description": "Retrieve Falcon Liquidity messages by specific transaction ID. No authentication required."
+				},
+				"response": []
+			},
+			{
+				"name": "Get Falcon Liquidity by User ID",
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{base_url}}/api/falcon-liquidity/user/{{user_id}}?limit=100&offset=0",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"api",
+							"falcon-liquidity",
+							"user",
+							"{{user_id}}"
+						],
+						"query": [
+							{
+								"key": "limit",
+								"value": "100",
+								"description": "Limit number of results (default: 100, max: 1000)"
+							},
+							{
+								"key": "offset",
+								"value": "0",
+								"description": "Offset for pagination (default: 0)"
+							}
+						]
+					},
+					"description": "Retrieve Falcon Liquidity messages by specific user ID with pagination. No authentication required."
+				},
+				"response": []
+			},
+			{
+				"name": "Get Falcon Liquidity Summary",
+				"request": {
+					"method": "GET",
+					"header": [],
+					"url": {
+						"raw": "{{base_url}}/api/falcon-liquidity/summary?message_type=&status=&transaction_id=",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"api",
+							"falcon-liquidity",
+							"summary"
+						],
+						"query": [
+							{
+								"key": "message_type",
+								"value": "",
+								"description": "Filter by message type (casino, sport)"
+							},
+							{
+								"key": "status",
+								"value": "",
+								"description": "Filter by status (pending, sent, failed, acknowledged)"
+							},
+							{
+								"key": "transaction_id",
+								"value": "",
+								"description": "Filter by transaction ID"
+							}
+						]
+					},
+					"description": "Retrieve summary statistics for Falcon Liquidity data with optional filtering. No authentication required."
+				},
+				"response": []
+			}
+		]
+	}
 	],
 	"event": [
 		{

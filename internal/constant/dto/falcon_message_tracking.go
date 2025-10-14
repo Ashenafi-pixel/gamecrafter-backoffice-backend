@@ -124,3 +124,17 @@ type FalconMessageSummary struct {
 	AverageHouseEdge     decimal.Decimal `json:"average_house_edge"`
 	LastMessageAt        *time.Time      `json:"last_message_at"`
 }
+
+// FalconLiquidityDataResponse represents the response for Falcon Liquidity data API
+type FalconLiquidityDataResponse struct {
+	Messages   []FalconLiquidityMessage  `json:"messages"`
+	Summary    *FalconMessageSummary     `json:"summary,omitempty"`
+	Pagination FalconLiquidityPagination `json:"pagination"`
+}
+
+// FalconLiquidityPagination represents pagination information for Falcon Liquidity data
+type FalconLiquidityPagination struct {
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+	Total  int `json:"total"`
+}

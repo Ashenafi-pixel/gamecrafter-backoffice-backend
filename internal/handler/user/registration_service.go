@@ -16,7 +16,9 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/email"
+	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/module/otp"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
@@ -28,6 +30,8 @@ type RegistrationService struct {
 	otpModule      otp.OTPModule
 	emailService   email.EmailService
 	balanceStorage storage.Balance
+	cashbackModule *cashback.CashbackService
+	grooveModule   groove.GrooveService
 	logger         *zap.Logger
 	redisClient    RedisClient
 }
@@ -46,6 +50,8 @@ func NewRegistrationService(
 	otpModule otp.OTPModule,
 	emailService email.EmailService,
 	balanceStorage storage.Balance,
+	cashbackModule *cashback.CashbackService,
+	grooveModule groove.GrooveService,
 	redisClient RedisClient,
 	logger *zap.Logger,
 ) *RegistrationService {
@@ -54,6 +60,8 @@ func NewRegistrationService(
 		otpModule:      otpModule,
 		emailService:   emailService,
 		balanceStorage: balanceStorage,
+		cashbackModule: cashbackModule,
+		grooveModule:   grooveModule,
 		redisClient:    redisClient,
 		logger:         logger,
 	}
@@ -537,6 +545,50 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 		}
 	} else {
 		rs.logger.Info("Initial wallet created successfully for user",
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+	}
+
+	// Initialize user level (Bronze tier by default) for cashback system
+	rs.logger.Info("Initializing user level for cashback system",
+		zap.String("user_id", userResponse.UserID.String()),
+		zap.String("email", registrationData.Email))
+
+	err = rs.cashbackModule.InitializeUserLevel(c.Request.Context(), userResponse.UserID)
+	if err != nil {
+		rs.logger.Error("Failed to initialize user level",
+			zap.Error(err),
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+
+		// Don't fail the registration, but log the error for monitoring
+		rs.logger.Warn("User registration completed but user level initialization failed - this requires immediate attention",
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+	} else {
+		rs.logger.Info("User level initialized successfully",
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+	}
+
+	// Create GrooveTech account for gaming functionality
+	rs.logger.Info("Creating GrooveTech account for gaming functionality",
+		zap.String("user_id", userResponse.UserID.String()),
+		zap.String("email", registrationData.Email))
+
+	_, err = rs.grooveModule.CreateAccount(c.Request.Context(), userResponse.UserID)
+	if err != nil {
+		rs.logger.Error("Failed to create GrooveTech account",
+			zap.Error(err),
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+
+		// Don't fail the registration, but log the error for monitoring
+		rs.logger.Warn("User registration completed but GrooveTech account creation failed - this requires immediate attention",
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+	} else {
+		rs.logger.Info("GrooveTech account created successfully",
 			zap.String("user_id", userResponse.UserID.String()),
 			zap.String("email", registrationData.Email))
 	}

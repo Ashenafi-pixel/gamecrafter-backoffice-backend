@@ -240,6 +240,68 @@ func (e *EmailServiceImpl) SendPasswordResetOTPEmail(email, otpCode, otpId, user
 	return nil
 }
 
+// SendPasswordResetConfirmationEmail sends a password reset confirmation email
+func (e *EmailServiceImpl) SendPasswordResetConfirmationEmail(email, firstName, userAgent, ipAddress string) error {
+	subject := "Password Successfully Reset - TucanBIT"
+
+	// Get device and location info
+	device := "Unknown Device"
+	location := "Unknown Location"
+	if userAgent != "" {
+		device = GetDeviceInfo(userAgent)
+		location = GetLocationInfo(ipAddress)
+	}
+
+	// Get current time
+	currentTime := time.Now()
+
+	data := map[string]interface{}{
+		"FirstName":    firstName,
+		"Email":        email,
+		"BrandName":    "TucanBIT",
+		"ResetTime":    currentTime.Format("January 2, 2006 at 3:04 PM MST"),
+		"Device":       device,
+		"Location":     location,
+		"IPAddress":    ipAddress,
+		"LoginURL":     "https://tucanbit.tv/login",
+		"SupportEmail": "support@tucanbit.com",
+		"CurrentYear":  currentTime.Year(),
+	}
+
+	htmlBody, err := e.renderTemplate("password_reset_confirmation", data)
+	if err != nil {
+		return fmt.Errorf("failed to render password reset confirmation template: %w", err)
+	}
+
+	e.logger.Info("Attempting to send password reset confirmation email",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("device", device),
+		zap.String("location", location),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)),
+		zap.String("smtp_username", e.config.Username),
+		zap.String("smtp_from", e.config.From),
+		zap.Bool("use_tls", e.config.UseTLS))
+
+	err = e.sendEmail(email, subject, htmlBody)
+	if err != nil {
+		e.logger.Error("Failed to send password reset confirmation email",
+			zap.String("to", email),
+			zap.String("subject", subject),
+			zap.Error(err))
+		return err
+	}
+
+	e.logger.Info("Password reset confirmation email sent successfully",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
+
+	return nil
+}
+
 // SendSecurityAlert sends a security alert email
 func (e *EmailServiceImpl) SendSecurityAlert(email, alertType, details string) error {
 	subject := fmt.Sprintf("Security Alert - %s", alertType)
@@ -305,61 +367,6 @@ func (e *EmailServiceImpl) SendTwoFactorOTPEmail(email, firstName, otpCode strin
 	}
 
 	e.logger.Info("2FA OTP email sent successfully",
-		zap.String("to", email),
-		zap.String("subject", subject),
-		zap.String("smtp_host", e.config.Host),
-		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
-
-	return nil
-}
-
-// SendPasswordResetConfirmationEmail sends a professional password reset confirmation email
-func (e *EmailServiceImpl) SendPasswordResetConfirmationEmail(email, firstName string, userAgent, ipAddress string) error {
-	subject := "Password Successfully Reset - TucanBIT Security Confirmation"
-
-	// Get device and location information
-	device := GetDeviceInfo(userAgent)
-	location := GetLocationInfo(ipAddress)
-	currentTime := time.Now().UTC().Format("January 2, 2006 at 3:04 PM MST")
-
-	// Create template data
-	data := map[string]interface{}{
-		"FirstName":    firstName,
-		"Email":        email,
-		"BrandName":    "TucanBIT",
-		"ResetTime":    currentTime,
-		"Device":       device,
-		"Location":     location,
-		"IPAddress":    ipAddress,
-		"LoginURL":     "https://app.tucanbit.com/login",
-		"SupportEmail": "support@tucanbit.com",
-		"CurrentYear":  time.Now().Year(),
-	}
-
-	htmlBody, err := e.renderTemplate("password_reset_confirmation", data)
-	if err != nil {
-		return fmt.Errorf("failed to render password reset confirmation template: %w", err)
-	}
-
-	e.logger.Info("Attempting to send password reset confirmation email",
-		zap.String("to", email),
-		zap.String("subject", subject),
-		zap.String("device", device),
-		zap.String("location", location),
-		zap.String("ip_address", ipAddress),
-		zap.String("smtp_host", e.config.Host),
-		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
-
-	err = e.sendEmail(email, subject, htmlBody)
-	if err != nil {
-		e.logger.Error("Failed to send password reset confirmation email",
-			zap.String("to", email),
-			zap.String("subject", subject),
-			zap.Error(err))
-		return err
-	}
-
-	e.logger.Info("Password reset confirmation email sent successfully",
 		zap.String("to", email),
 		zap.String("subject", subject),
 		zap.String("smtp_host", e.config.Host),

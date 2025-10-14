@@ -239,7 +239,7 @@ func Initiate() {
 
 	// initializing route which handle route endpoints
 	logger.Info("initializing route")
-	initRoute(ginsrv, handler, module, logger, enforcer)
+	initRoute(ginsrv, handler, module, logger, enforcer, persistence)
 	logger.Info("done initializing route")
 
 	logger.Info("Server configuration",

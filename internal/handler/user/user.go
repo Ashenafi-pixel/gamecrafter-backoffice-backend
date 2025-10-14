@@ -2,6 +2,7 @@ package user
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -322,7 +323,16 @@ func (u *user) VerifyResetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.VerifyResetPassword(c, verifyResetPasswordReq)
+
+	// Extract user agent and IP address for email context
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	// Add to context for email service
+	ctx := context.WithValue(c.Request.Context(), "user_agent", userAgent)
+	ctx = context.WithValue(ctx, "ip_address", ipAddress)
+
+	res, err := u.userModule.VerifyResetPassword(ctx, verifyResetPasswordReq)
 	if err != nil {
 		// Handle specific error types for better user experience
 		errStr := err.Error()
@@ -390,7 +400,16 @@ func (u *user) ResetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.ResetPassword(c, resetPassword)
+
+	// Extract user agent and IP address for email context
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	// Add to context for email service
+	ctx := context.WithValue(c.Request.Context(), "user_agent", userAgent)
+	ctx = context.WithValue(ctx, "ip_address", ipAddress)
+
+	res, err := u.userModule.ResetPassword(ctx, resetPassword)
 	if err != nil {
 		_ = c.Error(err)
 		return

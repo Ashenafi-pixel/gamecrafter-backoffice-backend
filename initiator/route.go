@@ -17,6 +17,7 @@ import (
 	"github.com/tucanbit/internal/glue/company"
 	"github.com/tucanbit/internal/glue/department"
 	"github.com/tucanbit/internal/glue/exchange"
+	"github.com/tucanbit/internal/glue/falcon_liquidity"
 	"github.com/tucanbit/internal/glue/game"
 	"github.com/tucanbit/internal/glue/groove"
 	"github.com/tucanbit/internal/glue/logs"
@@ -34,10 +35,11 @@ import (
 	"github.com/tucanbit/internal/glue/twofactor"
 	"github.com/tucanbit/internal/glue/user"
 	"github.com/tucanbit/internal/glue/ws"
+	falconStorage "github.com/tucanbit/internal/storage/falcon_liquidity"
 	"go.uber.org/zap"
 )
 
-func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.Logger, enforcer *casbin.Enforcer) {
+func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.Logger, enforcer *casbin.Enforcer, persistence *Persistence) {
 	user.Init(grp, *log, handler.User, module.User, module.Authz, enforcer, module.SystemLogs)
 	operationalgroup.Init(grp, *log, handler.OperationalGroup, module.Authz, enforcer, module.SystemLogs)
 	operationalgrouptype.Init(grp, *log, handler.OperationalGroupType, module.Authz, enforcer, module.SystemLogs)
@@ -69,4 +71,11 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	game.Init(grp, *log, handler.Game, handler.HouseEdge, module.Authz, module.SystemLogs, enforcer)
 	analytics.Init(grp, log, handler.Analytics)
 	twofactor.Init(grp, log, handler.TwoFactor)
+
+	// Initialize Falcon Liquidity routes (no authentication required)
+	falconStorageInstance := falconStorage.NewFalconMessageStorage(log, persistence.Database)
+	falconRoutes := falcon_liquidity.GetFalconLiquidityRoutes(falconStorageInstance, log)
+	for _, route := range falconRoutes {
+		grp.Handle(route.Method, route.Path, route.Handler)
+	}
 }
