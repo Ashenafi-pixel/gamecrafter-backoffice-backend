@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
 
@@ -17,6 +18,7 @@ type TwoFactorService interface {
 	Get2FAStatus(ctx context.Context, userID uuid.UUID) (*dto.TwoFactorSettings, error)
 	Disable2FA(ctx context.Context, userID uuid.UUID, token, ip, userAgent string) error
 	ValidateBackupCode(ctx context.Context, userID uuid.UUID, code string) (bool, error)
+	GetBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error)
 	VerifyLoginToken(ctx context.Context, userID uuid.UUID, token, backupCode, ip, userAgent string) (bool, error)
 	IsRateLimited(ctx context.Context, userID uuid.UUID) (bool, error)
 
@@ -55,6 +57,11 @@ type TwoFactorHandler interface {
 	VerifyWithMethod(c *gin.Context)
 	GenerateEmailOTP(c *gin.Context)
 	GenerateSMSOTP(c *gin.Context)
+
+	// Login-specific endpoints (no auth required)
+	GenerateEmailOTPForLogin(c *gin.Context)
+	GenerateSMSOTPForLogin(c *gin.Context)
+	GetBackupCodes(c *gin.Context)
 }
 
 func NewTwoFactorHandler(service TwoFactorService, log *zap.Logger) TwoFactorHandler {
@@ -169,17 +176,6 @@ func (h *twoFactorHandler) VerifyAndEnable(c *gin.Context) {
 		return
 	}
 
-	var req dto.TwoFactorSetupRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.log.Error("Failed to bind request", zap.Error(err))
-		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
-			Success: false,
-			Error:   "Invalid request format",
-		})
-		return
-	}
-
-	// Get the secret from the request (it should be stored temporarily)
 	var secretReq struct {
 		Secret string `json:"secret" binding:"required"`
 		Token  string `json:"token" binding:"required"`
@@ -235,7 +231,10 @@ func (h *twoFactorHandler) VerifyAndEnable(c *gin.Context) {
 // @Failure 500 {object} dto.TwoFactorResponse
 // @Router /api/auth/2fa/verify [post]
 func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
-	var req dto.TwoFactorVerifyRequest
+	var req struct {
+		dto.TwoFactorVerifyRequest
+		UserID string `json:"user_id"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.log.Error("Failed to bind request", zap.Error(err))
 		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
@@ -245,10 +244,14 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 		return
 	}
 
-	// Get user ID from request (this endpoint is used during login)
+	// Get user ID from request body or header
 	userIDStr := c.GetHeader("X-User-ID")
 	if userIDStr == "" {
-		h.log.Error("User ID not provided in header")
+		userIDStr = req.UserID
+	}
+
+	if userIDStr == "" {
+		h.log.Error("User ID not provided")
 		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
 			Success: false,
 			Error:   "User ID is required",
@@ -270,8 +273,16 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 	ip := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	// Verify the token
-	success, err := h.service.VerifyLoginToken(c.Request.Context(), userID, req.Token, req.BackupCode, ip, userAgent)
+	// Determine verification method
+	var success bool
+
+	if req.Method != "" {
+		// Use method-specific verification
+		success, err = h.service.VerifyLoginWithMethod(c.Request.Context(), userID, req.Method, req.Token, ip, userAgent)
+	} else {
+		// Fallback to legacy verification (for backward compatibility)
+		success, err = h.service.VerifyLoginToken(c.Request.Context(), userID, req.Token, req.BackupCode, ip, userAgent)
+	}
 	if err != nil {
 		h.log.Error("Failed to verify 2FA token", zap.Error(err), zap.String("user_id", userID.String()))
 
@@ -284,7 +295,7 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+		c.JSON(http.StatusUnauthorized, dto.TwoFactorResponse{
 			Success: false,
 			Error:   "Failed to verify token",
 		})
@@ -301,9 +312,24 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 	}
 
 	h.log.Info("2FA token verified successfully", zap.String("user_id", userID.String()))
+
+	// Generate JWT token for successful 2FA verification
+	token, err := utils.GenerateJWTWithVerification(userID, true, true, true)
+	if err != nil {
+		h.log.Error("Failed to generate JWT token after 2FA", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Error:   "Failed to complete login",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, dto.TwoFactorResponse{
 		Success: true,
-		Message: "Token verified successfully",
+		Message: "2FA verification successful",
+		Data: map[string]interface{}{
+			"access_token": token,
+		},
 	})
 }
 
@@ -442,7 +468,7 @@ func (h *twoFactorHandler) GetEnabledMethods(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		userUUID, err := uuid.Parse(userIDStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
@@ -451,7 +477,7 @@ func (h *twoFactorHandler) GetEnabledMethods(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		methods, err := h.service.GetEnabledMethods(c.Request.Context(), userUUID)
 		if err != nil {
 			h.log.Error("Failed to get enabled methods", zap.Error(err), zap.String("user_id", userUUID.String()))
@@ -948,5 +974,139 @@ func (h *twoFactorHandler) GenerateSMSOTP(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.TwoFactorResponse{
 		Success: true,
 		Message: "SMS OTP sent successfully",
+	})
+}
+
+// GenerateEmailOTPForLogin generates and sends an email OTP during login (no auth required)
+func (h *twoFactorHandler) GenerateEmailOTPForLogin(c *gin.Context) {
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+		Email  string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	err = h.service.GenerateEmailOTP(c.Request.Context(), userUUID, req.Email)
+	if err != nil {
+		h.log.Error("Failed to generate email OTP for login", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to generate email OTP",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Email OTP generated for login", zap.String("user_id", userUUID.String()), zap.String("email", req.Email))
+
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Email OTP sent successfully",
+	})
+}
+
+// GenerateSMSOTPForLogin generates and sends an SMS OTP during login (no auth required)
+func (h *twoFactorHandler) GenerateSMSOTPForLogin(c *gin.Context) {
+	var req struct {
+		UserID      string `json:"user_id" binding:"required"`
+		PhoneNumber string `json:"phone_number" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	err = h.service.GenerateSMSOTP(c.Request.Context(), userUUID, req.PhoneNumber)
+	if err != nil {
+		h.log.Error("Failed to generate SMS OTP for login", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to generate SMS OTP",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("SMS OTP generated for login", zap.String("user_id", userUUID.String()), zap.String("phone", req.PhoneNumber))
+
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "SMS OTP sent successfully",
+	})
+}
+
+// GetBackupCodes retrieves backup codes for a user (for login flow)
+func (h *twoFactorHandler) GetBackupCodes(c *gin.Context) {
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	codes, err := h.service.GetBackupCodes(c.Request.Context(), userUUID)
+	if err != nil {
+		h.log.Error("Failed to get backup codes", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to retrieve backup codes",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Backup codes retrieved", zap.String("user_id", userUUID.String()), zap.Int("count", len(codes)))
+
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Backup codes retrieved successfully",
+		Data: map[string]interface{}{
+			"backup_codes": codes,
+		},
 	})
 }

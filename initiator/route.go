@@ -4,6 +4,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/adds"
+	"github.com/tucanbit/internal/glue/admin_notification"
 	"github.com/tucanbit/internal/glue/agent"
 	"github.com/tucanbit/internal/glue/analytics"
 	"github.com/tucanbit/internal/glue/authz"
@@ -11,6 +12,7 @@ import (
 	"github.com/tucanbit/internal/glue/balancelogs"
 	"github.com/tucanbit/internal/glue/banner"
 	"github.com/tucanbit/internal/glue/bet"
+	"github.com/tucanbit/internal/glue/campaign"
 	"github.com/tucanbit/internal/glue/cashback"
 	"github.com/tucanbit/internal/glue/company"
 	"github.com/tucanbit/internal/glue/department"
@@ -28,9 +30,9 @@ import (
 	"github.com/tucanbit/internal/glue/risksettings"
 	"github.com/tucanbit/internal/glue/sportsservice"
 	"github.com/tucanbit/internal/glue/squads"
+	"github.com/tucanbit/internal/glue/twofactor"
 	"github.com/tucanbit/internal/glue/user"
 	"github.com/tucanbit/internal/glue/ws"
-	"github.com/tucanbit/internal/glue/twofactor"
 	"go.uber.org/zap"
 )
 
@@ -52,6 +54,8 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	report.Init(grp, *log, handler.Report, module.Authz, enforcer, module.SystemLogs)
 	squads.Init(grp, *log, handler.Squads, module.Authz, enforcer, module.SystemLogs)
 	notification.Init(grp, *log, handler.Notification)
+	admin_notification.Init(grp, *log, handler.Notification)
+	campaign.InitRoutes(grp, handler.Campaign, log, module.Authz, enforcer)
 	adds.Init(grp, *log, module.Authz, enforcer, handler.Adds, module.SystemLogs)
 	banner.Init(grp, *log, module.Authz, enforcer, handler.Banner, module.SystemLogs)
 	lottery.Init(grp, *log, handler.Lottery, module.Authz, module.SystemLogs, enforcer)

@@ -13,6 +13,7 @@ import (
 	"github.com/tucanbit/internal/module/balancelogs"
 	"github.com/tucanbit/internal/module/banner"
 	"github.com/tucanbit/internal/module/bet"
+	"github.com/tucanbit/internal/module/campaign"
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
 	"github.com/tucanbit/internal/module/crypto_wallet"
@@ -66,6 +67,7 @@ type Module struct {
 	Report                module.Report
 	Squads                module.Squads
 	Notification          module.Notification
+	Campaign              module.Campaign
 	Adds                  module.Adds
 	Banner                module.Banner
 	Lottery               module.Lottery
@@ -128,6 +130,25 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			pisiClient,
 			persistence.OTP,
 			emailService,
+			twofactor.NewTwoFactorService(persistence.TwoFactor, log, twofactor.TwoFactorConfig{
+				Issuer:           "TucanBIT",
+				Algorithm:        otp.AlgorithmSHA1,
+				Digits:           otp.DigitsSix,
+				Period:           30,
+				BackupCodesCount: 10,
+				MaxAttempts:      5,
+				LockoutDuration:  15 * time.Minute,
+				EnabledMethods: []twofactor.TwoFactorMethod{
+					twofactor.MethodTOTP,
+					twofactor.MethodEmailOTP,
+					twofactor.MethodSMSOTP,
+					twofactor.MethodBiometric,
+					twofactor.MethodBackupCodes,
+				},
+				EmailOTPLength:   6,
+				SMSOTPLength:     6,
+				OTPExpiryMinutes: 5,
+			}, emailService),
 		),
 		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
@@ -182,6 +203,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Report:       report.Init(persistence.Report, log),
 		Squads:       squads.Init(log, persistence.Squad, persistence.User),
 		Notification: notification.Init(persistence.Notification, log),
+		Campaign:     campaign.Init(persistence.Campaign, persistence.Notification, log),
 		Adds:         adds.Init(persistence.Adds, persistence.Balance, persistence.BalanageLogs, log),
 		Banner:       banner.Init(persistence.Banner, log, viper.GetString("aws.bucket.name")),
 		Lottery: lottery.Init(
@@ -211,7 +233,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			BackupCodesCount: 10,
 			MaxAttempts:      5,
 			LockoutDuration:  15 * time.Minute,
-			EnabledMethods:   []twofactor.TwoFactorMethod{
+			EnabledMethods: []twofactor.TwoFactorMethod{
 				twofactor.MethodTOTP,
 				twofactor.MethodEmailOTP,
 				twofactor.MethodSMSOTP,
@@ -221,7 +243,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			EmailOTPLength:   6,
 			SMSOTPLength:     6,
 			OTPExpiryMinutes: 5,
-		}),
+		}, emailService),
 		Redis: redis,
 	}
 }

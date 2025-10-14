@@ -21,6 +21,7 @@ import (
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/email"
 	"github.com/tucanbit/internal/module/otp"
+	"github.com/tucanbit/internal/service/twofactor"
 	"github.com/tucanbit/internal/storage"
 	otpStorage "github.com/tucanbit/internal/storage/otp"
 	"github.com/tucanbit/platform/pisi"
@@ -66,6 +67,7 @@ type User struct {
 	PisiClient                    pisi.PisiClient
 	EnterpriseRegistrationService *EnterpriseRegistrationService
 	otpModule                     otp.OTPModule
+	twoFactorService              twofactor.TwoFactorService
 }
 
 func Init(userStorage storage.User,
@@ -89,6 +91,7 @@ func Init(userStorage storage.User,
 	pisiClient pisi.PisiClient,
 	otpStorage otpStorage.OTP,
 	emailService email.EmailService,
+	twoFactorService twofactor.TwoFactorService,
 ) module.User {
 	gOauth := &oauth.Config{
 		ClientID:     gclientID,
@@ -130,6 +133,7 @@ func Init(userStorage storage.User,
 		redis:                       redis,
 		PisiClient:                  pisiClient,
 		otpModule:                   otp.NewOTPService(otpStorage, userStorage, emailService, log),
+		twoFactorService:            twoFactorService,
 	}
 	// Initialize enterprise registration service
 	usr.EnterpriseRegistrationService = NewEnterpriseRegistrationService(
@@ -725,6 +729,42 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		u.logsStorage.CreateLoginAttempts(ctx, loginLogs)
 		return dto.UserLoginRes{}, "", err
 	}
+	// Check if user has 2FA enabled
+	status, err := u.twoFactorService.Get2FAStatus(ctx, usr.ID)
+	if err != nil {
+		u.log.Error("Failed to check 2FA status", zap.Error(err), zap.String("user_id", usr.ID.String()))
+		// Continue with login if 2FA check fails
+	} else if status.IsEnabled {
+		// Get available 2FA methods for the user
+		availableMethods, err := u.twoFactorService.GetEnabledMethods(ctx, usr.ID)
+		if err != nil {
+			u.log.Error("Failed to get available 2FA methods", zap.Error(err), zap.String("user_id", usr.ID.String()))
+			// Fallback to basic methods if we can't get the list
+			availableMethods = []string{"totp", "backup_codes"}
+		}
+
+		// Return early with 2FA required response
+		userProfile := dto.UserProfile{
+			Username:     usr.Username,
+			UserID:       usr.ID,
+			Email:        usr.Email,
+			PhoneNumber:  usr.PhoneNumber,
+			FirstName:    usr.FirstName,
+			LastName:     usr.LastName,
+			Type:         usr.Type,
+			ReferralCode: usr.ReferralCode,
+		}
+
+		return dto.UserLoginRes{
+			Message:             "2FA verification required",
+			AccessToken:         "", // No token until 2FA is verified
+			UserProfile:         &userProfile,
+			Requires2FA:         true,
+			UserID:              usr.ID.String(),
+			Available2FAMethods: availableMethods,
+		}, "", nil
+	}
+
 	// Check user verification status
 	isVerified := false
 	emailVerified := false

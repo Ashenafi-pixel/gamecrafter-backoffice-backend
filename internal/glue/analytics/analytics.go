@@ -7,7 +7,7 @@ import (
 )
 
 func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analytics) {
-	analyticsGroup := grp.Group("/analytics")
+	analyticsGroup := grp.Group("/api/admin/analytics")
 	{
 		// User analytics endpoints
 		analyticsGroup.GET("/users/:user_id/transactions", analyticsHandler.GetUserTransactions)

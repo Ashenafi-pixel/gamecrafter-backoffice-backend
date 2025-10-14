@@ -1728,6 +1728,229 @@ func GetVerificationSuccessTemplate() *template.Template {
 `))
 }
 
+// GetTwoFactorOTPEmailTemplate returns the HTML template for 2FA OTP emails
+func GetTwoFactorOTPEmailTemplate() *template.Template {
+	tmpl := `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication Code - TucanBIT</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .message {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .otp-container {
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        .otp-code {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            letter-spacing: 5px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .otp-expires {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 15px;
+        }
+        .security-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 5px;
+        }
+        .security-box h3 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 18px;
+        }
+        .security-box p {
+            margin: 0;
+            color: #856404;
+        }
+        .info-box {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 5px;
+        }
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+            font-size: 18px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #1565c0;
+        }
+        .footer {
+            background-color: #2c3e50;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .footer p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .social-links {
+            margin: 20px 0;
+        }
+        .social-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 16px;
+        }
+        .support-info {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .support-info h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .support-info p {
+            margin: 5px 0;
+            color: #6c757d;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .header {
+                padding: 20px 15px;
+            }
+            .otp-code {
+                font-size: 24px;
+                letter-spacing: 3px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">TB</div>
+            <h1>TucanBIT Security</h1>
+        </div>
+        
+        <div class="content">
+            <div class="welcome">Two-Factor Authentication Code</div>
+            
+            <div class="message">
+                Hello {{.FirstName}}, you've requested a two-factor authentication code to secure your TucanBIT account.
+            </div>
+            
+            <div class="otp-container">
+                <h3>Your Security Code</h3>
+                <div class="otp-code">{{.OTPCode}}</div>
+                <p>Enter this code in the application to complete your login.</p>
+                <div class="otp-expires">
+                    This code expires at {{.OTPExpiresAt.Format "3:04 PM MST on January 2, 2006"}}
+                </div>
+            </div>
+            
+            <div class="security-box">
+                <h3>🔒 Security Notice</h3>
+                <p>Never share this code with anyone. TucanBIT staff will never ask for your two-factor authentication code. If you didn't request this code, please secure your account immediately.</p>
+            </div>
+            
+            <div class="info-box">
+                <h3>ℹ️ Important Information</h3>
+                <p>This code is valid for {{.OTPExpiryMinutes}} minutes only. If you're having trouble logging in, please contact our support team.</p>
+            </div>
+            
+            <div class="support-info">
+                <h4>Need Help?</h4>
+                <p>Email: {{.SupportEmail}}</p>
+                <p>Phone: {{.SupportPhone}}</p>
+                <p>Website: <a href="{{.WebsiteURL}}">{{.WebsiteURL}}</a></p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="social-links">
+                <a href="#">Twitter</a> |
+                <a href="#">LinkedIn</a> |
+                <a href="#">Facebook</a>
+            </div>
+            <p>&copy; {{.CurrentYear}} TucanBIT. All rights reserved.</p>
+            <p>This email was sent to {{.Email}} for security purposes.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+	return template.Must(template.New("two_factor_otp").Parse(tmpl))
+}
+
 // GetVerificationPageTemplate returns a verification page template that handles API calls
 func GetVerificationPageTemplate() *template.Template {
 	return template.Must(template.New("verificationPage").Parse(`

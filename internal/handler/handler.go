@@ -295,9 +295,40 @@ type Squads interface {
 	ApproveWaitingSquadMember(c *gin.Context)
 }
 
+type TwoFactor interface {
+	GenerateSecret(c *gin.Context)
+	VerifyAndEnable(c *gin.Context)
+	VerifyToken(c *gin.Context)
+	GetStatus(c *gin.Context)
+	Disable2FA(c *gin.Context)
+	GetAvailableMethods(c *gin.Context)
+	GetEnabledMethods(c *gin.Context)
+	EnableMethod(c *gin.Context)
+	DisableMethod(c *gin.Context)
+	VerifyWithMethod(c *gin.Context)
+	GenerateEmailOTP(c *gin.Context)
+	GenerateSMSOTP(c *gin.Context)
+	GenerateEmailOTPForLogin(c *gin.Context)
+	GenerateSMSOTPForLogin(c *gin.Context)
+	GetBackupCodes(c *gin.Context)
+}
+
+type Campaign interface {
+	CreateCampaign(c *gin.Context)
+	GetCampaigns(c *gin.Context)
+	GetCampaignByID(c *gin.Context)
+	UpdateCampaign(c *gin.Context)
+	DeleteCampaign(c *gin.Context)
+	SendCampaign(c *gin.Context)
+	GetCampaignRecipients(c *gin.Context)
+	GetCampaignStats(c *gin.Context)
+	GetCampaignNotificationsDashboard(c *gin.Context)
+}
+
 type Notification interface {
 	CreateNotification(c *gin.Context)
 	GetUserNotifications(c *gin.Context)
+	GetAdminNotifications(c *gin.Context)
 	MarkNotificationRead(c *gin.Context)
 	MarkAllNotificationsRead(c *gin.Context)
 	DeleteNotification(c *gin.Context)
