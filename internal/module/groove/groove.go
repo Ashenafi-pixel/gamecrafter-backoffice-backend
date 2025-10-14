@@ -353,7 +353,7 @@ func (s *GrooveServiceImpl) GetBalance(ctx context.Context, accountID string) (*
 		token, err := jwt.ParseWithClaims(accountID, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte(viper.GetString("auth.jwt_secret")), nil
 		})
-		
+
 		if err != nil || !token.Valid {
 			s.logger.Error("Invalid JWT token for balance request", zap.Error(err))
 			return &dto.GrooveGetBalanceResponse{
@@ -363,9 +363,9 @@ func (s *GrooveServiceImpl) GetBalance(ctx context.Context, accountID string) (*
 				APIVersion: "1.2",
 			}, nil
 		}
-		
+
 		userID = claims.UserID.String()
-		s.logger.Info("Extracted user ID from JWT token", 
+		s.logger.Info("Extracted user ID from JWT token",
 			zap.String("user_id", userID),
 			zap.String("original_account_id", accountID))
 	} else {
