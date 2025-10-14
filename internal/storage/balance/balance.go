@@ -105,21 +105,38 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 		}, nil
 	}
 
-	// Use original query with currency for local development
-	blc, err := b.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-		UserID:     createBalanceReq.UserId,
-		Currency:   createBalanceReq.CurrencyCode,
-		RealMoney:  createBalanceReq.RealMoney,
-		BonusMoney: createBalanceReq.BonusMoney,
-		Points:     createBalanceReq.Points,
-		UpdatedAt:  time.Now(),
-	})
+	// Use manual SQL to avoid SQLC column mapping issues
+	var id uuid.UUID
+	var userID uuid.UUID
+	var currencyCode string
+	var amountCents int64
+	var amountUnits decimal.Decimal
+	var reservedCents int64
+	var reservedUnits decimal.Decimal
+	var updatedAt time.Time
+
+	err := b.db.GetPool().QueryRow(ctx, `
+		INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
+	`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, 0, createBalanceReq.RealMoney, 0, createBalanceReq.BonusMoney, time.Now()).Scan(
+		&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+	)
 	if err != nil {
-		b.log.Error("unable to create balance ", zap.Error(err), zap.Any("user", createBalanceReq))
-		err = errors.ErrUnableTocreate.Wrap(err, "unable to create balance ", zap.Any("user", createBalanceReq))
+		b.log.Error("unable to create balance", zap.Error(err), zap.Any("user", createBalanceReq))
+		err = errors.ErrUnableTocreate.Wrap(err, "unable to create balance")
 		return dto.Balance{}, err
 	}
-	return convertDBBalanceToDTO(blc), nil
+
+	return dto.Balance{
+		ID:           id,
+		UserId:       userID,
+		CurrencyCode: currencyCode,
+		RealMoney:    amountUnits,   // amount_units maps to real_money
+		BonusMoney:   reservedUnits, // reserved_units maps to bonus_money
+		Points:       0,             // Points not stored in balances table
+		UpdateAt:     updatedAt,
+	}, nil
 }
 
 func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto.Balance) (dto.Balance, bool, error) {

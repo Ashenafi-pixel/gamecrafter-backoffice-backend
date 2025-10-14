@@ -194,7 +194,7 @@ func (b *User) TriggerBalanceWS(ctx context.Context, userID uuid.UUID) {
 			locker := b.getUserBalanceSocketLocker(conn)
 			locker.Lock()
 			defer locker.Unlock()
-			
+
 			if conn == nil {
 				continue
 			}
@@ -237,7 +237,7 @@ func (b *User) TriggerCashbackWS(ctx context.Context, userID uuid.UUID, cashback
 			locker := b.getUserBalanceSocketLocker(conn)
 			locker.Lock()
 			defer locker.Unlock()
-			
+
 			if conn == nil {
 				continue
 			}
@@ -285,7 +285,7 @@ func (b *User) TriggerWinnerNotificationWS(ctx context.Context, userID uuid.UUID
 			locker := b.getUserBalanceSocketLocker(conn)
 			locker.Lock()
 			defer locker.Unlock()
-			
+
 			if conn == nil {
 				continue
 			}

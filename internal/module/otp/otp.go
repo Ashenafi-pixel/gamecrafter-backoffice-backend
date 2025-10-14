@@ -217,77 +217,19 @@ func (s *OTPService) VerifyOTP(ctx context.Context, req *dto.OTPVerificationRequ
 		return nil, fmt.Errorf("failed to update OTP status: %w", err)
 	}
 
-	// Get or create user
-	user, exists, err := s.user.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
+	// For registration flow, we don't create users here
+	// Users are created only after successful OTP verification in registration completion
+	// This prevents duplicate user creation issues
 
-	var userID uuid.UUID
-	var isNewUser bool
+	// Check if this is a registration OTP verification
+	// If so, we just verify the OTP without creating/updating user
+	s.logger.Info("OTP verified successfully for registration flow",
+		zap.String("email", req.Email),
+		zap.String("otp_id", req.OTPID.String()))
 
-	if !exists {
-		// Create new user
-		newUser := dto.User{
-			Email:           req.Email,
-			Username:        req.Email, // Use email as username for now
-			Type:            "PLAYER",
-			ReferralCode:    s.generateReferralCode(),
-			DefaultCurrency: "USD",
-			Status:          "pending",
-			Password:        s.generateTemporaryPassword(), // Generate a temporary password
-		}
-
-		createdUser, err := s.user.CreateUser(ctx, newUser)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create user: %w", err)
-		}
-		userID = createdUser.ID
-		isNewUser = true
-
-		// Send welcome email
-		go func() {
-			if err := s.email.SendWelcomeEmail(req.Email, ""); err != nil {
-				s.logger.Error("Failed to send welcome email",
-					zap.String("email", req.Email),
-					zap.Error(err))
-			}
-		}()
-	} else {
-		// Use existing user
-		userID = user.ID
-		isNewUser = false
-
-		// Update existing user's email verification status
-		// This is critical for production - users must be marked as verified after successful OTP verification
-		_, err = s.user.UpdateUserVerificationStatus(ctx, userID, true)
-		if err != nil {
-			s.logger.Error("Failed to update user email verification status",
-				zap.Error(err),
-				zap.String("user_id", userID.String()),
-				zap.String("email", req.Email))
-
-			// Don't fail the verification, but log the error for monitoring
-			// In production, this should trigger an alert as it's a critical failure
-			s.logger.Warn("OTP verification completed but email verification status update failed - this requires immediate attention",
-				zap.String("user_id", userID.String()),
-				zap.String("email", req.Email))
-		} else {
-			s.logger.Info("User email verification status updated successfully",
-				zap.String("user_id", userID.String()),
-				zap.String("email", req.Email))
-		}
-
-		s.logger.Info("Existing user verified email",
-			zap.String("user_id", userID.String()),
-			zap.String("email", req.Email))
-	}
-
-	// Generate JWT tokens
-	accessToken, refreshToken, err := s.generateJWTTokens(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate tokens: %w", err)
-	}
+	// For registration flow, we don't generate JWT tokens here
+	// Tokens are generated after user creation in registration completion
+	s.logger.Info("OTP verification completed, ready for user creation in registration completion")
 
 	// Get current database time for consistency
 	dbTime, err := s.storage.GetCurrentDBTime(ctx)
@@ -295,17 +237,16 @@ func (s *OTPService) VerifyOTP(ctx context.Context, req *dto.OTPVerificationRequ
 		return nil, fmt.Errorf("failed to get database time: %w", err)
 	}
 
-	s.logger.Info("OTP verified successfully",
+	s.logger.Info("OTP verified successfully for registration flow",
 		zap.String("email", req.Email),
-		zap.String("user_id", userID.String()),
-		zap.Bool("is_new_user", isNewUser))
+		zap.String("otp_id", req.OTPID.String()))
 
 	return &dto.OTPVerificationResponse{
 		Message:      "Email verified successfully",
 		IsVerified:   true,
-		UserID:       userID,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		UserID:       uuid.Nil, // No user created yet
+		AccessToken:  "",       // No token generated yet
+		RefreshToken: "",       // No token generated yet
 		VerifiedAt:   dbTime,
 	}, nil
 }

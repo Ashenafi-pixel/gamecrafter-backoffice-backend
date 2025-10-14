@@ -324,7 +324,48 @@ func (u *user) VerifyResetPassword(c *gin.Context) {
 	}
 	res, err := u.userModule.VerifyResetPassword(c, verifyResetPasswordReq)
 	if err != nil {
-		_ = c.Error(err)
+		// Handle specific error types for better user experience
+		errStr := err.Error()
+		u.log.Error("Password reset OTP verification failed",
+			zap.Error(err),
+			zap.String("email", verifyResetPasswordReq.EmailOrPhoneOrUserame),
+			zap.String("otp_id", verifyResetPasswordReq.OTPID.String()))
+
+		// Check for OTP-related errors
+		if strings.Contains(errStr, "invalid or expired OTP") ||
+			strings.Contains(errStr, "invalid otp") ||
+			strings.Contains(errStr, "OTP has expired") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "Invalid or expired OTP. Please request a new password reset.",
+			})
+			return
+		}
+
+		// Check for user not found errors
+		if strings.Contains(errStr, "invalid user") ||
+			strings.Contains(errStr, "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": "User not found. Please check your email address.",
+			})
+			return
+		}
+
+		// Check for access errors (invalid login information)
+		if strings.Contains(errStr, "invalid login information") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "Invalid email address. Please check your email and try again.",
+			})
+			return
+		}
+
+		// For any other errors, return a generic error without exposing internal details
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "An error occurred while verifying your OTP. Please try again later.",
+		})
 		return
 	}
 	response.SendSuccessResponse(c, http.StatusOK, res)

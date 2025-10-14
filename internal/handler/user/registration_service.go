@@ -8,24 +8,28 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/email"
 	"github.com/tucanbit/internal/module/otp"
+	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
 )
 
 // RegistrationService handles enterprise-grade user registration with email verification
 type RegistrationService struct {
-	userModule   module.User
-	otpModule    otp.OTPModule
-	emailService email.EmailService
-	logger       *zap.Logger
-	redisClient  RedisClient
+	userModule     module.User
+	otpModule      otp.OTPModule
+	emailService   email.EmailService
+	balanceStorage storage.Balance
+	logger         *zap.Logger
+	redisClient    RedisClient
 }
 
 // RedisClient defines the interface for Redis operations
@@ -41,15 +45,17 @@ func NewRegistrationService(
 	userModule module.User,
 	otpModule otp.OTPModule,
 	emailService email.EmailService,
+	balanceStorage storage.Balance,
 	redisClient RedisClient,
 	logger *zap.Logger,
 ) *RegistrationService {
 	return &RegistrationService{
-		userModule:   userModule,
-		otpModule:    otpModule,
-		emailService: emailService,
-		redisClient:  redisClient,
-		logger:       logger,
+		userModule:     userModule,
+		otpModule:      otpModule,
+		emailService:   emailService,
+		balanceStorage: balanceStorage,
+		redisClient:    redisClient,
+		logger:         logger,
 	}
 }
 
@@ -98,7 +104,12 @@ func (rs *RegistrationService) InitiateUserRegistration(c *gin.Context) {
 // handleDetailedRegistration processes detailed registration requests
 func (rs *RegistrationService) handleDetailedRegistration(c *gin.Context, req *dto.DetailedUserRegistration) {
 	// Validate required fields
+	rs.logger.Info("Validating detailed registration request",
+		zap.String("email", req.Email),
+		zap.String("username", req.Username))
+
 	if err := rs.validateDetailedRegistrationRequest(req); err != nil {
+		rs.logger.Warn("Detailed registration validation failed", zap.Error(err))
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Code:    http.StatusBadRequest,
 			Message: err.Error(),
@@ -106,7 +117,13 @@ func (rs *RegistrationService) handleDetailedRegistration(c *gin.Context, req *d
 		return
 	}
 
+	rs.logger.Info("Detailed registration validation passed")
+
 	// Check unique constraints before proceeding
+	rs.logger.Info("Checking unique constraints for detailed registration",
+		zap.String("email", req.Email),
+		zap.String("username", req.Username))
+
 	if err := rs.validateUniqueConstraints(c.Request.Context(), req); err != nil {
 		rs.logger.Warn("Unique constraint violation during registration",
 			zap.Error(err),
@@ -120,6 +137,10 @@ func (rs *RegistrationService) handleDetailedRegistration(c *gin.Context, req *d
 		})
 		return
 	}
+
+	rs.logger.Info("Unique constraints validation passed for detailed registration",
+		zap.String("email", req.Email),
+		zap.String("username", req.Username))
 
 	// Generate unique user ID for temporary data storage
 	userID := uuid.New()
@@ -417,15 +438,22 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 		return
 	}
 
-	// Double-check unique constraints before creating user (prevents race conditions)
-	if err := rs.validateUniqueConstraints(c.Request.Context(), &dto.User{
-		Email:       registrationData.Email,
-		PhoneNumber: registrationData.PhoneNumber,
-	}); err != nil {
-		rs.logger.Warn("Unique constraint violation during registration completion",
+	// Check if user already exists (in case of race conditions)
+	exists, err := rs.userModule.CheckUserExistsByEmail(c.Request.Context(), registrationData.Email)
+	if err != nil {
+		rs.logger.Error("Failed to check existing user",
 			zap.Error(err),
+			zap.String("email", registrationData.Email))
+		c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{
+			Code:    http.StatusServiceUnavailable,
+			Message: "Service temporarily unavailable. Please try again later.",
+		})
+		return
+	}
+
+	if exists {
+		rs.logger.Warn("User already exists during registration completion",
 			zap.String("email", registrationData.Email),
-			zap.String("phone", registrationData.PhoneNumber),
 			zap.String("ip", c.ClientIP()))
 
 		// Clean up stored registration data
@@ -433,7 +461,7 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 
 		c.JSON(http.StatusConflict, dto.ErrorResponse{
 			Code:    http.StatusConflict,
-			Message: "Registration failed: " + err.Error(),
+			Message: "Registration failed: email '" + registrationData.Email + "' is already in use",
 		})
 		return
 	}
@@ -467,15 +495,51 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 		rs.logger.Error("Failed to create user account",
 			zap.Error(err),
 			zap.String("email", registrationData.Email))
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: "Failed to create user account",
+		c.JSON(http.StatusServiceUnavailable, dto.ErrorResponse{
+			Code:    http.StatusServiceUnavailable,
+			Message: "Service temporarily unavailable. Please try again later.",
 		})
 		return
 	}
 
 	// Clean up stored registration data
 	_ = rs.redisClient.Delete(c.Request.Context(), fmt.Sprintf("registration:%s", req.UserID.String()))
+
+	// Create initial wallet/balance for the user
+	rs.logger.Info("Creating initial wallet for user",
+		zap.String("user_id", userResponse.UserID.String()),
+		zap.String("email", registrationData.Email))
+
+	// Create balance using the balance storage
+	_, err = rs.balanceStorage.CreateBalance(c.Request.Context(), dto.Balance{
+		UserId:       userResponse.UserID,
+		CurrencyCode: "USD", // Default currency
+		RealMoney:    decimal.Zero,
+		BonusMoney:   decimal.Zero,
+		Points:       0,
+	})
+	if err != nil {
+		// Check if it's a duplicate key error (wallet already exists)
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			rs.logger.Info("Wallet already exists for user - this is expected in some cases",
+				zap.String("user_id", userResponse.UserID.String()),
+				zap.String("email", registrationData.Email))
+		} else {
+			rs.logger.Error("Failed to create initial wallet for user",
+				zap.Error(err),
+				zap.String("user_id", userResponse.UserID.String()),
+				zap.String("email", registrationData.Email))
+
+			// Don't fail the registration, but log the error for monitoring
+			rs.logger.Warn("User registration completed but wallet creation failed - this requires immediate attention",
+				zap.String("user_id", userResponse.UserID.String()),
+				zap.String("email", registrationData.Email))
+		}
+	} else {
+		rs.logger.Info("Initial wallet created successfully for user",
+			zap.String("user_id", userResponse.UserID.String()),
+			zap.String("email", registrationData.Email))
+	}
 
 	// Update user's email verification status to verified
 	// This is critical for production - users must be marked as verified after successful OTP verification
@@ -724,7 +788,8 @@ func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, re
 		rs.logger.Error("Failed to check email uniqueness",
 			zap.Error(err),
 			zap.String("email", email))
-		return fmt.Errorf("failed to check email uniqueness: %w", err)
+		// Don't expose internal database errors to users
+		return fmt.Errorf("service temporarily unavailable")
 	}
 	if exists {
 		return fmt.Errorf("email '%s' is already in use", email)
@@ -737,7 +802,8 @@ func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, re
 			rs.logger.Error("Failed to check username uniqueness",
 				zap.Error(err),
 				zap.String("username", username))
-			return fmt.Errorf("failed to check username uniqueness: %w", err)
+			// Don't expose internal database errors to users
+			return fmt.Errorf("service temporarily unavailable")
 		}
 		if exists {
 			return fmt.Errorf("username '%s' is already taken", username)
@@ -751,7 +817,8 @@ func (rs *RegistrationService) validateUniqueConstraints(ctx context.Context, re
 			rs.logger.Error("Failed to check phone number uniqueness",
 				zap.Error(err),
 				zap.String("phone_number", phone))
-			return fmt.Errorf("failed to check phone number uniqueness: %w", err)
+			// Don't expose internal database errors to users
+			return fmt.Errorf("service temporarily unavailable")
 		}
 		if exists {
 			return fmt.Errorf("phone number '%s' is already in use", phone)

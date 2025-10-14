@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "tucanbit-groovetech-api-collection",
 		"name": "TucanBIT GrooveTech API Collection",
-		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Forgot Password Flow (OTP-based password reset with email delivery, JWT token generation, and secure password validation), Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), Analytics APIs (Real-time Stats, User Analytics, Transaction History, Daily Reports, Top Games, Top Players), and Edge Cases",
+		"description": "Complete API collection for TucanBIT Casino platform with GrooveTech integration - User Registration, OTP Verification, Authentication, Forgot Password Flow (OTP-based password reset with email delivery, JWT token generation, and secure password validation), Game Launch, Account Management, Balance Operations, Transaction Processing (Wager, Result, Wager&Result, Rollback, Jackpot, Rollback On Result, Rollback On Rollback), Signature Validation, Cashback System (User Levels, Tier Management, Balance Synchronization, House Edge Configuration), Admin Dashboard, User Management (Admin Operations, Account Blocking, Password Reset, Player Registration), Configuration Management (Risk Settings, Spinning Wheel Config, Level Management, Loot Box Configuration), Game Management APIs (Complete CRUD operations for games including create, read, update, delete, and bulk operations), House Edge Management APIs (Complete CRUD operations for house edge configurations with game type filtering and statistics), Analytics APIs (Real-time Stats, User Analytics, Transaction History, Daily Reports, Top Games, Top Players), and Edge Cases",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -6753,6 +6753,616 @@
 							]
 						},
 						"description": "Send single weekly report email with data from the last 7 days including summary statistics, averages, best/worst days, and daily breakdown."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Game Management APIs",
+			"description": "Complete CRUD operations for game management including create, read, update, delete, and bulk operations",
+			"item": [
+				{
+					"name": "Create Game",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Test Slot Game\",\n  \"status\": \"ACTIVE\",\n  \"photo\": \"https://example.com/game.jpg\",\n  \"price\": \"0.00\",\n  \"enabled\": true,\n  \"game_id\": \"test_slot_001\",\n  \"internal_name\": \"test_slot_classic\",\n  \"integration_partner\": \"groove\",\n  \"provider\": \"groove_gaming\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management"
+							]
+						},
+						"description": "Create a new game with all necessary details including name, status, photo, price, enabled status, game ID, internal name, integration partner, and provider."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Games List",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management?page=1&per_page=10&status=ACTIVE&provider=groove&sort_by=created_at&sort_order=desc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Items per page (default: 10, max: 100)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by name"
+								},
+								{
+									"key": "status",
+									"value": "ACTIVE",
+									"description": "Filter by status (ACTIVE, INACTIVE, MAINTENANCE)"
+								},
+								{
+									"key": "provider",
+									"value": "groove",
+									"description": "Filter by provider"
+								},
+								{
+									"key": "enabled",
+									"value": "",
+									"description": "Filter by enabled status"
+								},
+								{
+									"key": "sort_by",
+									"value": "created_at",
+									"description": "Sort by field (name, status, created_at, updated_at)"
+								},
+								{
+									"key": "sort_order",
+									"value": "desc",
+									"description": "Sort order (asc, desc)"
+								}
+							]
+						},
+						"description": "Retrieve a paginated list of games with optional filtering by status, provider, enabled status, and search functionality."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Game by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						},
+						"description": "Retrieve a specific game by its UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Game",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Slot Game\",\n  \"status\": \"INACTIVE\",\n  \"enabled\": false,\n  \"provider\": \"updated_provider\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						},
+						"description": "Update an existing game's details. All fields are optional for partial updates."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Game",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						},
+						"description": "Delete a game by its UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Game Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management",
+								"stats"
+							]
+						},
+						"description": "Get comprehensive game statistics including total games, active games, inactive games, maintenance games, enabled games, and disabled games."
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Update Game Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"game_ids\": [\n    \"550e8400-e29b-41d4-a716-446655440000\",\n    \"550e8400-e29b-41d4-a716-446655440001\"\n  ],\n  \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/game-management/bulk-status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"game-management",
+								"bulk-status"
+							]
+						},
+						"description": "Update the status of multiple games at once. Status can be ACTIVE, INACTIVE, or MAINTENANCE."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "House Edge Management APIs",
+			"description": "Complete CRUD operations for house edge management including create, read, update, delete, and bulk operations",
+			"item": [
+				{
+					"name": "Create House Edge",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"game_type\": \"slot\",\n  \"game_variant\": \"classic\",\n  \"house_edge\": \"0.05\",\n  \"min_bet\": \"1.00\",\n  \"max_bet\": \"1000.00\",\n  \"is_active\": true,\n  \"effective_from\": \"2024-01-01T00:00:00Z\",\n  \"effective_until\": \"2024-12-31T23:59:59Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management"
+							]
+						},
+						"description": "Create a new house edge configuration for a game with game type, variant, house edge percentage, bet limits, and effective dates."
+					},
+					"response": []
+				},
+				{
+					"name": "Get House Edges List",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management?page=1&per_page=10&game_type=slot&is_active=true&sort_by=created_at&sort_order=desc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								},
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Items per page (default: 10, max: 100)"
+								},
+								{
+									"key": "game_type",
+									"value": "slot",
+									"description": "Filter by game type"
+								},
+								{
+									"key": "game_variant",
+									"value": "",
+									"description": "Filter by game variant"
+								},
+								{
+									"key": "is_active",
+									"value": "true",
+									"description": "Filter by active status"
+								},
+								{
+									"key": "sort_by",
+									"value": "created_at",
+									"description": "Sort by field (game_type, game_variant, house_edge, created_at, updated_at)"
+								},
+								{
+									"key": "sort_order",
+									"value": "desc",
+									"description": "Sort order (asc, desc)"
+								}
+							]
+						},
+						"description": "Retrieve a paginated list of house edge configurations with optional filtering by game type, variant, and active status."
+					},
+					"response": []
+				},
+				{
+					"name": "Get House Edge by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						},
+						"description": "Retrieve a specific house edge configuration by its UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update House Edge",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"house_edge\": \"0.08\",\n  \"min_bet\": \"2.00\",\n  \"max_bet\": \"2000.00\",\n  \"is_active\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						},
+						"description": "Update an existing house edge configuration. All fields are optional for partial updates."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete House Edge",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/550e8400-e29b-41d4-a716-446655440000",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"550e8400-e29b-41d4-a716-446655440000"
+							]
+						},
+						"description": "Delete a house edge configuration by its UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get House Edge Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"stats"
+							]
+						},
+						"description": "Get comprehensive house edge statistics including total house edges, active house edges, inactive house edges, unique game types, and unique game variants."
+					},
+					"response": []
+				},
+				{
+					"name": "Get House Edges by Game Type",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/by-game-type/slot",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"by-game-type",
+								"slot"
+							]
+						},
+						"description": "Get all house edge configurations for a specific game type (e.g., slot, table, live, etc.)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get House Edges by Game Variant",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/by-game-variant/slot/classic",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"by-game-variant",
+								"slot",
+								"classic"
+							]
+						},
+						"description": "Get all house edge configurations for a specific game type and variant combination."
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Update House Edge Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"house_edge_ids\": [\n    \"550e8400-e29b-41d4-a716-446655440000\",\n    \"550e8400-e29b-41d4-a716-446655440001\"\n  ],\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/house-edge-management/bulk-status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"house-edge-management",
+								"bulk-status"
+							]
+						},
+						"description": "Update the active status of multiple house edge configurations at once."
 					},
 					"response": []
 				}
