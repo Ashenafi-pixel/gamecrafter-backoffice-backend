@@ -31,6 +31,8 @@ type falconLiquidityServiceImpl struct {
 	channel        *amqp091.Channel
 	connected      bool
 	messageStorage falcon_liquidity.FalconMessageStorage
+	reconnectChan  chan struct{}
+	stopChan       chan struct{}
 }
 
 // NewFalconLiquidityService creates a new Falcon Liquidity service
@@ -47,13 +49,20 @@ func NewFalconLiquidityService(logger *zap.Logger, config *dto.FalconLiquidityCo
 		logger:         logger,
 		config:         config,
 		messageStorage: messageStorage,
+		reconnectChan:  make(chan struct{}, 1),
+		stopChan:       make(chan struct{}),
 	}
 
 	// Initialize connection
 	if err := service.connect(); err != nil {
 		logger.Error("Failed to initialize Falcon Liquidity connection", zap.Error(err))
+		// Start connection monitoring even if initial connection fails
+		go service.connectionMonitor()
 		return service
 	}
+
+	// Start connection monitoring
+	go service.connectionMonitor()
 
 	logger.Info("Falcon Liquidity service initialized successfully",
 		zap.String("host", config.Host),
@@ -85,8 +94,19 @@ func (s *falconLiquidityServiceImpl) connect() error {
 		InsecureSkipVerify: true, // Skip certificate verification for testing
 	}
 
-	// Establish connection with custom TLS config
-	conn, err := amqp091.DialTLS(url, tlsConfig)
+	// Configure connection with retry and heartbeat
+	config := amqp091.Config{
+		TLSClientConfig: tlsConfig,
+		Heartbeat:       30 * time.Second, // 30 second heartbeat
+		Locale:          "en_US",
+		Vhost:           s.config.VirtualHost,
+		Properties: map[string]interface{}{
+			"connection_name": s.config.ClientName,
+		},
+	}
+
+	// Establish connection with custom config
+	conn, err := amqp091.DialConfig(url, config)
 	if err != nil {
 		return fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
@@ -118,7 +138,13 @@ func (s *falconLiquidityServiceImpl) connect() error {
 	s.channel = ch
 	s.connected = true
 
-	s.logger.Info("Successfully connected to Falcon Liquidity RabbitMQ")
+	// Set up connection close notification
+	go s.handleConnectionClose()
+
+	s.logger.Info("Successfully connected to Falcon Liquidity RabbitMQ",
+		zap.String("host", s.config.Host),
+		zap.Int("port", s.config.Port),
+		zap.String("exchange", s.config.ExchangeName))
 	return nil
 }
 
@@ -178,20 +204,28 @@ func (s *falconLiquidityServiceImpl) PublishCasinoBet(ctx context.Context, betDa
 		}
 	}
 
-	// Check connection and reconnect if needed
-	if !s.connected {
-		s.logger.Warn("Not connected to Falcon Liquidity, attempting to reconnect")
-		if err := s.connect(); err != nil {
+	// Check connection and trigger reconnection if needed
+	if !s.IsConnected() {
+		s.logger.Warn("Not connected to Falcon Liquidity, triggering reconnection")
+		select {
+		case s.reconnectChan <- struct{}{}:
+		default:
+		}
+
+		// Wait a moment for reconnection attempt
+		time.Sleep(2 * time.Second)
+
+		if !s.IsConnected() {
 			// Update message status to failed
 			if s.messageStorage != nil {
 				updateReq := dto.UpdateFalconMessageRequest{
 					Status:       &[]dto.FalconMessageStatus{dto.FalconMessageStatusFailed}[0],
-					ErrorMessage: &[]string{fmt.Sprintf("Failed to reconnect: %v", err)}[0],
+					ErrorMessage: &[]string{"Connection unavailable"}[0],
 					ErrorCode:    &[]string{"CONNECTION_FAILED"}[0],
 				}
 				s.messageStorage.UpdateFalconMessage(ctx, messageID, updateReq)
 			}
-			return fmt.Errorf("failed to reconnect to Falcon Liquidity: %w", err)
+			return fmt.Errorf("falcon liquidity connection unavailable")
 		}
 	}
 
@@ -328,6 +362,9 @@ func (s *falconLiquidityServiceImpl) PublishSportBet(ctx context.Context, betDat
 
 // Close closes the RabbitMQ connection
 func (s *falconLiquidityServiceImpl) Close() error {
+	// Stop connection monitoring
+	close(s.stopChan)
+
 	if s.channel != nil {
 		s.channel.Close()
 	}
@@ -342,6 +379,82 @@ func (s *falconLiquidityServiceImpl) Close() error {
 // IsConnected returns whether the service is connected to RabbitMQ
 func (s *falconLiquidityServiceImpl) IsConnected() bool {
 	return s.connected && s.connection != nil && !s.connection.IsClosed()
+}
+
+// connectionMonitor monitors the connection and handles reconnection
+func (s *falconLiquidityServiceImpl) connectionMonitor() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.stopChan:
+			s.logger.Info("Connection monitor stopped")
+			return
+		case <-s.reconnectChan:
+			s.logger.Info("Reconnection requested")
+			s.reconnect()
+		case <-ticker.C:
+			if !s.IsConnected() {
+				s.logger.Warn("Connection lost, attempting to reconnect")
+				s.reconnect()
+			}
+		}
+	}
+}
+
+// handleConnectionClose handles connection close notifications
+func (s *falconLiquidityServiceImpl) handleConnectionClose() {
+	if s.connection == nil {
+		return
+	}
+
+	closeChan := s.connection.NotifyClose(make(chan *amqp091.Error, 1))
+
+	for err := range closeChan {
+		if err != nil {
+			s.logger.Error("Connection closed unexpectedly", zap.Error(err))
+		} else {
+			s.logger.Info("Connection closed gracefully")
+		}
+
+		s.connected = false
+		s.connection = nil
+		s.channel = nil
+
+		// Trigger reconnection
+		select {
+		case s.reconnectChan <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// reconnect attempts to reconnect with exponential backoff
+func (s *falconLiquidityServiceImpl) reconnect() {
+	maxRetries := 5
+	baseDelay := 1 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		delay := baseDelay * time.Duration(1<<uint(i)) // Exponential backoff
+		s.logger.Info("Attempting to reconnect",
+			zap.Int("attempt", i+1),
+			zap.Duration("delay", delay))
+
+		time.Sleep(delay)
+
+		if err := s.connect(); err != nil {
+			s.logger.Error("Reconnection attempt failed",
+				zap.Int("attempt", i+1),
+				zap.Error(err))
+			continue
+		}
+
+		s.logger.Info("Successfully reconnected to Falcon Liquidity")
+		return
+	}
+
+	s.logger.Error("Failed to reconnect after maximum retries", zap.Int("max_retries", maxRetries))
 }
 
 // Helper function to convert decimal to float64 for Falcon API
