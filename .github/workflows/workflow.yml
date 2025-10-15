@@ -73,4 +73,5 @@ jobs:
     uses: tcbtcn/tucanbit-infrastructure/.github/workflows/workflow.yml@main
     with:
       environment: ${{ env.ENVIRONMENT}}
+      action: apply
     secrets: inherit
