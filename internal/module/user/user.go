@@ -1073,6 +1073,26 @@ func (u *User) ResetPassword(ctx context.Context, resetPasswordReq dto.ResetPass
 		return dto.ResetPasswordRes{}, err
 	}
 
+	// Get current user to check existing password
+	usr, exist, err := u.userStorage.GetUserByID(ctx, claims.UserID)
+	if err != nil {
+		u.log.Error("Failed to get user for password reset", zap.Error(err), zap.String("user_id", claims.UserID.String()))
+		return dto.ResetPasswordRes{}, err
+	}
+	if !exist {
+		err = fmt.Errorf("user not found")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		return dto.ResetPasswordRes{}, err
+	}
+
+	// Check if new password is different from current password
+	if utils.ComparePasswords(usr.Password, resetPasswordReq.NewPassword) {
+		err = fmt.Errorf("new password must be different from the old password")
+		u.log.Warn("User attempted to reset password to same value", zap.String("user_id", claims.UserID.String()))
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		return dto.ResetPasswordRes{}, err
+	}
+
 	//update passwrod
 	hashPassword, err := utils.HashPassword(resetPasswordReq.NewPassword)
 	if err != nil {
@@ -1089,35 +1109,30 @@ func (u *User) ResetPassword(ctx context.Context, resetPasswordReq dto.ResetPass
 
 	// Send password reset confirmation email after successful password reset
 	if u.email != nil {
-		// Get user details for email
-		usr, exist, err := u.userStorage.GetUserByID(ctx, claims.UserID)
+		// Use the user object we already retrieved
+		// Get user agent and IP from context if available
+		userAgent := "Unknown Device"
+		ipAddress := "Unknown Location"
+
+		// Try to get from context
+		if ctxUserAgent, ok := ctx.Value("user_agent").(string); ok && ctxUserAgent != "" {
+			userAgent = ctxUserAgent
+		}
+		if ctxIP, ok := ctx.Value("ip_address").(string); ok && ctxIP != "" {
+			ipAddress = ctxIP
+		}
+
+		err = u.email.SendPasswordResetConfirmationEmail(usr.Email, usr.FirstName, userAgent, ipAddress)
 		if err != nil {
-			u.log.Error("Failed to get user details for confirmation email", zap.Error(err), zap.String("user_id", claims.UserID.String()))
-		} else if exist {
-			// Get user agent and IP from context if available
-			userAgent := "Unknown Device"
-			ipAddress := "Unknown Location"
-
-			// Try to get from context
-			if ctxUserAgent, ok := ctx.Value("user_agent").(string); ok && ctxUserAgent != "" {
-				userAgent = ctxUserAgent
-			}
-			if ctxIP, ok := ctx.Value("ip_address").(string); ok && ctxIP != "" {
-				ipAddress = ctxIP
-			}
-
-			err = u.email.SendPasswordResetConfirmationEmail(usr.Email, usr.FirstName, userAgent, ipAddress)
-			if err != nil {
-				// Log error but don't fail the request
-				u.log.Error("Failed to send password reset confirmation email",
-					zap.String("email", usr.Email),
-					zap.String("user_id", usr.ID.String()),
-					zap.Error(err))
-			} else {
-				u.log.Info("Password reset confirmation email sent successfully",
-					zap.String("email", usr.Email),
-					zap.String("user_id", usr.ID.String()))
-			}
+			// Log error but don't fail the request
+			u.log.Error("Failed to send password reset confirmation email",
+				zap.String("email", usr.Email),
+				zap.String("user_id", usr.ID.String()),
+				zap.Error(err))
+		} else {
+			u.log.Info("Password reset confirmation email sent successfully",
+				zap.String("email", usr.Email),
+				zap.String("user_id", usr.ID.String()))
 		}
 	} else {
 		u.log.Warn("Email service is not available, skipping password reset confirmation email",

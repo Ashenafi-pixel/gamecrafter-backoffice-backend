@@ -116,7 +116,7 @@ redis:
 
 # ClickHouse Configuration
 clickhouse:
-  host: "localhost"
+  host: "tucanbit-clickhouse"
   port: 8123
   database: "tucanbit_analytics"
   username: "tucanbit"
