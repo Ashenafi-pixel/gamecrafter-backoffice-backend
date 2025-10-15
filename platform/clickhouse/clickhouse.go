@@ -99,18 +99,30 @@ func (c *ClickHouseClient) GetSQLDB() *sql.DB {
 }
 
 func (c *ClickHouseClient) Execute(ctx context.Context, query string, args ...interface{}) error {
+	if c == nil || c.conn == nil {
+		return fmt.Errorf("clickhouse client is not initialized")
+	}
 	return c.conn.Exec(ctx, query, args...)
 }
 
 func (c *ClickHouseClient) Query(ctx context.Context, query string, args ...interface{}) (driver.Rows, error) {
+	if c == nil || c.conn == nil {
+		return nil, fmt.Errorf("clickhouse client is not initialized")
+	}
 	return c.conn.Query(ctx, query, args...)
 }
 
 func (c *ClickHouseClient) QueryRow(ctx context.Context, query string, args ...interface{}) driver.Row {
+	if c == nil || c.conn == nil {
+		return nil
+	}
 	return c.conn.QueryRow(ctx, query, args...)
 }
 
 func (c *ClickHouseClient) Insert(ctx context.Context, table string, columns []string, rows [][]interface{}) error {
+	if c == nil || c.conn == nil {
+		return fmt.Errorf("clickhouse client is not initialized")
+	}
 	batch, err := c.conn.PrepareBatch(ctx, fmt.Sprintf("INSERT INTO %s (%s)", table, fmt.Sprintf("%s", columns)))
 	if err != nil {
 		return fmt.Errorf("failed to prepare batch: %w", err)

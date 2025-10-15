@@ -667,7 +667,7 @@ func (s *GrooveStorageImpl) GetUserProfile(ctx context.Context, userID uuid.UUID
 	query := `
 		SELECT city, country, currency_code 
 		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency = 'USD'
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
 		WHERE u.id = $1`
 
 	var city, country, currencyCode *string
