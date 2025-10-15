@@ -71,7 +71,8 @@ jobs:
 
   trigger-infra:
     uses: tcbtcn/tucanbit-infrastructure/.github/workflows/workflow.yml@main
+    needs: build
     with:
-      environment: ${{ env.ENVIRONMENT}}
+      environment: ${{ needs.build.outputs.ENVIRONMENT}}
       action: apply
     secrets: inherit
