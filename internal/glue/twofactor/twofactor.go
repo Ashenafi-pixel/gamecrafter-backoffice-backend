@@ -60,6 +60,17 @@ func setup2FARoutes(router *gin.RouterGroup, handler twofactor.TwoFactorHandler,
 		verifyGroup.POST("/methods/disable", handler.DisableMethod)
 	}
 
+	// 2FA setup routes for login flow (no auth required) - separate group to avoid conflicts
+	setupGroup := router.Group("/api/admin/auth/2fa/setup")
+	setupGroup.Use(middleware.RateLimiter())
+	{
+		// 2FA setup endpoints for login flow (no auth required, needs user_id)
+		setupGroup.POST("/generate-secret", handler.GenerateSecretForLogin)
+		setupGroup.POST("/enable-totp", handler.EnableTOTPForLogin)
+		setupGroup.POST("/enable-email-otp", handler.EnableEmailOTPForLogin)
+		setupGroup.POST("/enable-sms-otp", handler.EnableSMSOTPForLogin)
+	}
+
 	// Multi-method management routes (require authentication)
 	multiMethodGroup := router.Group("/api/admin/auth/2fa/methods")
 	multiMethodGroup.Use(middleware.RateLimiter(), middleware.Auth())

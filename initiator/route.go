@@ -30,8 +30,11 @@ import (
 	"github.com/tucanbit/internal/glue/risksettings"
 	"github.com/tucanbit/internal/glue/sportsservice"
 	"github.com/tucanbit/internal/glue/squads"
+	"github.com/tucanbit/internal/glue/system_config"
 	"github.com/tucanbit/internal/glue/twofactor"
 	"github.com/tucanbit/internal/glue/user"
+	"github.com/tucanbit/internal/glue/withdrawal_management"
+	"github.com/tucanbit/internal/glue/withdrawals"
 	"github.com/tucanbit/internal/glue/ws"
 	"go.uber.org/zap"
 )
@@ -67,4 +70,9 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, enforcer, module.SystemLogs)
 	analytics.Init(grp, log, handler.Analytics)
 	twofactor.Init(grp, log, handler.TwoFactor)
+
+	// Withdrawal system routes
+	system_config.Init(grp, log, handler.SystemConfig)
+	withdrawal_management.Init(grp, log, handler.WithdrawalManagement)
+	withdrawals.Init(grp, log, handler.Withdrawals)
 }

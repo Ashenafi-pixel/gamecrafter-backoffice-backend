@@ -56,6 +56,7 @@ func Auth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		c.Set("user_id", claims.UserID)
 		c.Set("user-id", claims.UserID.String())
 		c.Set("is-verified", claims.IsVerified)
 		c.Set("email-verified", claims.EmailVerified)

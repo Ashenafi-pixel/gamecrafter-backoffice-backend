@@ -92,8 +92,8 @@ func (u *user) UpdateReferalMultiplier(ctx context.Context, mul decimal.Decimal)
 
 func (u *user) GetUserPointsByReferalPoint(ctx context.Context, referal string) (dto.UserPoint, bool, error) {
 	res, err := u.db.Queries.GetUserPointsByReferals(ctx, db.GetUserPointsByReferalsParams{
-		ReferalCode:  sql.NullString{String: referal, Valid: true},
-		Currency: constant.POINT_CURRENCY,
+		ReferalCode: sql.NullString{String: referal, Valid: true},
+		Currency:    constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		if err.Error() == "no rows in result set" {
@@ -112,11 +112,11 @@ func (u *user) GetUserPointsByReferalPoint(ctx context.Context, referal string) 
 
 func (u *user) UpdateUserPointByUserID(ctx context.Context, userID uuid.UUID, points decimal.Decimal) error {
 	_, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-		BonusMoney: points,
-		RealMoney:  decimal.Zero,
-		UpdatedAt:  time.Now(),
-		UserID:     userID,
-		Currency:   constant.POINT_CURRENCY,
+		BonusMoney:   points,
+		RealMoney:    decimal.Zero,
+		UpdatedAt:    time.Now(),
+		UserID:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		u.log.Error(err.Error(), zap.Any("user_id", userID.String()), zap.Any("new_point", points))
@@ -314,12 +314,12 @@ func (u *user) GetAdminAssignedPoints(ctx context.Context, limit, offset int) (d
 
 func (u *user) CreateUserPoint(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (dto.UserPoint, error) {
 	resp, err := u.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-		UserID:     userID,
-		Currency:   constant.POINT_CURRENCY,
-		RealMoney:  decimal.Zero,
-		BonusMoney: points,
-		Points:     0,
-		UpdatedAt:  time.Now(),
+		UserID:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
+		RealMoney:    decimal.Zero,
+		BonusMoney:   points,
+		Points:       0,
+		UpdatedAt:    time.Now(),
 	})
 
 	if err != nil {

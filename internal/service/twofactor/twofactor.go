@@ -102,6 +102,7 @@ type TwoFactorService interface {
 
 	// Backup codes
 	GenerateBackupCodes() []string
+	SaveBackupCodes(ctx context.Context, userID uuid.UUID, codes []string) error
 	GetBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error)
 	ValidateBackupCode(ctx context.Context, userID uuid.UUID, code string) (bool, error)
 	RegenerateBackupCodes(ctx context.Context, userID uuid.UUID, token, ip, userAgent string) (*dto.TwoFactorBackupCodesResponse, error)
@@ -371,6 +372,11 @@ func (t *twoFactorService) GenerateBackupCodes() []string {
 	return codes
 }
 
+// SaveBackupCodes saves backup codes to the database
+func (t *twoFactorService) SaveBackupCodes(ctx context.Context, userID uuid.UUID, codes []string) error {
+	return t.storage.SaveBackupCodes(ctx, userID, codes)
+}
+
 // GetBackupCodes retrieves backup codes for a user
 func (t *twoFactorService) GetBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	codes, err := t.storage.GetBackupCodes(ctx, userID)
@@ -631,8 +637,26 @@ func (t *twoFactorService) EnableMethod(ctx context.Context, userID uuid.UUID, m
 			if err != nil {
 				return err
 			}
-			// Also enable the method in the multi-method system
-			return t.storage.EnableMethod(ctx, userID, method)
+			// Enable the method in the multi-method system
+			err = t.storage.EnableMethod(ctx, userID, method)
+			if err != nil {
+				return err
+			}
+
+			// Enable the overall 2FA status
+			now := time.Now()
+			settings := &dto.TwoFactorSettings{
+				UserID:    userID,
+				IsEnabled: true,
+				EnabledAt: &now,
+			}
+			err = t.storage.SaveSettings(ctx, settings)
+			if err != nil {
+				t.log.Error("Failed to enable 2FA status", zap.Error(err), zap.String("user_id", userID.String()))
+				return fmt.Errorf("failed to enable 2FA status: %w", err)
+			}
+
+			return nil
 		}
 		return fmt.Errorf("secret required for TOTP method")
 

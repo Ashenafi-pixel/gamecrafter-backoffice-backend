@@ -85,12 +85,13 @@ type UserLoginReq struct {
 
 // UserLoginRes hold response to the User login response
 type UserLoginRes struct {
-	Message           string       `json:"message"`
-	AccessToken       string       `json:"access_token"`
-	UserProfile       *UserProfile `json:"user_profile,omitempty"`
-	Requires2FA       bool         `json:"requires_2fa,omitempty"`
-	UserID            string       `json:"user_id,omitempty"`
-	Available2FAMethods []string   `json:"available_2fa_methods,omitempty"`
+	Message             string       `json:"message"`
+	AccessToken         string       `json:"access_token"`
+	UserProfile         *UserProfile `json:"user_profile,omitempty"`
+	Requires2FA         bool         `json:"requires_2fa,omitempty"`
+	Requires2FASetup    bool         `json:"requires_2fa_setup,omitempty"`
+	UserID              string       `json:"user_id,omitempty"`
+	Available2FAMethods []string     `json:"available_2fa_methods,omitempty"`
 }
 
 func IsValidCurrency(currency string) bool {
@@ -321,13 +322,11 @@ func ValidateAdminResetPassword(u AdminResetPasswordReq) error {
 }
 
 type GetPlayersFilter struct {
-	UserID    uuid.UUID `json:"user_id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	Phone     string    `json:"phone"`
-	Status    []string  `json:"status"`
-	KycStatus []string  `json:"kyc_status"`
-	VipLevel  []string  `json:"vip_level"`
+	UserID     uuid.UUID `json:"user_id"`
+	SearchTerm string    `json:"searchterm"`
+	Status     []string  `json:"status"`
+	KycStatus  []string  `json:"kyc_status"`
+	VipLevel   []string  `json:"vip_level"`
 }
 type GetPlayersReq struct {
 	Page    int              `json:"page"`

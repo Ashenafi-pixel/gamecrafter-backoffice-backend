@@ -32,8 +32,11 @@ import (
 	"github.com/tucanbit/internal/handler/risksettings"
 	"github.com/tucanbit/internal/handler/sportsservice"
 	"github.com/tucanbit/internal/handler/squads"
+	"github.com/tucanbit/internal/handler/system_config"
 	"github.com/tucanbit/internal/handler/twofactor"
 	"github.com/tucanbit/internal/handler/user"
+	"github.com/tucanbit/internal/handler/withdrawal_management"
+	"github.com/tucanbit/internal/handler/withdrawals"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	"github.com/tucanbit/platform/redis"
@@ -72,6 +75,9 @@ type Handler struct {
 	Campaign              handler.Campaign
 	TwoFactor             handler.TwoFactor
 	Analytics             handler.Analytics
+	SystemConfig          *system_config.SystemConfigHandler
+	WithdrawalManagement  *withdrawal_management.WithdrawalManagementHandler
+	Withdrawals           *withdrawals.WithdrawalsHandler
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
@@ -124,6 +130,9 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
+		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, log),
+		WithdrawalManagement:  withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
+		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
 	}
 }
 

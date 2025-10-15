@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 const saveManualFund = `-- name: SaveManualFund :one
-INSERT INTO manual_funds (user_id,admin_id,transaction_id,type,amount,reason,currency,note,created_at) VALUES(
+INSERT INTO manual_funds (user_id,admin_id,transaction_id,type,amount_cents,reason,currency_code,note,created_at) VALUES(
   $1,$2,$3,$4,$5,$6,$7,$8,$9
-) RETURNING id, user_id, admin_id, transaction_id, type, amount, currency, note, created_at, reason
+) RETURNING id, user_id, admin_id, transaction_id, type, amount_cents, currency_code, note, created_at, reason
 `
 
 type SaveManualFundParams struct {
@@ -24,9 +23,9 @@ type SaveManualFundParams struct {
 	AdminID       uuid.UUID
 	TransactionID string
 	Type          string
-	Amount        decimal.Decimal
+	AmountCents   int64
 	Reason        string
-	Currency      string
+	CurrencyCode  string
 	Note          string
 	CreatedAt     time.Time
 }
@@ -37,9 +36,9 @@ func (q *Queries) SaveManualFund(ctx context.Context, arg SaveManualFundParams) 
 		arg.AdminID,
 		arg.TransactionID,
 		arg.Type,
-		arg.Amount,
+		arg.AmountCents,
 		arg.Reason,
-		arg.Currency,
+		arg.CurrencyCode,
 		arg.Note,
 		arg.CreatedAt,
 	)
@@ -50,8 +49,8 @@ func (q *Queries) SaveManualFund(ctx context.Context, arg SaveManualFundParams) 
 		&i.AdminID,
 		&i.TransactionID,
 		&i.Type,
-		&i.Amount,
-		&i.Currency,
+		&i.AmountCents,
+		&i.CurrencyCode,
 		&i.Note,
 		&i.CreatedAt,
 		&i.Reason,

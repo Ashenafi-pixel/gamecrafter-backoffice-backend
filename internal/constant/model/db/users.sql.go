@@ -1378,17 +1378,13 @@ WITH users_data AS (
     FROM users 
     WHERE default_currency IS NOT NULL 
     AND user_type = 'PLAYER'
+    AND is_admin = false
     AND (
-        $1::text IS NULL OR $1 = '' OR username ILIKE '%' || $1 || '%'
+        -- Simple OR search across username and email using single searchterm parameter
+        ($1::text IS NULL OR $1 = '' OR $1 = '%%' OR username ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
     )
-    AND (
-        $2::text IS NULL OR $2 = '' OR email ILIKE '%' || $2 || '%'
-    )
-    AND (
-        $3::text IS NULL OR $3 = '' OR phone_number ILIKE '%' || $3 || '%'
-    )
-    AND ($4::text[] IS NULL OR array_length($4, 1) = 0 OR status = ANY($4))
-    AND ($5::text[] IS NULL OR array_length($5, 1) = 0 OR kyc_status = ANY($5))
+    AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR status = ANY($2))
+    AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR kyc_status = ANY($3))
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -1398,17 +1394,15 @@ SELECT c.*, r.total_rows
 FROM users_data c
 CROSS JOIN row_count r
 ORDER BY c.created_at DESC
-LIMIT $6 OFFSET $7
+LIMIT $4 OFFSET $5
 `
 
 type GetAllUsersWithFiltersParams struct {
-	Username  sql.NullString
-	Email     sql.NullString
-	Phone     sql.NullString
-	Status    []string
-	KycStatus []string
-	Limit     int32
-	Offset    int32
+	SearchTerm sql.NullString
+	Status     []string
+	KycStatus  []string
+	Limit      int32
+	Offset     int32
 }
 
 type GetAllUsersWithFiltersRow struct {
@@ -1440,14 +1434,15 @@ type GetAllUsersWithFiltersRow struct {
 	UserType                 sql.NullString
 	PrimaryWalletAddress     sql.NullString
 	WalletVerificationStatus sql.NullString
+	IsTestAccount            sql.NullBool
+	TwoFactorEnabled         sql.NullBool
+	TwoFactorSetupAt         sql.NullTime
 	TotalRows                int64
 }
 
 func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWithFiltersParams) ([]GetAllUsersWithFiltersRow, error) {
 	rows, err := q.db.Query(ctx, getAllUsersWithFilters,
-		arg.Username,
-		arg.Email,
-		arg.Phone,
+		arg.SearchTerm,
 		pq.Array(arg.Status),
 		pq.Array(arg.KycStatus),
 		arg.Limit,
@@ -1489,6 +1484,9 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 			&i.UserType,
 			&i.PrimaryWalletAddress,
 			&i.WalletVerificationStatus,
+			&i.IsTestAccount,
+			&i.TwoFactorEnabled,
+			&i.TwoFactorSetupAt,
 			&i.TotalRows,
 		); err != nil {
 			return nil, err

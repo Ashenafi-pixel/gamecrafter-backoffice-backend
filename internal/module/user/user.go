@@ -763,6 +763,28 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 			UserID:              usr.ID.String(),
 			Available2FAMethods: availableMethods,
 		}, "", nil
+	} else {
+		// 2FA is not enabled - force setup
+		u.log.Info("2FA not enabled for user, requiring setup", zap.String("user_id", usr.ID.String()))
+
+		userProfile := dto.UserProfile{
+			Username:     usr.Username,
+			UserID:       usr.ID,
+			Email:        usr.Email,
+			PhoneNumber:  usr.PhoneNumber,
+			FirstName:    usr.FirstName,
+			LastName:     usr.LastName,
+			Type:         usr.Type,
+			ReferralCode: usr.ReferralCode,
+		}
+
+		return dto.UserLoginRes{
+			Message:          "2FA setup required for security",
+			AccessToken:      "", // No token until 2FA is set up
+			UserProfile:      &userProfile,
+			Requires2FASetup: true,
+			UserID:           usr.ID.String(),
+		}, "", nil
 	}
 
 	// Check user verification status
@@ -1457,6 +1479,17 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 	// Handle boolean field
 	updatedUser.IsEmailVerified = userReq.IsEmailVerified
 
+	// Log audit information before update
+	u.log.Info("Admin updating player profile",
+		zap.String("admin_id", userReq.AdminID.String()),
+		zap.String("target_user_id", userReq.UserID.String()),
+		zap.String("target_username", updatedUser.Username),
+		zap.String("target_email", updatedUser.Email),
+		zap.String("changes", fmt.Sprintf("Email: %s, Phone: %s, FirstName: %s, LastName: %s, Status: %s, KYCStatus: %s",
+			userReq.Email, userReq.PhoneNumber, userReq.FirstName, userReq.LastName, userReq.Status, userReq.KYCStatus)),
+		zap.Time("timestamp", time.Now()),
+	)
+
 	res, err := u.userStorage.UpdateUser(ctx, dto.UpdateProfileReq{
 		UserID:                   updatedUser.ID,
 		FirstName:                updatedUser.FirstName,
@@ -1477,8 +1510,56 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		WalletVerificationStatus: updatedUser.WalletVerificationStatus,
 	})
 	if err != nil {
+		u.log.Error("Failed to update player profile",
+			zap.String("admin_id", userReq.AdminID.String()),
+			zap.String("target_user_id", userReq.UserID.String()),
+			zap.Error(err),
+		)
 		return dto.EditProfileAdminRes{}, err
 	}
+
+	// Log successful update
+	u.log.Info("Successfully updated player profile",
+		zap.String("admin_id", userReq.AdminID.String()),
+		zap.String("target_user_id", userReq.UserID.String()),
+		zap.String("target_username", updatedUser.Username),
+		zap.String("target_email", updatedUser.Email),
+		zap.Time("timestamp", time.Now()),
+	)
+
+	// Create system log entry for audit trail
+	systemLogDetail := map[string]interface{}{
+		"action":          "player_profile_update",
+		"admin_id":        userReq.AdminID.String(),
+		"target_user_id":  userReq.UserID.String(),
+		"target_username": updatedUser.Username,
+		"target_email":    updatedUser.Email,
+		"changes": map[string]interface{}{
+			"email":                      userReq.Email,
+			"phone":                      userReq.PhoneNumber,
+			"first_name":                 userReq.FirstName,
+			"last_name":                  userReq.LastName,
+			"status":                     userReq.Status,
+			"kyc_status":                 userReq.KYCStatus,
+			"is_email_verified":          userReq.IsEmailVerified,
+			"default_currency":           userReq.DefaultCurrency,
+			"wallet_verification_status": userReq.WalletVerificationStatus,
+		},
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	_, err = u.logsStorage.CreateSystemLogs(ctx, dto.SystemLogs{
+		UserID:    userReq.AdminID,
+		Module:    "player_management",
+		Detail:    systemLogDetail,
+		IPAddress: "", // Will be filled by middleware
+		Timestamp: time.Now(),
+	})
+	if err != nil {
+		u.log.Error("Failed to create system log for player update", zap.Error(err))
+		// Don't fail the update if logging fails
+	}
+
 	return dto.EditProfileAdminRes{
 		Message: constant.SUCCESS,
 		User: dto.User{

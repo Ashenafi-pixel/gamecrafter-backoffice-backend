@@ -311,6 +311,11 @@ type TwoFactor interface {
 	GenerateEmailOTPForLogin(c *gin.Context)
 	GenerateSMSOTPForLogin(c *gin.Context)
 	GetBackupCodes(c *gin.Context)
+	// 2FA setup endpoints for login flow (no auth required)
+	GenerateSecretForLogin(c *gin.Context)
+	EnableTOTPForLogin(c *gin.Context)
+	EnableEmailOTPForLogin(c *gin.Context)
+	EnableSMSOTPForLogin(c *gin.Context)
 }
 
 type Campaign interface {

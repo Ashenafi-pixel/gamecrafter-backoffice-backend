@@ -273,13 +273,13 @@ type AirtimeUtility struct {
 }
 
 type Balance struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	Currency   string
-	RealMoney  decimal.NullDecimal
-	BonusMoney decimal.NullDecimal
-	Points     sql.NullInt32
-	UpdatedAt  sql.NullTime
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	CurrencyCode string
+	RealMoney    decimal.NullDecimal
+	BonusMoney   decimal.NullDecimal
+	Points       sql.NullInt32
+	UpdatedAt    sql.NullTime
 }
 
 type BalanceLog struct {
@@ -610,8 +610,8 @@ type ManualFund struct {
 	AdminID       uuid.UUID
 	TransactionID string
 	Type          string
-	Amount        decimal.Decimal
-	Currency      string
+	AmountCents   int64
+	CurrencyCode  string
 	Note          string
 	CreatedAt     time.Time
 	Reason        string

@@ -431,14 +431,40 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 
 	u.log.Info("GetAllUsers called", zap.Any("req", req))
 
+	// Debug: Test if there are any users at all
+	allUsers, debugErr := u.db.Queries.GetAllUsers(ctx, db.GetAllUsersParams{
+		Limit:  5,
+		Offset: 0,
+	})
+	if debugErr != nil {
+		u.log.Error("Failed to get any users", zap.Error(debugErr))
+	} else {
+		u.log.Info("Total users in database", zap.Int("count", len(allUsers)))
+		if len(allUsers) > 0 {
+			u.log.Info("Sample user", zap.String("username", allUsers[0].Username.String), zap.String("email", allUsers[0].Email.String))
+		}
+	}
+
+	// Validate and sanitize pagination parameters
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PerPage < 1 {
+		req.PerPage = 10
+	}
+	if req.PerPage > 100 {
+		req.PerPage = 100 // Limit max per page
+	}
+
 	// Check if we have any filters to apply
-	hasFilters := req.Filter.Username != "" || req.Filter.Email != "" || req.Filter.Phone != "" ||
+	hasFilters := req.Filter.SearchTerm != "" ||
 		len(req.Filter.Status) > 0 || len(req.Filter.KycStatus) > 0 || len(req.Filter.VipLevel) > 0
 
+	// Check if we're doing a unified search (searchterm provided)
+	unifiedSearch := req.Filter.SearchTerm != ""
+
 	u.log.Info("Filter check", zap.Bool("hasFilters", hasFilters),
-		zap.String("username", req.Filter.Username),
-		zap.String("email", req.Filter.Email),
-		zap.String("phone", req.Filter.Phone),
+		zap.String("searchterm", req.Filter.SearchTerm),
 		zap.Int("status_len", len(req.Filter.Status)),
 		zap.Int("kyc_len", len(req.Filter.KycStatus)),
 		zap.Int("vip_len", len(req.Filter.VipLevel)))
@@ -448,8 +474,9 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 	var totalCount int64
 	var totalPages int
 
-	if hasFilters {
-		u.log.Info("Using filtered query", zap.String("username", req.Filter.Username), zap.String("email", req.Filter.Email), zap.String("phone", req.Filter.Phone))
+	// Always use filtered query for consistency, even when no filters are applied
+	if true { // hasFilters {
+		u.log.Info("Using filtered query", zap.String("searchterm", req.Filter.SearchTerm), zap.Bool("unifiedSearch", unifiedSearch))
 
 		// Normalize status values to uppercase
 		normalizedStatus := make([]string, len(req.Filter.Status))
@@ -462,20 +489,52 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			normalizedKycStatus[i] = strings.ToUpper(kycStatus)
 		}
 
-		// Use filtered query
-		params := db.GetAllUsersWithFiltersParams{
-			Username:  sql.NullString{String: req.Filter.Username, Valid: req.Filter.Username != ""},
-			Email:     sql.NullString{String: req.Filter.Email, Valid: req.Filter.Email != ""},
-			Phone:     sql.NullString{String: req.Filter.Phone, Valid: req.Filter.Phone != ""},
-			Status:    normalizedStatus,
-			KycStatus: normalizedKycStatus,
-			Limit:     int32(req.PerPage),
-			Offset:    int32(req.Page),
+		// Calculate offset safely
+		offset := (req.Page - 1) * req.PerPage
+		if offset < 0 {
+			offset = 0
 		}
-		u.log.Info("Calling GetAllUsersWithFilters", zap.Any("params", params))
+
+		// Use filtered query - simple search across username and email using single searchterm parameter
+		// Pass special value for empty search to ensure SQL query works correctly
+		searchTerm := req.Filter.SearchTerm
+		if searchTerm == "" {
+			searchTerm = "%%" // Special value to match all records
+		}
+		params := db.GetAllUsersWithFiltersParams{
+			SearchTerm: sql.NullString{String: searchTerm, Valid: true},
+			Status:     normalizedStatus,
+			KycStatus:  normalizedKycStatus,
+			Limit:      int32(req.PerPage),
+			Offset:     int32(offset),
+		}
+		u.log.Info("Calling GetAllUsersWithFilters", zap.Any("params", params), zap.Bool("unifiedSearch", unifiedSearch))
+		u.log.Info("Search term details", zap.String("searchterm", req.Filter.SearchTerm), zap.Bool("searchterm_valid", req.Filter.SearchTerm != ""))
+
+		// Debug: Test simple search first
+		if unifiedSearch && req.Filter.SearchTerm != "" {
+			u.log.Info("Testing simple search", zap.String("search_term", req.Filter.SearchTerm))
+			// Test with just search term
+			simpleParams := db.GetAllUsersWithFiltersParams{
+				SearchTerm: sql.NullString{String: searchTerm, Valid: true},
+				Status:     normalizedStatus,
+				KycStatus:  normalizedKycStatus,
+				Limit:      int32(req.PerPage),
+				Offset:     int32(offset),
+			}
+			simpleUsrs, simpleErr := u.db.Queries.GetAllUsersWithFilters(ctx, simpleParams)
+			u.log.Info("Simple search result", zap.Int("count", len(simpleUsrs)), zap.Error(simpleErr))
+		}
 
 		usrs, err = u.db.Queries.GetAllUsersWithFilters(ctx, params)
 		u.log.Info("GetAllUsersWithFilters result", zap.Int("count", len(usrs)), zap.Error(err))
+
+		// Debug: log first few results
+		if len(usrs) > 0 {
+			u.log.Info("Found users", zap.String("first_username", usrs[0].Username.String), zap.String("first_email", usrs[0].Email.String))
+		} else {
+			u.log.Info("No users found", zap.String("search_term", req.Filter.SearchTerm))
+		}
 
 		if err != nil && err.Error() != dto.ErrNoRows {
 			u.log.Error(err.Error(), zap.Any("req", req))
@@ -484,10 +543,15 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		}
 	} else {
 		u.log.Info("Using regular query (no filters)")
+		// Calculate offset safely
+		offset := (req.Page - 1) * req.PerPage
+		if offset < 0 {
+			offset = 0
+		}
 		// Use regular query
 		regularUsrs, err := u.db.Queries.GetAllUsers(ctx, db.GetAllUsersParams{
 			Limit:  int32(req.PerPage),
-			Offset: int32(req.Page),
+			Offset: int32(offset), // Safe pagination offset
 		})
 		if err != nil && err.Error() != dto.ErrNoRows {
 			u.log.Error(err.Error(), zap.Any("req", req))
@@ -512,6 +576,15 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 	}
 
 	u.log.Info("GetAllUsers debug", zap.Int("users_count", len(usrs)))
+
+	// Calculate pagination info from the first row (if any)
+	if len(usrs) > 0 {
+		totalCount = usrs[0].TotalRows
+		totalPages = int(int(usrs[0].TotalRows) / req.PerPage)
+		if int(usrs[0].TotalRows)%req.PerPage != 0 {
+			totalPages++
+		}
+	}
 
 	// Convert to DTO and apply VIP level filtering (client-side for now)
 	for i, usr := range usrs {
@@ -569,15 +642,6 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		if shouldInclude {
 			users = append(users, user)
 		}
-
-		// Get pagination info from first row
-		if i == 0 {
-			totalCount = usr.TotalRows
-			totalPages = int(int(usr.TotalRows) / req.PerPage)
-			if int(usr.TotalRows)%req.PerPage != 0 {
-				totalPages++
-			}
-		}
 	}
 
 	result := dto.GetPlayersRes{
@@ -592,8 +656,8 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 
 func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Decimal, bool, error) {
 	blc, err := u.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
-		UserID:   userID,
-		Currency: constant.POINT_CURRENCY,
+		UserID:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 	if err != nil && err.Error() != dto.ErrNoRows {
 		u.log.Error("unable to make get balance request using user_id")
@@ -609,11 +673,11 @@ func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Dec
 
 func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (decimal.Decimal, error) {
 	resp, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-		BonusMoney: points,
-		RealMoney:  decimal.Zero,
-		UpdatedAt:  time.Now(),
-		UserID:     userID,
-		Currency:   constant.POINT_CURRENCY,
+		BonusMoney:   points,
+		RealMoney:    decimal.Zero,
+		UpdatedAt:    time.Now(),
+		UserID:       userID,
+		CurrencyCode: constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
@@ -868,8 +932,8 @@ func (u *user) GetUserByReferalCode(ctx context.Context, code string) (*dto.User
 func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error) {
 	var users []dto.User
 	userResp, err := u.db.Queries.GetUserEmailOrPhoneNumber(ctx, db.GetUserEmailOrPhoneNumberParams{
-		Column1: sql.NullString{String: req.Filter.Phone, Valid: req.Filter.Phone != ""},
-		Column2: sql.NullString{String: req.Filter.Email, Valid: req.Filter.Email != ""},
+		Column1: sql.NullString{String: "", Valid: false}, // Phone not used in new structure
+		Column2: sql.NullString{String: req.Filter.SearchTerm, Valid: req.Filter.SearchTerm != ""},
 		Limit:   int32(req.PerPage),
 		Offset:  int32(req.Page),
 	})
@@ -883,7 +947,7 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 				Users:      []dto.User{},
 			}, nil
 		}
-		u.log.Error(err.Error(), zap.Any("email", req.Filter.Email), zap.Any("phone", req.Filter.Phone))
+		u.log.Error(err.Error(), zap.Any("searchterm", req.Filter.SearchTerm))
 		err = errors.ErrUnableToGet.Wrap(err, err.Error())
 		return dto.GetPlayersRes{}, err
 	}
@@ -907,7 +971,7 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 		for _, bal := range balance {
 			accounts = append(accounts, dto.Balance{
 				ID:           bal.ID,
-				CurrencyCode: bal.Currency,
+				CurrencyCode: bal.CurrencyCode,
 				BonusMoney:   bal.BonusMoney.Decimal,
 				RealMoney:    bal.RealMoney.Decimal,
 				Points:       bal.Points.Int32,

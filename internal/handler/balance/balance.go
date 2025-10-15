@@ -7,13 +7,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/response"
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/module"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -107,12 +107,14 @@ func (b *balance) ExchangeBalance(c *gin.Context) {
 //	@Failure		401		{object}	response.ErrorResponse
 //	@Router			/api/admin/players/funding [post]
 func (b *balance) ManualFunding(c *gin.Context) {
-
+	b.log.Info("ManualFunding called")
+	
 	userID := c.GetString("user-id")
+	b.log.Info("User ID from context", zap.String("userID", userID))
+	
 	userIDParsed, err := uuid.Parse(userID)
-
 	if err != nil {
-		b.log.Error(err.Error(), zap.Any("userID", userID))
+		b.log.Error("Failed to parse user ID", zap.Error(err), zap.String("userID", userID))
 		err = errors.ErrInternalServerError.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
@@ -120,6 +122,17 @@ func (b *balance) ManualFunding(c *gin.Context) {
 
 	var fundReq dto.ManualFundReq
 	if err := c.ShouldBind(&fundReq); err != nil {
+		b.log.Error("Failed to bind request", zap.Error(err))
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	
+	b.log.Info("Request bound successfully", zap.Any("fundReq", fundReq))
+
+	// Validate fund type first
+	if fundReq.Type != constant.ADD_FUND && fundReq.Type != constant.REMOVE_FUND {
+		err = fmt.Errorf("invalid fund type, only add_fund or remove_fund is allowed")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		_ = c.Error(err)
 		return
@@ -130,30 +143,30 @@ func (b *balance) ManualFunding(c *gin.Context) {
 		fundReq.Currency = constant.DEFAULT_CURRENCY
 	}
 
+	// Set admin ID
+	fundReq.AdminID = userIDParsed
+
+	// Process based on fund type
 	if fundReq.Type == constant.ADD_FUND {
-		fundReq.AdminID = userIDParsed
+		b.log.Info("Calling AddManualFunds", zap.Any("fundReq", fundReq))
 		manualFund, err := b.balanceModule.AddManualFunds(c, fundReq)
 		if err != nil {
+			b.log.Error("AddManualFunds failed", zap.Error(err), zap.Any("fundReq", fundReq))
 			_ = c.Error(err)
 			return
 		}
+		b.log.Info("AddManualFunds successful", zap.Any("manualFund", manualFund))
 		response.SendSuccessResponse(c, http.StatusCreated, manualFund)
 	} else if fundReq.Type == constant.REMOVE_FUND {
-		fundReq.AdminID = userIDParsed
+		b.log.Info("Calling RemoveFundManualy", zap.Any("fundReq", fundReq))
 		manualFund, err := b.balanceModule.RemoveFundManualy(c, fundReq)
-
 		if err != nil {
+			b.log.Error("RemoveFundManualy failed", zap.Error(err), zap.Any("fundReq", fundReq))
 			_ = c.Error(err)
 			return
 		}
+		b.log.Info("RemoveFundManualy successful", zap.Any("manualFund", manualFund))
 		response.SendSuccessResponse(c, http.StatusCreated, manualFund)
-
-	}
-	if fundReq.Type != constant.ADD_FUND && fundReq.Type != constant.REMOVE_FUND {
-		err = fmt.Errorf("invalid fund type , only add_fund or remove_fund is allowed")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
-		_ = c.Error(err)
-		return
 	}
 }
 

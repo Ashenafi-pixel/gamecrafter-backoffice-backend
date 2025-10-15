@@ -41,7 +41,7 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	// get user balance by user id
 	balance, err := s.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
 		UserID:       req.UserID,
-		Currency: constant.NGN_CURRENCY,
+		CurrencyCode: constant.NGN_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToGet.Wrap(err, "error fetching user balance")
@@ -57,12 +57,12 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 
 	// update user balance by the requested amount
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
-		UserID:     req.UserID,
-		Currency:   constant.NGN_CURRENCY,
-		RealMoney:  balance.RealMoney.Decimal.Sub(requestedAmount),
-		BonusMoney: balance.BonusMoney.Decimal,
-		Points:     balance.Points.Int32,
-		UpdatedAt:  time.Now(),
+		UserID:       req.UserID,
+		CurrencyCode: constant.NGN_CURRENCY,
+		RealMoney:    balance.RealMoney.Decimal.Sub(requestedAmount),
+		BonusMoney:   balance.BonusMoney.Decimal,
+		Points:       balance.Points.Int32,
+		UpdatedAt:    time.Now(),
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, "error updating user balance")
@@ -152,7 +152,7 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 	// get user balance by user id
 	balance, err := s.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
 		UserID:       userID,
-		Currency: constant.NGN_CURRENCY,
+		CurrencyCode: constant.NGN_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToGet.Wrap(err, "error fetching user balance")
@@ -162,12 +162,12 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 
 	// update user balance by the requested amount
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
-		UserID:     userID,
-		Currency:   constant.NGN_CURRENCY,
-		RealMoney:  balance.RealMoney.Decimal.Add(requestedAmount),
-		BonusMoney: balance.BonusMoney.Decimal,
-		Points:     balance.Points.Int32,
-		UpdatedAt:  time.Now(),
+		UserID:       userID,
+		CurrencyCode: constant.NGN_CURRENCY,
+		RealMoney:    balance.RealMoney.Decimal.Add(requestedAmount),
+		BonusMoney:   balance.BonusMoney.Decimal,
+		Points:       balance.Points.Int32,
+		UpdatedAt:    time.Now(),
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, "error updating user balance")
