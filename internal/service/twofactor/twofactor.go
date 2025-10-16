@@ -124,6 +124,8 @@ type TwoFactorService interface {
 	EnableMethod(ctx context.Context, userID uuid.UUID, method string, data map[string]interface{}) error
 	DisableMethod(ctx context.Context, userID uuid.UUID, method, verificationData string) error
 	VerifyLoginWithMethod(ctx context.Context, userID uuid.UUID, method, token, ip, userAgent string) (bool, error)
+	GetSecret(ctx context.Context, userID uuid.UUID) (string, error)
+	VerifyTOTPToken(secret, token string) bool
 }
 
 func NewTwoFactorService(storage TwoFactorStorage, log *zap.Logger, config TwoFactorConfig, emailService email.EmailService) TwoFactorService {
@@ -159,6 +161,13 @@ func (t *twoFactorService) GenerateSecret(ctx context.Context, userID uuid.UUID,
 	}
 
 	t.log.Info("TOTP secret generated successfully", zap.String("user_id", userID.String()))
+
+	// Save the secret to the database
+	err = t.storage.SaveSecret(ctx, userID, secret.Secret())
+	if err != nil {
+		t.log.Error("Failed to save TOTP secret", zap.Error(err), zap.String("user_id", userID.String()))
+		return nil, fmt.Errorf("failed to save TOTP secret: %w", err)
+	}
 
 	// Generate backup codes
 	backupCodes := t.GenerateBackupCodes()
@@ -225,6 +234,16 @@ func (t *twoFactorService) VerifyToken(secret, token string) bool {
 
 	t.log.Debug("TOTP token verified successfully")
 	return true
+}
+
+// VerifyTOTPToken is a public method to verify TOTP tokens
+func (t *twoFactorService) VerifyTOTPToken(secret, token string) bool {
+	return t.VerifyToken(secret, token)
+}
+
+// GetSecret retrieves the TOTP secret for a user
+func (t *twoFactorService) GetSecret(ctx context.Context, userID uuid.UUID) (string, error) {
+	return t.storage.GetSecret(ctx, userID)
 }
 
 // VerifyAndEnable2FA verifies a token and enables 2FA for a user
@@ -631,34 +650,26 @@ func (t *twoFactorService) EnableMethod(ctx context.Context, userID uuid.UUID, m
 	switch TwoFactorMethod(method) {
 	case MethodTOTP:
 		// Enable TOTP method
-		if secret, ok := data["secret"].(string); ok {
-			// Save the secret first
-			err := t.storage.SaveSecret(ctx, userID, secret)
-			if err != nil {
-				return err
-			}
-			// Enable the method in the multi-method system
-			err = t.storage.EnableMethod(ctx, userID, method)
-			if err != nil {
-				return err
-			}
-
-			// Enable the overall 2FA status
-			now := time.Now()
-			settings := &dto.TwoFactorSettings{
-				UserID:    userID,
-				IsEnabled: true,
-				EnabledAt: &now,
-			}
-			err = t.storage.SaveSettings(ctx, settings)
-			if err != nil {
-				t.log.Error("Failed to enable 2FA status", zap.Error(err), zap.String("user_id", userID.String()))
-				return fmt.Errorf("failed to enable 2FA status: %w", err)
-			}
-
-			return nil
+		// Secret should already be saved, just enable the method
+		err := t.storage.EnableMethod(ctx, userID, method)
+		if err != nil {
+			return err
 		}
-		return fmt.Errorf("secret required for TOTP method")
+
+		// Enable the overall 2FA status
+		now := time.Now()
+		settings := &dto.TwoFactorSettings{
+			UserID:    userID,
+			IsEnabled: true,
+			EnabledAt: &now,
+		}
+		err = t.storage.SaveSettings(ctx, settings)
+		if err != nil {
+			t.log.Error("Failed to enable 2FA status", zap.Error(err), zap.String("user_id", userID.String()))
+			return fmt.Errorf("failed to enable 2FA status: %w", err)
+		}
+
+		return nil
 
 	case MethodEmailOTP:
 		// Enable email OTP method

@@ -32,6 +32,8 @@ type TwoFactorService interface {
 	GenerateSMSOTP(ctx context.Context, userID uuid.UUID, phoneNumber string) error
 	GenerateBackupCodes() []string
 	SaveBackupCodes(ctx context.Context, userID uuid.UUID, codes []string) error
+	GetSecret(ctx context.Context, userID uuid.UUID) (string, error)
+	VerifyTOTPToken(secret, token string) bool
 }
 
 type twoFactorHandler struct {
@@ -1144,9 +1146,9 @@ func (h *twoFactorHandler) GenerateSecretForLogin(c *gin.Context) {
 	}
 
 	// Get user email for secret generation
-	// For now, we'll use a placeholder email since we don't have user context
-	// In a real implementation, you'd fetch the user's email from the database
-	email := "user@example.com" // TODO: Get actual user email from database
+	// We need to fetch the user's email from the database
+	// For now, we'll use the user ID as a fallback if email is not available
+	email := req.UserID + "@tucanbit.tv" // Use user ID as fallback email
 
 	// Generate secret using the service
 	response, err := h.service.GenerateSecret(c.Request.Context(), userID, email)
@@ -1195,11 +1197,29 @@ func (h *twoFactorHandler) EnableTOTPForLogin(c *gin.Context) {
 		return
 	}
 
-	// Enable TOTP using the service
-	// For TOTP, we need to enable the method with the secret and token
-	err = h.service.EnableMethod(c.Request.Context(), userID, "totp", map[string]interface{}{
-		"secret": req.Token, // In this case, the token is the secret
-	})
+	// Get the secret that was generated earlier
+	secret, err := h.service.GetSecret(c.Request.Context(), userID)
+	if err != nil {
+		h.log.Error("Failed to get TOTP secret", zap.Error(err), zap.String("user_id", userID.String()))
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Error:   "No TOTP secret found. Please generate a secret first.",
+		})
+		return
+	}
+
+	// Verify the token against the secret
+	if !h.service.VerifyTOTPToken(secret, req.Token) {
+		h.log.Warn("Invalid TOTP token provided", zap.String("user_id", userID.String()))
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Error:   "Invalid TOTP token",
+		})
+		return
+	}
+
+	// Enable TOTP method directly (secret is already saved)
+	err = h.service.EnableMethod(c.Request.Context(), userID, "totp", map[string]interface{}{})
 	if err != nil {
 		h.log.Error("Failed to enable TOTP", zap.Error(err), zap.String("user_id", userID.String()))
 		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
