@@ -15,7 +15,7 @@ func InitEnterpriseRegistration(
 	log zap.Logger,
 	user UserHandler,
 ) {
-	log.Info("🔧 Initializing enterprise registration routes...")
+	log.Info(" Initializing enterprise registration routes...")
 	enterpriseRoutes := []routing.Route{
 		{
 			Method:  http.MethodPost,
@@ -51,7 +51,7 @@ func InitEnterpriseRegistration(
 		},
 	}
 
-	log.Info("🔧 Registering enterprise registration routes...", zap.Int("route_count", len(enterpriseRoutes)))
+	log.Info(" Registering enterprise registration routes...", zap.Int("route_count", len(enterpriseRoutes)))
 	routing.RegisterRoute(group, enterpriseRoutes, log)
 	log.Info("Enterprise registration routes initialized successfully")
 }

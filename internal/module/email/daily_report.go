@@ -55,7 +55,7 @@ func (d *DailyReportEmailServiceImpl) SendDailyReportEmail(report *dto.EnhancedD
 		d.logger.Info("Daily report email sent successfully",
 			zap.String("recipient", recipient),
 			zap.String("date", report.Date.Format("2006-01-02")),
-			zap.Uint32("total_transactions", report.TotalTransactions),
+			zap.Uint64("total_transactions", report.TotalTransactions),
 			zap.String("net_revenue", report.NetRevenue.String()))
 	}
 
@@ -307,27 +307,27 @@ func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.Enhanc
 	// Prepare data for the report content template
 	data := struct {
 		DateFormatted     string
-		TotalTransactions uint32
+		TotalTransactions uint64
 		TotalDeposits     string
 		TotalWithdrawals  string
 		TotalBets         string
 		TotalWins         string
 		NetRevenue        string
-		ActiveUsers       uint32
-		ActiveGames       uint32
-		NewUsers          uint32
-		UniqueDepositors  uint32
-		UniqueWithdrawers uint32
-		BetCount          uint32
+		ActiveUsers       uint64
+		ActiveGames       uint64
+		NewUsers          uint64
+		UniqueDepositors  uint64
+		UniqueWithdrawers uint64
+		BetCount          uint64
 		BetAmount         string
 		WinAmount         string
 		GGR               string
 		CashbackEarned    string
 		CashbackClaimed   string
 		NGR               string
-		DepositCount      uint32
+		DepositCount      uint64
 		DepositAmount     string
-		WithdrawalCount   uint32
+		WithdrawalCount   uint64
 		WithdrawalAmount  string
 		AdminCorrections  string
 		TopGames          []dto.GameStats
@@ -337,41 +337,41 @@ func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.Enhanc
 		}
 		PreviousDayChange dto.DailyReportComparison
 		MTD               struct {
-			TotalTransactions uint32
+			TotalTransactions uint64
 			TotalDeposits     string
 			TotalWithdrawals  string
 			TotalBets         string
 			TotalWins         string
 			NetRevenue        string
-			ActiveUsers       uint32
-			ActiveGames       uint32
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			DepositCount      uint32
-			WithdrawalCount   uint32
-			BetCount          uint32
-			WinCount          uint32
+			ActiveUsers       uint64
+			ActiveGames       uint64
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			DepositCount      uint64
+			WithdrawalCount   uint64
+			BetCount          uint64
+			WinCount          uint64
 			CashbackEarned    string
 			CashbackClaimed   string
 			AdminCorrections  string
 		}
 		SPLM struct {
-			TotalTransactions uint32
+			TotalTransactions uint64
 			TotalDeposits     string
 			TotalWithdrawals  string
 			TotalBets         string
 			TotalWins         string
 			NetRevenue        string
-			ActiveUsers       uint32
-			ActiveGames       uint32
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			DepositCount      uint32
-			WithdrawalCount   uint32
-			BetCount          uint32
-			WinCount          uint32
+			ActiveUsers       uint64
+			ActiveGames       uint64
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			DepositCount      uint64
+			WithdrawalCount   uint64
+			BetCount          uint64
+			WinCount          uint64
 			CashbackEarned    string
 			CashbackClaimed   string
 			AdminCorrections  string
@@ -404,21 +404,21 @@ func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.Enhanc
 		AdminCorrections:  report.AdminCorrections.StringFixed(2),
 		PreviousDayChange: report.PreviousDayChange,
 		MTD: struct {
-			TotalTransactions uint32
+			TotalTransactions uint64
 			TotalDeposits     string
 			TotalWithdrawals  string
 			TotalBets         string
 			TotalWins         string
 			NetRevenue        string
-			ActiveUsers       uint32
-			ActiveGames       uint32
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			DepositCount      uint32
-			WithdrawalCount   uint32
-			BetCount          uint32
-			WinCount          uint32
+			ActiveUsers       uint64
+			ActiveGames       uint64
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			DepositCount      uint64
+			WithdrawalCount   uint64
+			BetCount          uint64
+			WinCount          uint64
 			CashbackEarned    string
 			CashbackClaimed   string
 			AdminCorrections  string
@@ -443,21 +443,21 @@ func (d *DailyReportEmailServiceImpl) generateDailyReportHTML(report *dto.Enhanc
 			AdminCorrections:  report.MTD.AdminCorrections.StringFixed(2),
 		},
 		SPLM: struct {
-			TotalTransactions uint32
+			TotalTransactions uint64
 			TotalDeposits     string
 			TotalWithdrawals  string
 			TotalBets         string
 			TotalWins         string
 			NetRevenue        string
-			ActiveUsers       uint32
-			ActiveGames       uint32
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			DepositCount      uint32
-			WithdrawalCount   uint32
-			BetCount          uint32
-			WinCount          uint32
+			ActiveUsers       uint64
+			ActiveGames       uint64
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			DepositCount      uint64
+			WithdrawalCount   uint64
+			BetCount          uint64
+			WinCount          uint64
 			CashbackEarned    string
 			CashbackClaimed   string
 			AdminCorrections  string
@@ -739,11 +739,11 @@ func (d *DailyReportEmailServiceImpl) generateWeeklyReportHTML(reports []*dto.En
 	var dailyReports []struct {
 		Index             int
 		Date              string
-		NewUsers          uint32
-		UniqueDepositors  uint32
-		UniqueWithdrawers uint32
-		ActiveUsers       uint32
-		BetCount          uint32
+		NewUsers          uint64
+		UniqueDepositors  uint64
+		UniqueWithdrawers uint64
+		ActiveUsers       uint64
+		BetCount          uint64
 		TotalBets         string
 		NetRevenue        string
 	}
@@ -752,11 +752,11 @@ func (d *DailyReportEmailServiceImpl) generateWeeklyReportHTML(reports []*dto.En
 		dailyReports = append(dailyReports, struct {
 			Index             int
 			Date              string
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			ActiveUsers       uint32
-			BetCount          uint32
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			ActiveUsers       uint64
+			BetCount          uint64
 			TotalBets         string
 			NetRevenue        string
 		}{
@@ -781,11 +781,11 @@ func (d *DailyReportEmailServiceImpl) generateWeeklyReportHTML(reports []*dto.En
 		DailyReports []struct {
 			Index             int
 			Date              string
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			ActiveUsers       uint32
-			BetCount          uint32
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			ActiveUsers       uint64
+			BetCount          uint64
 			TotalBets         string
 			NetRevenue        string
 		}
@@ -807,15 +807,15 @@ func (d *DailyReportEmailServiceImpl) generateWeeklyReportHTML(reports []*dto.En
 
 // WeeklySummary represents summary data for weekly reports
 type WeeklySummary struct {
-	TotalNewUsers          uint32
+	TotalNewUsers          uint64
 	AvgNewUsers            string
-	TotalUniqueDepositors  uint32
+	TotalUniqueDepositors  uint64
 	AvgUniqueDepositors    string
-	TotalUniqueWithdrawers uint32
+	TotalUniqueWithdrawers uint64
 	AvgUniqueWithdrawers   string
-	TotalActiveUsers       uint32
+	TotalActiveUsers       uint64
 	AvgActiveUsers         string
-	TotalBets              uint32
+	TotalBets              uint64
 	AvgBets                string
 	TotalBetAmount         string
 	AvgBetAmount           string
@@ -830,11 +830,11 @@ type WeeklySummary struct {
 	BestDay                DailyReportSummary
 	WorstDay               DailyReportSummary
 	MTD                    struct {
-		NewUsers          uint32
-		UniqueDepositors  uint32
-		UniqueWithdrawers uint32
-		ActiveUsers       uint32
-		BetCount          uint32
+		NewUsers          uint64
+		UniqueDepositors  uint64
+		UniqueWithdrawers uint64
+		ActiveUsers       uint64
+		BetCount          uint64
 		TotalBets         string
 		TotalWins         string
 		NetRevenue        string
@@ -842,11 +842,11 @@ type WeeklySummary struct {
 		TotalWithdrawals  string
 	}
 	SPLM struct {
-		NewUsers          uint32
-		UniqueDepositors  uint32
-		UniqueWithdrawers uint32
-		ActiveUsers       uint32
-		BetCount          uint32
+		NewUsers          uint64
+		UniqueDepositors  uint64
+		UniqueWithdrawers uint64
+		ActiveUsers       uint64
+		BetCount          uint64
 		TotalBets         string
 		TotalWins         string
 		NetRevenue        string
@@ -859,11 +859,11 @@ type WeeklySummary struct {
 // DailyReportSummary represents summary data for a single day
 type DailyReportSummary struct {
 	Date              string
-	NewUsers          uint32
-	UniqueDepositors  uint32
-	UniqueWithdrawers uint32
-	ActiveUsers       uint32
-	BetCount          uint32
+	NewUsers          uint64
+	UniqueDepositors  uint64
+	UniqueWithdrawers uint64
+	ActiveUsers       uint64
+	BetCount          uint64
 	TotalBets         string
 	TotalWins         string
 	NetRevenue        string
@@ -877,7 +877,7 @@ func (d *DailyReportEmailServiceImpl) calculateWeeklySummary(reports []*dto.Enha
 		return WeeklySummary{}
 	}
 
-	var totalNewUsers, totalUniqueDepositors, totalUniqueWithdrawers, totalActiveUsers, totalBets uint32
+	var totalNewUsers, totalUniqueDepositors, totalUniqueWithdrawers, totalActiveUsers, totalBets uint64
 	var totalBetAmount, totalWinAmount, totalGGR, totalDeposits, totalWithdrawals decimal.Decimal
 
 	bestDay := reports[0]
@@ -931,11 +931,11 @@ func (d *DailyReportEmailServiceImpl) calculateWeeklySummary(reports []*dto.Enha
 		TotalWithdrawals:       totalWithdrawals.StringFixed(2),
 		AvgWithdrawals:         totalWithdrawals.Div(daysCount).StringFixed(2),
 		MTD: struct {
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			ActiveUsers       uint32
-			BetCount          uint32
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			ActiveUsers       uint64
+			BetCount          uint64
 			TotalBets         string
 			TotalWins         string
 			NetRevenue        string
@@ -954,11 +954,11 @@ func (d *DailyReportEmailServiceImpl) calculateWeeklySummary(reports []*dto.Enha
 			TotalWithdrawals:  latestReport.MTD.TotalWithdrawals.StringFixed(2),
 		},
 		SPLM: struct {
-			NewUsers          uint32
-			UniqueDepositors  uint32
-			UniqueWithdrawers uint32
-			ActiveUsers       uint32
-			BetCount          uint32
+			NewUsers          uint64
+			UniqueDepositors  uint64
+			UniqueWithdrawers uint64
+			ActiveUsers       uint64
+			BetCount          uint64
 			TotalBets         string
 			TotalWins         string
 			NetRevenue        string

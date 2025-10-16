@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/db"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -18,6 +20,7 @@ import (
 type CryptoWallet interface {
 	// Wallet connection operations
 	CreateWalletConnection(ctx context.Context, userID uuid.UUID, walletAddress, walletType string) (*db.CryptoWalletConnection, error)
+	CreateWalletConnectionWithChain(ctx context.Context, userID uuid.UUID, walletAddress, walletType, walletChain string) (*db.CryptoWalletConnection, error)
 	GetWalletConnectionByAddress(ctx context.Context, walletAddress string) (*db.CryptoWalletConnection, error)
 	GetUserWalletConnections(ctx context.Context, userID uuid.UUID) ([]*db.CryptoWalletConnection, error)
 	UpdateWalletConnection(ctx context.Context, connectionID uuid.UUID, updates map[string]interface{}) error
@@ -39,6 +42,9 @@ type CryptoWallet interface {
 	// User wallet info
 	GetUserWallets(ctx context.Context, userID uuid.UUID) ([]*db.UserWalletInfo, error)
 	CountUserWallets(ctx context.Context, userID uuid.UUID) (int, error)
+
+	// Balance operations (to avoid sqlc issues)
+	CreateBalanceRaw(ctx context.Context, userID uuid.UUID, currencyCode string, amount decimal.Decimal) error
 }
 
 // cryptoWalletStorage implements the CryptoWallet interface with production database
@@ -57,6 +63,9 @@ func Init(db *persistencedb.PersistenceDB, log *zap.Logger) CryptoWallet {
 
 // CreateWalletConnection creates a new wallet connection
 func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID uuid.UUID, walletAddress, walletType string) (*db.CryptoWalletConnection, error) {
+	// Detect wallet chain based on address format
+	walletChain := c.detectWalletChain(walletAddress)
+
 	query := `
 		INSERT INTO crypto_wallet_connections (
 			user_id, wallet_type, wallet_address, wallet_chain, wallet_name, wallet_icon_url
@@ -67,7 +76,7 @@ func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID
 
 	var connection db.CryptoWalletConnection
 	err := c.db.GetPool().QueryRow(ctx, query,
-		userID, walletType, walletAddress, "ethereum", nil, nil,
+		userID, walletType, walletAddress, walletChain, nil, nil,
 	).Scan(
 		&connection.ID, &connection.UserID, &connection.WalletType, &connection.WalletAddress,
 		&connection.WalletChain, &connection.WalletName, &connection.WalletIconURL,
@@ -80,11 +89,68 @@ func (c *cryptoWalletStorage) CreateWalletConnection(ctx context.Context, userID
 			zap.Error(err),
 			zap.String("userID", userID.String()),
 			zap.String("walletAddress", walletAddress),
-			zap.String("walletType", walletType))
+			zap.String("walletType", walletType),
+			zap.String("walletChain", walletChain))
 		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to create wallet connection")
 	}
 
 	return &connection, nil
+}
+
+// CreateWalletConnectionWithChain creates a new wallet connection with specified chain type
+func (c *cryptoWalletStorage) CreateWalletConnectionWithChain(ctx context.Context, userID uuid.UUID, walletAddress, walletType, walletChain string) (*db.CryptoWalletConnection, error) {
+	query := `
+		INSERT INTO crypto_wallet_connections (
+			user_id, wallet_type, wallet_address, wallet_chain, wallet_name, wallet_icon_url
+		) VALUES (
+			$1, $2, $3, $4, $5, $6
+		) RETURNING *;
+	`
+
+	var connection db.CryptoWalletConnection
+	err := c.db.GetPool().QueryRow(ctx, query,
+		userID, walletType, walletAddress, walletChain, nil, nil,
+	).Scan(
+		&connection.ID, &connection.UserID, &connection.WalletType, &connection.WalletAddress,
+		&connection.WalletChain, &connection.WalletName, &connection.WalletIconURL,
+		&connection.IsVerified, &connection.VerificationSignature, &connection.VerificationMessage,
+		&connection.VerificationTimestamp, &connection.LastUsedAt, &connection.CreatedAt, &connection.UpdatedAt,
+	)
+
+	if err != nil {
+		c.log.Error("failed to create wallet connection with chain",
+			zap.Error(err),
+			zap.String("userID", userID.String()),
+			zap.String("walletAddress", walletAddress),
+			zap.String("walletType", walletType),
+			zap.String("walletChain", walletChain))
+		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to create wallet connection with chain")
+	}
+
+	return &connection, nil
+}
+
+// detectWalletChain detects the blockchain chain based on wallet address format
+func (c *cryptoWalletStorage) detectWalletChain(address string) string {
+	address = strings.TrimSpace(strings.ToLower(address))
+
+	// Ethereum-style addresses (0x prefix, 42 chars)
+	if strings.HasPrefix(address, "0x") && len(address) == 42 {
+		return "ethereum"
+	}
+
+	// Solana-style addresses (base58, 32-44 chars, no 0x prefix)
+	if len(address) >= 32 && len(address) <= 44 && !strings.HasPrefix(address, "0x") {
+		return "solana"
+	}
+
+	// Bitcoin-style addresses
+	if strings.HasPrefix(address, "1") || strings.HasPrefix(address, "3") || strings.HasPrefix(address, "bc1") {
+		return "bitcoin"
+	}
+
+	// Default to ethereum for unknown formats
+	return "ethereum"
 }
 
 // GetWalletConnectionByAddress retrieves wallet connection by address
@@ -277,7 +343,8 @@ func (c *cryptoWalletStorage) SetPrimaryWallet(ctx context.Context, userID uuid.
 // GetUserByWalletAddress gets user by wallet address
 func (c *cryptoWalletStorage) GetUserByWalletAddress(ctx context.Context, walletAddress, walletType string) (*db.User, error) {
 	query := `
-		SELECT u.* FROM users u
+		SELECT u.id, u.username, u.phone_number, u.password, u.created_at, u.default_currency, u.profile, u.email, u.first_name, u.last_name, u.date_of_birth, u.source, u.is_email_verified, u.referal_code, u.street_address, u.country, u.state, u.city, u.postal_code, u.kyc_status, u.created_by, u.is_admin, u.status, u.referal_type, u.refered_by_code, u.user_type, u.primary_wallet_address, u.wallet_verification_status, u.is_test_account, u.two_factor_enabled, u.two_factor_setup_at
+		FROM users u
 		JOIN crypto_wallet_connections cwc ON u.id = cwc.user_id
 		WHERE cwc.wallet_address = $1 AND cwc.wallet_type = $2;
 	`
@@ -289,7 +356,8 @@ func (c *cryptoWalletStorage) GetUserByWalletAddress(ctx context.Context, wallet
 		&user.DateOfBirth, &user.Source, &user.IsEmailVerified, &user.ReferalCode, &user.StreetAddress,
 		&user.Country, &user.State, &user.City, &user.PostalCode, &user.KycStatus,
 		&user.CreatedBy, &user.IsAdmin, &user.Status, &user.ReferalType, &user.ReferedByCode,
-		&user.UserType, &user.PrimaryWalletAddress, &user.WalletVerificationStatus,
+		&user.UserType, &user.PrimaryWalletAddress, &user.WalletVerificationStatus, &user.IsTestAccount,
+		&user.TwoFactorEnabled, &user.TwoFactorSetupAt,
 	)
 
 	if err != nil {
@@ -551,4 +619,42 @@ func (c *cryptoWalletStorage) CountUserWallets(ctx context.Context, userID uuid.
 	}
 
 	return count, nil
+}
+
+// CreateBalanceRaw creates a balance using raw SQL to avoid sqlc issues
+func (c *cryptoWalletStorage) CreateBalanceRaw(ctx context.Context, userID uuid.UUID, currencyCode string, amount decimal.Decimal) error {
+	// Convert decimal amount to cents (multiply by 100)
+	amountCents := amount.Mul(decimal.NewFromInt(100)).IntPart()
+
+	// Use raw SQL query to match current database structure
+	query := `
+		INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, updated_at) 
+		VALUES ($1, $2, $3, $4, $5) 
+		RETURNING id`
+
+	var balanceID uuid.UUID
+	err := c.db.GetPool().QueryRow(ctx, query,
+		userID,
+		currencyCode,
+		amountCents,
+		amount,
+		time.Now(),
+	).Scan(&balanceID)
+
+	if err != nil {
+		c.log.Error("failed to create balance with raw SQL",
+			zap.Error(err),
+			zap.String("userID", userID.String()),
+			zap.String("currencyCode", currencyCode),
+			zap.String("amount", amount.String()))
+		return errors.ErrUnableTocreate.Wrap(err, "unable to create balance")
+	}
+
+	c.log.Info("Balance created successfully with raw SQL",
+		zap.String("balanceID", balanceID.String()),
+		zap.String("userID", userID.String()),
+		zap.String("currencyCode", currencyCode),
+		zap.String("amount", amount.String()))
+
+	return nil
 }

@@ -2,6 +2,7 @@ package user
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -322,9 +323,59 @@ func (u *user) VerifyResetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.VerifyResetPassword(c, verifyResetPasswordReq)
+
+	// Extract user agent and IP address for email context
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	// Add to context for email service
+	ctx := context.WithValue(c.Request.Context(), "user_agent", userAgent)
+	ctx = context.WithValue(ctx, "ip_address", ipAddress)
+
+	res, err := u.userModule.VerifyResetPassword(ctx, verifyResetPasswordReq)
 	if err != nil {
-		_ = c.Error(err)
+		// Handle specific error types for better user experience
+		errStr := err.Error()
+		u.log.Error("Password reset OTP verification failed",
+			zap.Error(err),
+			zap.String("email", verifyResetPasswordReq.EmailOrPhoneOrUserame),
+			zap.String("otp_id", verifyResetPasswordReq.OTPID.String()))
+
+		// Check for OTP-related errors
+		if strings.Contains(errStr, "invalid or expired OTP") ||
+			strings.Contains(errStr, "invalid otp") ||
+			strings.Contains(errStr, "OTP has expired") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "Invalid or expired OTP. Please request a new password reset.",
+			})
+			return
+		}
+
+		// Check for user not found errors
+		if strings.Contains(errStr, "invalid user") ||
+			strings.Contains(errStr, "user not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": "User not found. Please check your email address.",
+			})
+			return
+		}
+
+		// Check for access errors (invalid login information)
+		if strings.Contains(errStr, "invalid login information") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "Invalid email address. Please check your email and try again.",
+			})
+			return
+		}
+
+		// For any other errors, return a generic error without exposing internal details
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "An error occurred while verifying your OTP. Please try again later.",
+		})
 		return
 	}
 	response.SendSuccessResponse(c, http.StatusOK, res)
@@ -349,7 +400,16 @@ func (u *user) ResetPassword(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	res, err := u.userModule.ResetPassword(c, resetPassword)
+
+	// Extract user agent and IP address for email context
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	// Add to context for email service
+	ctx := context.WithValue(c.Request.Context(), "user_agent", userAgent)
+	ctx = context.WithValue(ctx, "ip_address", ipAddress)
+
+	res, err := u.userModule.ResetPassword(ctx, resetPassword)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -129,7 +129,7 @@ func Initiate() {
 	}
 
 	// Initialize userWS first
-	userBalanceWs := utils.InitUserws(logger, nil) // Will be updated after persistence is created
+	userBalanceWs := utils.InitUserws(logger, nil, nil) // Will be updated after persistence is created
 
 	// Now initialize persistence with Redis, userWS, and ClickHouse
 	var redisOTP *redis.RedisOTP
@@ -141,8 +141,8 @@ func Initiate() {
 	}
 	persistence := initPersistence(&persistenceDB, logger, gormDB, redisOTP, userBalanceWs, clickhouseClient)
 
-	// Update userWS with the actual balance storage
-	userBalanceWs = utils.InitUserws(logger, persistence.Balance)
+	// Update userWS with the actual balance storage and Redis client
+	userBalanceWs = utils.InitUserws(logger, persistence.Balance, platformInstance.Redis)
 
 	// Initialize email services
 	logger.Info("initializing email services")
@@ -169,7 +169,7 @@ func Initiate() {
 	var dailyReportCronjobService analyticsModule.DailyReportCronjobService
 	if clickhouseClient != nil {
 		analyticsStorageInstance := analyticsStorage.NewAnalyticsStorage(clickhouseClient, logger)
-		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, logger)
+		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, persistence.Groove, logger)
 		realtimeSyncService := analyticsModule.NewRealtimeSyncService(syncService, analyticsStorageInstance, logger)
 		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(realtimeSyncService, logger)
 
@@ -239,7 +239,7 @@ func Initiate() {
 
 	// initializing route which handle route endpoints
 	logger.Info("initializing route")
-	initRoute(ginsrv, handler, module, logger, enforcer)
+	initRoute(ginsrv, handler, module, logger, enforcer, persistence)
 	logger.Info("done initializing route")
 
 	logger.Info("Server configuration",

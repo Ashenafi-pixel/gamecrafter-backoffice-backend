@@ -450,6 +450,11 @@ type Agent interface {
 	GetAgentProviderByClientID(ctx context.Context, clientID string) (db.AgentProvider, error)
 }
 
+// GameInfoProvider provides game information for analytics
+type GameInfoProvider interface {
+	GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error)
+}
+
 type Campaign interface {
 	CreateCampaign(ctx context.Context, req dto.CreateCampaignRequest, createdBy uuid.UUID) (dto.CampaignResponse, error)
 	GetCampaigns(ctx context.Context, req dto.GetCampaignsRequest) (dto.GetCampaignsResponse, error)

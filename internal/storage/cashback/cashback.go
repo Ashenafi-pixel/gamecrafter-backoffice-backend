@@ -487,17 +487,38 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 		return nil, err
 	}
 
-	// Get available earnings
+	// Get available earnings for available cashback calculation
 	availableEarnings, err := s.GetAvailableCashbackEarnings(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate total available cashback
+	// Get ALL earnings (including claimed ones) for total claimed calculation
+	allEarnings, err := s.GetUserCashbackEarnings(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate total available cashback and total claimed
 	totalAvailable := decimal.Zero
+	totalClaimed := decimal.Zero
 	for _, earning := range availableEarnings {
 		totalAvailable = totalAvailable.Add(earning.AvailableAmount)
 	}
+	for _, earning := range allEarnings {
+		totalClaimed = totalClaimed.Add(earning.ClaimedAmount)
+		s.logger.Debug("Adding to total claimed",
+			zap.String("earning_id", earning.ID.String()),
+			zap.String("claimed_amount", earning.ClaimedAmount.String()),
+			zap.String("running_total", totalClaimed.String()))
+	}
+
+	s.logger.Info("Cashback summary calculation",
+		zap.String("user_id", userID.String()),
+		zap.String("total_available", totalAvailable.String()),
+		zap.String("total_claimed", totalClaimed.String()),
+		zap.Int("available_earnings_count", len(availableEarnings)),
+		zap.Int("all_earnings_count", len(allEarnings)))
 
 	// Get next tier GGR requirement
 	nextTierGGR := decimal.Zero
@@ -515,7 +536,7 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 		TotalGGR:          userLevel.TotalExpectedGGR,
 		AvailableCashback: totalAvailable,
 		PendingCashback:   decimal.Zero,
-		TotalClaimed:      decimal.Zero,
+		TotalClaimed:      totalClaimed,
 		NextTierGGR:       nextTierGGR,
 		DailyLimit:        tier.DailyCashbackLimit,
 		WeeklyLimit:       tier.WeeklyCashbackLimit,
@@ -970,12 +991,17 @@ func (s *CashbackStorageImpl) GetGameHouseEdge(ctx context.Context, gameType, ga
 		}
 	}
 
+	maxBetStr := "nil"
+	if houseEdge.MaxBet != nil {
+		maxBetStr = houseEdge.MaxBet.String()
+	}
+
 	s.logger.Info("Retrieved game house edge",
 		zap.String("game_type", gameType),
 		zap.String("game_variant", gameVariant),
 		zap.String("house_edge", houseEdge.HouseEdge.String()),
 		zap.String("min_bet", houseEdge.MinBet.String()),
-		zap.String("max_bet", houseEdge.MaxBet.String()))
+		zap.String("max_bet", maxBetStr))
 
 	return &houseEdge, nil
 }
@@ -1133,7 +1159,32 @@ func (s *CashbackStorageImpl) GetTierDistribution(ctx context.Context) ([]dto.Ti
 }
 
 func (s *CashbackStorageImpl) GetUserDailyCashbackLimit(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {
-	return decimal.Zero, nil
+	s.logger.Info("Getting user daily cashback limit", zap.String("user_id", userID.String()))
+
+	// Get today's date in UTC
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	tomorrow := today.Add(24 * time.Hour)
+
+	query := `
+		SELECT COALESCE(SUM(claimed_amount), 0) as daily_claimed
+		FROM cashback_earnings
+		WHERE user_id = $1 
+		AND claimed_at >= $2 
+		AND claimed_at < $3`
+
+	var dailyClaimed decimal.Decimal
+	err := s.db.GetPool().QueryRow(ctx, query, userID, today, tomorrow).Scan(&dailyClaimed)
+	if err != nil {
+		s.logger.Error("Failed to get user daily cashback limit", zap.Error(err))
+		return decimal.Zero, fmt.Errorf("failed to get user daily cashback limit: %w", err)
+	}
+
+	s.logger.Info("Retrieved user daily cashback limit",
+		zap.String("user_id", userID.String()),
+		zap.String("daily_claimed", dailyClaimed.String()),
+		zap.String("date", today.Format("2006-01-02")))
+
+	return dailyClaimed, nil
 }
 
 func (s *CashbackStorageImpl) GetUserWeeklyCashbackLimit(ctx context.Context, userID uuid.UUID) (decimal.Decimal, error) {

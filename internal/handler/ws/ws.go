@@ -488,7 +488,22 @@ func (w *ws) UserBalanceWS(c *gin.Context) {
 			zap.String("type", message.Type),
 			zap.String("access_token_length", fmt.Sprintf("%d", len(message.AccessToken))))
 
-		//verify user
+		// Handle ping messages without requiring authentication
+		if message.Type == "ping" {
+			w.log.Info("Received ping message, responding with pong")
+			pongMsg := map[string]string{"type": "pong"}
+			if err := conn.WriteJSON(pongMsg); err != nil {
+				w.log.Warn("Failed to send pong response", zap.Error(err))
+			}
+			continue
+		}
+
+		// For other message types, verify user
+		if message.AccessToken == "" {
+			w.log.Error("Missing access token for authenticated message", zap.String("type", message.Type))
+			continue
+		}
+
 		claims := &dto.Claim{}
 		token, err := jwt.ParseWithClaims(message.AccessToken, claims, func(token *jwt.Token) (interface{}, error) {
 			return jwtKey, nil
@@ -496,10 +511,7 @@ func (w *ws) UserBalanceWS(c *gin.Context) {
 
 		if err != nil || !token.Valid {
 			w.log.Error("JWT token validation failed", zap.Error(err))
-			err := fmt.Errorf("invalid or expired access_token ")
-			_ = c.Error(err)
-			c.Abort()
-			return
+			continue
 		}
 		// Add debugging logs
 		w.log.Info("JWT token parsed successfully",

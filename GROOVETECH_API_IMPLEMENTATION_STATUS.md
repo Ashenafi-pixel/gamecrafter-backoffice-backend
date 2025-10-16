@@ -208,7 +208,7 @@ This document tracks the implementation status, completion percentage, and worki
 
 ---
 
-## 🔧 **Technical Notes**
+##  **Technical Notes**
 
 ### **Current Working Endpoints**
 - `POST /groove-official/wagerbybatch` - ✅ Working

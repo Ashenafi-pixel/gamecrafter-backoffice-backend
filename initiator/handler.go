@@ -19,6 +19,7 @@ import (
 	"github.com/tucanbit/internal/handler/company"
 	"github.com/tucanbit/internal/handler/department"
 	"github.com/tucanbit/internal/handler/exchange"
+	"github.com/tucanbit/internal/handler/game"
 	"github.com/tucanbit/internal/handler/groove"
 	"github.com/tucanbit/internal/handler/logs"
 	"github.com/tucanbit/internal/handler/lottery"
@@ -71,6 +72,8 @@ type Handler struct {
 	OTP                   handler.OTP
 	Cashback              *cashback.CashbackHandler
 	Groove                *groove.GrooveHandler
+	Game                  *game.GameHandler
+	HouseEdge             *game.HouseEdgeHandler
 	RegistrationService   *user.RegistrationService
 	Campaign              handler.Campaign
 	TwoFactor             handler.TwoFactor
@@ -89,6 +92,9 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		module.User,
 		module.OTP,
 		module.Email,
+		persistence.Balance,
+		module.Cashback,
+		module.Groove,
 		redisAdapter,
 		log,
 	)
@@ -126,6 +132,8 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		OTP:                   otp.NewOTPHandler(module.OTP, log),
 		Cashback:              cashback.NewCashbackHandler(module.Cashback, log),
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, persistence.Database, log),
+		Game:                  game.NewGameHandler(module.Game),
+		HouseEdge:             game.NewHouseEdgeHandler(module.HouseEdge),
 		RegistrationService:   registrationService,
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),

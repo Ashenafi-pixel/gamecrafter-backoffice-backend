@@ -47,6 +47,7 @@ type GrooveStorage interface {
 	GetAccountByAccountID(ctx context.Context, accountID string) (*dto.GrooveAccount, error)
 	UpdateAccount(ctx context.Context, account dto.GrooveAccount) (*dto.GrooveAccount, error)
 	GetAccountBalance(ctx context.Context, accountID string) (decimal.Decimal, error)
+	SyncGrooveAccountBalance(ctx context.Context, accountID string) error
 
 	// Transaction operations
 	ProcessTransaction(ctx context.Context, transaction dto.GrooveTransaction) (*dto.GrooveTransactionResponse, error)
@@ -77,12 +78,18 @@ type GrooveStorage interface {
 	// User profile operations
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*dto.GrooveUserProfile, error)
 
+	// Game information operations
+	GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error)
+
 	// Player transaction history operations
 	GetPlayerTransactionHistory(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error)
 	GetPlayerTransactionHistoryCount(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (int, error)
 	GetPlayerTransactionHistorySummary(ctx context.Context, userID uuid.UUID, accountID *string, transactionType *string, status *string, category *string, startDate *time.Time, endDate *time.Time) (dto.PlayerTransactionSummary, error)
 	GetPlayerTransactionHistoryByAccountID(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error)
 	GetPlayerTransactionHistoryByAccountIDCount(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time) (int, error)
+
+	// Cashback idempotency operations
+	CheckCashbackProcessed(ctx context.Context, userID uuid.UUID, transactionID string) (bool, error)
 }
 
 type GrooveStorageImpl struct {
@@ -257,25 +264,66 @@ func (s *GrooveStorageImpl) UpdateAccount(ctx context.Context, account dto.Groov
 	return &account, nil
 }
 
-// GetAccountBalance retrieves account balance
+// GetAccountBalance retrieves account balance from the main balances table (source of truth)
 func (s *GrooveStorageImpl) GetAccountBalance(ctx context.Context, accountID string) (decimal.Decimal, error) {
 	s.logger.Info("Getting account balance", zap.String("account_id", accountID))
 
-	query := `SELECT balance FROM groove_accounts WHERE account_id = $1`
+	// Get balance from main balances table (source of truth) - using amount_cents
+	query := `
+		SELECT b.amount_cents 
+		FROM balances b
+		JOIN groove_accounts ga ON b.user_id = ga.user_id
+		WHERE ga.account_id = $1 AND b.currency_code = 'USD'
+		LIMIT 1`
 
-	var balance decimal.Decimal
-	err := s.db.GetPool().QueryRow(ctx, query, accountID).Scan(&balance)
-
+	var balanceCents int64
+	err := s.db.GetPool().QueryRow(ctx, query, accountID).Scan(&balanceCents)
 	if err != nil {
 		s.logger.Error("Failed to get account balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("account not found: %w", err)
 	}
 
+	// Convert cents to dollars
+	balance := decimal.NewFromInt(balanceCents).Div(decimal.NewFromInt(100))
+
 	s.logger.Info("Account balance retrieved successfully",
 		zap.String("account_id", accountID),
-		zap.String("balance", balance.String()))
+		zap.String("balance_cents", fmt.Sprintf("%d", balanceCents)),
+		zap.String("balance_dollars", balance.String()))
 
 	return balance, nil
+}
+
+// SyncGrooveAccountBalance synchronizes groove_accounts.balance with the main balances table
+func (s *GrooveStorageImpl) SyncGrooveAccountBalance(ctx context.Context, accountID string) error {
+	s.logger.Info("Synchronizing GrooveTech account balance", zap.String("account_id", accountID))
+
+	// Get the main balance for this account
+	mainBalance, err := s.GetAccountBalance(ctx, accountID)
+	if err != nil {
+		s.logger.Error("Failed to get main balance for sync", zap.Error(err))
+		return fmt.Errorf("failed to get main balance: %w", err)
+	}
+
+	// Update groove_accounts.balance to match main balance
+	query := `UPDATE groove_accounts SET balance = $2, last_activity = NOW() WHERE account_id = $1`
+	result, err := s.db.GetPool().Exec(ctx, query, accountID, mainBalance)
+	if err != nil {
+		s.logger.Error("Failed to sync GrooveTech balance", zap.Error(err))
+		return fmt.Errorf("failed to sync GrooveTech balance: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		s.logger.Warn("No GrooveTech account found for sync", zap.String("account_id", accountID))
+		return fmt.Errorf("no GrooveTech account found")
+	}
+
+	s.logger.Info("GrooveTech account balance synchronized successfully",
+		zap.String("account_id", accountID),
+		zap.String("balance", mainBalance.String()))
+
+	return nil
 }
 
 // ProcessTransaction processes a GrooveTech transaction (legacy method - use ProcessWagerTransaction instead)
@@ -619,7 +667,7 @@ func (s *GrooveStorageImpl) GetUserProfile(ctx context.Context, userID uuid.UUID
 	query := `
 		SELECT city, country, currency_code 
 		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency = 'USD'
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
 		WHERE u.id = $1`
 
 	var city, country, currencyCode *string
@@ -696,15 +744,28 @@ func (s *GrooveStorageImpl) DeductBalance(ctx context.Context, userID uuid.UUID,
 	newBalance := currentBalance.Sub(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table - using real_money
+	// Ensure amount_units is stored in dollars (not cents)
+	amountUnitsInDollars := newBalance
+
+	// Debug logging to understand the values
+	s.logger.Info("DeductBalance calculation debug",
+		zap.String("current_balance_cents", fmt.Sprintf("%d", currentBalanceCents)),
+		zap.String("current_balance_dollars", currentBalance.String()),
+		zap.String("amount_to_deduct", amount.String()),
+		zap.String("new_balance_dollars", newBalance.String()),
+		zap.String("new_balance_cents", fmt.Sprintf("%d", newBalanceCents)),
+		zap.String("amount_units_to_store", amountUnitsInDollars.String()))
+
+	// Update main balances table - using both amount_cents and amount_units
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
-		VALUES ($1, 'USD', $2, NOW())
+		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		VALUES ($1, 'USD', $2, $3, NOW())
 		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
 			amount_cents = $2,
+			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalanceCents)
+	`, userID, newBalanceCents, amountUnitsInDollars)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -776,15 +837,28 @@ func (s *GrooveStorageImpl) AddBalance(ctx context.Context, userID uuid.UUID, am
 	newBalance := currentBalance.Add(amount)
 	newBalanceCents := newBalance.Mul(decimal.NewFromInt(100)).IntPart()
 
-	// Update main balances table - using real_money
+	// Ensure amount_units is stored in dollars (not cents)
+	amountUnitsInDollars := newBalance
+
+	// Debug logging to understand the values
+	s.logger.Info("AddBalance calculation debug",
+		zap.String("current_balance_cents", fmt.Sprintf("%d", currentBalanceCents)),
+		zap.String("current_balance_dollars", currentBalance.String()),
+		zap.String("amount_to_add", amount.String()),
+		zap.String("new_balance_dollars", newBalance.String()),
+		zap.String("new_balance_cents", fmt.Sprintf("%d", newBalanceCents)),
+		zap.String("amount_units_to_store", amountUnitsInDollars.String()))
+
+	// Update main balances table - using both amount_cents and amount_units
 	_, err = tx.Exec(ctx, `
-		INSERT INTO balances (user_id, currency_code, amount_cents, updated_at)
-		VALUES ($1, 'USD', $2, NOW())
+		INSERT INTO balances (user_id, currency_code, amount_cents, amount_units, updated_at)
+		VALUES ($1, 'USD', $2, $3, NOW())
 		ON CONFLICT (user_id, currency_code)
 		DO UPDATE SET 
 			amount_cents = $2,
+			amount_units = $3,
 			updated_at = NOW()
-	`, userID, newBalanceCents)
+	`, userID, newBalanceCents, amountUnitsInDollars)
 	if err != nil {
 		s.logger.Error("Failed to update balance", zap.Error(err))
 		return decimal.Zero, fmt.Errorf("failed to update balance: %w", err)
@@ -853,16 +927,26 @@ func (s *GrooveStorageImpl) StoreTransaction(ctx context.Context, transaction *d
 
 	_, err = s.db.GetPool().Exec(ctx, `
 		INSERT INTO groove_transactions (
-			transaction_id, account_id, session_id, amount, currency, type, status, metadata, is_test_transaction
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			transaction_id, account_id, session_id, amount, currency, type, status, metadata, is_test_transaction, game_id, round_id, bet_amount, device, frbid, user_id, balance_before, balance_after
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT (transaction_id) DO UPDATE SET
 			type = EXCLUDED.type,
 			amount = EXCLUDED.amount,
 			metadata = EXCLUDED.metadata,
 			is_test_transaction = EXCLUDED.is_test_transaction,
+			game_id = EXCLUDED.game_id,
+			round_id = EXCLUDED.round_id,
+			bet_amount = EXCLUDED.bet_amount,
+			device = EXCLUDED.device,
+			frbid = EXCLUDED.frbid,
+			user_id = EXCLUDED.user_id,
+			balance_before = EXCLUDED.balance_before,
+			balance_after = EXCLUDED.balance_after,
 			created_at = EXCLUDED.created_at
 	`, transaction.TransactionID, transaction.AccountID, transaction.GameSessionID,
-		transaction.BetAmount, "USD", transactionType, "completed", metadata, isTestTransaction)
+		transaction.BetAmount, "USD", transactionType, "completed", metadata, isTestTransaction,
+		transaction.GameID, transaction.RoundID, transaction.BetAmount, transaction.Device, transaction.FRBID, transaction.UserID,
+		transaction.BalanceBefore, transaction.BalanceAfter)
 	if err != nil {
 		s.logger.Error("Failed to store transaction", zap.Error(err))
 		return fmt.Errorf("failed to store transaction: %w", err)
@@ -1190,16 +1274,16 @@ func (s *GrooveStorageImpl) GetBalanceDiscrepancies(ctx context.Context) ([]Bala
 			u.id as user_id,
 			u.username,
 			u.email,
-			COALESCE(b.bonus_money, 0) as main_balance,
+			COALESCE(b.amount_cents, 0) / 100.0 as main_balance,
 			COALESCE(ga.balance, 0) as groove_balance,
-			COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0) as discrepancy,
+			(COALESCE(b.amount_cents, 0) / 100.0) - COALESCE(ga.balance, 0) as discrepancy,
 			ga.last_activity
 		FROM users u
-		LEFT JOIN balances b ON u.id = b.user_id AND b.currency = 'USD'
+		LEFT JOIN balances b ON u.id = b.user_id AND b.currency_code = 'USD'
 		LEFT JOIN groove_accounts ga ON u.id = ga.user_id
 		WHERE ga.user_id IS NOT NULL
-		AND ABS(COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0)) > 0.01
-		ORDER BY ABS(COALESCE(b.bonus_money, 0) - COALESCE(ga.balance, 0)) DESC`
+		AND ABS((COALESCE(b.amount_cents, 0) / 100.0) - COALESCE(ga.balance, 0)) > 0.01
+		ORDER BY ABS((COALESCE(b.amount_cents, 0) / 100.0) - COALESCE(ga.balance, 0)) DESC`
 
 	rows, err := s.db.GetPool().Query(ctx, query)
 	if err != nil {
@@ -1727,6 +1811,51 @@ func (s *GrooveStorageImpl) GetPlayerTransactionHistorySummary(ctx context.Conte
 	return summary, nil
 }
 
+// GetGameInfo retrieves game information by game ID
+func (s *GrooveStorageImpl) GetGameInfo(ctx context.Context, gameID string) (*dto.GameInfo, error) {
+	s.logger.Info("Getting game information", zap.String("game_id", gameID))
+
+	// Query the games table for game information
+	query := `
+		SELECT game_id, name, internal_name, provider, integration_partner
+		FROM games
+		WHERE game_id = $1
+		LIMIT 1
+	`
+
+	var gameInfo dto.GameInfo
+	err := s.db.GetPool().QueryRow(ctx, query, gameID).Scan(
+		&gameInfo.GameID,
+		&gameInfo.GameName,
+		&gameInfo.InternalName,
+		&gameInfo.Provider,
+		&gameInfo.IntegrationPartner,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			s.logger.Warn("Game not found in database", zap.String("game_id", gameID))
+			// Return default game info if not found
+			return &dto.GameInfo{
+				GameID:             gameID,
+				GameName:           fmt.Sprintf("GrooveTech Game %s", gameID),
+				InternalName:       fmt.Sprintf("GrooveTech Game %s", gameID),
+				Provider:           "GrooveTech",
+				IntegrationPartner: "groovetech",
+			}, nil
+		}
+		s.logger.Error("Failed to get game information", zap.Error(err))
+		return nil, fmt.Errorf("failed to get game information: %w", err)
+	}
+
+	s.logger.Info("Game information retrieved successfully",
+		zap.String("game_id", gameInfo.GameID),
+		zap.String("game_name", gameInfo.GameName),
+		zap.String("provider", gameInfo.Provider))
+
+	return &gameInfo, nil
+}
+
 // GetPlayerTransactionHistoryByAccountID retrieves player transaction history by account ID
 func (s *GrooveStorageImpl) GetPlayerTransactionHistoryByAccountID(ctx context.Context, accountID string, transactionType *string, status *string, startDate *time.Time, endDate *time.Time, limit int, offset int) ([]dto.PlayerTransaction, error) {
 	s.logger.Info("Fetching player transaction history by account ID",
@@ -1904,4 +2033,42 @@ func (s *GrooveStorageImpl) GetPlayerTransactionHistoryByAccountIDCount(ctx cont
 		zap.Int("total", total))
 
 	return total, nil
+}
+
+// CheckCashbackProcessed checks if cashback has already been processed for a specific wager transaction
+func (s *GrooveStorageImpl) CheckCashbackProcessed(ctx context.Context, userID uuid.UUID, wagerTransactionID string) (bool, error) {
+	s.logger.Info("Checking if cashback was already processed for wager transaction",
+		zap.String("user_id", userID.String()),
+		zap.String("wager_transaction_id", wagerTransactionID))
+
+	// Check if there's already a cashback earning for this user within the last hour
+	// that was created around the same time as the wager transaction
+	query := `
+		SELECT COUNT(*) 
+		FROM cashback_earnings ce
+		WHERE ce.user_id = $1 
+		AND ce.source_bet_id IS NULL 
+		AND ce.created_at >= NOW() - INTERVAL '1 hour'
+		AND EXISTS (
+			SELECT 1 FROM groove_transactions gt 
+			WHERE gt.user_id = $1 
+			AND gt.transaction_id = $2
+			AND gt.created_at >= NOW() - INTERVAL '1 hour'
+		)`
+
+	var count int
+	err := s.db.GetPool().QueryRow(ctx, query, userID, wagerTransactionID).Scan(&count)
+	if err != nil {
+		s.logger.Error("Failed to check if cashback was already processed", zap.Error(err))
+		return false, fmt.Errorf("failed to check if cashback was already processed: %w", err)
+	}
+
+	processed := count > 0
+	s.logger.Info("Cashback processing check completed",
+		zap.String("user_id", userID.String()),
+		zap.String("wager_transaction_id", wagerTransactionID),
+		zap.Bool("already_processed", processed),
+		zap.Int("existing_cashback_count", count))
+
+	return processed, nil
 }

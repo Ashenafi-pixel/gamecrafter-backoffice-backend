@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/spf13/viper"
 
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -46,25 +47,43 @@ func (s *GameSessionStorageImpl) CreateGameSession(ctx context.Context, userID u
 	`
 
 	var session dto.GameSession
-	var homeURL sql.NullString
-	var exitURL sql.NullString
-	var historyURL sql.NullString
+	var homeURLScan sql.NullString
+	var exitURLScan sql.NullString
+	var historyURLScan sql.NullString
+
+	// Get URLs from config
+	homeURL := viper.GetString("groove.home_url")
+	if homeURL == "" {
+		homeURL = "https://tucanbit.tv"
+	}
+	exitURL := viper.GetString("groove.exit_url")
+	if exitURL == "" {
+		exitURL = "https://tucanbit.tv"
+	}
+	historyURL := viper.GetString("groove.history_url")
+	if historyURL == "" {
+		historyURL = "https://tucanbit.tv/history"
+	}
+	licenseType := viper.GetString("groove.license_type")
+	if licenseType == "" {
+		licenseType = "Curacao"
+	}
 
 	err = s.db.GetPool().QueryRow(ctx, query,
 		userID, gameID, deviceType, gameMode,
-		"https://tucanbit.tv",         // home_url
-		"https://tucanbit.tv",         // exit_url
-		"https://tucanbit.tv/history", // history_url
-		"Curacao",                     // license_type
-		isTestAccount,                 // is_test_account from database
-		0,                             // reality_check_elapsed
-		60,                            // reality_check_interval
+		homeURL,       // home_url from config
+		exitURL,       // exit_url from config
+		historyURL,    // history_url from config
+		licenseType,   // license_type from config
+		isTestAccount, // is_test_account from database
+		0,             // reality_check_elapsed
+		60,            // reality_check_interval
 	).Scan(
 		&session.ID,
 		&session.SessionID,
-		&homeURL,
-		&exitURL,
-		&historyURL,
+		&homeURLScan,
+		&exitURLScan,
+		&historyURLScan,
 		&session.LicenseType,
 		&session.IsTestAccount,
 		&session.RealityCheckElapsed,
@@ -80,14 +99,14 @@ func (s *GameSessionStorageImpl) CreateGameSession(ctx context.Context, userID u
 	}
 
 	// Set nullable fields
-	if homeURL.Valid {
-		session.HomeURL = homeURL.String
+	if homeURLScan.Valid {
+		session.HomeURL = homeURLScan.String
 	}
-	if exitURL.Valid {
-		session.ExitURL = exitURL.String
+	if exitURLScan.Valid {
+		session.ExitURL = exitURLScan.String
 	}
-	if historyURL.Valid {
-		session.HistoryURL = historyURL.String
+	if historyURLScan.Valid {
+		session.HistoryURL = historyURLScan.String
 	}
 	// grooveURL will be set later when we update the session with the actual GrooveTech URL
 

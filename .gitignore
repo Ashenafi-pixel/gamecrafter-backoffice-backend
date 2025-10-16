@@ -1,5 +1,6 @@
 ./.vscode
 ./trunk
+.idea
 config/config.yaml
 migrate.exe
 __debug_bin*
@@ -12,3 +13,4 @@ config/rsa_public_key.pembackups/
 tucanbit
 tucanbit-app
 *.log
+main
