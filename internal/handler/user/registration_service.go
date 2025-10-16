@@ -520,11 +520,12 @@ func (rs *RegistrationService) CompleteUserRegistration(c *gin.Context) {
 
 	// Create balance using the balance storage
 	_, err = rs.balanceStorage.CreateBalance(c.Request.Context(), dto.Balance{
-		UserId:       userResponse.UserID,
-		CurrencyCode: "USD", // Default currency
-		RealMoney:    decimal.Zero,
-		BonusMoney:   decimal.Zero,
-		Points:       0,
+		UserId:        userResponse.UserID,
+		CurrencyCode:  "USD", // Default currency
+		AmountCents:   0,
+		AmountUnits:   decimal.Zero,
+		ReservedCents: 0,
+		ReservedUnits: decimal.Zero,
 	})
 	if err != nil {
 		// Check if it's a duplicate key error (wallet already exists)

@@ -131,13 +131,14 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 	}
 
 	return dto.Balance{
-		ID:           id,
-		UserId:       userID,
-		CurrencyCode: currencyCode,
-		RealMoney:    amountUnits,   // amount_units maps to real_money
-		BonusMoney:   reservedUnits, // reserved_units maps to bonus_money
-		Points:       0,             // Points not stored in balances table
-		UpdateAt:     updatedAt,
+		ID:            id,
+		UserId:        userID,
+		CurrencyCode:  currencyCode,
+		AmountCents:   amountCents,
+		AmountUnits:   amountUnits,
+		ReservedCents: reservedCents,
+		ReservedUnits: reservedUnits,
+		UpdateAt:      updatedAt,
 	}, nil
 }
 
