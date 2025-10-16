@@ -75,6 +75,7 @@ WITH users_data AS (
     )
     AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR status = ANY($2))
     AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR kyc_status = ANY($3))
+    AND ($4::boolean IS NULL OR is_test_account = $4)
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -84,10 +85,10 @@ SELECT c.*, r.total_rows
 FROM users_data c
 CROSS JOIN row_count r
 ORDER BY c.created_at DESC
-LIMIT $4 OFFSET $5;
+LIMIT $5 OFFSET $6;
 
 -- name: GetUserPointsByReferals :one 
-SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;
+SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;
 
 
 -- name: GetUsersDoseNotHaveReferalCode :many 

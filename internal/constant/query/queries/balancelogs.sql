@@ -49,6 +49,6 @@ WHERE
     bl.transaction_id = $1;
 
 -- name: SaveBalanceLogs :one 
-INSERT INTO balance_logs (user_id,component,currency,change_amount,operational_group_id,operational_type_id,description,TIMESTAMP,balance_after_update,transaction_id,status)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+INSERT INTO balance_logs (user_id,component,change_amount,operational_group_id,operational_type_id,description,TIMESTAMP,balance_after_update,transaction_id,status)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 RETURNING *;

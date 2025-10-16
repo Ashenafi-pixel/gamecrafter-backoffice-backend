@@ -49,7 +49,7 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 		return nil, err
 	}
 
-	if balance.RealMoney.Decimal.LessThan(requestedAmount) {
+	if balance.AmountUnits.Decimal.LessThan(requestedAmount) {
 		err = errors.ErrInvalidUserInput.Wrap(err, "insufficient balance")
 		s.log.Error("insufficient balance", zap.Error(err))
 		return nil, err
@@ -59,9 +59,9 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
 		UserID:       req.UserID,
 		CurrencyCode: constant.NGN_CURRENCY,
-		RealMoney:    balance.RealMoney.Decimal.Sub(requestedAmount),
-		BonusMoney:   balance.BonusMoney.Decimal,
-		Points:       balance.Points.Int32,
+		AmountUnits:    balance.AmountUnits.Decimal.Sub(requestedAmount),
+		ReservedUnits:   balance.ReservedUnits.Decimal,
+		ReservedCents:       int32(balance.ReservedCents),
 		UpdatedAt:    time.Now(),
 	})
 	if err != nil {
@@ -119,10 +119,10 @@ func (s *sports) PlaceBet(ctx context.Context, req dto.PlaceBetRequest) (*dto.Pl
 	}
 
 	return &dto.PlaceBetResponse{
-		Balance:          updatedBalance.RealMoney.Decimal.String(),
+		Balance:          updatedBalance.AmountUnits.Decimal.String(),
 		ExtTransactionID: bet.TransactionID,
 		CustomerId:       updatedBalance.UserID.String(),
-		BonusAmount:      updatedBalance.BonusMoney.Decimal.String(),
+		BonusAmount:      updatedBalance.ReservedUnits.Decimal.String(),
 	}, nil
 }
 
@@ -164,9 +164,9 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 	updatedBalance, err := s.db.Queries.UpdateBalance(ctx, db.UpdateBalanceParams{
 		UserID:       userID,
 		CurrencyCode: constant.NGN_CURRENCY,
-		RealMoney:    balance.RealMoney.Decimal.Add(requestedAmount),
-		BonusMoney:   balance.BonusMoney.Decimal,
-		Points:       balance.Points.Int32,
+		AmountUnits:    balance.AmountUnits.Decimal.Add(requestedAmount),
+		ReservedUnits:   balance.ReservedUnits.Decimal,
+		ReservedCents:       int32(balance.ReservedCents),
 		UpdatedAt:    time.Now(),
 	})
 	if err != nil {
@@ -188,7 +188,7 @@ func (s *sports) AwardWinnings(ctx context.Context, req dto.SportsServiceAwardWi
 	}
 
 	return &dto.SportsServiceAwardWinningsRes{
-		Balance:          updatedBalance.RealMoney.Decimal.String(),
+		Balance:          updatedBalance.AmountUnits.Decimal.String(),
 		ExtTransactionID: req.TransactionID,
 		AlreadyProcessed: "false",
 	}, nil

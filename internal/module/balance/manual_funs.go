@@ -43,29 +43,39 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
 	})
 	if err != nil {
+		b.log.Error("Failed to get user balance", zap.Error(err), zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY))
 		return dto.ManualFundRes{}, err
 	}
 
+	b.log.Info("Balance check result", zap.Bool("exists", exist), zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY), zap.Any("currentBalance", usrAmount))
+
 	if !exist {
+		b.log.Info("Creating new balance", zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY), zap.String("amount", fund.Amount.String()))
 		_, err = b.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:       fund.UserID,
 			CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
-			RealMoney:    fund.Amount,
+			AmountCents:  fund.Amount.Mul(decimal.NewFromInt(100)).IntPart(),
+			AmountUnits:  fund.Amount,
 		})
 		if err != nil {
+			b.log.Error("Failed to create balance", zap.Error(err))
 			return dto.ManualFundRes{}, err
 		}
+		b.log.Info("Balance created successfully")
 	} else {
-		// update existing balance
-		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
+		// update existing balance by adding the new amount
+		b.log.Info("Updating existing balance", zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY), zap.String("amountToAdd", fund.Amount.String()))
+		updatedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.RealMoney.Add(fund.Amount),
+			Amount:    fund.Amount, // Pass only the amount to add, not the total
 		})
 		if err != nil {
+			b.log.Error("Failed to update balance", zap.Error(err))
 			return dto.ManualFundRes{}, err
 		}
+		b.log.Info("Balance updated successfully", zap.String("newAmountUnits", updatedBalance.AmountUnits.String()), zap.Int64("newAmountCents", updatedBalance.AmountCents))
 	}
 	//save transaction_log
 	blog, err := b.SaveBalanceLogs(ctx, dto.SaveBalanceLogsReq{
@@ -80,7 +90,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
 				Currency:   constant.DEFAULT_CURRENCY, // Use default currency for server database
-				NewBalance: fund.Amount.Add(usrAmount.RealMoney),
+				NewBalance: fund.Amount.Add(usrAmount.AmountUnits),
 			},
 		},
 	})
@@ -90,15 +100,19 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.RealMoney,
+			Amount:    usrAmount.AmountUnits,
 		})
 	}
 
 	// save it to manual fund
+	var transactionID string
+	if blog.TransactionID != nil {
+		transactionID = *blog.TransactionID
+	}
 	manualFund, err := b.balanceStorage.SaveManualFunds(ctx, dto.ManualFundReq{
 		UserID:        fund.UserID,
 		AdminID:       fund.AdminID,
-		TransactionID: *blog.TransactionID,
+		TransactionID: transactionID,
 		Type:          constant.ADD_FUND,
 		Amount:        fund.Amount,
 		Reason:        fund.Reason,
@@ -111,7 +125,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.RealMoney,
+			Amount:    usrAmount.AmountUnits,
 		})
 
 		//remove from balance log
@@ -158,8 +172,8 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 	} else {
 		// update existing balance
 		//check if the balance is greater than or equal
-		if fund.Amount.GreaterThan(usrAmount.RealMoney) {
-			err = fmt.Errorf("user dose not have enough balance with this currency to substract. user current balance %v", usrAmount.RealMoney)
+		if fund.Amount.GreaterThan(usrAmount.AmountUnits) {
+			err = fmt.Errorf("user dose not have enough balance with this currency to substract. user current balance %v", usrAmount.AmountUnits)
 			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return dto.ManualFundRes{}, err
 		}
@@ -167,7 +181,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.RealMoney.Sub(fund.Amount),
+			Amount:    usrAmount.AmountUnits.Sub(fund.Amount),
 		})
 		if err != nil {
 			return dto.ManualFundRes{}, err
@@ -186,7 +200,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
 				Currency:   constant.DEFAULT_CURRENCY, // Use default currency for server database
-				NewBalance: fund.Amount.Add(usrAmount.RealMoney),
+				NewBalance: fund.Amount.Add(usrAmount.AmountUnits),
 			},
 		},
 	})
@@ -196,7 +210,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.RealMoney,
+			Amount:    usrAmount.AmountUnits,
 		})
 	}
 
@@ -217,7 +231,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.RealMoney,
+			Amount:    usrAmount.AmountUnits,
 		})
 
 		//remove from balance log

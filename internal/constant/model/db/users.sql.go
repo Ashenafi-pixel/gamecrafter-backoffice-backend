@@ -1008,7 +1008,7 @@ func (q *Queries) GetUserEmailOrPhoneNumber(ctx context.Context, arg GetUserEmai
 }
 
 const getUserPointsByReferals = `-- name: GetUserPointsByReferals :one
-SELECT real_money,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2
+SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2
 `
 
 type GetUserPointsByReferalsParams struct {
@@ -1017,14 +1017,14 @@ type GetUserPointsByReferalsParams struct {
 }
 
 type GetUserPointsByReferalsRow struct {
-	RealMoney decimal.Decimal
+	AmountUnits decimal.Decimal
 	UserID    uuid.UUID
 }
 
 func (q *Queries) GetUserPointsByReferals(ctx context.Context, arg GetUserPointsByReferalsParams) (GetUserPointsByReferalsRow, error) {
 	row := q.db.QueryRow(ctx, getUserPointsByReferals, arg.ReferalCode, arg.Currency)
 	var i GetUserPointsByReferalsRow
-	err := row.Scan(&i.RealMoney, &i.UserID)
+	err := row.Scan(&i.AmountUnits, &i.UserID)
 	return i, err
 }
 
@@ -1385,6 +1385,7 @@ WITH users_data AS (
     )
     AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR status = ANY($2))
     AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR kyc_status = ANY($3))
+    AND ($4::boolean IS NULL OR is_test_account = $4)
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -1394,15 +1395,16 @@ SELECT c.*, r.total_rows
 FROM users_data c
 CROSS JOIN row_count r
 ORDER BY c.created_at DESC
-LIMIT $4 OFFSET $5
+LIMIT $5 OFFSET $6
 `
 
 type GetAllUsersWithFiltersParams struct {
-	SearchTerm sql.NullString
-	Status     []string
-	KycStatus  []string
-	Limit      int32
-	Offset     int32
+	SearchTerm    sql.NullString
+	Status        []string
+	KycStatus     []string
+	Limit         int32
+	Offset        int32
+	IsTestAccount sql.NullBool
 }
 
 type GetAllUsersWithFiltersRow struct {
@@ -1445,6 +1447,7 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 		arg.SearchTerm,
 		pq.Array(arg.Status),
 		pq.Array(arg.KycStatus),
+		arg.IsTestAccount,
 		arg.Limit,
 		arg.Offset,
 	)

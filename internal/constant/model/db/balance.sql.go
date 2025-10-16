@@ -34,26 +34,28 @@ func (q *Queries) BalanceExist(ctx context.Context, arg BalanceExistParams) (boo
 }
 
 const createBalance = `-- name: CreateBalance :one
-INSERT INTO balances(user_id,currency_code,real_money,bonus_money,points,updated_at) VALUES 
-($1,$2,$3,$4,$5,$6) RETURNING id, user_id, currency_code, real_money, bonus_money, points, updated_at
+INSERT INTO balances(user_id,currency_code,amount_cents,amount_units,reserved_cents,reserved_units,updated_at) VALUES 
+($1,$2,$3,$4,$5,$6,$7) RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
 `
 
 type CreateBalanceParams struct {
-	UserID       uuid.UUID
-	CurrencyCode string
-	RealMoney    decimal.Decimal
-	BonusMoney   decimal.Decimal
-	Points       int32
-	UpdatedAt    time.Time
+	UserID        uuid.UUID
+	CurrencyCode  string
+	AmountCents   int64
+	AmountUnits   decimal.Decimal
+	ReservedCents int64
+	ReservedUnits decimal.Decimal
+	UpdatedAt     time.Time
 }
 
 func (q *Queries) CreateBalance(ctx context.Context, arg CreateBalanceParams) (Balance, error) {
 	row := q.db.QueryRow(ctx, createBalance,
 		arg.UserID,
 		arg.CurrencyCode,
-		arg.RealMoney,
-		arg.BonusMoney,
-		arg.Points,
+		arg.AmountCents,
+		arg.AmountUnits,
+		arg.ReservedCents,
+		arg.ReservedUnits,
 		arg.UpdatedAt,
 	)
 	var i Balance
@@ -61,16 +63,17 @@ func (q *Queries) CreateBalance(ctx context.Context, arg CreateBalanceParams) (B
 		&i.ID,
 		&i.UserID,
 		&i.CurrencyCode,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
+		&i.AmountCents,
+		&i.AmountUnits,
+		&i.ReservedCents,
+		&i.ReservedUnits,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserBalanaceByUserIDAndCurrency = `-- name: GetUserBalanaceByUserIDAndCurrency :one
-SELECT id, user_id, currency_code, real_money, bonus_money, points, updated_at FROM balances where user_id = $1 and currency_code=$2
+SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM balances where user_id = $1 and currency_code=$2
 `
 
 type GetUserBalanaceByUserIDAndCurrencyParams struct {
@@ -85,16 +88,17 @@ func (q *Queries) GetUserBalanaceByUserIDAndCurrency(ctx context.Context, arg Ge
 		&i.ID,
 		&i.UserID,
 		&i.CurrencyCode,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
+		&i.AmountCents,
+		&i.AmountUnits,
+		&i.ReservedCents,
+		&i.ReservedUnits,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserBalancesByUserID = `-- name: GetUserBalancesByUserID :many
-SELECT id, user_id, currency_code, real_money, bonus_money, points, updated_at FROM  balances where user_id = $1
+SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM  balances where user_id = $1
 `
 
 func (q *Queries) GetUserBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]Balance, error) {
@@ -110,9 +114,10 @@ func (q *Queries) GetUserBalancesByUserID(ctx context.Context, userID uuid.UUID)
 			&i.ID,
 			&i.UserID,
 			&i.CurrencyCode,
-			&i.RealMoney,
-			&i.BonusMoney,
-			&i.Points,
+			&i.AmountCents,
+			&i.AmountUnits,
+			&i.ReservedCents,
+			&i.ReservedUnits,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -126,7 +131,7 @@ func (q *Queries) GetUserBalancesByUserID(ctx context.Context, userID uuid.UUID)
 }
 
 const lockBalance = `-- name: LockBalance :one
-SELECT id, user_id, currency_code, real_money, bonus_money, points, updated_at FROM balances 
+SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM balances 
 WHERE user_id = $1 and currency_code = $2
 FOR UPDATE
 `
@@ -143,31 +148,32 @@ func (q *Queries) LockBalance(ctx context.Context, arg LockBalanceParams) (Balan
 		&i.ID,
 		&i.UserID,
 		&i.CurrencyCode,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
+		&i.AmountCents,
+		&i.AmountUnits,
+		&i.ReservedCents,
+		&i.ReservedUnits,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const updateAmountUnits = `-- name: UpdateAmountUnits :one
-UPDATE balances set real_money = $1, bonus_money = $2, updated_at=$3 where user_id = $4 and currency_code = $5
-RETURNING id, user_id, currency_code, real_money, bonus_money, points, updated_at
+UPDATE balances set amount_units = $1, reserved_units = $2, updated_at=$3 where user_id = $4 and currency_code = $5
+RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
 `
 
 type UpdateAmountUnitsParams struct {
-	RealMoney    decimal.Decimal
-	BonusMoney   decimal.Decimal
-	UpdatedAt    time.Time
-	UserID       uuid.UUID
-	CurrencyCode string
+	AmountUnits   decimal.Decimal
+	ReservedUnits decimal.Decimal
+	UpdatedAt     time.Time
+	UserID        uuid.UUID
+	CurrencyCode  string
 }
 
 func (q *Queries) UpdateAmountUnits(ctx context.Context, arg UpdateAmountUnitsParams) (Balance, error) {
 	row := q.db.QueryRow(ctx, updateAmountUnits,
-		arg.RealMoney,
-		arg.BonusMoney,
+		arg.AmountUnits,
+		arg.ReservedUnits,
 		arg.UpdatedAt,
 		arg.UserID,
 		arg.CurrencyCode,
@@ -177,34 +183,35 @@ func (q *Queries) UpdateAmountUnits(ctx context.Context, arg UpdateAmountUnitsPa
 		&i.ID,
 		&i.UserID,
 		&i.CurrencyCode,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
+		&i.AmountCents,
+		&i.AmountUnits,
+		&i.ReservedCents,
+		&i.ReservedUnits,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const updateBalance = `-- name: UpdateBalance :one
-UPDATE balances set currency_code = $1,real_money=$2,bonus_money=$3,points=$4,updated_at=$5 where user_id = $6
-RETURNING id, user_id, currency_code, real_money, bonus_money, points, updated_at
+UPDATE balances set currency_code = $1,amount_units=$2,reserved_units=$3,reserved_cents=$4,updated_at=$5 where user_id = $6
+RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
 `
 
 type UpdateBalanceParams struct {
-	CurrencyCode string
-	RealMoney    decimal.Decimal
-	BonusMoney   decimal.Decimal
-	Points       int32
-	UpdatedAt    time.Time
-	UserID       uuid.UUID
+	CurrencyCode  string
+	AmountUnits   decimal.Decimal
+	ReservedUnits decimal.Decimal
+	ReservedCents int32
+	UpdatedAt     time.Time
+	UserID        uuid.UUID
 }
 
 func (q *Queries) UpdateBalance(ctx context.Context, arg UpdateBalanceParams) (Balance, error) {
 	row := q.db.QueryRow(ctx, updateBalance,
 		arg.CurrencyCode,
-		arg.RealMoney,
-		arg.BonusMoney,
-		arg.Points,
+		arg.AmountUnits,
+		arg.ReservedUnits,
+		arg.ReservedCents,
 		arg.UpdatedAt,
 		arg.UserID,
 	)
@@ -213,29 +220,30 @@ func (q *Queries) UpdateBalance(ctx context.Context, arg UpdateBalanceParams) (B
 		&i.ID,
 		&i.UserID,
 		&i.CurrencyCode,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
+		&i.AmountCents,
+		&i.AmountUnits,
+		&i.ReservedCents,
+		&i.ReservedUnits,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const updateReservedUnits = `-- name: UpdateReservedUnits :one
-UPDATE balances set points = $1, updated_at=$2 where user_id = $3 and currency_code = $4
-RETURNING id, user_id, currency_code, real_money, bonus_money, points, updated_at
+UPDATE balances set reserved_cents = $1, updated_at=$2 where user_id = $3 and currency_code = $4
+RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
 `
 
 type UpdateReservedUnitsParams struct {
-	Points       int32
-	UpdatedAt    time.Time
-	UserID       uuid.UUID
-	CurrencyCode string
+	ReservedCents int32
+	UpdatedAt     time.Time
+	UserID        uuid.UUID
+	CurrencyCode  string
 }
 
 func (q *Queries) UpdateReservedUnits(ctx context.Context, arg UpdateReservedUnitsParams) (Balance, error) {
 	row := q.db.QueryRow(ctx, updateReservedUnits,
-		arg.Points,
+		arg.ReservedCents,
 		arg.UpdatedAt,
 		arg.UserID,
 		arg.CurrencyCode,
@@ -245,9 +253,10 @@ func (q *Queries) UpdateReservedUnits(ctx context.Context, arg UpdateReservedUni
 		&i.ID,
 		&i.UserID,
 		&i.CurrencyCode,
-		&i.RealMoney,
-		&i.BonusMoney,
-		&i.Points,
+		&i.AmountCents,
+		&i.AmountUnits,
+		&i.ReservedCents,
+		&i.ReservedUnits,
 		&i.UpdatedAt,
 	)
 	return i, err

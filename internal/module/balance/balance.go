@@ -147,9 +147,9 @@ func (b *balance) Deposite(ctx context.Context, depositeReq dto.UpdateBalanceReq
 		}
 		var newBalance decimal.Decimal
 		if depositeReq.Component == constant.REAL_MONEY {
-			newBalance = updatedMoney.RealMoney
+			newBalance = updatedMoney.AmountUnits
 		} else {
-			newBalance = updatedMoney.BonusMoney
+			newBalance = updatedMoney.ReservedUnits
 		}
 		return dto.UpdateBalanceRes{
 			Status:  constant.SUCCESS,
@@ -175,8 +175,8 @@ func (b *balance) Deposite(ctx context.Context, depositeReq dto.UpdateBalanceReq
 	createdBalance, err := b.balanceStorage.CreateBalance(ctx, dto.Balance{
 		UserId:        depositeReq.UserID,
 		CurrencyCode:  depositeReq.Currency,
-		RealMoney:   amountUnits,
-		BonusMoney: reservedUnits,
+		AmountUnits:   amountUnits,
+		ReservedUnits: reservedUnits,
 	})
 	if err != nil {
 		return dto.UpdateBalanceRes{}, err
@@ -213,14 +213,14 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 		return dto.UpdateBalanceRes{}, err
 	}
 	if withdrawalReq.Component == constant.REAL_MONEY {
-		newBalance := blnc.RealMoney.Sub(withdrawalReq.Amount)
+		newBalance := blnc.AmountUnits.Sub(withdrawalReq.Amount)
 		if newBalance.LessThan(decimal.Zero) {
 			err := fmt.Errorf("insufficient amount")
 			b.log.Warn(err.Error(), zap.Any("withdrawalReq", withdrawalReq))
 			err = customerrors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return dto.UpdateBalanceRes{}, err
 		}
-		blnc.RealMoney = newBalance
+		blnc.AmountUnits = newBalance
 		updatedBlance, err := b.balanceStorage.UpdateBalance(ctx, blnc)
 		if err != nil {
 			return dto.UpdateBalanceRes{}, err
@@ -237,13 +237,13 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 		}, nil
 
 	} else if withdrawalReq.Component == constant.BONUS_MONEY {
-		newBalance := blnc.BonusMoney.Sub(withdrawalReq.Amount)
+		newBalance := blnc.ReservedUnits.Sub(withdrawalReq.Amount)
 		if newBalance.LessThan(decimal.Zero) {
 			err := fmt.Errorf("insufficient amount")
 			b.log.Warn(err.Error(), zap.Any("withdrawalReq", withdrawalReq))
 			return dto.UpdateBalanceRes{}, err
 		}
-		blnc.BonusMoney = newBalance
+		blnc.ReservedUnits = newBalance
 		updatedBlance, err := b.balanceStorage.UpdateBalance(ctx, blnc)
 		if err != nil {
 			return dto.UpdateBalanceRes{}, err
@@ -270,9 +270,9 @@ func (b *balance) Withdraw(ctx context.Context, withdrawalReq dto.UpdateBalanceR
 func (b *balance) UpdateMoney(ctx context.Context, blnc dto.Balance, updateBalanceReq dto.UpdateBalanceReq) (dto.Balance, error) {
 	if updateBalanceReq.Component == constant.REAL_MONEY || updateBalanceReq.Component == constant.BONUS_MONEY {
 		if updateBalanceReq.Component == constant.REAL_MONEY {
-			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.RealMoney)
+			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.AmountUnits)
 		} else {
-			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.BonusMoney)
+			updateBalanceReq.Amount = updateBalanceReq.Amount.Add(blnc.ReservedUnits)
 		}
 		updatedMoney, err := b.balanceStorage.UpdateMoney(ctx, updateBalanceReq)
 		if err != nil {
@@ -320,14 +320,14 @@ func (b *balance) CreditWallet(ctx context.Context, req dto.CreditWalletReq) (dt
 		blnc, err = b.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:        req.UserID,
 			CurrencyCode:  req.Currency,
-			RealMoney:   req.Amount,
-			BonusMoney: decimal.Zero,
+			AmountUnits:   req.Amount,
+			ReservedUnits: decimal.Zero,
 		})
 		if err != nil {
 			return dto.CreditWalletRes{Success: false, Reason: err.Error()}, err
 		}
 	} else {
-		blnc.RealMoney = blnc.RealMoney.Add(req.Amount)
+		blnc.AmountUnits = blnc.AmountUnits.Add(req.Amount)
 		blnc, err = b.balanceStorage.UpdateBalance(ctx, blnc)
 		if err != nil {
 			return dto.CreditWalletRes{Success: false, Reason: err.Error()}, err
@@ -348,7 +348,7 @@ func (b *balance) CreditWallet(ctx context.Context, req dto.CreditWalletReq) (dt
 		ChangeAmount:       req.Amount,
 		OperationalGroupID: operationalGroupAndType.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndType.OperationalTypeID,
-		BalanceAfterUpdate: &blnc.RealMoney,
+		BalanceAfterUpdate: &blnc.AmountUnits,
 		TransactionID:      &transactionID,
 	})
 	if err != nil {

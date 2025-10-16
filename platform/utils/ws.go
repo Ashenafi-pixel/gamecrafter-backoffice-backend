@@ -153,8 +153,8 @@ func (b *User) GetUserBalance(ctx context.Context, userID uuid.UUID) (dto.UserBa
 	}
 	return dto.UserBalanceResp{
 		UserID:           userID,
-		Balance:          balance.RealMoney,
-		BalanceFormatted: FormatCurrency(balance.RealMoney, balance.CurrencyCode),
+		Balance:          balance.AmountUnits,
+		BalanceFormatted: FormatCurrency(balance.AmountUnits, balance.CurrencyCode),
 		Currency:         balance.CurrencyCode,
 	}, nil
 }

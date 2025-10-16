@@ -282,7 +282,7 @@ func (b *bet) CashOut(ctx context.Context, cashOutReq dto.CashOutReq) (dto.CashO
 		UserID:    cashOutReq.UserID,
 		Currency:  userBet[0].Currency,
 		Component: constant.REAL_MONEY,
-		Amount:    userBalance.RealMoney.Add(multiplayedBalance),
+		Amount:    userBalance.AmountUnits.Add(multiplayedBalance),
 	})
 	if err != nil {
 		return dto.CashOutRes{}, err
@@ -300,7 +300,7 @@ func (b *bet) CashOut(ctx context.Context, cashOutReq dto.CashOutReq) (dto.CashO
 			UserID:    cashOutReq.UserID,
 			Currency:  userBet[0].Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.RealMoney,
+			Amount:    userBalance.AmountUnits,
 		})
 		if err != nil {
 			return dto.CashOutRes{}, err
@@ -316,21 +316,21 @@ func (b *bet) CashOut(ctx context.Context, cashOutReq dto.CashOutReq) (dto.CashO
 			UserID:    cashOutReq.UserID,
 			Currency:  userBet[0].Currency,
 			Component: constant.REAL_MONEY,
-			Amount:    userBalance.RealMoney,
+			Amount:    userBalance.AmountUnits,
 		})
 		// reverse cashout
 		b.betStorage.ReverseCashOut(ctx, userBet[0].BetID)
 		return dto.CashOutRes{}, err
 	}
 	// save balance log
-	betAfterUpdate := userBalance.RealMoney.Add(multiplayedBalance)
+	betAfterUpdate := userBalance.AmountUnits.Add(multiplayedBalance)
 	transactionId := utils.GenerateTransactionId()
 	b.balanceLogStorage.SaveBalanceLogs(ctx, dto.BalanceLogs{
 		UserID:             cashOutReq.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           userBet[0].Currency,
-		Description:        fmt.Sprintf("cash out bet  %v  amount, new balance is %v s currency balance is  %s", multiplayedBalance, updatedBalance.RealMoney, userBet[0].Currency),
-		ChangeAmount:       updatedBalance.RealMoney,
+		Description:        fmt.Sprintf("cash out bet  %v  amount, new balance is %v s currency balance is  %s", multiplayedBalance, updatedBalance.AmountUnits, userBet[0].Currency),
+		ChangeAmount:       updatedBalance.AmountUnits,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
 		BalanceAfterUpdate: &betAfterUpdate,

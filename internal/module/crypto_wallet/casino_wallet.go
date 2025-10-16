@@ -480,9 +480,9 @@ func (s *CasinoWalletService) createNewUserWithWallet(ctx context.Context, req *
 	balance := dto.Balance{
 		UserId:       user.ID,
 		CurrencyCode: "USD",
-		RealMoney:    decimal.NewFromInt(0),
-		BonusMoney:   decimal.NewFromInt(0),
-		Points:       0,
+		AmountUnits:    decimal.NewFromInt(0),
+		ReservedUnits:   decimal.NewFromInt(0),
+		ReservedCents:       0,
 	}
 	_, err = s.balance.CreateBalance(ctx, balance)
 	if err != nil {

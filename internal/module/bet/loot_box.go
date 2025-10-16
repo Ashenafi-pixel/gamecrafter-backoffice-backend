@@ -160,14 +160,14 @@ func (b *bet) PlaceLootBoxBet(ctx context.Context, userID uuid.UUID) ([]dto.Plac
 		b.log.Error("failed to get user balance", zap.Error(err), zap.Any("req", userID.String()))
 		return []dto.PlaceLootBoxResp{}, errors.ErrUnableToGet.Wrap(err, "failed to get user balance")
 	}
-	if !exist || balance.RealMoney.LessThanOrEqual(decimal.Zero) {
+	if !exist || balance.AmountUnits.LessThanOrEqual(decimal.Zero) {
 		err := fmt.Errorf("insufficient balance")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		b.log.Error("insufficient balance", zap.Error(err), zap.Any("req", userID.String()))
 		return []dto.PlaceLootBoxResp{}, err
 	}
 
-	if balance.RealMoney.LessThan(resp) {
+	if balance.AmountUnits.LessThan(resp) {
 		err := fmt.Errorf("insufficient balance to play loot box")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		b.log.Error("insufficient balance to play loot box", zap.Error(err), zap.Any("req", userID.String()))
@@ -175,7 +175,7 @@ func (b *bet) PlaceLootBoxBet(ctx context.Context, userID uuid.UUID) ([]dto.Plac
 	}
 
 	// deduct the balance
-	newBalance := balance.RealMoney.Sub(resp)
+	newBalance := balance.AmountUnits.Sub(resp)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    userID,
@@ -196,7 +196,7 @@ func (b *bet) PlaceLootBoxBet(ctx context.Context, userID uuid.UUID) ([]dto.Plac
 			UserID:    userID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		return []dto.PlaceLootBoxResp{}, err
 	}
@@ -206,7 +206,7 @@ func (b *bet) PlaceLootBoxBet(ctx context.Context, userID uuid.UUID) ([]dto.Plac
 		UserID:             userID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("place loot box bet amount %v, new balance is %v and  currency %s", resp, balance.RealMoney.Sub(resp), constant.POINT_CURRENCY),
+		Description:        fmt.Sprintf("place loot box bet amount %v, new balance is %v and  currency %s", resp, balance.AmountUnits.Sub(resp), constant.POINT_CURRENCY),
 		ChangeAmount:       resp,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -409,14 +409,14 @@ func (b *bet) SelectLootBox(ctx context.Context, lootBox dto.PlaceLootBoxResp, u
 			b.log.Error("user balance not found", zap.Error(err), zap.Any("req", userID.String()))
 			return dto.LootBoxBetResp{}, err
 		}
-		newBalance.RealMoney = newBalance.RealMoney.Add(response.PrizeValue)
+		newBalance.AmountUnits = newBalance.AmountUnits.Add(response.PrizeValue)
 		transactionID := utils.GenerateTransactionId()
 		// update user balance
 		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    userID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    newBalance.RealMoney,
+			Amount:    newBalance.AmountUnits,
 		})
 
 		if err != nil {
@@ -434,11 +434,11 @@ func (b *bet) SelectLootBox(ctx context.Context, lootBox dto.PlaceLootBoxResp, u
 			UserID:             userID,
 			Component:          constant.REAL_MONEY,
 			Currency:           constant.POINT_CURRENCY,
-			Description:        fmt.Sprintf("won loot box bet amount %v, new balance is %v and currency %s", response.PrizeValue, newBalance.RealMoney, constant.POINT_CURRENCY),
+			Description:        fmt.Sprintf("won loot box bet amount %v, new balance is %v and currency %s", response.PrizeValue, newBalance.AmountUnits, constant.POINT_CURRENCY),
 			ChangeAmount:       response.PrizeValue,
 			OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 			OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
-			BalanceAfterUpdate: &newBalance.RealMoney,
+			BalanceAfterUpdate: &newBalance.AmountUnits,
 			TransactionID:      &transactionID,
 		})
 		if err != nil {

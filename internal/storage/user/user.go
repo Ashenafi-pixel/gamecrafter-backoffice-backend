@@ -458,7 +458,8 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 
 	// Check if we have any filters to apply
 	hasFilters := req.Filter.SearchTerm != "" ||
-		len(req.Filter.Status) > 0 || len(req.Filter.KycStatus) > 0 || len(req.Filter.VipLevel) > 0
+		len(req.Filter.Status) > 0 || len(req.Filter.KycStatus) > 0 || len(req.Filter.VipLevel) > 0 ||
+		req.Filter.IsTestAccount != nil
 
 	// Check if we're doing a unified search (searchterm provided)
 	unifiedSearch := req.Filter.SearchTerm != ""
@@ -502,11 +503,12 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			searchTerm = "%%" // Special value to match all records
 		}
 		params := db.GetAllUsersWithFiltersParams{
-			SearchTerm: sql.NullString{String: searchTerm, Valid: true},
-			Status:     normalizedStatus,
-			KycStatus:  normalizedKycStatus,
-			Limit:      int32(req.PerPage),
-			Offset:     int32(offset),
+			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
+			Status:        normalizedStatus,
+			KycStatus:     normalizedKycStatus,
+			Limit:         int32(req.PerPage),
+			Offset:        int32(offset),
+			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 		}
 		u.log.Info("Calling GetAllUsersWithFilters", zap.Any("params", params), zap.Bool("unifiedSearch", unifiedSearch))
 		u.log.Info("Search term details", zap.String("searchterm", req.Filter.SearchTerm), zap.Bool("searchterm_valid", req.Filter.SearchTerm != ""))
@@ -516,11 +518,12 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			u.log.Info("Testing simple search", zap.String("search_term", req.Filter.SearchTerm))
 			// Test with just search term
 			simpleParams := db.GetAllUsersWithFiltersParams{
-				SearchTerm: sql.NullString{String: searchTerm, Valid: true},
-				Status:     normalizedStatus,
-				KycStatus:  normalizedKycStatus,
-				Limit:      int32(req.PerPage),
-				Offset:     int32(offset),
+				SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
+				Status:        normalizedStatus,
+				KycStatus:     normalizedKycStatus,
+				Limit:         int32(req.PerPage),
+				Offset:        int32(offset),
+				IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 			}
 			simpleUsrs, simpleErr := u.db.Queries.GetAllUsersWithFilters(ctx, simpleParams)
 			u.log.Info("Simple search result", zap.Int("count", len(simpleUsrs)), zap.Error(simpleErr))
@@ -571,6 +574,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 				PostalCode: usr.PostalCode, KycStatus: usr.KycStatus, CreatedBy: usr.CreatedBy,
 				IsAdmin: usr.IsAdmin, Status: usr.Status, ReferalType: usr.ReferalType,
 				ReferedByCode: usr.ReferedByCode, UserType: usr.UserType, TotalRows: usr.TotalRows,
+				IsTestAccount: sql.NullBool{Bool: false, Valid: false}, // Default to false for regular users
 			}
 		}
 	}
@@ -639,6 +643,28 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			}
 		}
 
+		// Get user balance
+		balance, err := u.db.Queries.GetUserBalancesByUserID(ctx, usr.ID)
+		if err != nil {
+			if err.Error() == "no rows in result set" {
+				// No balance found, continue with empty accounts
+				balance = []db.Balance{}
+			} else {
+				u.log.Error("unable to get user balance", zap.Error(err), zap.Any("userID", usr.ID))
+				// Continue with empty balance instead of failing
+				balance = []db.Balance{}
+			}
+		}
+
+		var accounts []dto.Balance
+		for _, bal := range balance {
+			accounts = append(accounts, convertUserDBBalanceToDTO(bal))
+		}
+		user.Accounts = accounts
+
+		// Add IsTestAccount field
+		user.IsTestAccount = usr.IsTestAccount.Bool
+
 		if shouldInclude {
 			users = append(users, user)
 		}
@@ -668,13 +694,13 @@ func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Dec
 		return decimal.Zero, false, nil
 	}
 
-	return blc.RealMoney.Decimal, true, nil
+	return blc.AmountUnits.Decimal, true, nil
 }
 
 func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (decimal.Decimal, error) {
 	resp, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-		BonusMoney:   points,
-		RealMoney:    decimal.Zero,
+		ReservedUnits:   points,
+		AmountUnits:    decimal.Zero,
 		UpdatedAt:    time.Now(),
 		UserID:       userID,
 		CurrencyCode: constant.POINT_CURRENCY,
@@ -682,7 +708,7 @@ func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points de
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
 	}
-	return resp.RealMoney.Decimal, nil
+	return resp.AmountUnits.Decimal, nil
 }
 
 func (u *user) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
@@ -972,9 +998,9 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 			accounts = append(accounts, dto.Balance{
 				ID:           bal.ID,
 				CurrencyCode: bal.CurrencyCode,
-				BonusMoney:   bal.BonusMoney.Decimal,
-				RealMoney:    bal.RealMoney.Decimal,
-				Points:       bal.Points.Int32,
+				ReservedUnits:   bal.ReservedUnits.Decimal,
+				AmountUnits:    bal.AmountUnits.Decimal,
+				ReservedCents:       bal.ReservedCents,
 			})
 		}
 
@@ -1323,8 +1349,41 @@ func (u *user) ValidateUniqueConstraints(ctx context.Context, userRequest dto.Us
 	}
 
 	if len(violations) > 0 {
-		return fmt.Errorf("unique constraint violations: %s already exist(s)", strings.Join(violations, ", "))
+		return fmt.Errorf("unique constraint violations: %s already exist(s)", strings.Join(violations, ", "))                                          
 	}
 
 	return nil
+}
+
+// convertUserDBBalanceToDTO safely converts a database Balance to DTO Balance, handling null values
+func convertUserDBBalanceToDTO(dbBalance db.Balance) dto.Balance {
+	var amountUnits decimal.Decimal
+	if dbBalance.AmountUnits.Valid {
+		amountUnits = dbBalance.AmountUnits.Decimal
+	} else {
+		amountUnits = decimal.Zero
+	}
+
+	var reservedUnits decimal.Decimal
+	if dbBalance.ReservedUnits.Valid {
+		reservedUnits = dbBalance.ReservedUnits.Decimal
+	} else {
+		reservedUnits = decimal.Zero
+	}
+
+	var updateAt time.Time
+	if dbBalance.UpdatedAt.Valid {
+		updateAt = dbBalance.UpdatedAt.Time
+	}
+
+	return dto.Balance{
+		ID:           dbBalance.ID,
+		UserId:       dbBalance.UserID,
+		CurrencyCode: dbBalance.CurrencyCode,
+		AmountCents:  dbBalance.AmountCents,
+		AmountUnits:  amountUnits,
+		ReservedCents: dbBalance.ReservedCents,
+		ReservedUnits: reservedUnits,
+		UpdateAt:     updateAt,
+	}
 }

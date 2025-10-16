@@ -57,11 +57,17 @@ func (b *balance_logs) SaveBalanceLogs(ctx context.Context, blanceLogReq dto.Bal
 		changeCents = blanceLogReq.ChangeAmount.Mul(decimal.NewFromInt(100)).IntPart()
 		balanceAfterCents = blanceLogReq.BalanceAfterUpdate.Mul(decimal.NewFromInt(100)).IntPart()
 
+		// Handle transaction ID safely
+		var transactionIDValue string
+		if blanceLogReq.TransactionID != nil {
+			transactionIDValue = *blanceLogReq.TransactionID
+		}
+
 		err := b.db.GetPool().QueryRow(ctx, `
 			INSERT INTO balance_logs (user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code) 
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
 			RETURNING id, user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code
-		`, blanceLogReq.UserID, blanceLogReq.Component, changeCents, blanceLogReq.ChangeAmount, blanceLogReq.OperationalGroupID, blanceLogReq.OperationalTypeID, blanceLogReq.Description, time.Now(), balanceAfterCents, *blanceLogReq.BalanceAfterUpdate, *blanceLogReq.TransactionID, balanceStatus.String, constant.DEFAULT_CURRENCY).Scan(
+		`, blanceLogReq.UserID, blanceLogReq.Component, changeCents, blanceLogReq.ChangeAmount, blanceLogReq.OperationalGroupID, blanceLogReq.OperationalTypeID, blanceLogReq.Description, time.Now(), balanceAfterCents, *blanceLogReq.BalanceAfterUpdate, transactionIDValue, balanceStatus.String, constant.DEFAULT_CURRENCY).Scan(
 			&id, &userID, &component, &changeCents, &changeAmount, &operationalGroupID, &operationalTypeID, &description, &timestamp, &balanceAfterCents, &balanceAfterUpdate, &transactionID, &status, &currencyCode,
 		)
 		if err != nil {
@@ -80,15 +86,14 @@ func (b *balance_logs) SaveBalanceLogs(ctx context.Context, blanceLogReq dto.Bal
 			OperationalTypeID:  operationalTypeID,
 			Status:             status,
 			BalanceAfterUpdate: blanceLogReq.BalanceAfterUpdate,
-			TransactionID:      blanceLogReq.TransactionID,
+			TransactionID:      &transactionID,
 		}, nil
 	}
 
-	// Use original query with currency for local development
+	// Use original query without currency column
 	blanceRes, err := b.db.SaveBalanceLogs(ctx, db.SaveBalanceLogsParams{
 		UserID:             uuid.NullUUID{UUID: blanceLogReq.UserID, Valid: true},
 		Component:          db.Components(blanceLogReq.Component),
-		Currency:           sql.NullString{String: blanceLogReq.Currency, Valid: true},
 		ChangeAmount:       decimal.NullDecimal{Decimal: blanceLogReq.ChangeAmount, Valid: true},
 		OperationalGroupID: uuid.NullUUID{UUID: blanceLogReq.OperationalGroupID, Valid: true},
 		OperationalTypeID:  uuid.NullUUID{UUID: blanceLogReq.OperationalTypeID, Valid: true},

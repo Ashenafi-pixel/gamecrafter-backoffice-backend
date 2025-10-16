@@ -65,7 +65,7 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 		return dto.CreateRollDaDiceResp{}, err
 	}
 
-	if !exist || balance.RealMoney.LessThan(req.BetAmount) {
+	if !exist || balance.AmountUnits.LessThan(req.BetAmount) {
 		err := fmt.Errorf("insufficient balance ")
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return dto.CreateRollDaDiceResp{}, err
@@ -95,7 +95,7 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 
 	// do transaction
 	//update user balance
-	newBalance := balance.RealMoney.Sub(req.BetAmount)
+	newBalance := balance.AmountUnits.Sub(req.BetAmount)
 	transactionID := utils.GenerateTransactionId()
 	_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    req.UserID,
@@ -116,7 +116,7 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 			UserID:    req.UserID,
 			Currency:  constant.POINT_CURRENCY,
 			Component: constant.REAL_MONEY,
-			Amount:    balance.RealMoney,
+			Amount:    balance.AmountUnits,
 		})
 		return dto.CreateRollDaDiceResp{}, err
 	}
@@ -126,7 +126,7 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 		UserID:             req.UserID,
 		Component:          constant.REAL_MONEY,
 		Currency:           constant.POINT_CURRENCY,
-		Description:        fmt.Sprintf("place roll da dice bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.RealMoney.Sub(req.BetAmount), constant.POINT_CURRENCY),
+		Description:        fmt.Sprintf("place roll da dice bet amount %v, new balance is %v and  currency %s", req.BetAmount, balance.AmountUnits.Sub(req.BetAmount), constant.POINT_CURRENCY),
 		ChangeAmount:       req.BetAmount,
 		OperationalGroupID: operationalGroupAndTypeIDs.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndTypeIDs.OperationalTypeID,
@@ -148,7 +148,7 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 		if err != nil {
 			return dto.CreateRollDaDiceResp{}, err
 		}
-		balanceAfterWin := balance.RealMoney.Add(wonAmount)
+		balanceAfterWin := balance.AmountUnits.Add(wonAmount)
 		updatedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    req.UserID,
 			Currency:  constant.POINT_CURRENCY,
@@ -174,7 +174,7 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 				UserID:    req.UserID,
 				Currency:  constant.POINT_CURRENCY,
 				Component: constant.REAL_MONEY,
-				Amount:    balance.RealMoney,
+				Amount:    balance.AmountUnits,
 			})
 			// reverse cashout
 
@@ -187,8 +187,8 @@ func (b *bet) CreateRollDaDice(ctx context.Context, req dto.CreateRollDaDiceReq)
 			UserID:             req.UserID,
 			Component:          constant.REAL_MONEY,
 			Currency:           constant.POINT_CURRENCY,
-			Description:        fmt.Sprintf("cash out roll da dice bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, updatedBalance.RealMoney, constant.POINT_CURRENCY),
-			ChangeAmount:       updatedBalance.RealMoney,
+			Description:        fmt.Sprintf("cash out roll da dice bet  %v  amount, new balance is %v s currency balance is  %s", wonAmount, updatedBalance.AmountUnits, constant.POINT_CURRENCY),
+			ChangeAmount:       updatedBalance.AmountUnits,
 			OperationalGroupID: operationalGroupAndTypeIDsResp.OperationalGroupID,
 			OperationalTypeID:  operationalGroupAndTypeIDsResp.OperationalTypeID,
 			BalanceAfterUpdate: &balanceAfterWin,

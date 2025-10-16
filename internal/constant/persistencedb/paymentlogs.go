@@ -398,9 +398,9 @@ func (p *PersistenceDB) UpdateBalance(ctx context.Context, params db.UpdateBalan
 	// Perform the update
 	balance, err := q.UpdateBalance(ctx, db.UpdateBalanceParams{
 		CurrencyCode: params.CurrencyCode,
-		RealMoney:    params.RealMoney,
-		BonusMoney:   params.BonusMoney,
-		Points:       params.Points,
+		AmountUnits:    params.AmountUnits,
+		ReservedUnits:   params.ReservedUnits,
+		ReservedCents:       params.ReservedCents,
 		UpdatedAt:    params.UpdatedAt,
 		UserID:       params.UserID,
 	})

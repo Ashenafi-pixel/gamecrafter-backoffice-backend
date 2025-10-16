@@ -1,17 +1,17 @@
 -- name: CreateBalance :one 
-INSERT INTO balances(user_id,currency_code,real_money,bonus_money,points,updated_at) VALUES 
-($1,$2,$3,$4,$5,$6) RETURNING *;
+INSERT INTO balances(user_id,currency_code,amount_cents,amount_units,reserved_cents,reserved_units,updated_at) VALUES 
+($1,$2,$3,$4,$5,$6,$7) RETURNING *;
 
 -- name: UpdateBalance :one 
-UPDATE balances set currency_code = $1,real_money=$2,bonus_money=$3,points=$4,updated_at=$5 where user_id = $6
+UPDATE balances set currency_code = $1,amount_units=$2,reserved_units=$3,reserved_cents=$4,updated_at=$5 where user_id = $6
 RETURNING *;
 
 -- name: UpdateAmountUnits :one 
-UPDATE balances set real_money = $1, bonus_money = $2, updated_at=$3 where user_id = $4 and currency_code = $5
+UPDATE balances set amount_units = $1, reserved_units = $2, updated_at=$3 where user_id = $4 and currency_code = $5
 RETURNING *;
 
 -- name: UpdateReservedUnits :one 
-UPDATE balances set points = $1, updated_at=$2 where user_id = $3 and currency_code = $4
+UPDATE balances set reserved_cents = $1, updated_at=$2 where user_id = $3 and currency_code = $4
 RETURNING *;
 
 -- name: LockBalance :one

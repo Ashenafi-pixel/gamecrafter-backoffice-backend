@@ -21,23 +21,18 @@ import (
 // convertDBBalanceToDTO safely converts a database Balance to DTO Balance, handling null values
 func convertDBBalanceToDTO(dbBalance db.Balance) dto.Balance {
 	// Handle null values properly
-	var realMoney decimal.Decimal
-	if dbBalance.RealMoney.Valid {
-		realMoney = dbBalance.RealMoney.Decimal
+	var amountUnits decimal.Decimal
+	if dbBalance.AmountUnits.Valid {
+		amountUnits = dbBalance.AmountUnits.Decimal
 	} else {
-		realMoney = decimal.Zero
+		amountUnits = decimal.Zero
 	}
 
-	var bonusMoney decimal.Decimal
-	if dbBalance.BonusMoney.Valid {
-		bonusMoney = dbBalance.BonusMoney.Decimal
+	var reservedUnits decimal.Decimal
+	if dbBalance.ReservedUnits.Valid {
+		reservedUnits = dbBalance.ReservedUnits.Decimal
 	} else {
-		bonusMoney = decimal.Zero
-	}
-
-	var points int32
-	if dbBalance.Points.Valid {
-		points = dbBalance.Points.Int32
+		reservedUnits = decimal.Zero
 	}
 
 	var updateAt time.Time
@@ -46,13 +41,14 @@ func convertDBBalanceToDTO(dbBalance db.Balance) dto.Balance {
 	}
 
 	return dto.Balance{
-		ID:           dbBalance.ID,
-		UserId:       dbBalance.UserID,
-		CurrencyCode: dbBalance.CurrencyCode,
-		RealMoney:    realMoney,
-		BonusMoney:   bonusMoney,
-		Points:       points,
-		UpdateAt:     updateAt,
+		ID:            dbBalance.ID,
+		UserId:        dbBalance.UserID,
+		CurrencyCode:  dbBalance.CurrencyCode,
+		AmountCents:   dbBalance.AmountCents,
+		AmountUnits:   amountUnits,
+		ReservedCents: dbBalance.ReservedCents,
+		ReservedUnits: reservedUnits,
+		UpdateAt:      updateAt,
 	}
 }
 
@@ -81,11 +77,17 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 		var reservedUnits decimal.Decimal
 		var updatedAt time.Time
 
+		// Convert RealMoney to cents and units for the actual database schema
+		amountCents = createBalanceReq.AmountUnits.Mul(decimal.NewFromInt(100)).IntPart()
+		amountUnits = createBalanceReq.AmountUnits
+		reservedCents = createBalanceReq.ReservedUnits.Mul(decimal.NewFromInt(100)).IntPart()
+		reservedUnits = createBalanceReq.ReservedUnits
+
 		err := b.db.GetPool().QueryRow(ctx, `
 			INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at) 
 			VALUES ($1, $2, $3, $4, $5, $6, $7) 
 			RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-		`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, 0, createBalanceReq.RealMoney, 0, createBalanceReq.BonusMoney, time.Now()).Scan(
+		`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, amountCents, amountUnits, reservedCents, reservedUnits, time.Now()).Scan(
 			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 		)
 		if err != nil {
@@ -95,24 +97,25 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 		}
 
 		return dto.Balance{
-			ID:           id,
-			UserId:       userID,
-			CurrencyCode: currencyCode,
-			RealMoney:    amountUnits,   // amount_units maps to real_money
-			BonusMoney:   reservedUnits, // reserved_units maps to bonus_money
-			Points:       0,             // Server DB doesn't have points, set to 0
-			UpdateAt:     updatedAt,
+			ID:            id,
+			UserId:        userID,
+			CurrencyCode:  currencyCode,
+			AmountUnits:   amountUnits,   // amount_units maps to real_money
+			ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
+			ReservedCents: 0,             // Server DB doesn't have points, set to 0
+			UpdateAt:      updatedAt,
 		}, nil
 	}
 
 	// Use original query with currency for local development
 	blc, err := b.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-		UserID:       createBalanceReq.UserId,
-		CurrencyCode: createBalanceReq.CurrencyCode,
-		RealMoney:    createBalanceReq.RealMoney,
-		BonusMoney:   createBalanceReq.BonusMoney,
-		Points:       createBalanceReq.Points,
-		UpdatedAt:    time.Now(),
+		UserID:        createBalanceReq.UserId,
+		CurrencyCode:  createBalanceReq.CurrencyCode,
+		AmountCents:   createBalanceReq.AmountUnits.Mul(decimal.NewFromInt(100)).IntPart(),
+		AmountUnits:   createBalanceReq.AmountUnits,
+		ReservedCents: createBalanceReq.ReservedUnits.Mul(decimal.NewFromInt(100)).IntPart(),
+		ReservedUnits: createBalanceReq.ReservedUnits,
+		UpdatedAt:     time.Now(),
 	})
 	if err != nil {
 		b.log.Error("unable to create balance ", zap.Error(err), zap.Any("user", createBalanceReq))
@@ -123,19 +126,71 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 }
 
 func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto.Balance) (dto.Balance, bool, error) {
-	query := `SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM balances WHERE user_id = $1 AND currency_code = $2`
-	row := b.db.GetPool().QueryRow(ctx, query, getBalanceReq.UserId, getBalanceReq.CurrencyCode)
+	// Check if we're using server database (different schema)
+	if os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		query := `SELECT id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at FROM balances WHERE user_id = $1 AND currency_code = $2`
+		row := b.db.GetPool().QueryRow(ctx, query, getBalanceReq.UserId, getBalanceReq.CurrencyCode)
 
-	var id uuid.UUID
-	var userID uuid.UUID
-	var currencyCode string
-	var amountCents int64
-	var amountUnits decimal.NullDecimal
-	var reservedCents int64
-	var reservedUnits decimal.NullDecimal
-	var updatedAt sql.NullTime
+		var id uuid.UUID
+		var userID uuid.UUID
+		var currencyCode string
+		var amountCents int64
+		var amountUnits decimal.NullDecimal
+		var reservedCents int64
+		var reservedUnits decimal.NullDecimal
+		var updatedAt sql.NullTime
 
-	err := row.Scan(&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt)
+		err := row.Scan(&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return dto.Balance{}, false, nil
+			}
+			b.log.Error("unable to make get balance request using user_id", zap.Error(err), zap.Any("getBalanceReq", getBalanceReq))
+			err = errors.ErrUnableToGet.Wrap(err, "unable to make get balance request using user_id", zap.Error(err), zap.Any("getBalanceReq", getBalanceReq))
+			return dto.Balance{}, false, err
+		}
+
+		// Convert database fields to DTO
+		var realMoney decimal.Decimal
+		if amountUnits.Valid {
+			realMoney = amountUnits.Decimal
+		} else {
+			realMoney = decimal.Zero
+		}
+
+		var bonusMoney decimal.Decimal
+		if reservedUnits.Valid {
+			bonusMoney = reservedUnits.Decimal
+		} else {
+			bonusMoney = decimal.Zero
+		}
+
+		var points int32
+		points = int32(reservedCents)
+
+		var updateAt time.Time
+		if updatedAt.Valid {
+			updateAt = updatedAt.Time
+		}
+
+		balance := dto.Balance{
+			ID:            id,
+			UserId:        userID,
+			CurrencyCode:  currencyCode,
+			AmountUnits:   realMoney,
+			ReservedUnits: bonusMoney,
+			ReservedCents: int64(points),
+			UpdateAt:      updateAt,
+		}
+
+		return balance, true, nil
+	}
+
+	// Use original query for local development
+	blc, err := b.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
+		UserID:       getBalanceReq.UserId,
+		CurrencyCode: getBalanceReq.CurrencyCode,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return dto.Balance{}, false, nil
@@ -145,51 +200,18 @@ func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto
 		return dto.Balance{}, false, err
 	}
 
-	// Convert database fields to DTO
-	var realMoney decimal.Decimal
-	if amountUnits.Valid {
-		realMoney = amountUnits.Decimal
-	} else {
-		realMoney = decimal.Zero
-	}
-
-	var bonusMoney decimal.Decimal
-	if reservedUnits.Valid {
-		bonusMoney = reservedUnits.Decimal
-	} else {
-		bonusMoney = decimal.Zero
-	}
-
-	var points int32
-	points = int32(reservedCents)
-
-	var updateAt time.Time
-	if updatedAt.Valid {
-		updateAt = updatedAt.Time
-	}
-
-	balance := dto.Balance{
-		ID:           id,
-		UserId:       userID,
-		CurrencyCode: currencyCode,
-		RealMoney:    realMoney,
-		BonusMoney:   bonusMoney,
-		Points:       points,
-		UpdateAt:     updateAt,
-	}
-
-	return balance, true, nil
+	return convertDBBalanceToDTO(blc), true, nil
 }
 
 func (b *balance) UpdateBalance(ctx context.Context, updatedBalance dto.Balance) (dto.Balance, error) {
 
 	ubalance, err := b.db.UpdateBalance(ctx, db.UpdateBalanceParams{
-		CurrencyCode: updatedBalance.CurrencyCode,
-		RealMoney:    updatedBalance.RealMoney,
-		BonusMoney:   updatedBalance.BonusMoney,
-		Points:       updatedBalance.Points,
-		UpdatedAt:    time.Now(),
-		UserID:       updatedBalance.UserId,
+		CurrencyCode:  updatedBalance.CurrencyCode,
+		AmountUnits:   updatedBalance.AmountUnits,
+		ReservedUnits: updatedBalance.ReservedUnits,
+		ReservedCents: int32(updatedBalance.ReservedCents),
+		UpdatedAt:     time.Now(),
+		UserID:        updatedBalance.UserId,
 	})
 	if err != nil {
 		b.log.Error(err.Error(), zap.Any("updateBalance", updatedBalance))
@@ -233,13 +255,13 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 
 			// Convert server database format to DTO format
 			balances = append(balances, dto.Balance{
-				ID:           id,
-				UserId:       userID,
-				CurrencyCode: currencyCode,
-				RealMoney:    amountUnits,   // amount_units maps to real_money
-				BonusMoney:   reservedUnits, // reserved_units maps to bonus_money
-				Points:       0,             // Server DB doesn't have points, set to 0
-				UpdateAt:     updatedAt,
+				ID:            id,
+				UserId:        userID,
+				CurrencyCode:  currencyCode,
+				AmountUnits:   amountUnits,   // amount_units maps to real_money
+				ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
+				ReservedCents: 0,             // Server DB doesn't have points, set to 0
+				UpdateAt:      updatedAt,
 			})
 		}
 
@@ -298,13 +320,13 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 		}
 
 		balance := dto.Balance{
-			ID:           id,
-			UserId:       userID,
-			CurrencyCode: currencyCode,
-			RealMoney:    realMoney,
-			BonusMoney:   bonusMoney,
-			Points:       points,
-			UpdateAt:     updateAt,
+			ID:            id,
+			UserId:        userID,
+			CurrencyCode:  currencyCode,
+			AmountUnits:   realMoney,
+			ReservedUnits: bonusMoney,
+			ReservedCents: int64(points),
+			UpdateAt:      updateAt,
 		}
 
 		balances = append(balances, balance)
@@ -331,15 +353,17 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		var reservedUnits decimal.Decimal
 		var updatedAt time.Time
 
-		// Check if balance exists
+		// Check if balance exists for this user and currency
 		var exists bool
 		err := b.db.GetPool().QueryRow(ctx, `
-			SELECT EXISTS(SELECT 1 FROM balances WHERE user_id = $1)
-		`, updateReq.UserID).Scan(&exists)
+			SELECT EXISTS(SELECT 1 FROM balances WHERE user_id = $1 AND currency_code = $2)
+		`, updateReq.UserID, updateReq.Currency).Scan(&exists)
 		if err != nil {
 			b.log.Error("unable to check balance existence", zap.Error(err), zap.Any("updateReq", updateReq))
 			return dto.Balance{}, err
 		}
+
+		b.log.Info("UpdateMoney - Balance existence check", zap.Bool("exists", exists), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("amount", updateReq.Amount.String()))
 
 		// Create balance if it doesn't exist
 		if !exists {
@@ -359,21 +383,29 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		// Update balance based on component
 		switch updateReq.Component {
 		case constant.REAL_MONEY:
+			amountCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+			b.log.Info("UpdateMoney - Executing UPDATE query", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("amount", updateReq.Amount.String()), zap.Int64("amountCentsToAdd", amountCentsToAdd))
 			err = b.db.GetPool().QueryRow(ctx, `
 				UPDATE balances 
-				SET amount_units = $1, updated_at = $2 
-				WHERE user_id = $3 
+				SET amount_cents = amount_cents + $1, amount_units = amount_units + $2::decimal, updated_at = $3 
+				WHERE user_id = $4 AND currency_code = $5
 				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-			`, updateReq.Amount, time.Now(), updateReq.UserID).Scan(
+			`, amountCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 			)
+			if err != nil {
+				b.log.Error("UpdateMoney - UPDATE query failed", zap.Error(err), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency))
+			} else {
+				b.log.Info("UpdateMoney - UPDATE query successful", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("newAmountUnits", amountUnits.String()), zap.Int64("newAmountCents", amountCents))
+			}
 		case constant.BONUS_MONEY:
+			reservedCents := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
 			err = b.db.GetPool().QueryRow(ctx, `
 				UPDATE balances 
-				SET reserved_units = $1, updated_at = $2 
-				WHERE user_id = $3 
+				SET reserved_cents = reserved_cents + $1, reserved_units = reserved_units + $2, updated_at = $3 
+				WHERE user_id = $4 AND currency_code = $5
 				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-			`, updateReq.Amount, time.Now(), updateReq.UserID).Scan(
+			`, reservedCents, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 			)
 		}
@@ -384,13 +416,13 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		}
 
 		return dto.Balance{
-			ID:           id,
-			UserId:       userID,
-			CurrencyCode: currencyCode,
-			RealMoney:    amountUnits,   // amount_units maps to real_money
-			BonusMoney:   reservedUnits, // reserved_units maps to bonus_money
-			Points:       0,             // Server DB doesn't have points, set to 0
-			UpdateAt:     updatedAt,
+			ID:            id,
+			UserId:        userID,
+			CurrencyCode:  currencyCode,
+			AmountUnits:   amountUnits,   // amount_units maps to real_money
+			ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
+			ReservedCents: 0,             // Server DB doesn't have points, set to 0
+			UpdateAt:      updatedAt,
 		}, nil
 	}
 
@@ -409,12 +441,13 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 	}
 	if !exist {
 		_, err = b.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-			UserID:       updateReq.UserID,
-			CurrencyCode: updateReq.Currency,
-			RealMoney:    decimal.Zero,
-			BonusMoney:   decimal.Zero,
-			Points:       0,
-			UpdatedAt:    time.Now(),
+			UserID:        updateReq.UserID,
+			CurrencyCode:  updateReq.Currency,
+			AmountCents:   0,
+			AmountUnits:   decimal.Zero,
+			ReservedCents: 0,
+			ReservedUnits: decimal.Zero,
+			UpdatedAt:     time.Now(),
 		})
 		if err != nil {
 			b.log.Error("unable to create balance ", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -428,11 +461,11 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 	switch updateReq.Component {
 	case constant.REAL_MONEY:
 		blnc, err = b.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-			RealMoney:    updateReq.Amount,
-			BonusMoney:   decimal.Zero,
-			UpdatedAt:    time.Now(),
-			UserID:       updateReq.UserID,
-			CurrencyCode: updateReq.Currency,
+			AmountUnits:   updateReq.Amount,
+			ReservedUnits: decimal.Zero,
+			UpdatedAt:     time.Now(),
+			UserID:        updateReq.UserID,
+			CurrencyCode:  updateReq.Currency,
 		})
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -442,10 +475,10 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 
 	case constant.BONUS_MONEY:
 		blnc, err = b.db.Queries.UpdateReservedUnits(ctx, db.UpdateReservedUnitsParams{
-			Points:       int32(updateReq.Amount.IntPart()),
-			UpdatedAt:    time.Now(),
-			UserID:       updateReq.UserID,
-			CurrencyCode: updateReq.Currency,
+			ReservedCents: int32(updateReq.Amount.IntPart()),
+			UpdatedAt:     time.Now(),
+			UserID:        updateReq.UserID,
+			CurrencyCode:  updateReq.Currency,
 		})
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))

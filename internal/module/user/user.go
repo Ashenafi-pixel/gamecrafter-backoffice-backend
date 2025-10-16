@@ -381,9 +381,9 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 		u.balanceStorage.CreateBalance(ctx, dto.Balance{
 			UserId:       usrRes.ID,
 			CurrencyCode: constant.DEFAULT_CURRENCY,
-			RealMoney:    decimal.Zero,
-			BonusMoney:   decimal.Zero,
-			Points:       0,
+			AmountUnits:    decimal.Zero,
+			ReservedUnits:   decimal.Zero,
+			ReservedCents:       0,
 		})
 	} else {
 		signUpdBonus, exist, err := u.ConfigStorage.GetConfigByName(ctx, constant.SIGNUP_BONUS)
@@ -395,9 +395,9 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 			u.balanceStorage.CreateBalance(ctx, dto.Balance{
 				UserId:       usrRes.ID,
 				CurrencyCode: constant.DEFAULT_CURRENCY,
-				RealMoney:    decimal.Zero,
-				BonusMoney:   decimal.Zero,
-				Points:       0,
+				AmountUnits:    decimal.Zero,
+				ReservedUnits:   decimal.Zero,
+				ReservedCents:       0,
 			})
 		} else {
 			// if the signup bonus is exist then add the bonus to the user
@@ -409,9 +409,9 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 			u.balanceStorage.CreateBalance(ctx, dto.Balance{
 				UserId:       usrRes.ID,
 				CurrencyCode: constant.DEFAULT_CURRENCY,
-				RealMoney:    decimal.Zero,
-				BonusMoney:   signUpBonusAmount,
-				Points:       0,
+				AmountUnits:    decimal.Zero,
+				ReservedUnits:   signUpBonusAmount,
+				ReservedCents:       0,
 			})
 		}
 
@@ -550,10 +550,10 @@ func (u *User) processReferralBonus(ctx context.Context, referralCode string, ne
 	if err != nil {
 		return fmt.Errorf("failed to get referrer balance: %w", err)
 	}
-	u.log.Info("Referrer balance after update", zap.Any("referrerBalance", referrerBalance.RealMoney.Add(realAmount)))
+	u.log.Info("Referrer balance after update", zap.Any("referrerBalance", referrerBalance.AmountUnits.Add(realAmount)))
 
 	// check if tthe bala
-	newMoney := referrerBalance.RealMoney.Add(realAmount)
+	newMoney := referrerBalance.AmountUnits.Add(realAmount)
 	_, err = u.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 		UserID:    referrer.UserID,
 		Currency:  "P",
@@ -581,7 +581,7 @@ func (u *User) processReferralBonus(ctx context.Context, referralCode string, ne
 		OperationalGroupID: operationalGroupAndType.OperationalGroupID,
 		OperationalTypeID:  operationalGroupAndType.OperationalTypeID,
 		TransactionID:      &transactionID,
-		BalanceAfterUpdate: &referrerBalance.BonusMoney,
+		BalanceAfterUpdate: &referrerBalance.ReservedUnits,
 		Status:             constant.COMPLTE,
 	})
 	if err != nil {
