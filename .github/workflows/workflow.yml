@@ -68,15 +68,11 @@ jobs:
 #          key: ${{ secrets.EC2_KEY }}
 #          script: ~/deploy-front.sh
 
-
-  trigger-infra:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dusansimic/trigger-workflow-action@v0
+      - name: Trigger Terraform deploy
+        uses: convictional/trigger-workflow-and-wait@v1.6.1
         with:
-          name: workflow.yml
           owner: tcbtcn
-          repo: tucanbit-infrastructure
-          inputs: '{"environment":"${{ needs.build.outputs.ENVIRONMENT }}","action":"apply"}}'
+          repo: terraform-infrastructure
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          github_user: dnemchenko #Change later to service account
+          workflow_file_name: 'workflow.yml'
