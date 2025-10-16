@@ -72,8 +72,8 @@ jobs:
         uses: convictional/trigger-workflow-and-wait@v1.6.1
         with:
           owner: tcbtcn
-          repo: terraform-infrastructure
+          repo: tucanbit-infrastructure
           github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           github_user: dnemchenko #Change later to service account
           workflow_file_name: 'workflow.yml'
-          client_payload: '{"environment":"${{ env.ENVIRONMENT }}","action":"apply"}}'
+          client_payload: '{"environment":"${{ env.ENVIRONMENT }}","action":"apply"}'
