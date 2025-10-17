@@ -21,6 +21,19 @@ type analytics struct {
 	dailyReportCronjobService analyticsModule.DailyReportCronjobService
 }
 
+// checkAnalyticsStorage checks if analytics storage is available
+func (a *analytics) checkAnalyticsStorage(c *gin.Context) bool {
+	if a.analyticsStorage == nil {
+		a.logger.Error("Analytics storage is not available - ClickHouse client not initialized")
+		c.JSON(http.StatusServiceUnavailable, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Analytics service is not available",
+		})
+		return false
+	}
+	return true
+}
+
 func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) handler.Analytics {
 	return &analytics{
 		logger:                    log,
@@ -56,6 +69,11 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 			Success: false,
 			Error:   "Invalid user ID format",
 		})
+		return
+	}
+
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
 		return
 	}
 
@@ -143,6 +161,11 @@ func (a *analytics) GetUserAnalytics(c *gin.Context) {
 			Success: false,
 			Error:   "Invalid user ID format",
 		})
+		return
+	}
+
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
 		return
 	}
 
@@ -246,6 +269,11 @@ func (a *analytics) GetDailyReport(c *gin.Context) {
 		return
 	}
 
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
 	report, err := a.analyticsStorage.GetDailyReport(c.Request.Context(), date)
 	if err != nil {
 		a.logger.Error("Failed to get daily report",
@@ -294,6 +322,11 @@ func (a *analytics) GetEnhancedDailyReport(c *gin.Context) {
 		return
 	}
 
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
 	report, err := a.analyticsStorage.GetEnhancedDailyReport(c.Request.Context(), date)
 	if err != nil {
 		a.logger.Error("Failed to get enhanced daily report",
@@ -325,6 +358,11 @@ func (a *analytics) GetEnhancedDailyReport(c *gin.Context) {
 // @Failure 500 {object} dto.AnalyticsResponse
 // @Router /analytics/games/top [get]
 func (a *analytics) GetTopGames(c *gin.Context) {
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
 	limit := 10 // Default limit
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
@@ -376,6 +414,11 @@ func (a *analytics) GetTopGames(c *gin.Context) {
 // @Failure 500 {object} dto.AnalyticsResponse
 // @Router /analytics/players/top [get]
 func (a *analytics) GetTopPlayers(c *gin.Context) {
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
 	limit := 10 // Default limit
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
@@ -434,6 +477,11 @@ func (a *analytics) GetUserBalanceHistory(c *gin.Context) {
 			Success: false,
 			Error:   "Invalid user ID format",
 		})
+		return
+	}
+
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
 		return
 	}
 

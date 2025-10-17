@@ -387,3 +387,15 @@ type Agent interface {
 	GetReferralStats(c *gin.Context)
 	CreateAgentProvider(c *gin.Context)
 }
+
+type AdminActivityLogs interface {
+	GetAdminActivityLogs(c *gin.Context)
+	GetAdminActivityLogByID(c *gin.Context)
+	GetAdminActivityStats(c *gin.Context)
+	GetAdminActivityCategories(c *gin.Context)
+	GetAdminActivityActions(c *gin.Context)
+	GetAdminActivityActionsByCategory(c *gin.Context)
+	DeleteAdminActivityLog(c *gin.Context)
+	DeleteAdminActivityLogsByAdmin(c *gin.Context)
+	DeleteOldAdminActivityLogs(c *gin.Context)
+}

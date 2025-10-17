@@ -360,3 +360,16 @@ type Agent interface {
 	CreateAgentProvider(ctx context.Context, req dto.CreateAgentProviderReq) (dto.CreateAgentProviderRes, error)
 	ValidateAgentProviderCredentials(ctx context.Context, providerID string, secret string) (dto.AgentProviderRes, error)
 }
+
+type AdminActivityLogs interface {
+	LogAdminActivity(ctx context.Context, req dto.CreateAdminActivityLogReq) error
+	GetAdminActivityLogs(ctx context.Context, req dto.GetAdminActivityLogsReq) (dto.AdminActivityLogsRes, error)
+	GetAdminActivityLogByID(ctx context.Context, id uuid.UUID) (dto.AdminActivityLog, error)
+	GetAdminActivityStats(ctx context.Context, from, to *time.Time) (dto.AdminActivityStats, error)
+	GetAdminActivityCategories(ctx context.Context) ([]dto.AdminActivityCategory, error)
+	GetAdminActivityActions(ctx context.Context) ([]dto.AdminActivityAction, error)
+	GetAdminActivityActionsByCategory(ctx context.Context, category string) ([]dto.AdminActivityAction, error)
+	DeleteAdminActivityLog(ctx context.Context, id uuid.UUID) error
+	DeleteAdminActivityLogsByAdmin(ctx context.Context, adminUserID uuid.UUID) error
+	DeleteOldAdminActivityLogs(ctx context.Context, before time.Time) error
+}

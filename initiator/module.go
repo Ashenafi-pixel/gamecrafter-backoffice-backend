@@ -8,6 +8,7 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/module/adds"
+	"github.com/tucanbit/internal/module/admin_activity_logs"
 	"github.com/tucanbit/internal/module/agent"
 	"github.com/tucanbit/internal/module/authz"
 	"github.com/tucanbit/internal/module/balance"
@@ -87,6 +88,7 @@ type Module struct {
 	Redis                 *redis.RedisOTP
 	TwoFactor             twofactor.TwoFactorService
 	UserBalanceWS         utils.UserWS
+	AdminActivityLogs     module.AdminActivityLogs
 }
 
 func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, enforcer *casbin.Enforcer, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient) *Module {
@@ -266,5 +268,6 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			OTPExpiryMinutes: 5,
 		}, emailService),
 		Redis: redis,
+		AdminActivityLogs: admin_activity_logs.NewAdminActivityLogsModule(persistence.AdminActivityLogs, log),
 	}
 }

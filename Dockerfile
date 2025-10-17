@@ -36,7 +36,6 @@ RUN go build -o tucanbit cmd/main.go
 
 FROM debian:bullseye-slim
 
-
 WORKDIR /app
 
 RUN useradd -m app
@@ -54,8 +53,6 @@ COPY --chown=app:app --from=builder /app/internal/constant/query/schemas ./inter
 ADD --chown=app:app https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh .
 RUN chmod +x wait-for-it.sh
 
-
 EXPOSE 8080
-
 
 CMD ["./tucanbit"]

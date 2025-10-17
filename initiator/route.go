@@ -4,6 +4,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/adds"
+	"github.com/tucanbit/internal/glue/admin_activity_logs"
 	"github.com/tucanbit/internal/glue/admin_notification"
 	"github.com/tucanbit/internal/glue/agent"
 	"github.com/tucanbit/internal/glue/analytics"
@@ -79,6 +80,9 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	system_config.Init(grp, log, handler.SystemConfig)
 	withdrawal_management.Init(grp, log, handler.WithdrawalManagement)
 	withdrawals.Init(grp, log, handler.Withdrawals)
+	
+	// Admin activity logs routes
+	admin_activity_logs.Init(grp, *log, handler.AdminActivityLogs, module.Authz, module.AdminActivityLogs, enforcer)
 
 	// Initialize Falcon Liquidity routes (no authentication required)
 	falconStorageInstance := falconStorage.NewFalconMessageStorage(log, persistence.Database)

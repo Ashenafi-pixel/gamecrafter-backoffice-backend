@@ -6,20 +6,56 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/storage/admin_activity_logs"
 	"github.com/tucanbit/internal/storage/system_config"
 	"go.uber.org/zap"
 )
 
 type SystemConfigHandler struct {
 	systemConfigStorage *system_config.SystemConfig
+	adminActivityLogs   admin_activity_logs.AdminActivityLogsStorage
 	log                 *zap.Logger
 }
 
-func NewSystemConfigHandler(db *persistencedb.PersistenceDB, log *zap.Logger) *SystemConfigHandler {
+func NewSystemConfigHandler(db *persistencedb.PersistenceDB, adminActivityLogs admin_activity_logs.AdminActivityLogsStorage, log *zap.Logger) *SystemConfigHandler {
 	return &SystemConfigHandler{
 		systemConfigStorage: system_config.NewSystemConfig(db, log),
+		adminActivityLogs:   adminActivityLogs,
 		log:                 log,
+	}
+}
+
+// logAdminActivity logs an admin activity
+func (h *SystemConfigHandler) logAdminActivity(ctx *gin.Context, action, resourceType, description string, details map[string]interface{}) {
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Warn("No user_id found in context, skipping activity log")
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Warn("Invalid user_id type in context, skipping activity log")
+		return
+	}
+
+	req := dto.CreateAdminActivityLogReq{
+		AdminUserID:  adminUUID,
+		Action:       action,
+		ResourceType: resourceType,
+		Description:  description,
+		Details:      details,
+		Severity:     "info",
+		Category:     "system_config",
+		IPAddress:    ctx.ClientIP(),
+		UserAgent:    ctx.GetHeader("User-Agent"),
+	}
+
+	_, err := h.adminActivityLogs.CreateAdminActivityLog(ctx.Request.Context(), req)
+	if err != nil {
+		h.log.Error("Failed to log admin activity", zap.Error(err))
 	}
 }
 
@@ -102,6 +138,29 @@ func (h *SystemConfigHandler) UpdateWithdrawalGlobalStatus(ctx *gin.Context) {
 		return
 	}
 
+	// Log admin activity
+	action := "disable_withdrawals"
+	if req.Enabled {
+		action = "enable_withdrawals"
+	}
+
+	details := map[string]interface{}{
+		"enabled":   req.Enabled,
+		"reason":    req.Reason,
+		"paused_by": req.PausedBy,
+		"paused_at": req.PausedAt,
+	}
+
+	description := "Withdrawals enabled"
+	if !req.Enabled {
+		description = "Withdrawals disabled"
+		if req.Reason != nil {
+			description += " - Reason: " + *req.Reason
+		}
+	}
+
+	h.logAdminActivity(ctx, action, "withdrawal_settings", description, details)
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Withdrawal global status updated successfully",
@@ -176,6 +235,16 @@ func (h *SystemConfigHandler) UpdateWithdrawalThresholds(ctx *gin.Context) {
 		return
 	}
 
+	// Log admin activity
+	details := map[string]interface{}{
+		"hourly_volume":      req.HourlyVolume,
+		"daily_volume":       req.DailyVolume,
+		"single_transaction": req.SingleTransaction,
+		"user_daily":         req.UserDaily,
+	}
+
+	h.logAdminActivity(ctx, "update_withdrawal_thresholds", "withdrawal_settings", "Withdrawal thresholds updated", details)
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Withdrawal thresholds updated successfully",
@@ -249,6 +318,15 @@ func (h *SystemConfigHandler) UpdateWithdrawalManualReview(ctx *gin.Context) {
 		})
 		return
 	}
+
+	// Log admin activity
+	details := map[string]interface{}{
+		"enabled":                req.Enabled,
+		"threshold_cents":        req.ThresholdCents,
+		"require_admin_approval": req.RequireAdminApproval,
+	}
+
+	h.logAdminActivity(ctx, "update_withdrawal_manual_review", "withdrawal_settings", "Withdrawal manual review settings updated", details)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,

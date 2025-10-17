@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/handler/adds"
+	"github.com/tucanbit/internal/handler/admin_activity_logs"
 	"github.com/tucanbit/internal/handler/agent"
 	analyticsHandler "github.com/tucanbit/internal/handler/analytics"
 	"github.com/tucanbit/internal/handler/authz"
@@ -81,6 +82,7 @@ type Handler struct {
 	SystemConfig          *system_config.SystemConfigHandler
 	WithdrawalManagement  *withdrawal_management.WithdrawalManagementHandler
 	Withdrawals           *withdrawals.WithdrawalsHandler
+	AdminActivityLogs     handler.AdminActivityLogs
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
@@ -138,9 +140,10 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
-		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, log),
+		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, log),
 		WithdrawalManagement:  withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
 		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
+		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
 	}
 }
 
