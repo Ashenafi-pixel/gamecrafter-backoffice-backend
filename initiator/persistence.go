@@ -6,6 +6,7 @@ import (
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/adds"
 	"github.com/tucanbit/internal/storage/admin_activity_logs"
+	"github.com/tucanbit/internal/storage/alert"
 	"github.com/tucanbit/internal/storage/agent"
 	"github.com/tucanbit/internal/storage/airtime"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
@@ -79,6 +80,7 @@ type Persistence struct {
 	FalconMessage        falcon_liquidity.FalconMessageStorage
 	Analytics            storage.Analytics
 	AdminActivityLogs    admin_activity_logs.AdminActivityLogsStorage
+	Alert                alert.AlertStorage
 	Database             *persistencedb.PersistenceDB
 }
 
@@ -127,6 +129,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		FalconMessage:        falcon_liquidity.NewFalconMessageStorage(log, persistencdb),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsStorage(*persistencdb, log),
+		Alert:                alert.NewAlertStorage(*persistencdb, log),
 		Database:             persistencdb,
 	}
 }

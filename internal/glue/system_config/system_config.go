@@ -82,6 +82,55 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 				middleware.Auth(),
 			},
 		},
+		// Alert Management Routes
+		{
+			Method:  "GET",
+            Path:    "/api/admin/system-config/alerts/configurations",
+			Handler: systemConfigHandler.GetAlertConfigurations,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "POST",
+            Path:    "/api/admin/system-config/alerts/configurations",
+			Handler: systemConfigHandler.CreateAlertConfiguration,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+            Path:    "/api/admin/system-config/alerts/configurations/:id",
+			Handler: systemConfigHandler.UpdateAlertConfiguration,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "DELETE",
+            Path:    "/api/admin/system-config/alerts/configurations/:id",
+			Handler: systemConfigHandler.DeleteAlertConfiguration,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
+            Path:    "/api/admin/system-config/alerts/triggers",
+			Handler: systemConfigHandler.GetAlertTriggers,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+            Path:    "/api/admin/system-config/alerts/triggers/:id/acknowledge",
+			Handler: systemConfigHandler.AcknowledgeAlert,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
 	}
 
 	routing.RegisterRoute(group, systemConfigRoutes, *log)

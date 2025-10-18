@@ -140,7 +140,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
-		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, log),
+		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, persistence.Alert, log),
 		WithdrawalManagement:  withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
 		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
 		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),

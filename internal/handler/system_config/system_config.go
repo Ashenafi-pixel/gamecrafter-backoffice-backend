@@ -9,6 +9,7 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage/admin_activity_logs"
+	"github.com/tucanbit/internal/storage/alert"
 	"github.com/tucanbit/internal/storage/system_config"
 	"go.uber.org/zap"
 )
@@ -16,13 +17,15 @@ import (
 type SystemConfigHandler struct {
 	systemConfigStorage *system_config.SystemConfig
 	adminActivityLogs   admin_activity_logs.AdminActivityLogsStorage
+	alertStorage        alert.AlertStorage
 	log                 *zap.Logger
 }
 
-func NewSystemConfigHandler(db *persistencedb.PersistenceDB, adminActivityLogs admin_activity_logs.AdminActivityLogsStorage, log *zap.Logger) *SystemConfigHandler {
+func NewSystemConfigHandler(db *persistencedb.PersistenceDB, adminActivityLogs admin_activity_logs.AdminActivityLogsStorage, alertStorage alert.AlertStorage, log *zap.Logger) *SystemConfigHandler {
 	return &SystemConfigHandler{
 		systemConfigStorage: system_config.NewSystemConfig(db, log),
 		adminActivityLogs:   adminActivityLogs,
+		alertStorage:        alertStorage,
 		log:                 log,
 	}
 }
@@ -420,5 +423,332 @@ func (h *SystemConfigHandler) GetWithdrawalPauseReasons(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    reasons,
+	})
+}
+
+// Alert Management Methods
+
+// GetAlertConfigurations gets all alert configurations
+func (h *SystemConfigHandler) GetAlertConfigurations(ctx *gin.Context) {
+	var req dto.GetAlertConfigurationsRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		h.log.Error("Invalid query parameters", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid query parameters",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	configs, totalCount, err := h.alertStorage.GetAlertConfigurations(ctx.Request.Context(), &req)
+	if err != nil {
+		h.log.Error("Failed to get alert configurations", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to get alert configurations",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Set default pagination values
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage <= 0 {
+		perPage = 20
+	}
+
+	// Ensure data is always an array, never nil
+	if configs == nil {
+		configs = []dto.AlertConfiguration{}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"message":     "Alert configurations retrieved successfully",
+		"data":        configs,
+		"total_count": totalCount,
+		"page":        page,
+		"per_page":    perPage,
+	})
+}
+
+// CreateAlertConfiguration creates a new alert configuration
+func (h *SystemConfigHandler) CreateAlertConfiguration(ctx *gin.Context) {
+	var req dto.CreateAlertConfigurationRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Get user ID from context
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+		})
+		return
+	}
+
+	userUUID, ok := userID.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Invalid user ID",
+		})
+		return
+	}
+
+	config, err := h.alertStorage.CreateAlertConfiguration(ctx.Request.Context(), &req, userUUID)
+	if err != nil {
+		h.log.Error("Failed to create alert configuration", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to create alert configuration",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "create", "alert_configuration", "Created alert configuration", map[string]interface{}{
+		"alert_type":          config.AlertType,
+		"threshold_amount":    config.ThresholdAmount,
+		"time_window_minutes": config.TimeWindowMinutes,
+		"currency_code":       config.CurrencyCode,
+		"email_notifications": config.EmailNotifications,
+	})
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Alert configuration created successfully",
+		"data":    config,
+	})
+}
+
+// UpdateAlertConfiguration updates an alert configuration
+func (h *SystemConfigHandler) UpdateAlertConfiguration(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid alert configuration ID",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	var req dto.UpdateAlertConfigurationRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Get user ID from context
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+		})
+		return
+	}
+
+	userUUID, ok := userID.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Invalid user ID",
+		})
+		return
+	}
+
+	config, err := h.alertStorage.UpdateAlertConfiguration(ctx.Request.Context(), id, &req, userUUID)
+	if err != nil {
+		h.log.Error("Failed to update alert configuration", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update alert configuration",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "alert_configuration", "Updated alert configuration", map[string]interface{}{
+		"alert_configuration_id": id,
+		"updated_fields":         req,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Alert configuration updated successfully",
+		"data":    config,
+	})
+}
+
+// DeleteAlertConfiguration deletes an alert configuration
+func (h *SystemConfigHandler) DeleteAlertConfiguration(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid alert configuration ID",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	err = h.alertStorage.DeleteAlertConfiguration(ctx.Request.Context(), id)
+	if err != nil {
+		h.log.Error("Failed to delete alert configuration", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to delete alert configuration",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "delete", "alert_configuration", "Deleted alert configuration", map[string]interface{}{
+		"alert_configuration_id": id,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Alert configuration deleted successfully",
+	})
+}
+
+// GetAlertTriggers gets alert triggers with filtering
+func (h *SystemConfigHandler) GetAlertTriggers(ctx *gin.Context) {
+	var req dto.GetAlertTriggersRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		h.log.Error("Invalid query parameters", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid query parameters",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	triggers, totalCount, err := h.alertStorage.GetAlertTriggers(ctx.Request.Context(), &req)
+	if err != nil {
+		h.log.Error("Failed to get alert triggers", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to get alert triggers",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Set default pagination values
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage <= 0 {
+		perPage = 20
+	}
+
+	// Ensure data is always an array, never nil
+	if triggers == nil {
+		triggers = []dto.AlertTrigger{}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"message":     "Alert triggers retrieved successfully",
+		"data":        triggers,
+		"total_count": totalCount,
+		"page":        page,
+		"per_page":    perPage,
+	})
+}
+
+// AcknowledgeAlert acknowledges an alert trigger
+func (h *SystemConfigHandler) AcknowledgeAlert(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid alert trigger ID",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	var req dto.AcknowledgeAlertRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Get user ID from context
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+		})
+		return
+	}
+
+	userUUID, ok := userID.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Invalid user ID",
+		})
+		return
+	}
+
+	err = h.alertStorage.AcknowledgeAlert(ctx.Request.Context(), id, userUUID)
+	if err != nil {
+		h.log.Error("Failed to acknowledge alert", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to acknowledge alert",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "acknowledge", "alert_trigger", "Acknowledged alert trigger", map[string]interface{}{
+		"alert_trigger_id": id,
+		"acknowledged":     req.Acknowledged,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Alert acknowledged successfully",
 	})
 }
