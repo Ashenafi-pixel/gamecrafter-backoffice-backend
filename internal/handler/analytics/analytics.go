@@ -27,7 +27,7 @@ func (a *analytics) checkAnalyticsStorage(c *gin.Context) bool {
 		a.logger.Error("Analytics storage is not available - ClickHouse client not initialized")
 		c.JSON(http.StatusServiceUnavailable, dto.AnalyticsResponse{
 			Success: false,
-			Error:   "Analytics service is not available",
+			Error:   "Analytics service is not available - ClickHouse database is not running. Please contact the administrator to start the ClickHouse service.",
 		})
 		return false
 	}

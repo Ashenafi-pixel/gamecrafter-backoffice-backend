@@ -19,7 +19,7 @@ func Init(
 		// Pause settings management
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/v1/withdrawal-pause/settings",
+			Path:    "/api/admin/withdrawal-pause/settings",
 			Handler: withdrawalPauseHandler.GetWithdrawalPauseSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -28,7 +28,7 @@ func Init(
 		},
 		{
 			Method:  http.MethodPut,
-			Path:    "/api/v1/withdrawal-pause/settings",
+			Path:    "/api/admin/withdrawal-pause/settings",
 			Handler: withdrawalPauseHandler.UpdateWithdrawalPauseSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -39,7 +39,7 @@ func Init(
 		// Threshold management
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/v1/withdrawal-pause/thresholds",
+			Path:    "/api/admin/withdrawal-pause/thresholds",
 			Handler: withdrawalPauseHandler.GetWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -48,7 +48,7 @@ func Init(
 		},
 		{
 			Method:  http.MethodPost,
-			Path:    "/api/v1/withdrawal-pause/thresholds",
+			Path:    "/api/admin/withdrawal-pause/thresholds",
 			Handler: withdrawalPauseHandler.CreateWithdrawalThreshold,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -57,7 +57,7 @@ func Init(
 		},
 		{
 			Method:  http.MethodPut,
-			Path:    "/api/v1/withdrawal-pause/thresholds/:id",
+			Path:    "/api/admin/withdrawal-pause/thresholds/:id",
 			Handler: withdrawalPauseHandler.UpdateWithdrawalThreshold,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -66,7 +66,7 @@ func Init(
 		},
 		{
 			Method:  http.MethodDelete,
-			Path:    "/api/v1/withdrawal-pause/thresholds/:id",
+			Path:    "/api/admin/withdrawal-pause/thresholds/:id",
 			Handler: withdrawalPauseHandler.DeleteWithdrawalThreshold,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -77,7 +77,7 @@ func Init(
 		// Paused withdrawals management
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/v1/withdrawal-pause/paused-withdrawals",
+			Path:    "/api/admin/withdrawal-pause/paused-withdrawals",
 			Handler: withdrawalPauseHandler.GetPausedWithdrawals,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -86,7 +86,7 @@ func Init(
 		},
 		{
 			Method:  http.MethodPost,
-			Path:    "/api/v1/withdrawal-pause/withdrawals/:id/action",
+			Path:    "/api/admin/withdrawal-pause/withdrawals/:id/action",
 			Handler: withdrawalPauseHandler.ApproveWithdrawal,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -97,7 +97,7 @@ func Init(
 		// Dashboard and statistics
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/v1/withdrawal-pause/stats",
+			Path:    "/api/admin/withdrawal-pause/stats",
 			Handler: withdrawalPauseHandler.GetWithdrawalPauseStats,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -106,7 +106,7 @@ func Init(
 		},
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/v1/withdrawal-pause/status",
+			Path:    "/api/admin/withdrawal-pause/status",
 			Handler: withdrawalPauseHandler.GetWithdrawalPauseStatus,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -116,8 +116,3 @@ func Init(
 	}
 	routing.RegisterRoute(group, withdrawalPauseRoutes, log)
 }
-
-
-
-
-

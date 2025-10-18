@@ -63,7 +63,7 @@ docker-build:
 # Run Docker container
 docker-run: docker-build
 	@echo "🐳 Running Docker container..."
-	docker run -p 8080:8080 --name tucanbit-app tucanbit:latest
+	docker run -p 8094:8094 --name tucanbit-app tucanbit:latest
 
 # Start all services with Docker Compose
 up:

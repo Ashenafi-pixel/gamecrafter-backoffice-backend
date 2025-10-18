@@ -78,7 +78,7 @@ func (e *EmailServiceImpl) SendVerificationEmail(email, otpCode, otpId, userId s
 		OTPId:            otpId,
 		UserID:           userId,
 		OTPExpiresAt:     expiresAt,
-		VerificationLink: fmt.Sprintf("http://localhost:8080/verify?otp_code=%s&otp_id=%s&user_id=%s", otpCode, otpId, userId),
+		VerificationLink: fmt.Sprintf("http://localhost:8094/verify?otp_code=%s&otp_id=%s&user_id=%s", otpCode, otpId, userId),
 		SupportEmail:     "support@tucanbit.com",
 		WebsiteURL:       "https://app.tucanbit.com",
 		CurrentYear:      time.Now().Year(),
@@ -144,7 +144,7 @@ func (e *EmailServiceImpl) SendWelcomeEmail(email, firstName string) error {
 		FirstName:    firstName,
 		Email:        email,
 		BrandName:    "TucanBIT",
-		LoginURL:     "http://localhost:8080/login",
+		LoginURL:     "http://localhost:8094/login",
 		SupportEmail: "support@tucanbit.com",
 	}
 
@@ -201,7 +201,7 @@ func (e *EmailServiceImpl) SendPasswordResetOTPEmail(email, otpCode, otpId, user
 		"Device":       device,
 		"Location":     location,
 		"SupportEmail": "support@tucanbit.com",
-		"ResetURL":     fmt.Sprintf("http://localhost:8080/reset-password?otp_code=%s&otp_id=%s&user_id=%s", otpCode, otpId, userId),
+		"ResetURL":     fmt.Sprintf("http://localhost:8094/reset-password?otp_code=%s&otp_id=%s&user_id=%s", otpCode, otpId, userId),
 	}
 
 	htmlBody, err := e.renderTemplate("password_reset_otp", data)

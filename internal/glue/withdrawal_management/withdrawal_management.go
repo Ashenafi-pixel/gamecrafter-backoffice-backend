@@ -12,7 +12,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalManagementHandler *
 	withdrawalManagementRoutes := []routing.Route{
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawal-management/paused",
+			Path:    "/api/admin/withdrawal-management/paused",
 			Handler: withdrawalManagementHandler.GetPausedWithdrawals,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -20,7 +20,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalManagementHandler *
 		},
 		{
 			Method:  "POST",
-			Path:    "/api/v1/withdrawal-management/pause/:id",
+			Path:    "/api/admin/withdrawal-management/pause/:id",
 			Handler: withdrawalManagementHandler.PauseWithdrawal,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -28,7 +28,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalManagementHandler *
 		},
 		{
 			Method:  "POST",
-			Path:    "/api/v1/withdrawal-management/unpause/:id",
+			Path:    "/api/admin/withdrawal-management/unpause/:id",
 			Handler: withdrawalManagementHandler.UnpauseWithdrawal,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -36,7 +36,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalManagementHandler *
 		},
 		{
 			Method:  "POST",
-			Path:    "/api/v1/withdrawal-management/approve/:id",
+			Path:    "/api/admin/withdrawal-management/approve/:id",
 			Handler: withdrawalManagementHandler.ApproveWithdrawal,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -44,7 +44,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalManagementHandler *
 		},
 		{
 			Method:  "POST",
-			Path:    "/api/v1/withdrawal-management/reject/:id",
+			Path:    "/api/admin/withdrawal-management/reject/:id",
 			Handler: withdrawalManagementHandler.RejectWithdrawal,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -52,7 +52,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalManagementHandler *
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawal-management/stats",
+			Path:    "/api/admin/withdrawal-management/stats",
 			Handler: withdrawalManagementHandler.GetWithdrawalPauseStats,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),

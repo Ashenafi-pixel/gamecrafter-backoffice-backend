@@ -12,7 +12,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalsHandler *withdrawa
 	withdrawalsRoutes := []routing.Route{
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawals",
+			Path:    "/api/admin/withdrawals",
 			Handler: withdrawalsHandler.GetAllWithdrawals,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -20,7 +20,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalsHandler *withdrawa
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawals/stats",
+			Path:    "/api/admin/withdrawals/stats",
 			Handler: withdrawalsHandler.GetWithdrawalStats,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -28,7 +28,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalsHandler *withdrawa
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawals/id/:id",
+			Path:    "/api/admin/withdrawals/id/:id",
 			Handler: withdrawalsHandler.GetWithdrawalByID,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -36,7 +36,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalsHandler *withdrawa
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawals/withdrawal-id/:withdrawal_id",
+			Path:    "/api/admin/withdrawals/withdrawal-id/:withdrawal_id",
 			Handler: withdrawalsHandler.GetWithdrawalByWithdrawalID,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -44,7 +44,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalsHandler *withdrawa
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawals/user/:user_id",
+			Path:    "/api/admin/withdrawals/user/:user_id",
 			Handler: withdrawalsHandler.GetWithdrawalsByUserID,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -52,7 +52,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, withdrawalsHandler *withdrawa
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/withdrawals/date-range",
+			Path:    "/api/admin/withdrawals/date-range",
 			Handler: withdrawalsHandler.GetWithdrawalsByDateRange,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),

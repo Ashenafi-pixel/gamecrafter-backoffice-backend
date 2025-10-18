@@ -3,7 +3,7 @@
 # Test script for withdrawal pause system
 # This script tests the API endpoints to ensure the system is working correctly
 
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:8094"
 ADMIN_TOKEN="your_admin_token_here"  # Replace with actual admin token
 
 echo "Testing Withdrawal Pause System"

@@ -12,7 +12,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 	systemConfigRoutes := []routing.Route{
 		{
 			Method:  "GET",
-			Path:    "/api/v1/system-config/withdrawal/global-status",
+            Path:    "/api/admin/system-config/withdrawal/global-status",
 			Handler: systemConfigHandler.GetWithdrawalGlobalStatus,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -20,7 +20,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-			Path:    "/api/v1/system-config/withdrawal/global-status",
+            Path:    "/api/admin/system-config/withdrawal/global-status",
 			Handler: systemConfigHandler.UpdateWithdrawalGlobalStatus,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -28,7 +28,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/system-config/withdrawal/thresholds",
+            Path:    "/api/admin/system-config/withdrawal/thresholds",
 			Handler: systemConfigHandler.GetWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -36,7 +36,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-			Path:    "/api/v1/system-config/withdrawal/thresholds",
+            Path:    "/api/admin/system-config/withdrawal/thresholds",
 			Handler: systemConfigHandler.UpdateWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -44,7 +44,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/system-config/withdrawal/manual-review",
+            Path:    "/api/admin/system-config/withdrawal/manual-review",
 			Handler: systemConfigHandler.GetWithdrawalManualReview,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -52,7 +52,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-			Path:    "/api/v1/system-config/withdrawal/manual-review",
+            Path:    "/api/admin/system-config/withdrawal/manual-review",
 			Handler: systemConfigHandler.UpdateWithdrawalManualReview,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -60,7 +60,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/system-config/withdrawal/check-allowed",
+            Path:    "/api/admin/system-config/withdrawal/check-allowed",
 			Handler: systemConfigHandler.CheckWithdrawalAllowed,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -68,7 +68,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/system-config/withdrawal/check-thresholds",
+            Path:    "/api/admin/system-config/withdrawal/check-thresholds",
 			Handler: systemConfigHandler.CheckWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -76,7 +76,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-			Path:    "/api/v1/system-config/withdrawal/pause-reasons",
+            Path:    "/api/admin/system-config/withdrawal/pause-reasons",
 			Handler: systemConfigHandler.GetWithdrawalPauseReasons,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),

@@ -6,7 +6,7 @@
 echo "📧 Testing Email Sending Functionality..."
 
 # Configuration
-BASE_URL="http://localhost:8080"
+BASE_URL="http://localhost:8094"
 USER_ID="5a8328c7-d51b-4187-b45c-b1beea7b41ff"
 USER_EMAIL="kirube.tech23@gmail.com"  # Replace with actual user email
 

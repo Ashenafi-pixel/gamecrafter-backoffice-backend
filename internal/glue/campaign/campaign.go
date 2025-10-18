@@ -10,7 +10,7 @@ import (
 )
 
 func InitRoutes(router *gin.RouterGroup, campaignHandler handler.Campaign, log *zap.Logger, authModule module.Authz, enforcer *casbin.Enforcer) {
-	campaigns := router.Group("/api/v1/campaigns")
+	campaigns := router.Group("/api/admin/campaigns")
 	campaigns.Use(middleware.Auth())
 	{
 		campaigns.POST("", campaignHandler.CreateCampaign)
@@ -24,7 +24,7 @@ func InitRoutes(router *gin.RouterGroup, campaignHandler handler.Campaign, log *
 	}
 
 	// Campaign notifications dashboard endpoint
-	campaignNotificationsDashboard := router.Group("/api/v1/campaign-notifications-dashboard")
+	campaignNotificationsDashboard := router.Group("/api/admin/campaign-notifications-dashboard")
 	campaignNotificationsDashboard.Use(middleware.Auth())
 	{
 		campaignNotificationsDashboard.GET("", campaignHandler.GetCampaignNotificationsDashboard)

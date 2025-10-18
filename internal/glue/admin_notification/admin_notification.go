@@ -18,7 +18,7 @@ func Init(
 	adminNotificationRoutes := []routing.Route{
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/v1/campaignNotifications",
+			Path:    "/api/admin/campaignNotifications",
 			Handler: notification.GetAdminNotifications,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
