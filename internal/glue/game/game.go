@@ -55,7 +55,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodGet,
-			Path:    "/api/admin/game-management/{id}",
+			Path:    "/api/admin/game-management/:id",
 			Handler: gameHandler.GetGameByID,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -64,7 +64,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodPut,
-			Path:    "/api/admin/game-management/{id}",
+			Path:    "/api/admin/game-management/:id",
 			Handler: gameHandler.UpdateGame,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -74,7 +74,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodDelete,
-			Path:    "/api/admin/game-management/{id}",
+			Path:    "/api/admin/game-management/:id",
 			Handler: gameHandler.DeleteGame,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -125,7 +125,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodGet,
-			Path:    "/api/admin/house-edge-management/{id}",
+			Path:    "/api/admin/house-edge-management/:id",
 			Handler: houseEdgeHandler.GetHouseEdgeByID,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -134,7 +134,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodGet,
-			Path:    "/api/admin/house-edge-management/by-game-type/{game_type}",
+			Path:    "/api/admin/house-edge-management/by-game-type/:game_type",
 			Handler: houseEdgeHandler.GetHouseEdgesByGameType,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -143,7 +143,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodGet,
-			Path:    "/api/admin/house-edge-management/by-game-variant/{game_type}/{game_variant}",
+			Path:    "/api/admin/house-edge-management/by-game-variant/:game_type/:game_variant",
 			Handler: houseEdgeHandler.GetHouseEdgesByGameVariant,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -152,7 +152,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodPut,
-			Path:    "/api/admin/house-edge-management/{id}",
+			Path:    "/api/admin/house-edge-management/:id",
 			Handler: houseEdgeHandler.UpdateHouseEdge,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
@@ -162,7 +162,7 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodDelete,
-			Path:    "/api/admin/house-edge-management/{id}",
+			Path:    "/api/admin/house-edge-management/:id",
 			Handler: houseEdgeHandler.DeleteHouseEdge,
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),

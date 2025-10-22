@@ -68,9 +68,12 @@ type ManualFundReq struct {
 
 type ManualFundResData struct {
 	ID            uuid.UUID       `json:"id"`
-	UserID        uuid.UUID       `json:"user_id"`
+	UserID        uuid.UUID       `json:"user_id" swaggerignore:"true"`
+	Username      string          `json:"username"`
 	AdminID       uuid.UUID       `json:"admin_id" swaggerignore:"true"`
+	AdminName     string          `json:"admin_name"`
 	TransactionID string          `json:"transaction_id" swaggerignore:"true"`
+	Type          string          `json:"type"`
 	Amount        decimal.Decimal `json:"amount"`
 	Reason        string          `json:"reason"`
 	Currency      string          `json:"currency"`
@@ -112,6 +115,26 @@ type GetManualFundRes struct {
 	Message   string              `json:"message"`
 	Data      []GetManualFundData `json:"data"`
 	TotalPage int                 `json:"total_pages"`
+}
+
+type GetAllManualFundsRes struct {
+	Message       string              `json:"message"`
+	Data          []ManualFundResData `json:"data"`
+	Total         int64               `json:"total"`
+	TotalPages    int                 `json:"total_pages"`
+	CurrentPage   int                 `json:"current_page"`
+	PerPage       int                 `json:"per_page"`
+	TotalFundsUSD string              `json:"total_funds_usd"`
+}
+
+type GetAllManualFundsFilter struct {
+	Page     int    `json:"page"`
+	PerPage  int    `json:"per_page"`
+	Search   string `json:"search"`
+	Type     string `json:"type"`
+	Currency string `json:"currency"`
+	DateFrom string `json:"date_from"`
+	DateTo   string `json:"date_to"`
 }
 
 type GetManualDBRes struct {

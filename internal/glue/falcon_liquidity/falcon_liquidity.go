@@ -16,22 +16,22 @@ func GetFalconLiquidityRoutes(falconStorage falcon_liquidity.FalconMessageStorag
 	return []Route{
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/falcon-liquidity/data",
+			Path:    "/api/admin/falcon-liquidity/data",
 			Handler: falconHandler.GetAllFalconLiquidityData,
 		},
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/falcon-liquidity/transaction/:transaction_id",
+			Path:    "/api/admin/falcon-liquidity/transaction/:transaction_id",
 			Handler: falconHandler.GetFalconLiquidityByTransactionID,
 		},
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/falcon-liquidity/user/:user_id",
+			Path:    "/api/admin/falcon-liquidity/user/:user_id",
 			Handler: falconHandler.GetFalconLiquidityByUserID,
 		},
 		{
 			Method:  http.MethodGet,
-			Path:    "/api/falcon-liquidity/summary",
+			Path:    "/api/admin/falcon-liquidity/summary",
 			Handler: falconHandler.GetFalconLiquiditySummary,
 		},
 	}

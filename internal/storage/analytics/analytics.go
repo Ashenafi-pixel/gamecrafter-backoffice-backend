@@ -18,6 +18,7 @@ type AnalyticsStorage interface {
 	InsertTransactions(ctx context.Context, transactions []*dto.AnalyticsTransaction) error
 	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 	GetGameTransactions(ctx context.Context, gameID string, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+	GetTransactionReport(ctx context.Context, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 
 	// Analytics methods
 	GetUserAnalytics(ctx context.Context, userID uuid.UUID, dateRange *dto.DateRange) (*dto.UserAnalytics, error)
@@ -477,6 +478,108 @@ func (s *AnalyticsStorageImpl) GetGameTransactions(ctx context.Context, gameID s
 	rows, err := s.clickhouse.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query game transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var transactions []*dto.AnalyticsTransaction
+	for rows.Next() {
+		var transaction dto.AnalyticsTransaction
+		var userIDStr string
+
+		err := rows.Scan(
+			&transaction.ID,
+			&userIDStr,
+			&transaction.TransactionType,
+			&transaction.Amount,
+			&transaction.Currency,
+			&transaction.Status,
+			&transaction.GameID,
+			&transaction.GameName,
+			&transaction.Provider,
+			&transaction.SessionID,
+			&transaction.RoundID,
+			&transaction.BetAmount,
+			&transaction.WinAmount,
+			&transaction.NetResult,
+			&transaction.BalanceBefore,
+			&transaction.BalanceAfter,
+			&transaction.PaymentMethod,
+			&transaction.ExternalTransactionID,
+			&transaction.Metadata,
+			&transaction.CreatedAt,
+			&transaction.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+
+		transaction.UserID, err = uuid.Parse(userIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse user ID: %w", err)
+		}
+
+		transactions = append(transactions, &transaction)
+	}
+
+	return transactions, nil
+}
+
+func (s *AnalyticsStorageImpl) GetTransactionReport(ctx context.Context, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error) {
+	query := `
+		SELECT 
+			id, user_id, transaction_type, amount, currency, status,
+			game_id, game_name, provider, session_id, round_id,
+			bet_amount, win_amount, net_result, balance_before, balance_after,
+			payment_method, external_transaction_id, metadata, created_at, updated_at
+		FROM transactions
+		WHERE amount > 0
+	`
+
+	args := []interface{}{}
+
+	// Add filters
+	if filters != nil {
+		if filters.UserID != nil {
+			query += " AND user_id = ?"
+			args = append(args, filters.UserID.String())
+		}
+		if filters.DateFrom != nil {
+			query += " AND created_at >= ?"
+			args = append(args, *filters.DateFrom)
+		}
+		if filters.DateTo != nil {
+			query += " AND created_at <= ?"
+			args = append(args, *filters.DateTo)
+		}
+		if filters.TransactionType != nil {
+			query += " AND transaction_type = ?"
+			args = append(args, *filters.TransactionType)
+		}
+		if filters.GameID != nil {
+			query += " AND game_id = ?"
+			args = append(args, *filters.GameID)
+		}
+		if filters.Status != nil {
+			query += " AND status = ?"
+			args = append(args, *filters.Status)
+		}
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	if filters != nil && filters.Limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, filters.Limit)
+	}
+
+	if filters != nil && filters.Offset > 0 {
+		query += " OFFSET ?"
+		args = append(args, filters.Offset)
+	}
+
+	rows, err := s.clickhouse.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transaction report: %w", err)
 	}
 	defer rows.Close()
 

@@ -500,15 +500,15 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		// Pass special value for empty search to ensure SQL query works correctly
 		searchTerm := req.Filter.SearchTerm
 		if searchTerm == "" {
-			searchTerm = "%%" // Special value to match all records
+			searchTerm = "%" // Use single % to match all records
 		}
 		params := db.GetAllUsersWithFiltersParams{
 			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
 			Status:        normalizedStatus,
 			KycStatus:     normalizedKycStatus,
+			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 			Limit:         int32(req.PerPage),
 			Offset:        int32(offset),
-			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 		}
 		u.log.Info("Calling GetAllUsersWithFilters", zap.Any("params", params), zap.Bool("unifiedSearch", unifiedSearch))
 		u.log.Info("Search term details", zap.String("searchterm", req.Filter.SearchTerm), zap.Bool("searchterm_valid", req.Filter.SearchTerm != ""))
@@ -699,11 +699,11 @@ func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Dec
 
 func (u *user) UpdateUserPoints(ctx context.Context, userID uuid.UUID, points decimal.Decimal) (decimal.Decimal, error) {
 	resp, err := u.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-		ReservedUnits:   points,
-		AmountUnits:    decimal.Zero,
-		UpdatedAt:    time.Now(),
-		UserID:       userID,
-		CurrencyCode: constant.POINT_CURRENCY,
+		ReservedUnits: points,
+		AmountUnits:   decimal.Zero,
+		UpdatedAt:     time.Now(),
+		UserID:        userID,
+		CurrencyCode:  constant.POINT_CURRENCY,
 	})
 	if err != nil {
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
@@ -996,11 +996,11 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 		var accounts []dto.Balance
 		for _, bal := range balance {
 			accounts = append(accounts, dto.Balance{
-				ID:           bal.ID,
-				CurrencyCode: bal.CurrencyCode,
-				ReservedUnits:   bal.ReservedUnits.Decimal,
-				AmountUnits:    bal.AmountUnits.Decimal,
-				ReservedCents:       bal.ReservedCents,
+				ID:            bal.ID,
+				CurrencyCode:  bal.CurrencyCode,
+				ReservedUnits: bal.ReservedUnits.Decimal,
+				AmountUnits:   bal.AmountUnits.Decimal,
+				ReservedCents: bal.ReservedCents,
 			})
 		}
 
@@ -1349,7 +1349,7 @@ func (u *user) ValidateUniqueConstraints(ctx context.Context, userRequest dto.Us
 	}
 
 	if len(violations) > 0 {
-		return fmt.Errorf("unique constraint violations: %s already exist(s)", strings.Join(violations, ", "))                                          
+		return fmt.Errorf("unique constraint violations: %s already exist(s)", strings.Join(violations, ", "))
 	}
 
 	return nil
@@ -1377,13 +1377,13 @@ func convertUserDBBalanceToDTO(dbBalance db.Balance) dto.Balance {
 	}
 
 	return dto.Balance{
-		ID:           dbBalance.ID,
-		UserId:       dbBalance.UserID,
-		CurrencyCode: dbBalance.CurrencyCode,
-		AmountCents:  dbBalance.AmountCents,
-		AmountUnits:  amountUnits,
+		ID:            dbBalance.ID,
+		UserId:        dbBalance.UserID,
+		CurrencyCode:  dbBalance.CurrencyCode,
+		AmountCents:   dbBalance.AmountCents,
+		AmountUnits:   amountUnits,
 		ReservedCents: dbBalance.ReservedCents,
 		ReservedUnits: reservedUnits,
-		UpdateAt:     updateAt,
+		UpdateAt:      updateAt,
 	}
 }

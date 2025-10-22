@@ -116,12 +116,19 @@ redis:
 
 # ClickHouse Configuration
 clickhouse:
-  host: "tucanbit-clickhouse"
+  host: "localhost"
   port: 8123
   database: "tucanbit_analytics"
   username: "tucanbit"
   password: "tucanbit_clickhouse_password"
   timeout: "10s"
+
+# WMS (Wallet Management System) Configuration
+wms:
+  base_url: "https://wms.tucanbit.tv/wms/api/v1/admin"
+  timeout: "30s"
+  retry_attempts: 3
+  retry_delay: "1s"
 
 # Logger Configuration
 logger:

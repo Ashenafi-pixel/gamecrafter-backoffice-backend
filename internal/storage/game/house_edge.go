@@ -24,21 +24,21 @@ func NewHouseEdgeStorage(db *persistencedb.PersistenceDB, logger *zap.Logger) Ho
 }
 
 func (s *HouseEdgeStorageImpl) CreateHouseEdge(ctx context.Context, houseEdge *GameHouseEdge) (*GameHouseEdge, error) {
-	s.logger.Info("Creating house edge in database", 
+	s.logger.Info("Creating house edge in database",
 		zap.String("game_type", houseEdge.GameType),
 		zap.String("game_variant", getStringValue(houseEdge.GameVariant)))
 
 	query := `
-		INSERT INTO game_house_edges (game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at`
+		INSERT INTO game_house_edges (game_id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, game_id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at`
 
 	var createdHouseEdge GameHouseEdge
 	err := s.db.GetPool().QueryRow(ctx, query,
-		houseEdge.GameType, houseEdge.GameVariant, houseEdge.HouseEdge, houseEdge.MinBet, houseEdge.MaxBet,
+		houseEdge.GameID, houseEdge.GameType, houseEdge.GameVariant, houseEdge.HouseEdge, houseEdge.MinBet, houseEdge.MaxBet,
 		houseEdge.IsActive, houseEdge.EffectiveFrom, houseEdge.EffectiveUntil,
 		houseEdge.CreatedAt, houseEdge.UpdatedAt).Scan(
-		&createdHouseEdge.ID, &createdHouseEdge.GameType, &createdHouseEdge.GameVariant,
+		&createdHouseEdge.ID, &createdHouseEdge.GameID, &createdHouseEdge.GameType, &createdHouseEdge.GameVariant,
 		&createdHouseEdge.HouseEdge, &createdHouseEdge.MinBet, &createdHouseEdge.MaxBet,
 		&createdHouseEdge.IsActive, &createdHouseEdge.EffectiveFrom, &createdHouseEdge.EffectiveUntil,
 		&createdHouseEdge.CreatedAt, &createdHouseEdge.UpdatedAt)
@@ -56,15 +56,20 @@ func (s *HouseEdgeStorageImpl) GetHouseEdgeByID(ctx context.Context, id uuid.UUI
 	s.logger.Info("Getting house edge by ID", zap.String("id", id.String()))
 
 	query := `
-		SELECT id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at
-		FROM game_house_edges WHERE id = $1`
+		SELECT ghe.id, ghe.game_id, ghe.game_type, ghe.game_variant, ghe.house_edge, ghe.min_bet, ghe.max_bet, ghe.is_active, ghe.effective_from, ghe.effective_until, ghe.created_at, ghe.updated_at,
+		       g.game_id as actual_game_id, g.name as actual_game_name
+		FROM game_house_edges ghe
+		LEFT JOIN games g ON ghe.game_id = g.game_id
+		WHERE ghe.id = $1`
 
 	var houseEdge GameHouseEdge
+	var actualGameID, actualGameName *string
 	err := s.db.GetPool().QueryRow(ctx, query, id).Scan(
-		&houseEdge.ID, &houseEdge.GameType, &houseEdge.GameVariant,
+		&houseEdge.ID, &houseEdge.GameID, &houseEdge.GameType, &houseEdge.GameVariant,
 		&houseEdge.HouseEdge, &houseEdge.MinBet, &houseEdge.MaxBet,
 		&houseEdge.IsActive, &houseEdge.EffectiveFrom, &houseEdge.EffectiveUntil,
-		&houseEdge.CreatedAt, &houseEdge.UpdatedAt)
+		&houseEdge.CreatedAt, &houseEdge.UpdatedAt,
+		&actualGameID, &actualGameName)
 
 	if err != nil {
 		if err.Error() == "no rows in result set" {
@@ -72,6 +77,14 @@ func (s *HouseEdgeStorageImpl) GetHouseEdgeByID(ctx context.Context, id uuid.UUI
 		}
 		s.logger.Error("Failed to get house edge by ID", zap.Error(err))
 		return nil, err
+	}
+
+	// Use actual game data from games table if available, otherwise use stored values
+	if actualGameID != nil && *actualGameID != "" {
+		houseEdge.GameID = actualGameID
+	}
+	if actualGameName != nil && *actualGameName != "" {
+		houseEdge.GameName = actualGameName
 	}
 
 	return &houseEdge, nil
@@ -103,6 +116,21 @@ func (s *HouseEdgeStorageImpl) GetHouseEdges(ctx context.Context, params HouseEd
 		argIndex++
 	}
 
+	// Add search functionality
+	if params.Search != "" {
+		searchCondition := fmt.Sprintf("(game_type ILIKE $%d OR game_variant ILIKE $%d)", argIndex, argIndex+1)
+		whereConditions = append(whereConditions, searchCondition)
+		searchPattern := "%" + params.Search + "%"
+		args = append(args, searchPattern, searchPattern)
+		argIndex += 2
+	}
+
+	if params.GameID != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("game_id = $%d", argIndex))
+		args = append(args, params.GameID)
+		argIndex++
+	}
+
 	whereClause := ""
 	if len(whereConditions) > 0 {
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
@@ -126,8 +154,11 @@ func (s *HouseEdgeStorageImpl) GetHouseEdges(ctx context.Context, params HouseEd
 
 	// Execute query
 	query := fmt.Sprintf(`
-		SELECT id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at
-		FROM game_house_edges %s %s %s`, whereClause, orderBy, limitOffset)
+		SELECT ghe.id, ghe.game_id, ghe.game_type, ghe.game_variant, ghe.house_edge, ghe.min_bet, ghe.max_bet, ghe.is_active, ghe.effective_from, ghe.effective_until, ghe.created_at, ghe.updated_at,
+		       g.game_id as actual_game_id, g.name as actual_game_name
+		FROM game_house_edges ghe
+		LEFT JOIN games g ON ghe.game_id = g.game_id
+		%s %s %s`, whereClause, orderBy, limitOffset)
 
 	rows, err := s.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
@@ -139,15 +170,26 @@ func (s *HouseEdgeStorageImpl) GetHouseEdges(ctx context.Context, params HouseEd
 	var houseEdges []GameHouseEdge
 	for rows.Next() {
 		var houseEdge GameHouseEdge
+		var actualGameID, actualGameName *string
 		err := rows.Scan(
-			&houseEdge.ID, &houseEdge.GameType, &houseEdge.GameVariant,
+			&houseEdge.ID, &houseEdge.GameID, &houseEdge.GameType, &houseEdge.GameVariant,
 			&houseEdge.HouseEdge, &houseEdge.MinBet, &houseEdge.MaxBet,
 			&houseEdge.IsActive, &houseEdge.EffectiveFrom, &houseEdge.EffectiveUntil,
-			&houseEdge.CreatedAt, &houseEdge.UpdatedAt)
+			&houseEdge.CreatedAt, &houseEdge.UpdatedAt,
+			&actualGameID, &actualGameName)
 		if err != nil {
 			s.logger.Error("Failed to scan house edge", zap.Error(err))
 			return nil, 0, err
 		}
+
+		// Use actual game data from games table if available, otherwise use stored values
+		if actualGameID != nil && *actualGameID != "" {
+			houseEdge.GameID = actualGameID
+		}
+		if actualGameName != nil && *actualGameName != "" {
+			houseEdge.GameName = actualGameName
+		}
+
 		houseEdges = append(houseEdges, houseEdge)
 	}
 
@@ -160,17 +202,17 @@ func (s *HouseEdgeStorageImpl) UpdateHouseEdge(ctx context.Context, houseEdge *G
 
 	query := `
 		UPDATE game_house_edges 
-		SET game_type = $1, game_variant = $2, house_edge = $3, min_bet = $4, max_bet = $5, 
-		    is_active = $6, effective_from = $7, effective_until = $8, updated_at = $9
-		WHERE id = $10
-		RETURNING id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at`
+		SET game_id = $1, game_type = $2, game_variant = $3, house_edge = $4, min_bet = $5, max_bet = $6, 
+		    is_active = $7, effective_from = $8, effective_until = $9, updated_at = $10
+		WHERE id = $11
+		RETURNING id, game_id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at`
 
 	var updatedHouseEdge GameHouseEdge
 	err := s.db.GetPool().QueryRow(ctx, query,
-		houseEdge.GameType, houseEdge.GameVariant, houseEdge.HouseEdge, houseEdge.MinBet, houseEdge.MaxBet,
+		houseEdge.GameID, houseEdge.GameType, houseEdge.GameVariant, houseEdge.HouseEdge, houseEdge.MinBet, houseEdge.MaxBet,
 		houseEdge.IsActive, houseEdge.EffectiveFrom, houseEdge.EffectiveUntil,
 		houseEdge.UpdatedAt, houseEdge.ID).Scan(
-		&updatedHouseEdge.ID, &updatedHouseEdge.GameType, &updatedHouseEdge.GameVariant,
+		&updatedHouseEdge.ID, &updatedHouseEdge.GameID, &updatedHouseEdge.GameType, &updatedHouseEdge.GameVariant,
 		&updatedHouseEdge.HouseEdge, &updatedHouseEdge.MinBet, &updatedHouseEdge.MaxBet,
 		&updatedHouseEdge.IsActive, &updatedHouseEdge.EffectiveFrom, &updatedHouseEdge.EffectiveUntil,
 		&updatedHouseEdge.CreatedAt, &updatedHouseEdge.UpdatedAt)
@@ -214,14 +256,14 @@ func (s *HouseEdgeStorageImpl) BulkUpdateHouseEdgeStatus(ctx context.Context, ho
 	// Create placeholders for the IN clause
 	placeholders := make([]string, len(houseEdgeIDs))
 	args := make([]interface{}, len(houseEdgeIDs)+1)
-	
+
 	for i, id := range houseEdgeIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
 	}
 	args[len(houseEdgeIDs)] = isActive
 
-	query := fmt.Sprintf("UPDATE game_house_edges SET is_active = $%d, updated_at = NOW() WHERE id IN (%s)", 
+	query := fmt.Sprintf("UPDATE game_house_edges SET is_active = $%d, updated_at = NOW() WHERE id IN (%s)",
 		len(houseEdgeIDs)+1, strings.Join(placeholders, ","))
 
 	result, err := s.db.GetPool().Exec(ctx, query, args...)
@@ -231,8 +273,8 @@ func (s *HouseEdgeStorageImpl) BulkUpdateHouseEdgeStatus(ctx context.Context, ho
 	}
 
 	rowsAffected := result.RowsAffected()
-	s.logger.Info("Bulk house edge status update completed", 
-		zap.Bool("is_active", isActive), 
+	s.logger.Info("Bulk house edge status update completed",
+		zap.Bool("is_active", isActive),
 		zap.Int64("rows_affected", rowsAffected))
 
 	return nil
@@ -268,8 +310,11 @@ func (s *HouseEdgeStorageImpl) GetHouseEdgesByGameType(ctx context.Context, game
 	s.logger.Info("Getting house edges by game type", zap.String("game_type", gameType))
 
 	query := `
-		SELECT id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at
-		FROM game_house_edges WHERE game_type = $1 ORDER BY created_at DESC`
+		SELECT ghe.id, ghe.game_id, ghe.game_type, ghe.game_variant, ghe.house_edge, ghe.min_bet, ghe.max_bet, ghe.is_active, ghe.effective_from, ghe.effective_until, ghe.created_at, ghe.updated_at,
+		       g.game_id as actual_game_id, g.name as actual_game_name
+		FROM game_house_edges ghe
+		LEFT JOIN games g ON ghe.game_id = g.game_id
+		WHERE ghe.game_type = $1 ORDER BY ghe.created_at DESC`
 
 	rows, err := s.db.GetPool().Query(ctx, query, gameType)
 	if err != nil {
@@ -281,15 +326,26 @@ func (s *HouseEdgeStorageImpl) GetHouseEdgesByGameType(ctx context.Context, game
 	var houseEdges []GameHouseEdge
 	for rows.Next() {
 		var houseEdge GameHouseEdge
+		var actualGameID, actualGameName *string
 		err := rows.Scan(
-			&houseEdge.ID, &houseEdge.GameType, &houseEdge.GameVariant,
+			&houseEdge.ID, &houseEdge.GameID, &houseEdge.GameType, &houseEdge.GameVariant,
 			&houseEdge.HouseEdge, &houseEdge.MinBet, &houseEdge.MaxBet,
 			&houseEdge.IsActive, &houseEdge.EffectiveFrom, &houseEdge.EffectiveUntil,
-			&houseEdge.CreatedAt, &houseEdge.UpdatedAt)
+			&houseEdge.CreatedAt, &houseEdge.UpdatedAt,
+			&actualGameID, &actualGameName)
 		if err != nil {
 			s.logger.Error("Failed to scan house edge", zap.Error(err))
 			return nil, err
 		}
+
+		// Use actual game data from games table if available, otherwise use stored values
+		if actualGameID != nil && *actualGameID != "" {
+			houseEdge.GameID = actualGameID
+		}
+		if actualGameName != nil && *actualGameName != "" {
+			houseEdge.GameName = actualGameName
+		}
+
 		houseEdges = append(houseEdges, houseEdge)
 	}
 
@@ -298,13 +354,16 @@ func (s *HouseEdgeStorageImpl) GetHouseEdgesByGameType(ctx context.Context, game
 }
 
 func (s *HouseEdgeStorageImpl) GetHouseEdgesByGameVariant(ctx context.Context, gameType, gameVariant string) ([]GameHouseEdge, error) {
-	s.logger.Info("Getting house edges by game variant", 
+	s.logger.Info("Getting house edges by game variant",
 		zap.String("game_type", gameType),
 		zap.String("game_variant", gameVariant))
 
 	query := `
-		SELECT id, game_type, game_variant, house_edge, min_bet, max_bet, is_active, effective_from, effective_until, created_at, updated_at
-		FROM game_house_edges WHERE game_type = $1 AND game_variant = $2 ORDER BY created_at DESC`
+		SELECT ghe.id, ghe.game_id, ghe.game_type, ghe.game_variant, ghe.house_edge, ghe.min_bet, ghe.max_bet, ghe.is_active, ghe.effective_from, ghe.effective_until, ghe.created_at, ghe.updated_at,
+		       g.game_id as actual_game_id, g.name as actual_game_name
+		FROM game_house_edges ghe
+		LEFT JOIN games g ON ghe.game_id = g.game_id
+		WHERE ghe.game_type = $1 AND ghe.game_variant = $2 ORDER BY ghe.created_at DESC`
 
 	rows, err := s.db.GetPool().Query(ctx, query, gameType, gameVariant)
 	if err != nil {
@@ -316,19 +375,29 @@ func (s *HouseEdgeStorageImpl) GetHouseEdgesByGameVariant(ctx context.Context, g
 	var houseEdges []GameHouseEdge
 	for rows.Next() {
 		var houseEdge GameHouseEdge
+		var actualGameID, actualGameName *string
 		err := rows.Scan(
-			&houseEdge.ID, &houseEdge.GameType, &houseEdge.GameVariant,
+			&houseEdge.ID, &houseEdge.GameID, &houseEdge.GameType, &houseEdge.GameVariant,
 			&houseEdge.HouseEdge, &houseEdge.MinBet, &houseEdge.MaxBet,
 			&houseEdge.IsActive, &houseEdge.EffectiveFrom, &houseEdge.EffectiveUntil,
-			&houseEdge.CreatedAt, &houseEdge.UpdatedAt)
+			&houseEdge.CreatedAt, &houseEdge.UpdatedAt,
+			&actualGameID, &actualGameName)
 		if err != nil {
 			s.logger.Error("Failed to scan house edge", zap.Error(err))
 			return nil, err
 		}
+
+		// Use actual game data from games table if available, otherwise use stored values
+		if actualGameID != nil && *actualGameID != "" {
+			houseEdge.GameID = actualGameID
+		}
+		if actualGameName != nil && *actualGameName != "" {
+			houseEdge.GameName = actualGameName
+		}
 		houseEdges = append(houseEdges, houseEdge)
 	}
 
-	s.logger.Info("House edges by game variant retrieved", 
+	s.logger.Info("House edges by game variant retrieved",
 		zap.String("game_type", gameType),
 		zap.String("game_variant", gameVariant),
 		zap.Int("count", len(houseEdges)))

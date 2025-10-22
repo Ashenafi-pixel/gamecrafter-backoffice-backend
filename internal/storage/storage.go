@@ -85,6 +85,7 @@ type Analytics interface {
 	InsertTransactions(ctx context.Context, transactions []*dto.AnalyticsTransaction) error
 	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 	GetGameTransactions(ctx context.Context, gameID string, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+	GetTransactionReport(ctx context.Context, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 
 	// Analytics methods
 	GetUserAnalytics(ctx context.Context, userID uuid.UUID, dateRange *dto.DateRange) (*dto.UserAnalytics, error)
@@ -115,6 +116,9 @@ type Balance interface {
 	UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceReq) (dto.Balance, error)
 	SaveManualFunds(ctx context.Context, fund dto.ManualFundReq) (dto.ManualFundRes, error)
 	GetManualFundLogs(ctx context.Context, filter dto.GetManualFundReq) (dto.GetManualFundRes, error)
+	GetManualFundsByUserID(ctx context.Context, userID uuid.UUID) ([]dto.ManualFundResData, error)
+	GetManualFundsByUserIDPaginated(ctx context.Context, userID uuid.UUID, page, perPage int) ([]dto.ManualFundResData, int64, error)
+	GetAllManualFunds(ctx context.Context, filter dto.GetAllManualFundsFilter) (dto.GetAllManualFundsRes, error)
 }
 
 type OperationalGroup interface {

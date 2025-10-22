@@ -380,11 +380,11 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 	//create user balance
 	if userRequest.IsAdmin {
 		u.balanceStorage.CreateBalance(ctx, dto.Balance{
-			UserId:       usrRes.ID,
-			CurrencyCode: constant.DEFAULT_CURRENCY,
-			AmountUnits:    decimal.Zero,
-			ReservedUnits:   decimal.Zero,
-			ReservedCents:       0,
+			UserId:        usrRes.ID,
+			CurrencyCode:  constant.DEFAULT_CURRENCY,
+			AmountUnits:   decimal.Zero,
+			ReservedUnits: decimal.Zero,
+			ReservedCents: 0,
 		})
 	} else {
 		signUpdBonus, exist, err := u.ConfigStorage.GetConfigByName(ctx, constant.SIGNUP_BONUS)
@@ -394,11 +394,11 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 
 		if !exist {
 			u.balanceStorage.CreateBalance(ctx, dto.Balance{
-				UserId:       usrRes.ID,
-				CurrencyCode: constant.DEFAULT_CURRENCY,
-				AmountUnits:    decimal.Zero,
-				ReservedUnits:   decimal.Zero,
-				ReservedCents:       0,
+				UserId:        usrRes.ID,
+				CurrencyCode:  constant.DEFAULT_CURRENCY,
+				AmountUnits:   decimal.Zero,
+				ReservedUnits: decimal.Zero,
+				ReservedCents: 0,
 			})
 		} else {
 			// if the signup bonus is exist then add the bonus to the user
@@ -408,11 +408,11 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 				return dto.UserRegisterResponse{}, "", errors.ErrInternalServerError.Wrap(err, "unable to convert signup bonus amount")
 			}
 			u.balanceStorage.CreateBalance(ctx, dto.Balance{
-				UserId:       usrRes.ID,
-				CurrencyCode: constant.DEFAULT_CURRENCY,
-				AmountUnits:    decimal.Zero,
-				ReservedUnits:   signUpBonusAmount,
-				ReservedCents:       0,
+				UserId:        usrRes.ID,
+				CurrencyCode:  constant.DEFAULT_CURRENCY,
+				AmountUnits:   decimal.Zero,
+				ReservedUnits: signUpBonusAmount,
+				ReservedCents: 0,
 			})
 		}
 
@@ -1696,8 +1696,7 @@ func (u *User) GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPl
 		req.Page = 1
 		req.PerPage = 10
 	}
-	offset := (req.Page - 1) * req.PerPage
-	req.Page = offset
+	// offset := (req.Page - 1) * req.PerPage
 
 	// Always use GetAllUsers which now handles filtering
 	pls, err := u.userStorage.GetAllUsers(ctx, req)

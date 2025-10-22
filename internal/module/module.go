@@ -66,6 +66,8 @@ type User interface {
 	GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]dto.GameActivity, error)
 	GetPlayerBalances(ctx context.Context, userID uuid.UUID) ([]dto.Balance, error)
 	GetPlayerStatistics(ctx context.Context, userID uuid.UUID) (dto.PlayerStatistics, error)
+	GetPlayerManualFunds(ctx context.Context, userID uuid.UUID) ([]dto.ManualFundResData, error)
+	GetPlayerManualFundsPaginated(ctx context.Context, userID uuid.UUID, page, perPage int) ([]dto.ManualFundResData, int64, error)
 	VerifyUser(ctx context.Context, req dto.VerifyPhoneNumberReq) (dto.UserRegisterResponse, string, error)
 	GetOtp(ctx context.Context, phone string) string
 	CheckUserExistsByEmail(ctx context.Context, email string) (bool, error)
@@ -82,6 +84,7 @@ type Balance interface {
 	AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (dto.ManualFundRes, error)
 	RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq) (dto.ManualFundRes, error)
 	GetManualFundLogs(ctx context.Context, filter dto.GetManualFundReq) (dto.GetManualFundRes, error)
+	GetAllManualFunds(ctx context.Context, filter dto.GetAllManualFundsFilter) (dto.GetAllManualFundsRes, error)
 	CreditWallet(ctx context.Context, req dto.CreditWalletReq) (dto.CreditWalletRes, error)
 }
 

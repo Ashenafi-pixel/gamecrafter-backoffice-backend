@@ -25,6 +25,32 @@ func NewHouseEdgeService(houseEdgeStorage game.HouseEdgeStorage, logger *zap.Log
 	}
 }
 
+// getGameInfo returns game information based on game type
+func (s *HouseEdgeService) getGameInfo(gameType string) (gameID string, gameName string) {
+	gameMapping := map[string]struct {
+		ID   string
+		Name string
+	}{
+		"plinko":     {"plinko_001", "Plinko"},
+		"crash":      {"crash_001", "Crash"},
+		"dice":       {"dice_001", "Dice"},
+		"blackjack":  {"blackjack_001", "Blackjack"},
+		"roulette":   {"roulette_001", "Roulette"},
+		"baccarat":   {"baccarat_001", "Baccarat"},
+		"poker":      {"poker_001", "Poker"},
+		"slots":      {"slots_001", "Slots"},
+		"sports":     {"sports_001", "Sports Betting"},
+		"groovetech": {"groovetech_001", "GrooveTech Games"},
+	}
+
+	if info, exists := gameMapping[gameType]; exists {
+		return info.ID, info.Name
+	}
+
+	// Default fallback
+	return gameType + "_001", gameType
+}
+
 func (s *HouseEdgeService) CreateHouseEdge(ctx *gin.Context, req dto.GameHouseEdgeRequest) (*dto.GameHouseEdgeResponse, error) {
 	s.logger.Info("Creating new house edge",
 		zap.String("game_type", req.GameType),
@@ -37,8 +63,18 @@ func (s *HouseEdgeService) CreateHouseEdge(ctx *gin.Context, req dto.GameHouseEd
 		effectiveFrom = *req.EffectiveFrom
 	}
 
+	// Get game info - use provided game_id or generate default
+	var gameID string
+	if req.GameID != nil && *req.GameID != "" {
+		gameID = *req.GameID
+	} else {
+		gameID, _ = s.getGameInfo(req.GameType)
+	}
+
 	// Convert DTO to storage model
 	houseEdgeModel := &game.GameHouseEdge{
+		GameID:         &gameID,
+		GameName:       nil, // Will be populated from games table via JOIN
 		GameType:       req.GameType,
 		GameVariant:    req.GameVariant,
 		HouseEdge:      req.HouseEdge,
@@ -94,6 +130,8 @@ func (s *HouseEdgeService) GetHouseEdges(ctx *gin.Context, params dto.GameHouseE
 	houseEdges, totalCount, err := s.houseEdgeStorage.GetHouseEdges(ctx, game.HouseEdgeQueryParams{
 		Page:        params.Page,
 		PerPage:     params.PerPage,
+		Search:      params.Search,
+		GameID:      params.GameID,
 		GameType:    params.GameType,
 		GameVariant: params.GameVariant,
 		IsActive:    params.IsActive,
@@ -149,6 +187,13 @@ func (s *HouseEdgeService) UpdateHouseEdge(ctx *gin.Context, id uuid.UUID, req d
 	existingHouseEdge.MinBet = req.MinBet
 	existingHouseEdge.MaxBet = req.MaxBet
 	existingHouseEdge.IsActive = req.IsActive
+
+	// Update game_id if provided
+	if req.GameID != nil && *req.GameID != "" {
+		existingHouseEdge.GameID = req.GameID
+		// Game name will be populated from games table via JOIN
+		existingHouseEdge.GameName = nil
+	}
 
 	if req.EffectiveFrom != nil {
 		existingHouseEdge.EffectiveFrom = *req.EffectiveFrom
@@ -294,8 +339,25 @@ func (s *HouseEdgeService) convertToHouseEdgeResponse(houseEdge *game.GameHouseE
 	// Calculate house edge percentage
 	houseEdgePercent := houseEdge.HouseEdge.Mul(decimal.NewFromInt(100)).StringFixed(2) + "%"
 
+	// Use the actual game_id and game_name from the database
+	// If they're not set, fall back to the mapping
+	var gameID, gameName string
+	if houseEdge.GameID != nil && *houseEdge.GameID != "" {
+		gameID = *houseEdge.GameID
+	} else {
+		gameID, _ = s.getGameInfo(houseEdge.GameType)
+	}
+
+	if houseEdge.GameName != nil && *houseEdge.GameName != "" {
+		gameName = *houseEdge.GameName
+	} else {
+		_, gameName = s.getGameInfo(houseEdge.GameType)
+	}
+
 	return &dto.GameHouseEdgeResponse{
 		ID:               houseEdge.ID,
+		GameID:           &gameID,
+		GameName:         &gameName,
 		GameType:         houseEdge.GameType,
 		GameVariant:      houseEdge.GameVariant,
 		HouseEdge:        houseEdge.HouseEdge,

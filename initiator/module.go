@@ -267,7 +267,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			SMSOTPLength:     6,
 			OTPExpiryMinutes: 5,
 		}, emailService),
-		Redis: redis,
+		Redis:             redis,
 		AdminActivityLogs: admin_activity_logs.NewAdminActivityLogsModule(persistence.AdminActivityLogs, log),
 	}
 }

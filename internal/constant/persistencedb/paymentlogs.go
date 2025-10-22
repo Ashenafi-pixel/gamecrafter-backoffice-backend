@@ -217,9 +217,9 @@ var (
 	mf.id,
     mf.transaction_id,
     mf.type,
-    mf.amount,
+    mf.amount_cents,
     mf.reason,
-    mf.currency,
+    mf.currency_code,
     mf.note,
     mf.created_at,
     
@@ -231,7 +231,7 @@ var (
     us.last_name AS customer_last_name,
     us.email AS customer_email,
     us.default_currency AS customer_default_currency,
-    us.profile AS customer_profile_picture,
+    us.profile_picture AS customer_profile_picture,
     us.date_of_birth AS customer_date_of_birth,
     
     -- Admin Information
@@ -241,7 +241,7 @@ var (
     ad.first_name AS admin_first_name,
     ad.last_name AS admin_last_name,
     ad.email AS admin_email,
-    ad.profile AS admin_profile_picture,
+    ad.profile_picture AS admin_profile_picture,
     ad.date_of_birth AS admin_date_of_birth
 
 FROM 

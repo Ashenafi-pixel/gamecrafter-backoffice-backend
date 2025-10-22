@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -108,10 +109,10 @@ func (b *balance) ExchangeBalance(c *gin.Context) {
 //	@Router			/api/admin/players/funding [post]
 func (b *balance) ManualFunding(c *gin.Context) {
 	b.log.Info("ManualFunding called")
-	
+
 	userID := c.GetString("user-id")
 	b.log.Info("User ID from context", zap.String("userID", userID))
-	
+
 	userIDParsed, err := uuid.Parse(userID)
 	if err != nil {
 		b.log.Error("Failed to parse user ID", zap.Error(err), zap.String("userID", userID))
@@ -127,7 +128,7 @@ func (b *balance) ManualFunding(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	
+
 	b.log.Info("Request bound successfully", zap.Any("fundReq", fundReq))
 
 	// Validate fund type first
@@ -223,6 +224,59 @@ func (b *balance) GetManualFundLogs(c *gin.Context) {
 	}
 
 	response.SendSuccessResponse(c, http.StatusCreated, resp)
+}
+
+// GetAllManualFunds get all manual funds.
+//
+//	@Summary		GetAllManualFunds
+//	@Description	Get all manual funds for admin management with pagination and filtering
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string	true	"Bearer <token> "
+//	@Param			page			query		int		false	"Page number (default: 1)"
+//	@Param			per_page		query		int		false	"Items per page (default: 10)"
+//	@Param			search			query		string	false	"Search by username, email, or transaction ID"
+//	@Param			type			query		string	false	"Filter by type (add_fund, remove_fund)"
+//	@Param			currency		query		string	false	"Filter by currency"
+//	@Param			date_from		query		string	false	"Filter from date (YYYY-MM-DD)"
+//	@Param			date_to			query		string	false	"Filter to date (YYYY-MM-DD)"
+//	@Success		200				{object}	dto.GetAllManualFundsRes
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		401				{object}	response.ErrorResponse
+//	@Router			/api/admin/manual-funds [get]
+func (b *balance) GetAllManualFunds(c *gin.Context) {
+	// Parse pagination parameters
+	pageStr := c.DefaultQuery("page", "1")
+	perPageStr := c.DefaultQuery("per_page", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	perPage, err := strconv.Atoi(perPageStr)
+	if err != nil || perPage < 1 || perPage > 100 {
+		perPage = 10
+	}
+
+	// Parse filter parameters
+	filters := dto.GetAllManualFundsFilter{
+		Page:     page,
+		PerPage:  perPage,
+		Search:   c.Query("search"),
+		Type:     c.Query("type"),
+		Currency: c.Query("currency"),
+		DateFrom: c.Query("date_from"),
+		DateTo:   c.Query("date_to"),
+	}
+
+	resp, err := b.balanceModule.GetAllManualFunds(c.Request.Context(), filters)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
 }
 
 // CreditWallet credits a user's wallet after payment confirmation.

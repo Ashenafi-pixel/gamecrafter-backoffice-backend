@@ -123,3 +123,61 @@ func (u *User) GetPlayerGameActivity(ctx context.Context, userID uuid.UUID) ([]d
 	// Return empty array for users with no game activity
 	return []dto.GameActivity{}, nil
 }
+
+// GetPlayerManualFunds retrieves manual fund transactions for a specific player
+func (u *User) GetPlayerManualFunds(ctx context.Context, userID uuid.UUID) ([]dto.ManualFundResData, error) {
+	// Get manual fund transactions from manual_funds table
+	manualFunds, err := u.balanceStorage.GetManualFundsByUserID(ctx, userID)
+	if err != nil {
+		u.log.Error("Failed to get manual funds", zap.Error(err), zap.String("user_id", userID.String()))
+		return nil, err
+	}
+
+	var result []dto.ManualFundResData
+	for _, fund := range manualFunds {
+		result = append(result, dto.ManualFundResData{
+			ID:            fund.ID,
+			UserID:        fund.UserID,
+			AdminID:       fund.AdminID,
+			AdminName:     fund.AdminName,
+			TransactionID: fund.TransactionID,
+			Type:          fund.Type,
+			Amount:        fund.Amount,
+			Reason:        fund.Reason,
+			Currency:      fund.Currency,
+			Note:          fund.Note,
+			CreatedAt:     fund.CreatedAt,
+		})
+	}
+
+	return result, nil
+}
+
+// GetPlayerManualFundsPaginated retrieves manual fund transactions for a specific player with pagination
+func (u *User) GetPlayerManualFundsPaginated(ctx context.Context, userID uuid.UUID, page, perPage int) ([]dto.ManualFundResData, int64, error) {
+	// Get manual fund transactions from manual_funds table with pagination
+	manualFunds, totalCount, err := u.balanceStorage.GetManualFundsByUserIDPaginated(ctx, userID, page, perPage)
+	if err != nil {
+		u.log.Error("Failed to get manual funds", zap.Error(err), zap.String("user_id", userID.String()))
+		return nil, 0, err
+	}
+
+	var result []dto.ManualFundResData
+	for _, fund := range manualFunds {
+		result = append(result, dto.ManualFundResData{
+			ID:            fund.ID,
+			UserID:        fund.UserID,
+			AdminID:       fund.AdminID,
+			AdminName:     fund.AdminName,
+			TransactionID: fund.TransactionID,
+			Type:          fund.Type,
+			Amount:        fund.Amount,
+			Reason:        fund.Reason,
+			Currency:      fund.Currency,
+			Note:          fund.Note,
+			CreatedAt:     fund.CreatedAt,
+		})
+	}
+
+	return result, totalCount, nil
+}

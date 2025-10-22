@@ -32,6 +32,8 @@ type Game struct {
 // GameHouseEdge represents a house edge configuration
 type GameHouseEdge struct {
 	ID             uuid.UUID        `db:"id"`
+	GameID         *string          `db:"game_id"`
+	GameName       *string          `db:"game_name"`
 	GameType       string           `db:"game_type"`
 	GameVariant    *string          `db:"game_variant"`
 	HouseEdge      decimal.Decimal  `db:"house_edge"`
@@ -60,6 +62,8 @@ type GameQueryParams struct {
 type HouseEdgeQueryParams struct {
 	Page        int
 	PerPage     int
+	Search      string // Search by game_id and game name
+	GameID      string // Specific game ID search
 	GameType    string
 	GameVariant string
 	IsActive    *bool

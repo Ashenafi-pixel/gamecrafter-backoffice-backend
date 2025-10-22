@@ -4,11 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/spf13/viper"
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/handler/adds"
 	"github.com/tucanbit/internal/handler/admin_activity_logs"
 	"github.com/tucanbit/internal/handler/agent"
+	"github.com/tucanbit/internal/handler/airtime"
 	analyticsHandler "github.com/tucanbit/internal/handler/analytics"
 	"github.com/tucanbit/internal/handler/authz"
 	"github.com/tucanbit/internal/handler/balance"
@@ -41,6 +45,7 @@ import (
 	"github.com/tucanbit/internal/handler/withdrawals"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
+	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
@@ -83,6 +88,7 @@ type Handler struct {
 	WithdrawalManagement  *withdrawal_management.WithdrawalManagementHandler
 	Withdrawals           *withdrawals.WithdrawalsHandler
 	AdminActivityLogs     handler.AdminActivityLogs
+	AirtimeProvider       handler.AirtimeProvider
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
@@ -144,7 +150,61 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		WithdrawalManagement:  withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
 		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
 		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
+		AirtimeProvider:       airtime.Init(log, persistence.AirtimeProvider),
 	}
+}
+
+// airtimeAdapter adapts storage.Airtime to module.AirtimeProvider interface
+type airtimeAdapter struct {
+	storage storage.Airtime
+}
+
+func (a *airtimeAdapter) RefereshUtilies(c *gin.Context) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"message": "Airtime utilities refreshed"}, nil
+}
+
+func (a *airtimeAdapter) GetAvailableAirtimeUtilities(c *gin.Context, req dto.GetRequest) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"data": []interface{}{}, "total": 0}, nil
+}
+
+func (a *airtimeAdapter) UpdateAirtimeStatus(c *gin.Context, req dto.UpdateAirtimeStatusReq) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"message": "Airtime status updated"}, nil
+}
+
+func (a *airtimeAdapter) UpdateUtilityPrice(c *gin.Context, req dto.UpdateAirtimeUtilityPriceReq) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"message": "Airtime utility price updated"}, nil
+}
+
+func (a *airtimeAdapter) ClaimPoints(c *gin.Context, req dto.ClaimPointsReq) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"message": "Points claimed successfully"}, nil
+}
+
+func (a *airtimeAdapter) GetActiveAvailableAirtime(c *gin.Context, req dto.GetRequest) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"data": []interface{}{}, "total": 0}, nil
+}
+
+func (a *airtimeAdapter) GetUserAirtimeTransactions(c *gin.Context, req dto.GetRequest, userID uuid.UUID) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"data": []interface{}{}, "total": 0}, nil
+}
+
+func (a *airtimeAdapter) GetAirtimeUtilitiesStats(c *gin.Context) (interface{}, error) {
+	// Implement the method that the airtime handler expects
+	// For now, return a simple response
+	return map[string]interface{}{"total_utilities": 0, "active_utilities": 0}, nil
 }
 
 // redisAdapter adapts the platform Redis client to the RegistrationService interface

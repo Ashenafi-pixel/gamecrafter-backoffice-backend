@@ -259,11 +259,15 @@ func (s *CashbackStorageImpl) GetCashbackTiers(ctx context.Context) ([]dto.Cashb
 	s.logger.Info("Getting cashback tiers")
 
 	query := `
-		SELECT id, tier_name, tier_level, min_ggr_required, cashback_percentage, bonus_multiplier, 
-		       daily_cashback_limit, weekly_cashback_limit, monthly_cashback_limit, special_benefits, is_active, created_at, updated_at
-		FROM cashback_tiers
-		WHERE is_active = true
-		ORDER BY tier_level ASC`
+		SELECT ct.id, ct.tier_name, ct.tier_level, ct.min_ggr_required, ct.cashback_percentage, ct.bonus_multiplier, 
+		       ct.daily_cashback_limit, ct.weekly_cashback_limit, ct.monthly_cashback_limit, ct.special_benefits, ct.is_active, ct.created_at, ct.updated_at,
+		       COALESCE(COUNT(ul.user_id), 0) as player_count
+		FROM cashback_tiers ct
+		LEFT JOIN user_levels ul ON ct.id = ul.current_tier_id
+		WHERE ct.is_active = true
+		GROUP BY ct.id, ct.tier_name, ct.tier_level, ct.min_ggr_required, ct.cashback_percentage, ct.bonus_multiplier, 
+		         ct.daily_cashback_limit, ct.weekly_cashback_limit, ct.monthly_cashback_limit, ct.special_benefits, ct.is_active, ct.created_at, ct.updated_at
+		ORDER BY ct.tier_level ASC`
 
 	rows, err := s.db.GetPool().Query(ctx, query)
 	if err != nil {
@@ -277,6 +281,7 @@ func (s *CashbackStorageImpl) GetCashbackTiers(ctx context.Context) ([]dto.Cashb
 		var tier dto.CashbackTier
 		var dailyLimit, weeklyLimit, monthlyLimit sql.NullString
 		var specialBenefits sql.NullString
+		var playerCount int
 
 		err := rows.Scan(
 			&tier.ID,
@@ -292,6 +297,7 @@ func (s *CashbackStorageImpl) GetCashbackTiers(ctx context.Context) ([]dto.Cashb
 			&tier.IsActive,
 			&tier.CreatedAt,
 			&tier.UpdatedAt,
+			&playerCount,
 		)
 
 		if err != nil {
@@ -319,6 +325,9 @@ func (s *CashbackStorageImpl) GetCashbackTiers(ctx context.Context) ([]dto.Cashb
 			// Parse JSON benefits
 			tier.SpecialBenefits = map[string]interface{}{}
 		}
+
+		// Set player count
+		tier.PlayerCount = playerCount
 
 		tiers = append(tiers, tier)
 	}

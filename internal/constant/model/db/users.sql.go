@@ -1018,7 +1018,7 @@ type GetUserPointsByReferalsParams struct {
 
 type GetUserPointsByReferalsRow struct {
 	AmountUnits decimal.Decimal
-	UserID    uuid.UUID
+	UserID      uuid.UUID
 }
 
 func (q *Queries) GetUserPointsByReferals(ctx context.Context, arg GetUserPointsByReferalsParams) (GetUserPointsByReferalsRow, error) {

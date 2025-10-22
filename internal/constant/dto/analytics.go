@@ -34,6 +34,7 @@ type AnalyticsTransaction struct {
 
 // TransactionFilters for querying transactions
 type TransactionFilters struct {
+	UserID          *uuid.UUID `json:"user_id,omitempty"`
 	DateFrom        *time.Time `json:"date_from,omitempty"`
 	DateTo          *time.Time `json:"date_to,omitempty"`
 	TransactionType *string    `json:"transaction_type,omitempty"`

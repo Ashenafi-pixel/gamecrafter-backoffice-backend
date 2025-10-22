@@ -510,3 +510,91 @@ func (a *analytics) GetUserBalanceHistory(c *gin.Context) {
 		Data:    history,
 	})
 }
+
+// GetTransactionReport Get transaction report with filters
+// @Summary Get transaction report
+// @Description Retrieve transaction report with optional filters including player_id
+// @Tags analytics
+// @Accept json
+// @Produce json
+// @Param player_id query string false "Player ID to filter by"
+// @Param date_from query string false "Start date (RFC3339)"
+// @Param date_to query string false "End date (RFC3339)"
+// @Param transaction_type query string false "Transaction type"
+// @Param status query string false "Transaction status"
+// @Param limit query int false "Limit results" default(100)
+// @Param offset query int false "Offset results" default(0)
+// @Success 200 {object} dto.AnalyticsResponse
+// @Failure 400 {object} dto.AnalyticsResponse
+// @Failure 500 {object} dto.AnalyticsResponse
+// @Router /analytics/reports/transactions [get]
+func (a *analytics) GetTransactionReport(c *gin.Context) {
+	// Check if analytics storage is available
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.TransactionFilters{}
+
+	// Parse query parameters
+	if playerIDStr := c.Query("player_id"); playerIDStr != "" {
+		if playerID, err := uuid.Parse(playerIDStr); err == nil {
+			filters.UserID = &playerID
+		}
+	}
+
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+
+	if transactionType := c.Query("transaction_type"); transactionType != "" {
+		filters.TransactionType = &transactionType
+	}
+
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			filters.Limit = limit
+		}
+	} else {
+		filters.Limit = 100 // Default limit
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			filters.Offset = offset
+		}
+	}
+
+	transactions, err := a.analyticsStorage.GetTransactionReport(c.Request.Context(), filters)
+	if err != nil {
+		a.logger.Error("Failed to get transaction report",
+			zap.Any("filters", filters),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve transaction report",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    transactions,
+		Meta: &dto.Meta{
+			Total:    len(transactions),
+			PageSize: filters.Limit,
+		},
+	})
+}

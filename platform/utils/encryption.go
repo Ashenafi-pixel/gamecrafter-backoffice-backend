@@ -46,7 +46,7 @@ func GenerateJWTWithVerification(userID uuid.UUID, isVerified, emailVerified, ph
 	}
 
 	jwtKey := []byte(key)
-	expirationTime := time.Now().Add(time.Hour * 24) // 24 hours instead of 10 minutes
+	expirationTime := time.Now().Add(time.Minute * 20) // 20 minutes for session timeout
 
 	claim := &dto.Claim{
 		UserID:        userID,

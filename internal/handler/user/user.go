@@ -50,6 +50,7 @@ type UserHandler interface {
 	UpdateReferralMultiplier(c *gin.Context)
 	UpdateUsersPointsForReferrances(c *gin.Context)
 	GetPlayerDetails(c *gin.Context)
+	GetPlayerManualFunds(c *gin.Context)
 	GetAdminAssignedPoints(c *gin.Context)
 	GetUserPoints(c *gin.Context)
 	AdminRegisterPlayer(c *gin.Context)
@@ -1751,4 +1752,60 @@ func (u *user) RegisterUser(c *gin.Context) {
 			Message: "Registration service not available",
 		})
 	}
+}
+
+// GetPlayerManualFunds - GET /api/admin/players/:user_id/manual-funds
+// Get manual fund transactions for a specific player
+func (u *user) GetPlayerManualFunds(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		u.log.Error("Invalid user ID", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid user ID",
+		})
+		return
+	}
+
+	// Get pagination parameters
+	pageStr := c.DefaultQuery("page", "1")
+	perPageStr := c.DefaultQuery("per_page", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	perPage, err := strconv.Atoi(perPageStr)
+	if err != nil || perPage < 1 || perPage > 100 {
+		perPage = 10
+	}
+
+	// Get manual fund transactions for the player
+	manualFunds, totalCount, err := u.userModule.GetPlayerManualFundsPaginated(c.Request.Context(), userID, page, perPage)
+	if err != nil {
+		u.log.Error("Failed to get manual funds", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to get manual funds",
+		})
+		return
+	}
+
+	totalPages := (totalCount + int64(perPage) - 1) / int64(perPage)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    http.StatusOK,
+		"message": "Manual funds retrieved successfully",
+		"data": gin.H{
+			"manual_funds": manualFunds,
+			"pagination": gin.H{
+				"current_page": page,
+				"per_page":     perPage,
+				"total_pages":  totalPages,
+				"total_count":  totalCount,
+			},
+		},
+	})
 }

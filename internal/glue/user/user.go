@@ -48,6 +48,7 @@ type UserHandler interface {
 	UpdateSignupBonus(c *gin.Context)
 	GetSignupBonus(c *gin.Context)
 	GetPlayerDetails(c *gin.Context)
+	GetPlayerManualFunds(c *gin.Context)
 	GetReferralBonus(c *gin.Context)
 	RefreshToken(c *gin.Context)
 	VerifyUser(c *gin.Context)
@@ -300,6 +301,16 @@ func Init(
 				middleware.Auth(),
 				middleware.Authz(authModule, enforcer, "get player details", http.MethodGet),
 				middleware.SystemLogs("get player details", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/admin/players/:user_id/manual-funds",
+			Handler: user.GetPlayerManualFunds,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get player manual funds", http.MethodGet),
+				middleware.SystemLogs("get player manual funds", &log, systemLog),
 			},
 		}, {
 			Method:  http.MethodDelete,

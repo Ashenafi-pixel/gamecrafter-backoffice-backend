@@ -35,6 +35,7 @@ type CashbackTier struct {
 	MonthlyCashbackLimit   *decimal.Decimal       `json:"monthly_cashback_limit" db:"monthly_cashback_limit"`
 	SpecialBenefits        map[string]interface{} `json:"special_benefits" db:"special_benefits"`
 	IsActive               bool                   `json:"is_active" db:"is_active"`
+	PlayerCount            int                    `json:"player_count" db:"player_count"`
 	CreatedAt              time.Time              `json:"created_at" db:"created_at"`
 	UpdatedAt              time.Time              `json:"updated_at" db:"updated_at"`
 }

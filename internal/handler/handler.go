@@ -8,6 +8,19 @@ type RegistrationServiceInterface interface {
 	CompleteUserRegistration(c *gin.Context)
 }
 
+type AirtimeProvider interface {
+	RefereshAirtimeUtilities(c *gin.Context)
+	GetAvailableAirtime(c *gin.Context)
+	UpdateAirtimeStatus(c *gin.Context)
+	UpdateAirtimeUtilityPrice(c *gin.Context)
+	ClaimPoints(c *gin.Context)
+	GetActiveAvailableAirtime(c *gin.Context)
+	GetUserAirtimeTransactions(c *gin.Context)
+	GetAllAirtimeUtilitiesTransactions(c *gin.Context)
+	UpdateAirtimeAmount(c *gin.Context)
+	GetAirtimeUtilitiesStats(c *gin.Context)
+}
+
 type User interface {
 	Login(c *gin.Context)
 	GetProfile(c *gin.Context)
@@ -56,6 +69,7 @@ type Analytics interface {
 	GetRealTimeStats(c *gin.Context)
 	GetDailyReport(c *gin.Context)
 	GetEnhancedDailyReport(c *gin.Context)
+	GetTransactionReport(c *gin.Context)
 	GetTopGames(c *gin.Context)
 	GetTopPlayers(c *gin.Context)
 	GetUserBalanceHistory(c *gin.Context)
@@ -97,6 +111,7 @@ type Balance interface {
 	GetUserBalances(c *gin.Context)
 	ExchangeBalance(c *gin.Context)
 	GetManualFundLogs(c *gin.Context)
+	GetAllManualFunds(c *gin.Context)
 	ManualFunding(c *gin.Context)
 	CreditWallet(c *gin.Context)
 }
@@ -236,19 +251,6 @@ type Authz interface {
 	VerifyWalletChallenge(c *gin.Context)
 	LoginWithWallet(c *gin.Context)
 	TestWalletSignature(c *gin.Context)
-}
-
-type AirtimeProvider interface {
-	RefereshAirtimeUtilities(c *gin.Context)
-	GetAvailableAirtime(c *gin.Context)
-	UpdateAirtimeStatus(c *gin.Context)
-	UpdateAirtimeUtilityPrice(c *gin.Context)
-	ClaimPoints(c *gin.Context)
-	GetActiveAvailableAirtime(c *gin.Context)
-	GetUserAirtimeTransactions(c *gin.Context)
-	GetAllAirtimeUtilitiesTransactions(c *gin.Context)
-	UpdateAirtimeAmount(c *gin.Context)
-	GetAirtimeUtilitiesStats(c *gin.Context)
 }
 
 type SystemLogs interface {

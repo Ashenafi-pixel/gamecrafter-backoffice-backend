@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -194,6 +195,7 @@ func (b *balance) GetUserBalanaceByUserID(ctx context.Context, getBalanceReq dto
 			ID:            id,
 			UserId:        userID,
 			CurrencyCode:  currencyCode,
+			AmountCents:   amountCents,
 			AmountUnits:   realMoney,
 			ReservedUnits: bonusMoney,
 			ReservedCents: int64(points),
@@ -275,6 +277,7 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 				ID:            id,
 				UserId:        userID,
 				CurrencyCode:  currencyCode,
+				AmountCents:   amountCents,
 				AmountUnits:   amountUnits,   // amount_units maps to real_money
 				ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
 				ReservedCents: 0,             // Server DB doesn't have points, set to 0
@@ -401,20 +404,25 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		switch updateReq.Component {
 		case constant.REAL_MONEY:
 			amountCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
-			b.log.Info("UpdateMoney - Executing UPDATE query", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("amount", updateReq.Amount.String()), zap.Int64("amountCentsToAdd", amountCentsToAdd))
+
+			b.log.Info("UpdateMoney - Starting update", zap.Int64("amountCentsToAdd", amountCentsToAdd), zap.String("amount", updateReq.Amount.String()), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency))
+
+			// Use a simple, direct approach with proper decimal handling
 			err = b.db.GetPool().QueryRow(ctx, `
 				UPDATE balances 
-				SET amount_cents = amount_cents + $1, amount_units = amount_units + $2::decimal, updated_at = $3 
+				SET amount_cents = amount_cents + $1, amount_units = amount_units + $2, updated_at = $3 
 				WHERE user_id = $4 AND currency_code = $5
 				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
 			`, amountCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 			)
+
 			if err != nil {
 				b.log.Error("UpdateMoney - UPDATE query failed", zap.Error(err), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency))
-			} else {
-				b.log.Info("UpdateMoney - UPDATE query successful", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("newAmountUnits", amountUnits.String()), zap.Int64("newAmountCents", amountCents))
+				return dto.Balance{}, err
 			}
+
+			b.log.Info("UpdateMoney - Successfully updated balance", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("newAmountUnits", amountUnits.String()), zap.Int64("newAmountCents", amountCents))
 		case constant.BONUS_MONEY:
 			reservedCents := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
 			err = b.db.GetPool().QueryRow(ctx, `
@@ -444,7 +452,6 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 	}
 
 	// Original code for local development...
-	var blnc db.Balance
 	var err error
 	// check if the user balance exist and if not create balance
 	exist, err := b.db.Queries.BalanceExist(ctx, db.BalanceExistParams{
@@ -472,39 +479,78 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		}
 	}
 
-	// Convert amount to cents and units
-	// amountCents := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+	// Use manual SQL to ensure we INCREMENT both amount_cents and amount_units atomically
+	// and avoid sqlc helpers that set absolute values.
+	var id uuid.UUID
+	var userID uuid.UUID
+	var currencyCode string
+	var amountCents int64
+	var amountUnits decimal.NullDecimal
+	var reservedCents int64
+	var reservedUnits decimal.NullDecimal
+	var updatedAt sql.NullTime
 
 	switch updateReq.Component {
 	case constant.REAL_MONEY:
-		blnc, err = b.db.Queries.UpdateAmountUnits(ctx, db.UpdateAmountUnitsParams{
-			AmountUnits:   updateReq.Amount,
-			ReservedUnits: decimal.Zero,
-			UpdatedAt:     time.Now(),
-			UserID:        updateReq.UserID,
-			CurrencyCode:  updateReq.Currency,
-		})
+		amountCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+		err = b.db.GetPool().QueryRow(ctx, `
+            UPDATE balances
+            SET amount_cents = amount_cents + $1,
+                amount_units = amount_units + $2,
+                updated_at   = $3
+            WHERE user_id = $4 AND currency_code = $5
+            RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
+        `, amountCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+		)
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
-			err = errors.ErrUnableToUpdate.Wrap(err, "unable to update balance ", zap.Any("updateReq", updateReq))
+			err = errors.ErrUnableToUpdate.Wrap(err, "unable to update balance ")
 			return dto.Balance{}, err
 		}
-
 	case constant.BONUS_MONEY:
-		blnc, err = b.db.Queries.UpdateReservedUnits(ctx, db.UpdateReservedUnitsParams{
-			ReservedCents: int32(updateReq.Amount.IntPart()),
-			UpdatedAt:     time.Now(),
-			UserID:        updateReq.UserID,
-			CurrencyCode:  updateReq.Currency,
-		})
+		reservedCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+		err = b.db.GetPool().QueryRow(ctx, `
+            UPDATE balances
+            SET reserved_cents = reserved_cents + $1,
+                reserved_units = reserved_units + $2,
+                updated_at     = $3
+            WHERE user_id = $4 AND currency_code = $5
+            RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
+        `, reservedCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+		)
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
-			err = errors.ErrUnableToUpdate.Wrap(err, "unable to update balance ", zap.Any("updateReq", updateReq))
+			err = errors.ErrUnableToUpdate.Wrap(err, "unable to update balance ")
 			return dto.Balance{}, err
 		}
 	}
 
-	return convertDBBalanceToDTO(blnc), nil
+	// Convert to DTO while handling potential NULLs
+	var amountUnitsVal decimal.Decimal
+	if amountUnits.Valid {
+		amountUnitsVal = amountUnits.Decimal
+	}
+	var reservedUnitsVal decimal.Decimal
+	if reservedUnits.Valid {
+		reservedUnitsVal = reservedUnits.Decimal
+	}
+	var updatedAtVal time.Time
+	if updatedAt.Valid {
+		updatedAtVal = updatedAt.Time
+	}
+
+	return dto.Balance{
+		ID:            id,
+		UserId:        userID,
+		CurrencyCode:  currencyCode,
+		AmountCents:   amountCents,
+		AmountUnits:   amountUnitsVal,
+		ReservedCents: int64(reservedCents),
+		ReservedUnits: reservedUnitsVal,
+		UpdateAt:      updatedAtVal,
+	}, nil
 }
 
 func (b *balance) SaveManualFunds(ctx context.Context, fund dto.ManualFundReq) (dto.ManualFundRes, error) {
@@ -739,7 +785,494 @@ func (b *balance) GetManualFundLogs(ctx context.Context, filter dto.GetManualFun
 		query = query + "ad.email" + filter.Sort.AdminEmail
 		orderFirst = false
 	}
-	query = fmt.Sprintf(persistencedb.GetManualBalanceQuery, query, filter.Page, filter.PerPage)
+	// For now, let's use a simpler query to test
+	simpleQuery := `
+		SELECT 
+			mf.id,
+			mf.transaction_id,
+			mf.type,
+			mf.amount_cents,
+			mf.reason,
+			mf.currency_code,
+			mf.note,
+			mf.created_at,
+			mf.user_id,
+			mf.admin_id,
+			COALESCE(NULLIF(TRIM(admin_user.first_name || ' ' || admin_user.last_name), ''), admin_user.username, 'Unknown Admin') as admin_name
+		FROM manual_funds mf
+		LEFT JOIN users admin_user ON mf.admin_id = admin_user.id
+		ORDER BY mf.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
 
-	return b.db.GetManualFunds(ctx, query, conditions, filter.PerPage, filter.Page)
+	offset := (filter.Page - 1) * filter.PerPage
+	b.log.Info("Executing manual funds query", zap.String("query", simpleQuery), zap.Int("perPage", filter.PerPage), zap.Int("offset", offset))
+
+	rows, err := b.db.GetPool().Query(ctx, simpleQuery, filter.PerPage, offset)
+	if err != nil {
+		b.log.Error("Failed to execute manual funds query", zap.Error(err))
+		return dto.GetManualFundRes{}, err
+	}
+	defer rows.Close()
+
+	var funds []dto.GetManualFundData
+	rowCount := 0
+	for rows.Next() {
+		rowCount++
+		var fund dto.ManualFundResData
+		var amountCents int64
+		var adminName string
+
+		err := rows.Scan(
+			&fund.ID,
+			&fund.TransactionID,
+			&fund.Type,
+			&amountCents,
+			&fund.Reason,
+			&fund.Currency,
+			&fund.Note,
+			&fund.CreatedAt,
+			&fund.UserID,
+			&fund.AdminID,
+			&adminName,
+		)
+		if err != nil {
+			b.log.Error("Failed to scan manual fund row", zap.Error(err))
+			continue
+		}
+
+		// Convert cents to decimal
+		fund.Amount = decimal.NewFromInt(amountCents).Div(decimal.NewFromInt(100))
+		fund.AdminName = adminName
+
+		// Create dummy user objects for now (we can enhance this later)
+		user := dto.User{
+			ID: fund.UserID,
+		}
+		fundBy := dto.User{
+			ID: fund.AdminID,
+		}
+
+		funds = append(funds, dto.GetManualFundData{
+			ManualFund: fund,
+			User:       user,
+			FundBy:     fundBy,
+		})
+	}
+
+	b.log.Info("Manual funds query completed", zap.Int("rowsProcessed", rowCount), zap.Int("fundsReturned", len(funds)))
+	totalPages := (len(funds) + filter.PerPage - 1) / filter.PerPage
+
+	return dto.GetManualFundRes{
+		Message:   "Manual funds retrieved successfully",
+		Data:      funds,
+		TotalPage: totalPages,
+	}, nil
+}
+
+func (b *balance) GetAllManualFunds(ctx context.Context, filter dto.GetAllManualFundsFilter) (dto.GetAllManualFundsRes, error) {
+	// Build the query with filters
+	var conditions []string
+	var args []interface{}
+	argIndex := 1
+
+	// Base query with joins for usernames
+	baseQuery := `
+		SELECT 
+			mf.id,
+			mf.transaction_id,
+			mf.type,
+			mf.amount_cents,
+			mf.reason,
+			mf.currency_code,
+			mf.note,
+			mf.created_at,
+			mf.user_id,
+			mf.admin_id,
+			COALESCE(
+				NULLIF(TRIM(user_table.first_name || ' ' || user_table.last_name), ''),
+				NULLIF(TRIM(user_table.username), ''),
+				user_table.email,
+				'User ' || SUBSTRING(user_table.id::text, 1, 8)
+			) as username,
+			COALESCE(NULLIF(TRIM(admin_user.first_name || ' ' || admin_user.last_name), ''), admin_user.username, 'Unknown Admin') as admin_name
+		FROM manual_funds mf
+		LEFT JOIN users user_table ON mf.user_id = user_table.id
+		LEFT JOIN users admin_user ON mf.admin_id = admin_user.id
+	`
+
+	// Add search filter
+	if filter.Search != "" {
+		conditions = append(conditions, fmt.Sprintf("(user_table.username ILIKE $%d OR user_table.email ILIKE $%d OR mf.transaction_id ILIKE $%d)", argIndex, argIndex, argIndex))
+		args = append(args, "%"+filter.Search+"%")
+		argIndex++
+	}
+
+	// Add type filter
+	if filter.Type != "" {
+		conditions = append(conditions, fmt.Sprintf("mf.type = $%d", argIndex))
+		args = append(args, filter.Type)
+		argIndex++
+	}
+
+	// Add currency filter
+	if filter.Currency != "" {
+		conditions = append(conditions, fmt.Sprintf("mf.currency_code = $%d", argIndex))
+		args = append(args, filter.Currency)
+		argIndex++
+	}
+
+	// Add date filters
+	if filter.DateFrom != "" {
+		conditions = append(conditions, fmt.Sprintf("mf.created_at >= $%d", argIndex))
+		args = append(args, filter.DateFrom+" 00:00:00")
+		argIndex++
+	}
+
+	if filter.DateTo != "" {
+		conditions = append(conditions, fmt.Sprintf("mf.created_at <= $%d", argIndex))
+		args = append(args, filter.DateTo+" 23:59:59")
+		argIndex++
+	}
+
+	// Build WHERE clause
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Count query for total
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM manual_funds mf LEFT JOIN users user_table ON mf.user_id = user_table.id LEFT JOIN users admin_user ON mf.admin_id = admin_user.id %s", whereClause)
+
+	b.log.Info("Executing count query", zap.String("query", countQuery), zap.Any("args", args))
+
+	var totalCount int64
+	err := b.db.GetPool().QueryRow(ctx, countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		b.log.Error("Failed to execute count query", zap.Error(err))
+		return dto.GetAllManualFundsRes{}, err
+	}
+
+	// Calculate pagination
+	offset := (filter.Page - 1) * filter.PerPage
+	totalPages := int((totalCount + int64(filter.PerPage) - 1) / int64(filter.PerPage))
+
+	// Main query with pagination
+	mainQuery := fmt.Sprintf("%s %s ORDER BY mf.created_at DESC LIMIT $%d OFFSET $%d", baseQuery, whereClause, argIndex, argIndex+1)
+	args = append(args, filter.PerPage, offset)
+
+	b.log.Info("Executing main query", zap.String("query", mainQuery), zap.Any("args", args))
+
+	rows, err := b.db.GetPool().Query(ctx, mainQuery, args...)
+	if err != nil {
+		b.log.Error("Failed to execute main query", zap.Error(err))
+		return dto.GetAllManualFundsRes{}, err
+	}
+	defer rows.Close()
+
+	var funds []dto.ManualFundResData
+	var totalFundsUSD decimal.Decimal
+
+	for rows.Next() {
+		var fund dto.ManualFundResData
+		var amountCents int64
+		var username, adminName string
+
+		err := rows.Scan(
+			&fund.ID,
+			&fund.TransactionID,
+			&fund.Type,
+			&amountCents,
+			&fund.Reason,
+			&fund.Currency,
+			&fund.Note,
+			&fund.CreatedAt,
+			&fund.UserID,
+			&fund.AdminID,
+			&username,
+			&adminName,
+		)
+		if err != nil {
+			b.log.Error("Failed to scan manual fund row", zap.Error(err))
+			continue
+		}
+
+		// Convert cents to decimal
+		fund.Amount = decimal.NewFromInt(amountCents).Div(decimal.NewFromInt(100))
+		fund.Username = username
+		fund.AdminName = adminName
+
+		// Calculate total USD (only for USD transactions)
+		if fund.Currency == "USD" {
+			totalFundsUSD = totalFundsUSD.Add(fund.Amount)
+		}
+
+		funds = append(funds, fund)
+	}
+
+	b.log.Info("Manual funds query completed",
+		zap.Int("fundsReturned", len(funds)),
+		zap.Int64("totalCount", totalCount),
+		zap.Int("totalPages", totalPages),
+		zap.String("totalFundsUSD", totalFundsUSD.String()))
+
+	return dto.GetAllManualFundsRes{
+		Message:       "Manual funds retrieved successfully",
+		Data:          funds,
+		Total:         totalCount,
+		TotalPages:    totalPages,
+		CurrentPage:   filter.Page,
+		PerPage:       filter.PerPage,
+		TotalFundsUSD: totalFundsUSD.String(),
+	}, nil
+}
+
+func (b *balance) GetManualFundsByUserID(ctx context.Context, userID uuid.UUID) ([]dto.ManualFundResData, error) {
+	// Check if we're using server database (different schema)
+	if os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		// Use raw SQL for server database with admin name join
+		rows, err := b.db.GetPool().Query(ctx, `
+			SELECT mf.id, mf.user_id, mf.admin_id, mf.transaction_id, mf.type, mf.amount_cents, mf.currency_code, mf.reason, mf.note, mf.created_at,
+			       COALESCE(admin_user.first_name || ' ' || admin_user.last_name, admin_user.username, 'Unknown Admin') as admin_name
+			FROM manual_funds mf
+			LEFT JOIN users admin_user ON mf.admin_id = admin_user.id
+			WHERE mf.user_id = $1 
+			ORDER BY mf.created_at DESC
+		`, userID)
+		if err != nil {
+			b.log.Error("unable to get manual funds by user_id", zap.Error(err), zap.String("userID", userID.String()))
+			return []dto.ManualFundResData{}, err
+		}
+		defer rows.Close()
+
+		var funds []dto.ManualFundResData
+		for rows.Next() {
+			var id uuid.UUID
+			var userID uuid.UUID
+			var adminID uuid.UUID
+			var transactionID string
+			var fundType string
+			var amountCents int64
+			var currencyCode string
+			var reason string
+			var note string
+			var createdAt time.Time
+			var adminName string
+
+			err := rows.Scan(&id, &userID, &adminID, &transactionID, &fundType, &amountCents, &currencyCode, &reason, &note, &createdAt, &adminName)
+			if err != nil {
+				b.log.Error("unable to scan manual fund row", zap.Error(err))
+				continue
+			}
+
+			// Convert cents back to units for response
+			amount := decimal.NewFromInt(amountCents).Div(decimal.NewFromInt(100))
+
+			funds = append(funds, dto.ManualFundResData{
+				ID:            id,
+				UserID:        userID,
+				AdminID:       adminID,
+				AdminName:     adminName,
+				TransactionID: transactionID,
+				Type:          fundType,
+				Amount:        amount,
+				Reason:        reason,
+				Currency:      currencyCode,
+				Note:          note,
+				CreatedAt:     createdAt,
+			})
+		}
+
+		return funds, nil
+	}
+
+	// Use original query for local development with admin name join
+	query := `SELECT mf.id, mf.user_id, mf.admin_id, mf.transaction_id, mf.type, mf.amount_cents, mf.currency_code, mf.reason, mf.note, mf.created_at,
+	         COALESCE(admin_user.first_name || ' ' || admin_user.last_name, admin_user.username, 'Unknown Admin') as admin_name
+	         FROM manual_funds mf
+	         LEFT JOIN users admin_user ON mf.admin_id = admin_user.id
+	         WHERE mf.user_id = $1 ORDER BY mf.created_at DESC`
+	rows, err := b.db.GetPool().Query(ctx, query, userID)
+	if err != nil {
+		b.log.Error(err.Error(), zap.Any("userID", userID))
+		return []dto.ManualFundResData{}, err
+	}
+	defer rows.Close()
+
+	var funds []dto.ManualFundResData
+	for rows.Next() {
+		var id uuid.UUID
+		var userID uuid.UUID
+		var adminID uuid.UUID
+		var transactionID string
+		var fundType string
+		var amountCents int64
+		var currencyCode string
+		var reason string
+		var note string
+		var createdAt time.Time
+		var adminName string
+
+		err := rows.Scan(&id, &userID, &adminID, &transactionID, &fundType, &amountCents, &currencyCode, &reason, &note, &createdAt, &adminName)
+		if err != nil {
+			b.log.Error("unable to scan manual fund row", zap.Error(err))
+			continue
+		}
+
+		// Convert cents back to units for response
+		amount := decimal.NewFromInt(amountCents).Div(decimal.NewFromInt(100))
+
+		funds = append(funds, dto.ManualFundResData{
+			ID:            id,
+			UserID:        userID,
+			AdminID:       adminID,
+			AdminName:     adminName,
+			TransactionID: transactionID,
+			Type:          fundType,
+			Amount:        amount,
+			Reason:        reason,
+			Currency:      currencyCode,
+			Note:          note,
+			CreatedAt:     createdAt,
+		})
+	}
+
+	return funds, nil
+}
+
+func (b *balance) GetManualFundsByUserIDPaginated(ctx context.Context, userID uuid.UUID, page, perPage int) ([]dto.ManualFundResData, int64, error) {
+	offset := (page - 1) * perPage
+
+	// Check if we're using server database (different schema)
+	if os.Getenv("SKIP_PERMISSION_INIT") == "true" {
+		// First get total count
+		var totalCount int64
+		err := b.db.GetPool().QueryRow(ctx, `
+			SELECT COUNT(*) FROM manual_funds WHERE user_id = $1
+		`, userID).Scan(&totalCount)
+		if err != nil {
+			b.log.Error("unable to get manual funds count", zap.Error(err), zap.String("userID", userID.String()))
+			return []dto.ManualFundResData{}, 0, err
+		}
+
+		// Use raw SQL for server database with admin name join and pagination
+		rows, err := b.db.GetPool().Query(ctx, `
+			SELECT mf.id, mf.user_id, mf.admin_id, mf.transaction_id, mf.type, mf.amount_cents, mf.currency_code, mf.reason, mf.note, mf.created_at,
+			       COALESCE(admin_user.first_name || ' ' || admin_user.last_name, admin_user.username, 'Unknown Admin') as admin_name
+			FROM manual_funds mf
+			LEFT JOIN users admin_user ON mf.admin_id = admin_user.id
+			WHERE mf.user_id = $1 
+			ORDER BY mf.created_at DESC
+			LIMIT $2 OFFSET $3
+		`, userID, perPage, offset)
+		if err != nil {
+			b.log.Error("unable to get manual funds by user_id", zap.Error(err), zap.String("userID", userID.String()))
+			return []dto.ManualFundResData{}, 0, err
+		}
+		defer rows.Close()
+
+		var funds []dto.ManualFundResData
+		for rows.Next() {
+			var id uuid.UUID
+			var userID uuid.UUID
+			var adminID uuid.UUID
+			var transactionID string
+			var fundType string
+			var amountCents int64
+			var currencyCode string
+			var reason string
+			var note string
+			var createdAt time.Time
+			var adminName string
+
+			err := rows.Scan(&id, &userID, &adminID, &transactionID, &fundType, &amountCents, &currencyCode, &reason, &note, &createdAt, &adminName)
+			if err != nil {
+				b.log.Error("unable to scan manual fund row", zap.Error(err))
+				continue
+			}
+
+			// Convert cents back to units for response
+			amount := decimal.NewFromInt(amountCents).Div(decimal.NewFromInt(100))
+
+			funds = append(funds, dto.ManualFundResData{
+				ID:            id,
+				UserID:        userID,
+				AdminID:       adminID,
+				AdminName:     adminName,
+				TransactionID: transactionID,
+				Type:          fundType,
+				Amount:        amount,
+				Reason:        reason,
+				Currency:      currencyCode,
+				Note:          note,
+				CreatedAt:     createdAt,
+			})
+		}
+
+		return funds, totalCount, nil
+	}
+
+	// Use original query for local development with admin name join and pagination
+	// First get total count
+	var totalCount int64
+	err := b.db.GetPool().QueryRow(ctx, `
+		SELECT COUNT(*) FROM manual_funds WHERE user_id = $1
+	`, userID).Scan(&totalCount)
+	if err != nil {
+		b.log.Error(err.Error(), zap.Any("userID", userID))
+		return []dto.ManualFundResData{}, 0, err
+	}
+
+	query := `SELECT mf.id, mf.user_id, mf.admin_id, mf.transaction_id, mf.type, mf.amount_cents, mf.currency_code, mf.reason, mf.note, mf.created_at,
+	         COALESCE(admin_user.first_name || ' ' || admin_user.last_name, admin_user.username, 'Unknown Admin') as admin_name
+	         FROM manual_funds mf
+	         LEFT JOIN users admin_user ON mf.admin_id = admin_user.id
+	         WHERE mf.user_id = $1 ORDER BY mf.created_at DESC
+	         LIMIT $2 OFFSET $3`
+	rows, err := b.db.GetPool().Query(ctx, query, userID, perPage, offset)
+	if err != nil {
+		b.log.Error(err.Error(), zap.Any("userID", userID))
+		return []dto.ManualFundResData{}, 0, err
+	}
+	defer rows.Close()
+
+	var funds []dto.ManualFundResData
+	for rows.Next() {
+		var id uuid.UUID
+		var userID uuid.UUID
+		var adminID uuid.UUID
+		var transactionID string
+		var fundType string
+		var amountCents int64
+		var currencyCode string
+		var reason string
+		var note string
+		var createdAt time.Time
+		var adminName string
+
+		err := rows.Scan(&id, &userID, &adminID, &transactionID, &fundType, &amountCents, &currencyCode, &reason, &note, &createdAt, &adminName)
+		if err != nil {
+			b.log.Error("unable to scan manual fund row", zap.Error(err))
+			continue
+		}
+
+		// Convert cents back to units for response
+		amount := decimal.NewFromInt(amountCents).Div(decimal.NewFromInt(100))
+
+		funds = append(funds, dto.ManualFundResData{
+			ID:            id,
+			UserID:        userID,
+			AdminID:       adminID,
+			AdminName:     adminName,
+			TransactionID: transactionID,
+			Type:          fundType,
+			Amount:        amount,
+			Reason:        reason,
+			Currency:      currencyCode,
+			Note:          note,
+			CreatedAt:     createdAt,
+		})
+	}
+
+	return funds, totalCount, nil
 }

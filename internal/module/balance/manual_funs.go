@@ -95,13 +95,8 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		},
 	})
 	if err != nil {
-		// reverse amount
-		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
-			UserID:    fund.UserID,
-			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
-			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
-		})
+		// Log the error but don't rollback the balance update for SaveBalanceLogs
+		b.log.Error("SaveBalanceLogs failed, but continuing with manual fund save", zap.Error(err))
 	}
 
 	// save it to manual fund
@@ -120,12 +115,12 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		Note:          fund.Reason,
 	})
 	if err != nil {
-		// reverse transaction
+		// reverse transaction by subtracting the amount we added
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    fund.Amount.Neg(), // Subtract the amount we added
 		})
 
 		//remove from balance log
@@ -151,6 +146,7 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 	if err := b.ValidateFundReq(ctx, fund); err != nil {
 		return dto.ManualFundRes{}, err
 	}
+
 	//fund user with the specified amount
 	//create or get operational group and type
 	operationalGroupAndType, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.TRANSFER, constant.REMOVE_FUND)
@@ -162,8 +158,11 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
 	})
 	if err != nil {
+		b.log.Error("Failed to get user balance", zap.Error(err), zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY))
 		return dto.ManualFundRes{}, err
 	}
+
+	b.log.Info("Balance check result", zap.Bool("exists", exist), zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY), zap.Any("currentBalance", usrAmount))
 
 	if !exist {
 		err = fmt.Errorf("user dose not have balance with this currency")
@@ -177,15 +176,20 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return dto.ManualFundRes{}, err
 		}
-		_, err = b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
+		// update existing balance by subtracting the amount
+		negativeAmount := fund.Amount.Neg()
+		b.log.Info("Updating existing balance", zap.String("userID", fund.UserID.String()), zap.String("currency", constant.DEFAULT_CURRENCY), zap.String("amountToSubtract", fund.Amount.String()), zap.String("negativeAmount", negativeAmount.String()))
+		updatedBalance, err := b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits.Sub(fund.Amount),
+			Amount:    negativeAmount, // Pass negative amount to subtract from balance
 		})
 		if err != nil {
+			b.log.Error("Failed to update balance", zap.Error(err))
 			return dto.ManualFundRes{}, err
 		}
+		b.log.Info("Balance updated successfully", zap.String("newAmountUnits", updatedBalance.AmountUnits.String()), zap.Int64("newAmountCents", updatedBalance.AmountCents), zap.String("originalBalance", usrAmount.AmountUnits.String()))
 	}
 	//save transaction_log
 	blog, err := b.SaveBalanceLogs(ctx, dto.SaveBalanceLogsReq{
@@ -199,26 +203,30 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		UpdateRes: dto.UpdateBalanceRes{
 			Data: dto.BalanceData{
 				UserID:     fund.UserID,
-				Currency:   constant.DEFAULT_CURRENCY, // Use default currency for server database
-				NewBalance: fund.Amount.Add(usrAmount.AmountUnits),
+				Currency:   constant.DEFAULT_CURRENCY,              // Use default currency for server database
+				NewBalance: usrAmount.AmountUnits.Sub(fund.Amount), // Calculate new balance after subtraction
 			},
 		},
 	})
 	if err != nil {
-		// reverse amount
+		// reverse amount by adding back the amount we subtracted
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    fund.Amount, // Add back the amount we subtracted
 		})
 	}
 
 	// save it to manual fund
+	var transactionID string
+	if blog.TransactionID != nil {
+		transactionID = *blog.TransactionID
+	}
 	manualFund, err := b.balanceStorage.SaveManualFunds(ctx, dto.ManualFundReq{
 		UserID:        fund.UserID,
 		AdminID:       fund.AdminID,
-		TransactionID: *blog.TransactionID,
+		TransactionID: transactionID,
 		Type:          constant.REMOVE_FUND,
 		Amount:        fund.Amount,
 		Reason:        fund.Reason,
@@ -226,12 +234,12 @@ func (b *balance) RemoveFundManualy(ctx context.Context, fund dto.ManualFundReq)
 		Note:          fund.Note,
 	})
 	if err != nil {
-		// reverse transaction
+		// reverse transaction by adding back the amount we subtracted
 		b.balanceStorage.UpdateMoney(ctx, dto.UpdateBalanceReq{
 			UserID:    fund.UserID,
 			Currency:  constant.DEFAULT_CURRENCY, // Use default currency for server database
 			Component: constant.REAL_MONEY,
-			Amount:    usrAmount.AmountUnits,
+			Amount:    fund.Amount, // Add back the amount we subtracted
 		})
 
 		//remove from balance log
@@ -347,8 +355,7 @@ func (b *balance) ValidateFundReq(ctx context.Context, fund dto.ManualFundReq) e
 }
 
 func (b *balance) GetManualFundLogs(ctx context.Context, filter dto.GetManualFundReq) (dto.GetManualFundRes, error) {
-	offset := (filter.Page - 1) * filter.PerPage
-	filter.Page = offset
+	//offset := (filter.Page - 1) * filter.PerPage
 	if filter.Sort.Amount != "" {
 		if err := utils.ValidateSortOptions("amount", filter.Sort.Amount); err != nil {
 			return dto.GetManualFundRes{}, err
@@ -368,4 +375,8 @@ func (b *balance) GetManualFundLogs(ctx context.Context, filter dto.GetManualFun
 	}
 
 	return b.balanceStorage.GetManualFundLogs(ctx, filter)
+}
+
+func (b *balance) GetAllManualFunds(ctx context.Context, filter dto.GetAllManualFundsFilter) (dto.GetAllManualFundsRes, error) {
+	return b.balanceStorage.GetAllManualFunds(ctx, filter)
 }

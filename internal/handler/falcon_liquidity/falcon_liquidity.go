@@ -39,7 +39,7 @@ func NewFalconLiquidityHandler(storage falcon_liquidity.FalconMessageStorage, lo
 //	@Success		200			{object}	dto.FalconLiquidityDataResponse
 //	@Failure		400			{object}	response.ErrorResponse
 //	@Failure		500			{object}	response.ErrorResponse
-//	@Router			/api/falcon-liquidity/data [get]
+//	@Router			/api/admin/falcon-liquidity/data [get]
 func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
 	// Parse query parameters
 	limitStr := c.DefaultQuery("limit", "100")
@@ -135,7 +135,7 @@ func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
 //	@Failure		400				{object}	response.ErrorResponse
 //	@Failure		404				{object}	response.ErrorResponse
 //	@Failure		500				{object}	response.ErrorResponse
-//	@Router			/api/falcon-liquidity/transaction/{transaction_id} [get]
+//	@Router			/api/admin/falcon-liquidity/transaction/{transaction_id} [get]
 func (h *FalconLiquidityHandler) GetFalconLiquidityByTransactionID(c *gin.Context) {
 	transactionID := c.Param("transaction_id")
 	if transactionID == "" {
@@ -193,7 +193,7 @@ func (h *FalconLiquidityHandler) GetFalconLiquidityByTransactionID(c *gin.Contex
 //	@Failure		400		{object}	response.ErrorResponse
 //	@Failure		404		{object}	response.ErrorResponse
 //	@Failure		500		{object}	response.ErrorResponse
-//	@Router			/api/falcon-liquidity/user/{user_id} [get]
+//	@Router			/api/admin/falcon-liquidity/user/{user_id} [get]
 func (h *FalconLiquidityHandler) GetFalconLiquidityByUserID(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	if userIDStr == "" {
@@ -276,7 +276,7 @@ func (h *FalconLiquidityHandler) GetFalconLiquidityByUserID(c *gin.Context) {
 //	@Success		200			{object}	dto.FalconMessageSummary
 //	@Failure		400			{object}	response.ErrorResponse
 //	@Failure		500			{object}	response.ErrorResponse
-//	@Router			/api/falcon-liquidity/summary [get]
+//	@Router			/api/admin/falcon-liquidity/summary [get]
 func (h *FalconLiquidityHandler) GetFalconLiquiditySummary(c *gin.Context) {
 	// Parse query parameters
 	messageType := c.Query("message_type")

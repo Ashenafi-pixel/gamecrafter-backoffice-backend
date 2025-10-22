@@ -7,6 +7,7 @@ import (
 	"github.com/tucanbit/internal/glue/admin_activity_logs"
 	"github.com/tucanbit/internal/glue/admin_notification"
 	"github.com/tucanbit/internal/glue/agent"
+	"github.com/tucanbit/internal/glue/airtime"
 	"github.com/tucanbit/internal/glue/analytics"
 	"github.com/tucanbit/internal/glue/authz"
 	"github.com/tucanbit/internal/glue/balance"
@@ -15,7 +16,9 @@ import (
 	"github.com/tucanbit/internal/glue/bet"
 	"github.com/tucanbit/internal/glue/campaign"
 	"github.com/tucanbit/internal/glue/cashback"
+	"github.com/tucanbit/internal/glue/chain_config"
 	"github.com/tucanbit/internal/glue/company"
+	"github.com/tucanbit/internal/glue/currency_config"
 	"github.com/tucanbit/internal/glue/department"
 	"github.com/tucanbit/internal/glue/exchange"
 	"github.com/tucanbit/internal/glue/falcon_liquidity"
@@ -34,8 +37,10 @@ import (
 	"github.com/tucanbit/internal/glue/sportsservice"
 	"github.com/tucanbit/internal/glue/squads"
 	"github.com/tucanbit/internal/glue/system_config"
+	"github.com/tucanbit/internal/glue/system_configs"
 	"github.com/tucanbit/internal/glue/twofactor"
 	"github.com/tucanbit/internal/glue/user"
+	"github.com/tucanbit/internal/glue/wallet"
 	"github.com/tucanbit/internal/glue/withdrawal_management"
 	"github.com/tucanbit/internal/glue/withdrawals"
 	"github.com/tucanbit/internal/glue/ws"
@@ -80,9 +85,24 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	system_config.Init(grp, log, handler.SystemConfig)
 	withdrawal_management.Init(grp, log, handler.WithdrawalManagement)
 	withdrawals.Init(grp, log, handler.Withdrawals)
-	
+
+	// Wallet management routes
+	wallet.Init(grp, log)
+
+	// Currency config routes
+	currency_config.Init(grp, log)
+
+	// Chain config routes
+	chain_config.Init(grp, log)
+
+	// System configs routes
+	system_configs.Init(grp, log)
+
 	// Admin activity logs routes
 	admin_activity_logs.Init(grp, *log, handler.AdminActivityLogs, module.Authz, module.AdminActivityLogs, enforcer)
+
+	// Airtime routes
+	airtime.Init(grp, *log, handler.AirtimeProvider, module.Authz, enforcer, module.SystemLogs)
 
 	// Initialize Falcon Liquidity routes (no authentication required)
 	falconStorageInstance := falconStorage.NewFalconMessageStorage(log, persistence.Database)
