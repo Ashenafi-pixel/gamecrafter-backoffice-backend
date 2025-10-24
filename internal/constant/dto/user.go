@@ -364,12 +364,34 @@ type AdminRoleRes struct {
 }
 type Admin struct {
 	ID          uuid.UUID      `json:"id"`
+	Username    string         `json:"username"`
 	Email       string         `json:"email"`
 	PhoneNumber string         `json:"phone_number"`
 	FirstName   string         `json:"first_name"`
 	LastName    string         `json:"last_name"`
 	Status      string         `json:"status"`
 	Roles       []AdminRoleRes `json:"roles"`
+	CreatedAt   time.Time      `json:"created_at"`
+	LastLogin   *time.Time     `json:"last_login,omitempty"`
+}
+
+type CreateAdminUserReq struct {
+	Username  string `json:"username" validate:"required,min=3,max=50"`
+	Email     string `json:"email" validate:"required,email"`
+	Password  string `json:"password" validate:"required,min=6"`
+	FirstName string `json:"first_name" validate:"required,min=2,max=50"`
+	LastName  string `json:"last_name" validate:"required,min=2,max=50"`
+	Phone     string `json:"phone,omitempty"`
+}
+
+type UpdateAdminUserReq struct {
+	Username  *string `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
+	Email     *string `json:"email,omitempty" validate:"omitempty,email"`
+	Password  *string `json:"password,omitempty" validate:"omitempty,min=6"`
+	FirstName *string `json:"first_name,omitempty" validate:"omitempty,min=2,max=50"`
+	LastName  *string `json:"last_name,omitempty" validate:"omitempty,min=2,max=50"`
+	Phone     *string `json:"phone,omitempty"`
+	Status    *string `json:"status,omitempty" validate:"omitempty,oneof=ACTIVE INACTIVE"`
 }
 
 type SignUpBonusReq struct {

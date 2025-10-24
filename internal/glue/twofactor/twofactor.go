@@ -82,4 +82,24 @@ func setup2FARoutes(router *gin.RouterGroup, handler twofactor.TwoFactorHandler,
 		// Get available methods (requires authentication)
 		multiMethodGroup.GET("/available-methods", handler.GetAvailableMethods)
 	}
+
+	// Passkey management routes
+	passkeyGroup := router.Group("/api/admin/auth/2fa/passkey")
+	passkeyGroup.Use(middleware.RateLimiter())
+	{
+		// Register a new passkey credential (requires authentication)
+		passkeyGroup.POST("/register", middleware.Auth(), handler.RegisterPasskey)
+
+		// Get assertion options for verification (no auth required for login flow)
+		passkeyGroup.POST("/assertion-options", handler.GetPasskeyAssertionOptions)
+
+		// Verify passkey credential (no auth required for login flow)
+		passkeyGroup.POST("/verify", handler.VerifyPasskey)
+
+		// List user's passkey credentials (requires authentication)
+		passkeyGroup.GET("/list", middleware.Auth(), handler.ListPasskeys)
+
+		// Delete a passkey credential (requires authentication)
+		passkeyGroup.DELETE("/delete", middleware.Auth(), handler.DeletePasskey)
+	}
 }

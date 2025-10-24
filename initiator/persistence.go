@@ -6,9 +6,9 @@ import (
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/adds"
 	"github.com/tucanbit/internal/storage/admin_activity_logs"
-	"github.com/tucanbit/internal/storage/alert"
 	"github.com/tucanbit/internal/storage/agent"
 	"github.com/tucanbit/internal/storage/airtime"
+	"github.com/tucanbit/internal/storage/alert"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/authz"
 	"github.com/tucanbit/internal/storage/balance"
@@ -30,6 +30,7 @@ import (
 	"github.com/tucanbit/internal/storage/operationalgroup"
 	"github.com/tucanbit/internal/storage/operationalgrouptype"
 	"github.com/tucanbit/internal/storage/otp"
+	"github.com/tucanbit/internal/storage/passkey"
 	"github.com/tucanbit/internal/storage/performance"
 	"github.com/tucanbit/internal/storage/report"
 	"github.com/tucanbit/internal/storage/risksettings"
@@ -77,6 +78,7 @@ type Persistence struct {
 	Game                 game.GameStorage
 	HouseEdge            game.HouseEdgeStorage
 	TwoFactor            twofactor.TwoFactorStorage
+	Passkey              passkey.PasskeyStorage
 	FalconMessage        falcon_liquidity.FalconMessageStorage
 	Analytics            storage.Analytics
 	AdminActivityLogs    admin_activity_logs.AdminActivityLogsStorage
@@ -126,6 +128,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Game:                 game.NewGameStorage(persistencdb, log),
 		HouseEdge:            game.NewHouseEdgeStorage(persistencdb, log),
 		TwoFactor:            twofactor.Init(persistencdb, log),
+		Passkey:              passkey.NewPasskeyStorage(persistencdb, log),
 		FalconMessage:        falcon_liquidity.NewFalconMessageStorage(log, persistencdb),
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsStorage(*persistencdb, log),

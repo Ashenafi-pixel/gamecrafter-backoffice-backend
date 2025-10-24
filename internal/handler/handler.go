@@ -57,6 +57,7 @@ type User interface {
 	UpdateReferralBonus(c *gin.Context)
 	GetReferralBonus(c *gin.Context)
 	RefreshToken(c *gin.Context)
+	Logout(c *gin.Context)
 	VerifyUser(c *gin.Context)
 	ReSendVerificationOTP(c *gin.Context)
 	GetOtp(c *gin.Context)
@@ -318,6 +319,12 @@ type TwoFactor interface {
 	EnableTOTPForLogin(c *gin.Context)
 	EnableEmailOTPForLogin(c *gin.Context)
 	EnableSMSOTPForLogin(c *gin.Context)
+	// Passkey endpoints
+	RegisterPasskey(c *gin.Context)
+	GetPasskeyAssertionOptions(c *gin.Context)
+	VerifyPasskey(c *gin.Context)
+	ListPasskeys(c *gin.Context)
+	DeletePasskey(c *gin.Context)
 }
 
 type Campaign interface {

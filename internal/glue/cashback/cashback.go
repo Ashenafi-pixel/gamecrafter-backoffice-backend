@@ -45,11 +45,12 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	}
 
 	// Admin routes (admin authentication required)
-	admin := r.Group("/cashback")
+	admin := r.Group("/api/admin/cashback")
 	admin.Use(middleware.Auth())
 	admin.Use(middleware.Authz(authz, enforcer, "cashback", "admin"))
 	{
 		admin.GET("/stats", handler.GetCashbackStats)
+		admin.GET("/tiers", handler.GetCashbackTiers)
 		admin.POST("/tiers", handler.CreateCashbackTier)
 		admin.PUT("/tiers/:id", handler.UpdateCashbackTier)
 		admin.POST("/promotions", handler.CreateCashbackPromotion)

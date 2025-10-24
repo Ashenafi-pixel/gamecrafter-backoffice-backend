@@ -14,3 +14,4 @@ tucanbit
 tucanbit-app
 *.log
 main
+*.tar

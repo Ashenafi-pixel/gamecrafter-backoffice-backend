@@ -137,7 +137,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			pisiClient,
 			persistence.OTP,
 			emailService,
-			twofactor.NewTwoFactorService(persistence.TwoFactor, log, twofactor.TwoFactorConfig{
+			twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
 				Issuer:           "TucanBIT",
 				Algorithm:        otp.AlgorithmSHA1,
 				Digits:           otp.DigitsSix,
@@ -151,6 +151,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 					twofactor.MethodSMSOTP,
 					twofactor.MethodBiometric,
 					twofactor.MethodBackupCodes,
+					twofactor.MethodPasskey,
 				},
 				EmailOTPLength:   6,
 				SMSOTPLength:     6,
@@ -248,7 +249,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Game:      game.NewGameService(persistence.Game, log),
 		HouseEdge: game.NewHouseEdgeService(persistence.HouseEdge, log),
 		Email:     emailService,
-		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, log, twofactor.TwoFactorConfig{
+		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
 			Issuer:           "TucanBIT",
 			Algorithm:        otp.AlgorithmSHA1,
 			Digits:           otp.DigitsSix,
@@ -262,6 +263,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 				twofactor.MethodSMSOTP,
 				twofactor.MethodBiometric,
 				twofactor.MethodBackupCodes,
+				twofactor.MethodPasskey,
 			},
 			EmailOTPLength:   6,
 			SMSOTPLength:     6,

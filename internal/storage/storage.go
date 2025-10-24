@@ -68,6 +68,8 @@ type User interface {
 	GetAdminsByRole(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByStatus(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
 	GetAdminsByRoleAndStatus(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
+	UpdateAdminUser(ctx context.Context, user dto.User) (dto.User, error)
+	DeleteUser(ctx context.Context, userID uuid.UUID) error
 	GetUserByReferalCode(ctx context.Context, code string) (*dto.UserProfile, error)
 	GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error)
 	DeleteTempData(ctx context.Context, ID uuid.UUID) error

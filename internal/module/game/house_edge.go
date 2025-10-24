@@ -2,6 +2,7 @@ package game
 
 import (
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -90,6 +91,13 @@ func (s *HouseEdgeService) CreateHouseEdge(ctx *gin.Context, req dto.GameHouseEd
 	createdHouseEdge, err := s.houseEdgeStorage.CreateHouseEdge(ctx, houseEdgeModel)
 	if err != nil {
 		s.logger.Error("Failed to create house edge", zap.Error(err))
+
+		// Check if it's a unique constraint violation (duplicate game_id)
+		if strings.Contains(err.Error(), "idx_house_edges_unique_active_game") ||
+			strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			return nil, errors.ErrDataAlredyExist.Wrap(err, "A house edge configuration already exists for this game. Each game can only have one active house edge configuration.")
+		}
+
 		return nil, errors.ErrInternalServerError.Wrap(err, "failed to create house edge")
 	}
 
@@ -207,6 +215,13 @@ func (s *HouseEdgeService) UpdateHouseEdge(ctx *gin.Context, id uuid.UUID, req d
 	updatedHouseEdge, err := s.houseEdgeStorage.UpdateHouseEdge(ctx, existingHouseEdge)
 	if err != nil {
 		s.logger.Error("Failed to update house edge", zap.Error(err))
+
+		// Check if it's a unique constraint violation (duplicate game_id)
+		if strings.Contains(err.Error(), "idx_house_edges_unique_active_game") ||
+			strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			return nil, errors.ErrDataAlredyExist.Wrap(err, "A house edge configuration already exists for this game. Each game can only have one active house edge configuration.")
+		}
+
 		return nil, errors.ErrInternalServerError.Wrap(err, "failed to update house edge")
 	}
 

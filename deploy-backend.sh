@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-SERVER_IP="13.51.168.77"
+SERVER_IP="13.48.56.1317"
 SERVER_USER="ubuntu"
 KEY_PATH="~/Developer/Upwork/Tucanbit/Tucanbit/TucanBIT.pem"
 IMAGE_NAME="tucanbit-backend-dev:latest"

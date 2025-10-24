@@ -51,10 +51,15 @@ type UserHandler interface {
 	GetPlayerManualFunds(c *gin.Context)
 	GetReferralBonus(c *gin.Context)
 	RefreshToken(c *gin.Context)
+	Logout(c *gin.Context)
 	VerifyUser(c *gin.Context)
 	ReSendVerificationOTP(c *gin.Context)
 	GetOtp(c *gin.Context)
 	GetAdmins(c *gin.Context)
+	GetAdminUsers(c *gin.Context)
+	CreateAdminUser(c *gin.Context)
+	UpdateAdminUser(c *gin.Context)
+	DeleteAdminUser(c *gin.Context)
 	// Enterprise Registration Methods
 	InitiateEnterpriseRegistration(c *gin.Context)
 	CompleteEnterpriseRegistration(c *gin.Context)
@@ -284,6 +289,16 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodPost,
+			Path:    "/api/admin/users/search",
+			Handler: user.GetUsers,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get users", http.MethodPost),
+				middleware.SystemLogs("get users", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
 			Path:    "/api/admin/users/password",
 			Handler: user.AdminResetUsersPassword,
 			Middleware: []gin.HandlerFunc{
@@ -412,6 +427,42 @@ func Init(
 				middleware.Auth(),
 				middleware.Authz(authModule, enforcer, "get admins", http.MethodGet),
 			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/admin/users_admin",
+			Handler: user.GetAdminUsers,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get admin users", http.MethodGet),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/users_admin",
+			Handler: user.CreateAdminUser,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "create admin user", http.MethodPost),
+			},
+		}, {
+			Method:  http.MethodPut,
+			Path:    "/api/admin/users_admin/:id",
+			Handler: user.UpdateAdminUser,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "update admin user", http.MethodPut),
+			},
+		}, {
+			Method:  http.MethodDelete,
+			Path:    "/api/admin/users_admin/:id",
+			Handler: user.DeleteAdminUser,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "delete admin user", http.MethodDelete),
+			},
 		},
 		{
 			Method:  http.MethodPut,
@@ -459,6 +510,22 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.IpFilter(userModule),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/refresh",
+			Handler: user.RefreshToken,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/auth/logout",
+			Handler: user.Logout,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
 			},
 		}, {
 			Method:  http.MethodPost,

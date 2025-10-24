@@ -35,6 +35,23 @@ CREATE TABLE users (
     two_factor_setup_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Passkey credentials table for WebAuthn 2FA
+CREATE TABLE passkey_credentials (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    credential_id TEXT NOT NULL,
+    raw_id BYTEA NOT NULL,
+    public_key BYTEA NOT NULL,
+    attestation_object BYTEA NOT NULL,
+    client_data_json BYTEA NOT NULL,
+    counter BIGINT NOT NULL DEFAULT 0,
+    name VARCHAR(255) NOT NULL DEFAULT 'Passkey',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true,
+    UNIQUE(user_id, credential_id)
+);
+
 -- Balances table with current structure
 CREATE TABLE balances (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

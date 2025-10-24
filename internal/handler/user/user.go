@@ -60,10 +60,15 @@ type UserHandler interface {
 	UpdateReferralBonus(c *gin.Context)
 	GetReferralBonus(c *gin.Context)
 	RefreshToken(c *gin.Context)
+	Logout(c *gin.Context)
 	VerifyUser(c *gin.Context)
 	ReSendVerificationOTP(c *gin.Context)
 	GetOtp(c *gin.Context)
 	GetAdmins(c *gin.Context)
+	GetAdminUsers(c *gin.Context)
+	CreateAdminUser(c *gin.Context)
+	UpdateAdminUser(c *gin.Context)
+	DeleteAdminUser(c *gin.Context)
 	// Enterprise Registration Methods
 	InitiateEnterpriseRegistration(c *gin.Context)
 	CompleteEnterpriseRegistration(c *gin.Context)
@@ -1184,6 +1189,112 @@ func (u *user) GetAdmins(c *gin.Context) {
 	response.SendSuccessResponse(c, http.StatusOK, resp)
 }
 
+// GetAdminUsers gets all admin users with is_admin=true and user_type='ADMIN'
+//
+//	@Summary		GetAdminUsers
+//	@Description	Get all admin users with is_admin=true and user_type='ADMIN'
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number"
+//	@Param			per_page	query		int		false	"Items per page"
+//	@Success		200			{object}	[]dto.Admin
+//	@Failure		400			{object}	response.ErrorResponse
+//	@Failure		401			{object}	response.ErrorResponse
+//	@Router			/api/admin/users [get]
+func (u *user) GetAdminUsers(c *gin.Context) {
+	var req dto.GetAdminsReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := u.userModule.GetAllAdminUsers(c, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// CreateAdminUser creates a new admin user
+//
+//	@Summary		CreateAdminUser
+//	@Description	Create a new admin user with is_admin=true and user_type='ADMIN'
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		dto.CreateAdminUserReq	true	"Create admin user request"
+//	@Success		200		{object}	dto.Admin
+//	@Failure		400		{object}	response.ErrorResponse
+//	@Failure		401		{object}	response.ErrorResponse
+//	@Router			/api/admin/users [post]
+func (u *user) CreateAdminUser(c *gin.Context) {
+	var req dto.CreateAdminUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := u.userModule.CreateAdminUser(c, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusCreated, resp)
+}
+
+// UpdateAdminUser updates an existing admin user
+//
+//	@Summary		UpdateAdminUser
+//	@Description	Update an existing admin user
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"User ID"
+//	@Param			request	body		dto.UpdateAdminUserReq	true	"Update admin user request"
+//	@Success		200		{object}	dto.Admin
+//	@Failure		400		{object}	response.ErrorResponse
+//	@Failure		401		{object}	response.ErrorResponse
+//	@Router			/api/admin/users/{id} [put]
+func (u *user) UpdateAdminUser(c *gin.Context) {
+	userID := c.Param("id")
+	var req dto.UpdateAdminUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := u.userModule.UpdateAdminUser(c, userID, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// DeleteAdminUser deletes an admin user
+//
+//	@Summary		DeleteAdminUser
+//	@Description	Delete an admin user
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"User ID"
+//	@Success		200	{object}	response.SuccessResponse
+//	@Failure		400	{object}	response.ErrorResponse
+//	@Failure		401	{object}	response.ErrorResponse
+//	@Router			/api/admin/users/{id} [delete]
+func (u *user) DeleteAdminUser(c *gin.Context) {
+	userID := c.Param("id")
+	err := u.userModule.DeleteAdminUser(c, userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, map[string]string{"message": "Admin user deleted successfully"})
+}
+
 // UpdateSignupBonus updates the signup bonus for users.
 //
 //	@Summary		UpdateSignupBonus
@@ -1309,6 +1420,45 @@ func (u *user) RefreshToken(c *gin.Context) {
 	// Set new refresh token cookie
 	u.setSecureRefreshTokenCookie(c, newRefreshToken, int(newExpiry.Sub(time.Now()).Seconds()))
 	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
+}
+
+// Logout handles user logout requests.
+//
+//	@Summary		Logout
+//	@Description	Logout a user and invalidate their session
+//	@Tags			User
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	response.SuccessResponse
+//	@Failure		401	{object}	response.ErrorResponse
+//	@Router			/api/admin/auth/logout [post]
+func (u *user) Logout(c *gin.Context) {
+	// Get user ID from the authenticated context
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Invalidate all user sessions
+	err := u.userModule.InvalidateAllUserSessions(c, userID)
+	if err != nil {
+		u.log.Error("Failed to invalidate user sessions", zap.Error(err), zap.String("user_id", userID.String()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to logout"})
+		return
+	}
+
+	// Clear refresh token cookie
+	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
+
+	u.log.Info("User logged out successfully", zap.String("user_id", userID.String()))
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
 // VerifyUser verifies a user's phone number.

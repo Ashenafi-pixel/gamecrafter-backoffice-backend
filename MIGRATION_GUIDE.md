@@ -51,7 +51,7 @@ make run-server-db
 
 1. **SSH Tunnel**: Ensure your SSH tunnel is running:
    ```bash
-   ssh -fN -L 5433:localhost:5433 ubuntu@13.51.168.77 -i ~/Developer/Upwork/Tucanbit/Tucanbit/TucanBIT.pem
+   ssh -fN -L 5433:localhost:5433 ubuntu@13.48.56.1317 -i ~/Developer/Upwork/Tucanbit/Tucanbit/TucanBIT.pem
    ```
 
 2. **Environment Variables**: The backend automatically detects server database usage and skips permission initialization.

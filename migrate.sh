@@ -61,7 +61,7 @@ check_database_connection() {
     if ! PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
         echo -e "${RED}❌ Cannot connect to database!${NC}"
         echo -e "${YELLOW}💡 Make sure:${NC}"
-        echo "   1. SSH tunnel is running: ssh -fN -L 5433:localhost:5433 ubuntu@13.51.168.77 -i ~/Developer/Upwork/Tucanbit/Tucanbit/TucanBIT.pem"
+        echo "   1. SSH tunnel is running: ssh -fN -L 5433:localhost:5433 ubuntu@13.48.56.1317 -i ~/Developer/Upwork/Tucanbit/Tucanbit/TucanBIT.pem"
         echo "   2. Database is accessible on localhost:5433"
         exit 1
     fi

@@ -36,6 +36,27 @@ SELECT * FROM users_otp where user_id = $1;
 -- name: DeleteOTP :exec 
 DELETE from users_otp where user_id = $1;
 
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1;
+
+-- name: UpdateUser :one
+UPDATE users SET 
+    username = $2,
+    email = $3,
+    phone_number = $4,
+    first_name = $5,
+    last_name = $6,
+    status = $7,
+    is_admin = $8,
+    user_type = $9,
+    updated_at = $10
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateUserPassword :one
+UPDATE users SET password = $2 WHERE id = $1
+RETURNING *;
+
 -- name: UpdateProfile :one 
 UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16 where id = $17
 RETURNING *;
@@ -248,3 +269,57 @@ WITH user_data AS (
 SELECT c.* FROM user_data c
 ORDER BY c.created_at DESC
 LIMIT $3 OFFSET $4;
+
+-- name: GetAdminUsers :many
+WITH admin_users AS (
+    SELECT 
+        us.id AS user_id,
+        us.username,
+        us.phone_number,
+        us.profile,
+        us.status,
+        us.email,
+        us.first_name,
+        us.last_name,
+        us.date_of_birth,
+        us.created_at,
+        us.updated_at,
+        us.last_login,
+        us.is_admin,
+        us.user_type,
+        COALESCE(
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'role_id', r.id,
+                    'name', r.name
+                )
+            ) FILTER (WHERE r.id IS NOT NULL),
+            '[]'::json
+        ) AS roles,
+        COUNT(*) OVER() AS total_rows
+    FROM users us
+    LEFT JOIN user_roles ur ON ur.user_id = us.id
+    LEFT JOIN roles r ON r.id = ur.role_id
+    WHERE us.is_admin = true AND us.user_type = 'ADMIN'
+    GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.created_at, us.updated_at, us.last_login, us.is_admin, us.user_type
+)
+SELECT 
+    au.user_id,
+    au.username,
+    au.phone_number,
+    au.profile,
+    au.status,
+    au.email,
+    au.first_name,
+    au.last_name,
+    au.date_of_birth,
+    au.created_at,
+    au.updated_at,
+    au.last_login,
+    au.is_admin,
+    au.user_type,
+    au.roles,
+    au.total_rows
+FROM admin_users au
+ORDER BY au.created_at DESC
+LIMIT $1 OFFSET $2;

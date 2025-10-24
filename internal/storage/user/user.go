@@ -18,6 +18,7 @@ import (
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type user struct {
@@ -776,7 +777,7 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 		FROM users us
 		LEFT JOIN user_roles ur ON ur.user_id = us.id
 		LEFT JOIN roles r ON r.id = ur.role_id
-		WHERE us.is_admin = true
+		WHERE us.is_admin = true AND us.user_type = 'ADMIN'
 		GROUP BY us.id, us.username, us.phone_number, us.profile, us.email, us.first_name, us.last_name, us.date_of_birth
 		ORDER BY us.created_at DESC
 		LIMIT $1 OFFSET $2
@@ -1386,4 +1387,114 @@ func convertUserDBBalanceToDTO(dbBalance db.Balance) dto.Balance {
 		ReservedUnits: reservedUnits,
 		UpdateAt:      updateAt,
 	}
+}
+
+func (u *user) GetAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
+	var admins []dto.Admin
+
+	adminResp, err := u.db.Queries.GetAdminUsers(ctx, db.GetAdminUsersParams{
+		Limit:  int32(req.PerPage),
+		Offset: int32(req.Page),
+	})
+	if err != nil && err.Error() != dto.ErrNoRows {
+		u.log.Error(err.Error(), zap.Any("req", req))
+		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		return nil, err
+	}
+
+	for _, admin := range adminResp {
+		var adminRoles []dto.AdminRoleRes
+		if admin.Roles.Status == pgtype.Present {
+			err := json.Unmarshal(admin.Roles.Bytes, &adminRoles)
+			if err != nil {
+				u.log.Error("Failed to unmarshal roles", zap.Error(err), zap.Any("raw", string(admin.Roles.Bytes)))
+				continue
+			}
+		}
+
+		var lastLogin *time.Time
+		if admin.LastLogin.Valid {
+			lastLogin = &admin.LastLogin.Time
+		}
+
+		admins = append(admins, dto.Admin{
+			ID:          admin.UserID,
+			Username:    admin.Username.String,
+			PhoneNumber: admin.PhoneNumber.String,
+			FirstName:   admin.FirstName.String,
+			LastName:    admin.LastName.String,
+			Email:       admin.Email.String,
+			Status:      admin.Status.String,
+			Roles:       adminRoles,
+			CreatedAt:   admin.CreatedAt,
+			LastLogin:   lastLogin,
+		})
+	}
+	return admins, nil
+}
+
+func (u *user) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	err := u.db.Queries.DeleteUser(ctx, userID)
+	if err != nil {
+		u.log.Error(err.Error(), zap.Any("userID", userID))
+		err = errors.ErrUnableToDelete.Wrap(err, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (u *user) UpdateAdminUser(ctx context.Context, user dto.User) (dto.User, error) {
+	// Hash password if provided
+	hashedPassword := user.Password
+	if user.Password != "" {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return dto.User{}, err
+		}
+		hashedPassword = string(hashed)
+	}
+
+	// Update user in database
+	updatedUser, err := u.db.Queries.UpdateUser(ctx, db.UpdateUserParams{
+		ID:          user.ID,
+		Username:    sql.NullString{String: user.Username, Valid: user.Username != ""},
+		Email:       sql.NullString{String: user.Email, Valid: user.Email != ""},
+		PhoneNumber: sql.NullString{String: user.PhoneNumber, Valid: user.PhoneNumber != ""},
+		FirstName:   sql.NullString{String: user.FirstName, Valid: user.FirstName != ""},
+		LastName:    sql.NullString{String: user.LastName, Valid: user.LastName != ""},
+		Status:      sql.NullString{String: user.Status, Valid: user.Status != ""},
+		IsAdmin:     sql.NullBool{Bool: user.IsAdmin, Valid: true},
+		UserType:    sql.NullString{String: "ADMIN", Valid: true}, // Set as ADMIN for admin users
+		UpdatedAt:   time.Now(),
+	})
+
+	if err != nil {
+		u.log.Error(err.Error(), zap.Any("userID", user.ID))
+		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		return dto.User{}, err
+	}
+
+	// Update password separately if provided
+	if user.Password != "" {
+		_, err = u.db.Queries.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
+			ID:       user.ID,
+			Password: hashedPassword,
+		})
+		if err != nil {
+			u.log.Error("Failed to update password", zap.Error(err), zap.Any("userID", user.ID))
+			// Don't return error for password update failure, just log it
+		}
+	}
+
+	return dto.User{
+		ID:          updatedUser.ID,
+		Username:    updatedUser.Username.String,
+		Email:       updatedUser.Email.String,
+		PhoneNumber: updatedUser.PhoneNumber.String,
+		FirstName:   updatedUser.FirstName.String,
+		LastName:    updatedUser.LastName.String,
+		Status:      updatedUser.Status.String,
+		IsAdmin:     updatedUser.IsAdmin.Bool,
+		CreatedAt:   &updatedUser.CreatedAt,
+	}, nil
 }

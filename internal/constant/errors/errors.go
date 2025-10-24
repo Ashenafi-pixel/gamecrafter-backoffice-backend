@@ -138,6 +138,7 @@ var (
 	ErrAccountingError           = errorx.NewType(serverError, "accounting error")
 	ErrUnExpectedError           = errorx.NewType(serverError, "unexpected error occurred")
 	ErrUnableToUpdate            = errorx.NewType(databaseError, "unable to update")
+	ErrUnableToDelete            = errorx.NewType(databaseError, "unable to delete")
 	ErrDBDelError                = errorx.NewType(databaseError, "could not delete record")
 	ErrNoRecordFound             = errorx.NewType(resourceNotFound, "no record found")
 	ErrEventNotSupported         = errorx.NewType(websocketError, "event type not supported")

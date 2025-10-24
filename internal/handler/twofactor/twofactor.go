@@ -34,6 +34,13 @@ type TwoFactorService interface {
 	SaveBackupCodes(ctx context.Context, userID uuid.UUID, codes []string) error
 	GetSecret(ctx context.Context, userID uuid.UUID) (string, error)
 	VerifyTOTPToken(secret, token string) bool
+
+	// Passkey methods
+	RegisterPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) error
+	GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error)
+	VerifyPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) (bool, error)
+	ListPasskeys(ctx context.Context, userID uuid.UUID) ([]map[string]interface{}, error)
+	DeletePasskey(ctx context.Context, userID uuid.UUID, credentialID string) error
 }
 
 type twoFactorHandler struct {
@@ -72,6 +79,13 @@ type TwoFactorHandler interface {
 	EnableTOTPForLogin(c *gin.Context)
 	EnableEmailOTPForLogin(c *gin.Context)
 	EnableSMSOTPForLogin(c *gin.Context)
+
+	// Passkey endpoints
+	RegisterPasskey(c *gin.Context)
+	GetPasskeyAssertionOptions(c *gin.Context)
+	VerifyPasskey(c *gin.Context)
+	ListPasskeys(c *gin.Context)
+	DeletePasskey(c *gin.Context)
 }
 
 func NewTwoFactorHandler(service TwoFactorService, log *zap.Logger) TwoFactorHandler {
@@ -1355,5 +1369,267 @@ func (h *twoFactorHandler) EnableSMSOTPForLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.TwoFactorResponse{
 		Success: true,
 		Message: "SMS OTP enabled successfully",
+	})
+}
+
+// RegisterPasskey registers a new passkey credential
+func (h *twoFactorHandler) RegisterPasskey(c *gin.Context) {
+	var req struct {
+		Credential struct {
+			ID       string `json:"id" binding:"required"`
+			RawID    []int  `json:"rawId" binding:"required"`
+			Response struct {
+				AttestationObject []int `json:"attestationObject" binding:"required"`
+				ClientDataJSON    []int `json:"clientDataJSON" binding:"required"`
+			} `json:"response" binding:"required"`
+			Type string `json:"type" binding:"required"`
+		} `json:"credential" binding:"required"`
+		UserID string `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	// Convert credential data to proper format
+	credentialData := map[string]interface{}{
+		"id":    req.Credential.ID,
+		"rawId": req.Credential.RawID,
+		"response": map[string]interface{}{
+			"attestationObject": req.Credential.Response.AttestationObject,
+			"clientDataJSON":    req.Credential.Response.ClientDataJSON,
+		},
+		"type": req.Credential.Type,
+	}
+
+	err = h.service.RegisterPasskey(c.Request.Context(), userUUID, credentialData)
+	if err != nil {
+		h.log.Error("Failed to register passkey", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to register passkey",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Passkey registered successfully", zap.String("user_id", userUUID.String()))
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Passkey registered successfully",
+	})
+}
+
+// GetPasskeyAssertionOptions gets assertion options for passkey verification
+func (h *twoFactorHandler) GetPasskeyAssertionOptions(c *gin.Context) {
+	var req struct {
+		UserID string `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	options, err := h.service.GetPasskeyAssertionOptions(c.Request.Context(), userUUID)
+	if err != nil {
+		h.log.Error("Failed to get passkey assertion options", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to get assertion options",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Passkey assertion options generated", zap.String("user_id", userUUID.String()))
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Assertion options generated successfully",
+		Data:    options,
+	})
+}
+
+// VerifyPasskey verifies a passkey credential
+func (h *twoFactorHandler) VerifyPasskey(c *gin.Context) {
+	var req struct {
+		Credential struct {
+			ID       string `json:"id" binding:"required"`
+			RawID    []int  `json:"rawId" binding:"required"`
+			Response struct {
+				AuthenticatorData []int  `json:"authenticatorData" binding:"required"`
+				ClientDataJSON    []int  `json:"clientDataJSON" binding:"required"`
+				Signature         []int  `json:"signature" binding:"required"`
+				UserHandle        []int  `json:"userHandle,omitempty"`
+			} `json:"response" binding:"required"`
+			Type string `json:"type" binding:"required"`
+		} `json:"credential" binding:"required"`
+		UserID string `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	// Convert credential data to proper format
+	credentialData := map[string]interface{}{
+		"id":    req.Credential.ID,
+		"rawId": req.Credential.RawID,
+		"response": map[string]interface{}{
+			"authenticatorData": req.Credential.Response.AuthenticatorData,
+			"clientDataJSON":    req.Credential.Response.ClientDataJSON,
+			"signature":         req.Credential.Response.Signature,
+			"userHandle":        req.Credential.Response.UserHandle,
+		},
+		"type": req.Credential.Type,
+	}
+
+	success, err := h.service.VerifyPasskey(c.Request.Context(), userUUID, credentialData)
+	if err != nil {
+		h.log.Error("Failed to verify passkey", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to verify passkey",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if !success {
+		h.log.Warn("Passkey verification failed", zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusUnauthorized, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Passkey verification failed",
+		})
+		return
+	}
+
+	h.log.Info("Passkey verified successfully", zap.String("user_id", userUUID.String()))
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Passkey verification successful",
+	})
+}
+
+// ListPasskeys lists user's passkey credentials
+func (h *twoFactorHandler) ListPasskeys(c *gin.Context) {
+	userIDStr := c.Query("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "User ID is required",
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	passkeys, err := h.service.ListPasskeys(c.Request.Context(), userUUID)
+	if err != nil {
+		h.log.Error("Failed to list passkeys", zap.Error(err), zap.String("user_id", userUUID.String()))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to list passkeys",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Passkeys listed successfully", zap.String("user_id", userUUID.String()))
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Passkeys retrieved successfully",
+		Data:    passkeys,
+	})
+}
+
+// DeletePasskey deletes a passkey credential
+func (h *twoFactorHandler) DeletePasskey(c *gin.Context) {
+	var req struct {
+		CredentialID string `json:"credential_id" binding:"required"`
+		UserID       string `json:"user_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid request format",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	err = h.service.DeletePasskey(c.Request.Context(), userUUID, req.CredentialID)
+	if err != nil {
+		h.log.Error("Failed to delete passkey", zap.Error(err), zap.String("user_id", userUUID.String()), zap.String("credential_id", req.CredentialID))
+		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
+			Success: false,
+			Message: "Failed to delete passkey",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	h.log.Info("Passkey deleted successfully", zap.String("user_id", userUUID.String()), zap.String("credential_id", req.CredentialID))
+	c.JSON(http.StatusOK, dto.TwoFactorResponse{
+		Success: true,
+		Message: "Passkey deleted successfully",
 	})
 }

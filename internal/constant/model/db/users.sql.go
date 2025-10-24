@@ -1214,6 +1214,30 @@ const updatePassword = `-- name: UpdatePassword :one
 Update users set password = $1 where id = $2 RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type
 `
 
+const updateUser = `-- name: UpdateUser :one
+UPDATE users SET 
+    username = $2,
+    email = $3,
+    phone_number = $4,
+    first_name = $5,
+    last_name = $6,
+    status = $7,
+    is_admin = $8,
+    user_type = $9,
+    updated_at = $10
+WHERE id = $1
+RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type
+`
+
+const updateUserPassword = `-- name: UpdateUserPassword :one
+UPDATE users SET password = $2 WHERE id = $1
+RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type
+`
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
 type UpdatePasswordParams struct {
 	Password string
 	ID       uuid.UUID
@@ -1250,6 +1274,106 @@ func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) 
 		&i.UserType,
 	)
 	return i, err
+}
+
+type UpdateUserParams struct {
+	ID          uuid.UUID
+	Username    sql.NullString
+	Email       sql.NullString
+	PhoneNumber sql.NullString
+	FirstName   sql.NullString
+	LastName    sql.NullString
+	Status      sql.NullString
+	IsAdmin     sql.NullBool
+	UserType    sql.NullString
+	UpdatedAt   time.Time
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUser,
+		arg.ID,
+		arg.Username,
+		arg.Email,
+		arg.PhoneNumber,
+		arg.FirstName,
+		arg.LastName,
+		arg.Status,
+		arg.IsAdmin,
+		arg.UserType,
+		arg.UpdatedAt,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PhoneNumber,
+		&i.Password,
+		&i.CreatedAt,
+		&i.DefaultCurrency,
+		&i.Profile,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.DateOfBirth,
+		&i.Source,
+		&i.ReferalCode,
+		&i.StreetAddress,
+		&i.Country,
+		&i.State,
+		&i.City,
+		&i.PostalCode,
+		&i.KycStatus,
+		&i.CreatedBy,
+		&i.IsAdmin,
+		&i.Status,
+		&i.ReferalType,
+		&i.ReferedByCode,
+		&i.UserType,
+	)
+	return i, err
+}
+
+type UpdateUserPasswordParams struct {
+	ID       uuid.UUID
+	Password string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserPassword, arg.ID, arg.Password)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PhoneNumber,
+		&i.Password,
+		&i.CreatedAt,
+		&i.DefaultCurrency,
+		&i.Profile,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.DateOfBirth,
+		&i.Source,
+		&i.ReferalCode,
+		&i.StreetAddress,
+		&i.Country,
+		&i.State,
+		&i.City,
+		&i.PostalCode,
+		&i.KycStatus,
+		&i.CreatedBy,
+		&i.IsAdmin,
+		&i.Status,
+		&i.ReferalType,
+		&i.ReferedByCode,
+		&i.UserType,
+	)
+	return i, err
+}
+
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
 }
 
 const updateProfile = `-- name: UpdateProfile :one
@@ -1490,6 +1614,122 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 			&i.IsTestAccount,
 			&i.TwoFactorEnabled,
 			&i.TwoFactorSetupAt,
+			&i.TotalRows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAdminUsers = `-- name: GetAdminUsers :many
+WITH admin_users AS (
+    SELECT 
+        us.id AS user_id,
+        us.username,
+        us.phone_number,
+        us.profile,
+        us.status,
+        us.email,
+        us.first_name,
+        us.last_name,
+        us.date_of_birth,
+        us.created_at,
+        us.updated_at,
+        us.last_login,
+        us.is_admin,
+        us.user_type,
+        COALESCE(
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'role_id', r.id,
+                    'name', r.name
+                )
+            ) FILTER (WHERE r.id IS NOT NULL),
+            '[]'::json
+        ) AS roles,
+        COUNT(*) OVER() AS total_rows
+    FROM users us
+    LEFT JOIN user_roles ur ON ur.user_id = us.id
+    LEFT JOIN roles r ON r.id = ur.role_id
+    WHERE us.is_admin = true AND us.user_type = 'ADMIN'
+    GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.created_at, us.updated_at, us.last_login, us.is_admin, us.user_type
+)
+SELECT 
+    au.user_id,
+    au.username,
+    au.phone_number,
+    au.profile,
+    au.status,
+    au.email,
+    au.first_name,
+    au.last_name,
+    au.date_of_birth,
+    au.created_at,
+    au.updated_at,
+    au.last_login,
+    au.is_admin,
+    au.user_type,
+    au.roles,
+    au.total_rows
+FROM admin_users au
+ORDER BY au.created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetAdminUsersParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetAdminUsersRow struct {
+	UserID      uuid.UUID
+	Username    sql.NullString
+	PhoneNumber sql.NullString
+	Profile     sql.NullString
+	Status      sql.NullString
+	Email       sql.NullString
+	FirstName   sql.NullString
+	LastName    sql.NullString
+	DateOfBirth sql.NullString
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	LastLogin   sql.NullTime
+	IsAdmin     sql.NullBool
+	UserType    sql.NullString
+	Roles       pgtype.JSON
+	TotalRows   int64
+}
+
+func (q *Queries) GetAdminUsers(ctx context.Context, arg GetAdminUsersParams) ([]GetAdminUsersRow, error) {
+	rows, err := q.db.Query(ctx, getAdminUsers, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAdminUsersRow
+	for rows.Next() {
+		var i GetAdminUsersRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Username,
+			&i.PhoneNumber,
+			&i.Profile,
+			&i.Status,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.DateOfBirth,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastLogin,
+			&i.IsAdmin,
+			&i.UserType,
+			&i.Roles,
 			&i.TotalRows,
 		); err != nil {
 			return nil, err

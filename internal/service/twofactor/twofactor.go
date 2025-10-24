@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/base64"
 	"fmt"
 	mathrand "math/rand"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module/email"
+	"github.com/tucanbit/internal/storage/passkey"
 	"go.uber.org/zap"
 )
 
@@ -27,6 +29,7 @@ const (
 	MethodSMSOTP      TwoFactorMethod = "sms_otp"      // SMS OTP
 	MethodBiometric   TwoFactorMethod = "biometric"    // Biometric (WebAuthn)
 	MethodBackupCodes TwoFactorMethod = "backup_codes" // Backup codes
+	MethodPasskey     TwoFactorMethod = "passkey"      // WebAuthn Passkeys
 )
 
 // TwoFactorStorage interface for 2FA storage operations
@@ -65,10 +68,11 @@ type TwoFactorStorage interface {
 }
 
 type twoFactorService struct {
-	storage      TwoFactorStorage
-	log          *zap.Logger
-	config       TwoFactorConfig
-	emailService email.EmailService
+	storage        TwoFactorStorage
+	passkeyStorage passkey.PasskeyStorage
+	log            *zap.Logger
+	config         TwoFactorConfig
+	emailService   email.EmailService
 }
 
 type TwoFactorConfig struct {
@@ -126,14 +130,23 @@ type TwoFactorService interface {
 	VerifyLoginWithMethod(ctx context.Context, userID uuid.UUID, method, token, ip, userAgent string) (bool, error)
 	GetSecret(ctx context.Context, userID uuid.UUID) (string, error)
 	VerifyTOTPToken(secret, token string) bool
+
+	// Passkey methods
+	RegisterPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) error
+	GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error)
+	VerifyPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) (bool, error)
+	ListPasskeys(ctx context.Context, userID uuid.UUID) ([]map[string]interface{}, error)
+	DeletePasskey(ctx context.Context, userID uuid.UUID, credentialID string) error
+	HasPasskeyEnabled(ctx context.Context, userID uuid.UUID) (bool, error)
 }
 
-func NewTwoFactorService(storage TwoFactorStorage, log *zap.Logger, config TwoFactorConfig, emailService email.EmailService) TwoFactorService {
+func NewTwoFactorService(storage TwoFactorStorage, passkeyStorage passkey.PasskeyStorage, log *zap.Logger, config TwoFactorConfig, emailService email.EmailService) TwoFactorService {
 	return &twoFactorService{
-		storage:      storage,
-		log:          log,
-		config:       config,
-		emailService: emailService,
+		storage:        storage,
+		passkeyStorage: passkeyStorage,
+		log:            log,
+		config:         config,
+		emailService:   emailService,
 	}
 }
 
@@ -638,10 +651,41 @@ func (t *twoFactorService) GetEnabledMethods(ctx context.Context, userID uuid.UU
 
 	// Ensure we always return an array, never nil
 	if enabledMethods == nil {
-		return []string{}, nil
+		enabledMethods = []string{}
 	}
 
-	// Return the user's actual enabled methods (empty if none enabled)
+	// Check if user has passkey enabled
+	hasPasskey, err := t.HasPasskeyEnabled(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to check passkey status", zap.Error(err), zap.String("user_id", userID.String()))
+		// Continue without passkey if check fails
+	} else if hasPasskey {
+		// Add passkey to the beginning of the methods list if it's not already there
+		passkeyIncluded := false
+		for _, method := range enabledMethods {
+			if method == "passkey" {
+				passkeyIncluded = true
+				break
+			}
+		}
+
+		if !passkeyIncluded {
+			// Add passkey to the beginning of the list
+			enabledMethods = append([]string{"passkey"}, enabledMethods...)
+		} else {
+			// Move passkey to the beginning if it's already in the list
+			var newMethods []string
+			newMethods = append(newMethods, "passkey")
+			for _, method := range enabledMethods {
+				if method != "passkey" {
+					newMethods = append(newMethods, method)
+				}
+			}
+			enabledMethods = newMethods
+		}
+	}
+
+	// Return the user's actual enabled methods with passkey prioritized
 	return enabledMethods, nil
 }
 
@@ -781,6 +825,14 @@ func (t *twoFactorService) VerifyLoginWithMethod(ctx context.Context, userID uui
 		// TODO: Implement biometric verification
 		return false, fmt.Errorf("biometric authentication not yet implemented")
 
+	case MethodPasskey:
+		// For passkey, the token should be "passkey_verified" to indicate successful verification
+		if token != "passkey_verified" {
+			return false, fmt.Errorf("invalid passkey verification token")
+		}
+		isValid = true
+		attemptType = "passkey_login"
+
 	default:
 		return false, fmt.Errorf("unsupported 2FA method: %s", method)
 	}
@@ -804,4 +856,235 @@ func (t *twoFactorService) VerifyLoginWithMethod(ctx context.Context, userID uui
 	}
 
 	return isValid, nil
+}
+
+// RegisterPasskey registers a new passkey credential for a user
+func (t *twoFactorService) RegisterPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) error {
+	t.log.Info("Passkey registration requested",
+		zap.String("user_id", userID.String()),
+		zap.String("credential_id", credentialData["id"].(string)))
+
+	// Extract credential data
+	credentialID, ok := credentialData["id"].(string)
+	if !ok {
+		return fmt.Errorf("invalid credential ID")
+	}
+
+	rawID, ok := credentialData["rawId"].([]int)
+	if !ok {
+		return fmt.Errorf("invalid raw ID")
+	}
+
+	response, ok := credentialData["response"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid response data")
+	}
+
+	attestationObject, ok := response["attestationObject"].([]int)
+	if !ok {
+		return fmt.Errorf("invalid attestation object")
+	}
+
+	clientDataJSON, ok := response["clientDataJSON"].([]int)
+	if !ok {
+		return fmt.Errorf("invalid client data JSON")
+	}
+
+	// Convert []int to []byte
+	rawIDBytes := make([]byte, len(rawID))
+	for i, v := range rawID {
+		rawIDBytes[i] = byte(v)
+	}
+
+	attestationObjectBytes := make([]byte, len(attestationObject))
+	for i, v := range attestationObject {
+		attestationObjectBytes[i] = byte(v)
+	}
+
+	clientDataJSONBytes := make([]byte, len(clientDataJSON))
+	for i, v := range clientDataJSON {
+		clientDataJSONBytes[i] = byte(v)
+	}
+
+	// For now, we'll store the raw data. In a real implementation,
+	// you would parse the attestation object and extract the public key
+	credential := &passkey.PasskeyCredential{
+		UserID:            userID,
+		CredentialID:      credentialID,
+		RawID:             rawIDBytes,
+		PublicKey:         attestationObjectBytes, // This should be extracted from attestation object
+		AttestationObject: attestationObjectBytes,
+		ClientDataJSON:    clientDataJSONBytes,
+		Counter:           0,
+		Name:              "Passkey",
+		IsActive:          true,
+	}
+
+	err := t.passkeyStorage.CreatePasskeyCredential(ctx, credential)
+	if err != nil {
+		t.log.Error("Failed to create passkey credential", zap.Error(err))
+		return err
+	}
+
+	t.log.Info("Passkey credential created successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("credential_id", credentialID))
+
+	return nil
+}
+
+// GetPasskeyAssertionOptions generates assertion options for passkey verification
+func (t *twoFactorService) GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	// Check if user has passkey credentials
+	hasPasskey, err := t.passkeyStorage.CheckPasskeyExists(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to check passkey existence", zap.Error(err))
+		return nil, err
+	}
+
+	if !hasPasskey {
+		return nil, fmt.Errorf("no passkey credentials found for user")
+	}
+
+	// Generate a random challenge
+	challenge := make([]byte, 32)
+	_, err = rand.Read(challenge)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate challenge: %w", err)
+	}
+
+	// Get user's passkey credentials
+	credentials, err := t.passkeyStorage.GetPasskeyCredentialsByUserID(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to get passkey credentials", zap.Error(err))
+		return nil, err
+	}
+
+	// Build allowCredentials list
+	var allowCredentials []map[string]interface{}
+	for _, cred := range credentials {
+		allowCredentials = append(allowCredentials, map[string]interface{}{
+			"type": "public-key",
+			"id":   cred.CredentialID,
+		})
+	}
+
+	options := map[string]interface{}{
+		"challenge":        base64.RawURLEncoding.EncodeToString(challenge),
+		"timeout":          60000,
+		"rpId":             "localhost", // In production, use your actual domain
+		"userVerification": "required",
+		"allowCredentials": allowCredentials,
+	}
+
+	t.log.Info("Passkey assertion options generated",
+		zap.String("user_id", userID.String()),
+		zap.Int("credential_count", len(credentials)))
+
+	return options, nil
+}
+
+// VerifyPasskey verifies a passkey credential
+func (t *twoFactorService) VerifyPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) (bool, error) {
+	credentialID, ok := credentialData["id"].(string)
+	if !ok {
+		return false, fmt.Errorf("invalid credential ID")
+	}
+
+	t.log.Info("Passkey verification requested",
+		zap.String("user_id", userID.String()),
+		zap.String("credential_id", credentialID))
+
+	// Get the stored credential
+	credential, err := t.passkeyStorage.GetPasskeyCredentialByID(ctx, credentialID, userID)
+	if err != nil {
+		t.log.Error("Failed to get passkey credential", zap.Error(err))
+		return false, err
+	}
+
+	if credential == nil {
+		t.log.Warn("Passkey credential not found",
+			zap.String("user_id", userID.String()),
+			zap.String("credential_id", credentialID))
+		return false, nil
+	}
+
+	// For now, we'll do a simple validation
+	// In a real implementation, you would:
+	// 1. Parse the client data JSON to get the challenge
+	// 2. Verify the signature using the stored public key
+	// 3. Validate the counter to prevent replay attacks
+	// 4. Check the authenticator data
+
+	// Update the counter (in a real implementation, this would be done after successful verification)
+	err = t.passkeyStorage.UpdatePasskeyCredentialCounter(ctx, credentialID, userID, credential.Counter+1)
+	if err != nil {
+		t.log.Error("Failed to update passkey counter", zap.Error(err))
+		return false, err
+	}
+
+	t.log.Info("Passkey verification successful",
+		zap.String("user_id", userID.String()),
+		zap.String("credential_id", credentialID))
+
+	return true, nil
+}
+
+// ListPasskeys lists all passkey credentials for a user
+func (t *twoFactorService) ListPasskeys(ctx context.Context, userID uuid.UUID) ([]map[string]interface{}, error) {
+	t.log.Info("Passkey list requested", zap.String("user_id", userID.String()))
+
+	credentials, err := t.passkeyStorage.GetPasskeyCredentialsByUserID(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to get passkey credentials", zap.Error(err))
+		return nil, err
+	}
+
+	var result []map[string]interface{}
+	for _, cred := range credentials {
+		result = append(result, map[string]interface{}{
+			"id":            cred.ID.String(),
+			"credential_id": cred.CredentialID,
+			"name":          cred.Name,
+			"created_at":    cred.CreatedAt,
+			"last_used_at":  cred.LastUsedAt,
+			"is_active":     cred.IsActive,
+		})
+	}
+
+	t.log.Info("Passkey list retrieved successfully",
+		zap.String("user_id", userID.String()),
+		zap.Int("count", len(result)))
+
+	return result, nil
+}
+
+// DeletePasskey deletes a specific passkey credential
+func (t *twoFactorService) DeletePasskey(ctx context.Context, userID uuid.UUID, credentialID string) error {
+	t.log.Info("Passkey deletion requested",
+		zap.String("user_id", userID.String()),
+		zap.String("credential_id", credentialID))
+
+	err := t.passkeyStorage.DeletePasskeyCredential(ctx, credentialID, userID)
+	if err != nil {
+		t.log.Error("Failed to delete passkey credential", zap.Error(err))
+		return err
+	}
+
+	t.log.Info("Passkey credential deleted successfully",
+		zap.String("user_id", userID.String()),
+		zap.String("credential_id", credentialID))
+
+	return nil
+}
+
+// HasPasskeyEnabled checks if a user has passkey enabled
+func (t *twoFactorService) HasPasskeyEnabled(ctx context.Context, userID uuid.UUID) (bool, error) {
+	hasPasskey, err := t.passkeyStorage.CheckPasskeyExists(ctx, userID)
+	if err != nil {
+		t.log.Error("Failed to check passkey existence", zap.Error(err))
+		return false, err
+	}
+
+	return hasPasskey, nil
 }

@@ -1776,6 +1776,146 @@ func (u *User) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin
 	}
 }
 
+func (u *User) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
+	if req.PerPage <= 0 {
+		req.PerPage = 10
+	}
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	offset := (req.Page - 1) * req.PerPage
+	req.Page = offset
+
+	return u.userStorage.GetAllAdminUsers(ctx, req)
+}
+
+func (u *User) CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) (dto.Admin, error) {
+	// Create user with admin privileges
+	userData := dto.User{
+		Username:    req.Username,
+		Email:       req.Email,
+		Password:    req.Password,
+		FirstName:   req.FirstName,
+		LastName:    req.LastName,
+		PhoneNumber: req.Phone,
+		IsAdmin:     true,
+		Status:      "ACTIVE",
+	}
+
+	createdUser, err := u.userStorage.CreateUser(ctx, userData)
+	if err != nil {
+		return dto.Admin{}, err
+	}
+
+	// Convert to Admin DTO
+	var createdAt time.Time
+	if createdUser.CreatedAt != nil {
+		createdAt = *createdUser.CreatedAt
+	}
+
+	return dto.Admin{
+		ID:          createdUser.ID,
+		Username:    createdUser.Username,
+		Email:       createdUser.Email,
+		PhoneNumber: createdUser.PhoneNumber,
+		FirstName:   createdUser.FirstName,
+		LastName:    createdUser.LastName,
+		Status:      createdUser.Status,
+		Roles:       []dto.AdminRoleRes{}, // Empty for now, can be assigned later
+		CreatedAt:   createdAt,
+		LastLogin:   nil,
+	}, nil
+}
+
+func (u *User) UpdateAdminUser(ctx context.Context, userID string, req dto.UpdateAdminUserReq) (dto.Admin, error) {
+	// Get existing user
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return dto.Admin{}, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	existingUser, exists, err := u.userStorage.GetUserByID(ctx, userUUID)
+	if err != nil {
+		return dto.Admin{}, err
+	}
+	if !exists {
+		return dto.Admin{}, fmt.Errorf("user not found")
+	}
+
+	// Update fields if provided
+	if req.Username != nil {
+		existingUser.Username = *req.Username
+	}
+	if req.Email != nil {
+		existingUser.Email = *req.Email
+	}
+	if req.Password != nil {
+		existingUser.Password = *req.Password
+	}
+	if req.FirstName != nil {
+		existingUser.FirstName = *req.FirstName
+	}
+	if req.LastName != nil {
+		existingUser.LastName = *req.LastName
+	}
+	if req.Phone != nil {
+		existingUser.PhoneNumber = *req.Phone
+	}
+	if req.Status != nil {
+		existingUser.Status = *req.Status
+	}
+
+	// Ensure admin status is maintained
+	existingUser.IsAdmin = true
+
+	// Update user in storage
+	updatedUser, err := u.userStorage.UpdateAdminUser(ctx, existingUser)
+	if err != nil {
+		return dto.Admin{}, err
+	}
+
+	// Convert to Admin DTO
+	var createdAt time.Time
+	if updatedUser.CreatedAt != nil {
+		createdAt = *updatedUser.CreatedAt
+	}
+
+	return dto.Admin{
+		ID:          updatedUser.ID,
+		Username:    updatedUser.Username,
+		Email:       updatedUser.Email,
+		PhoneNumber: updatedUser.PhoneNumber,
+		FirstName:   updatedUser.FirstName,
+		LastName:    updatedUser.LastName,
+		Status:      updatedUser.Status,
+		Roles:       []dto.AdminRoleRes{}, // Empty for now, can be assigned later
+		CreatedAt:   createdAt,
+		LastLogin:   nil,
+	}, nil
+}
+
+func (u *User) DeleteAdminUser(ctx context.Context, userID string) error {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Check if user exists and is admin
+	existingUser, exists, err := u.userStorage.GetUserByID(ctx, userUUID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("user not found")
+	}
+	if !existingUser.IsAdmin {
+		return fmt.Errorf("user is not an admin")
+	}
+
+	// Delete user
+	return u.userStorage.DeleteUser(ctx, userUUID)
+}
+
 func (u *User) UpdateSignupBonus(ctx context.Context, req dto.SignUpBonusReq) (dto.SignUpBonusRes, error) {
 
 	if req.Amount.LessThan(decimal.Zero) {
@@ -2008,6 +2148,17 @@ func (u *User) HandleSessionExpiry(ctx context.Context, userID uuid.UUID) error 
 	u.NotifySessionExpired(userID)
 
 	u.log.Info("Session expired for user", zap.String("userID", userID.String()))
+	return nil
+}
+
+func (u *User) InvalidateAllUserSessions(ctx context.Context, userID uuid.UUID) error {
+	err := u.logsStorage.InvalidateAllUserSessions(ctx, userID)
+	if err != nil {
+		u.log.Error("Failed to invalidate user sessions", zap.Error(err), zap.String("userID", userID.String()))
+		return err
+	}
+
+	u.log.Info("All user sessions invalidated", zap.String("userID", userID.String()))
 	return nil
 }
 

@@ -46,6 +46,10 @@ type User interface {
 	AdminCreatePlayer(ctx context.Context, userRequest dto.User) (dto.UserRegisterResponse, string, error)
 	AdminLogin(ctx context.Context, loginRequest dto.UserLoginReq, loginLogs dto.LoginAttempt) (dto.UserLoginRes, string, error)
 	GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
+	GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error)
+	CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) (dto.Admin, error)
+	UpdateAdminUser(ctx context.Context, userID string, req dto.UpdateAdminUserReq) (dto.Admin, error)
+	DeleteAdminUser(ctx context.Context, userID string) error
 	UpdateSignupBonus(ctx context.Context, req dto.SignUpBonusReq) (dto.SignUpBonusRes, error)
 	GetSignupBonusConfig(ctx context.Context) (dto.SignUpBonusRes, error)
 	UpdateReferralBonus(ctx context.Context, req dto.ReferralBonusReq) (dto.ReferralBonusRes, error)
@@ -57,6 +61,7 @@ type User interface {
 	SendSessionEvent(userID uuid.UUID, event dto.SessionEventMessage) bool
 	NotifySessionExpired(userID uuid.UUID) bool
 	NotifySessionRefreshed(userID uuid.UUID) bool
+	InvalidateAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	MonitorUserSessions(ctx context.Context)
 	HandleSessionExpiry(ctx context.Context, userID uuid.UUID) error
 	Stop()
