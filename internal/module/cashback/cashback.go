@@ -716,17 +716,66 @@ func (s *CashbackService) GetUserCashbackClaims(ctx context.Context, userID uuid
 	return claims, nil
 }
 
+// CreateCashbackTier creates a new cashback tier
+func (s *CashbackService) CreateCashbackTier(ctx context.Context, tier dto.CashbackTier) (*dto.CashbackTier, error) {
+	s.logger.Info("Creating cashback tier", zap.String("tier_name", tier.TierName))
+
+	createdTier, err := s.storage.CreateCashbackTier(ctx, tier)
+	if err != nil {
+		s.logger.Error("Failed to create cashback tier", zap.Error(err))
+		return nil, fmt.Errorf("failed to create cashback tier: %w", err)
+	}
+
+	s.logger.Info("Created cashback tier successfully",
+		zap.String("tier_id", createdTier.ID.String()),
+		zap.String("tier_name", createdTier.TierName))
+
+	return createdTier, nil
+}
+
 // UpdateCashbackTier updates a cashback tier
 func (s *CashbackService) UpdateCashbackTier(ctx context.Context, tierID uuid.UUID, tier dto.CashbackTier) (*dto.CashbackTier, error) {
 	s.logger.Info("Updating cashback tier", zap.String("tier_id", tierID.String()))
 
-	// This is a placeholder implementation
-	// In a real implementation, you would update the tier in the database
-	updatedTier := &tier
-	updatedTier.ID = tierID
-	updatedTier.UpdatedAt = time.Now()
+	updatedTier, err := s.storage.UpdateCashbackTier(ctx, tierID, tier)
+	if err != nil {
+		s.logger.Error("Failed to update cashback tier", zap.Error(err))
+		return nil, fmt.Errorf("failed to update cashback tier: %w", err)
+	}
+
+	s.logger.Info("Updated cashback tier successfully",
+		zap.String("tier_id", tierID.String()),
+		zap.String("tier_name", updatedTier.TierName))
 
 	return updatedTier, nil
+}
+
+// DeleteCashbackTier deletes a cashback tier
+func (s *CashbackService) DeleteCashbackTier(ctx context.Context, tierID uuid.UUID) error {
+	s.logger.Info("Deleting cashback tier", zap.String("tier_id", tierID.String()))
+
+	err := s.storage.DeleteCashbackTier(ctx, tierID)
+	if err != nil {
+		s.logger.Error("Failed to delete cashback tier", zap.Error(err))
+		return fmt.Errorf("failed to delete cashback tier: %w", err)
+	}
+
+	s.logger.Info("Deleted cashback tier successfully", zap.String("tier_id", tierID.String()))
+	return nil
+}
+
+// ReorderCashbackTiers reorders cashback tiers
+func (s *CashbackService) ReorderCashbackTiers(ctx context.Context, tierOrder []uuid.UUID) error {
+	s.logger.Info("Reordering cashback tiers", zap.Int("tier_count", len(tierOrder)))
+
+	err := s.storage.ReorderCashbackTiers(ctx, tierOrder)
+	if err != nil {
+		s.logger.Error("Failed to reorder cashback tiers", zap.Error(err))
+		return fmt.Errorf("failed to reorder cashback tiers: %w", err)
+	}
+
+	s.logger.Info("Reordered cashback tiers successfully")
+	return nil
 }
 
 // CreateCashbackPromotion creates a new cashback promotion

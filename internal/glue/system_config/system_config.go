@@ -131,6 +131,55 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 				middleware.Auth(),
 			},
 		},
+		// Settings Management Routes
+		{
+			Method:  "GET",
+            Path:    "/api/admin/settings/general",
+			Handler: systemConfigHandler.GetGeneralSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+            Path:    "/api/admin/settings/general",
+			Handler: systemConfigHandler.UpdateGeneralSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
+            Path:    "/api/admin/settings/payments",
+			Handler: systemConfigHandler.GetPaymentSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+            Path:    "/api/admin/settings/payments",
+			Handler: systemConfigHandler.UpdatePaymentSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
+            Path:    "/api/admin/settings/security",
+			Handler: systemConfigHandler.GetSecuritySettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+            Path:    "/api/admin/settings/security",
+			Handler: systemConfigHandler.UpdateSecuritySettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
 	}
 
 	routing.RegisterRoute(group, systemConfigRoutes, *log)

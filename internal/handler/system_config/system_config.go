@@ -752,3 +752,199 @@ func (h *SystemConfigHandler) AcknowledgeAlert(ctx *gin.Context) {
 		"message": "Alert acknowledged successfully",
 	})
 }
+
+// Settings Management Methods
+
+// GetGeneralSettings retrieves general settings
+func (h *SystemConfigHandler) GetGeneralSettings(ctx *gin.Context) {
+	h.log.Info("Getting general settings")
+
+	settings, err := h.systemConfigStorage.GetGeneralSettings(ctx)
+	if err != nil {
+		h.log.Error("Failed to get general settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "General settings retrieved successfully",
+	})
+}
+
+// UpdateGeneralSettings updates general settings
+func (h *SystemConfigHandler) UpdateGeneralSettings(ctx *gin.Context) {
+	var req system_config.GeneralSettings
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err := h.systemConfigStorage.UpdateGeneralSettings(ctx, req, adminUUID)
+	if err != nil {
+		h.log.Error("Failed to update general settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "general_settings", "Updated general settings", map[string]interface{}{
+		"site_name":            req.SiteName,
+		"maintenance_mode":     req.MaintenanceMode,
+		"registration_enabled": req.RegistrationEnabled,
+		"demo_mode":           req.DemoMode,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "General settings updated successfully",
+	})
+}
+
+// GetPaymentSettings retrieves payment settings
+func (h *SystemConfigHandler) GetPaymentSettings(ctx *gin.Context) {
+	h.log.Info("Getting payment settings")
+
+	settings, err := h.systemConfigStorage.GetPaymentSettings(ctx)
+	if err != nil {
+		h.log.Error("Failed to get payment settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "Payment settings retrieved successfully",
+	})
+}
+
+// UpdatePaymentSettings updates payment settings
+func (h *SystemConfigHandler) UpdatePaymentSettings(ctx *gin.Context) {
+	var req system_config.PaymentSettings
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err := h.systemConfigStorage.UpdatePaymentSettings(ctx, req, adminUUID)
+	if err != nil {
+		h.log.Error("Failed to update payment settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "payment_settings", "Updated payment settings", map[string]interface{}{
+		"min_deposit_btc":    req.MinDepositBTC,
+		"max_deposit_btc":    req.MaxDepositBTC,
+		"min_withdrawal_btc": req.MinWithdrawalBTC,
+		"max_withdrawal_btc": req.MaxWithdrawalBTC,
+		"kyc_required":       req.KycRequired,
+		"kyc_threshold":      req.KycThreshold,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "Payment settings updated successfully",
+	})
+}
+
+// GetSecuritySettings retrieves security settings
+func (h *SystemConfigHandler) GetSecuritySettings(ctx *gin.Context) {
+	h.log.Info("Getting security settings")
+
+	settings, err := h.systemConfigStorage.GetSecuritySettings(ctx)
+	if err != nil {
+		h.log.Error("Failed to get security settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "Security settings retrieved successfully",
+	})
+}
+
+// UpdateSecuritySettings updates security settings
+func (h *SystemConfigHandler) UpdateSecuritySettings(ctx *gin.Context) {
+	var req system_config.SecuritySettings
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err := h.systemConfigStorage.UpdateSecuritySettings(ctx, req, adminUUID)
+	if err != nil {
+		h.log.Error("Failed to update security settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "security_settings", "Updated security settings", map[string]interface{}{
+		"session_timeout":         req.SessionTimeout,
+		"max_login_attempts":      req.MaxLoginAttempts,
+		"two_factor_required":     req.TwoFactorRequired,
+		"password_min_length":     req.PasswordMinLength,
+		"ip_whitelist_enabled":    req.IpWhitelistEnabled,
+		"rate_limit_enabled":      req.RateLimitEnabled,
+		"rate_limit_requests":     req.RateLimitRequests,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "Security settings updated successfully",
+	})
+}

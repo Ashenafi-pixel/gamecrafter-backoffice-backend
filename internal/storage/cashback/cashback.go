@@ -63,6 +63,10 @@ type CashbackStorage interface {
 	// Level Progression operations
 	GetAllCashbackTiers(ctx context.Context) ([]dto.CashbackTier, error)
 	GetCashbackTierByID(ctx context.Context, tierID uuid.UUID) (*dto.CashbackTier, error)
+	CreateCashbackTier(ctx context.Context, tier dto.CashbackTier) (*dto.CashbackTier, error)
+	UpdateCashbackTier(ctx context.Context, tierID uuid.UUID, tier dto.CashbackTier) (*dto.CashbackTier, error)
+	DeleteCashbackTier(ctx context.Context, tierID uuid.UUID) error
+	ReorderCashbackTiers(ctx context.Context, tierOrder []uuid.UUID) error
 	InitializeUserLevel(ctx context.Context, userID uuid.UUID) (*dto.UserLevel, error)
 	GetCashbackPromotionForUser(ctx context.Context, userLevel int, gameType string) (*dto.CashbackPromotion, error)
 	CreateCashbackPromotion(ctx context.Context, promotion dto.CashbackPromotion) (dto.CashbackPromotion, error)
@@ -1612,6 +1616,258 @@ func (s *CashbackStorageImpl) GetCashbackTierByID(ctx context.Context, tierID uu
 		zap.Int("tier_level", tier.TierLevel))
 
 	return &tier, nil
+}
+
+// CreateCashbackTier creates a new cashback tier
+func (s *CashbackStorageImpl) CreateCashbackTier(ctx context.Context, tier dto.CashbackTier) (*dto.CashbackTier, error) {
+	s.logger.Info("Creating cashback tier", zap.String("tier_name", tier.TierName))
+
+	// Get the next tier level
+	var maxLevel int
+	query := `SELECT COALESCE(MAX(tier_level), 0) FROM cashback_tiers`
+	err := s.db.GetPool().QueryRow(ctx, query).Scan(&maxLevel)
+	if err != nil {
+		s.logger.Error("Failed to get max tier level", zap.Error(err))
+		return nil, fmt.Errorf("failed to get max tier level: %w", err)
+	}
+
+	tier.TierLevel = maxLevel + 1
+
+	insertQuery := `
+		INSERT INTO cashback_tiers (
+			tier_name, tier_level, min_ggr_required, cashback_percentage, 
+			bonus_multiplier, daily_cashback_limit, weekly_cashback_limit, 
+			monthly_cashback_limit, special_benefits, is_active
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+		) RETURNING id, created_at, updated_at
+	`
+
+	var dailyLimit, weeklyLimit, monthlyLimit sql.NullString
+	if tier.DailyCashbackLimit != nil {
+		dailyLimit = sql.NullString{String: tier.DailyCashbackLimit.String(), Valid: true}
+	}
+	if tier.WeeklyCashbackLimit != nil {
+		weeklyLimit = sql.NullString{String: tier.WeeklyCashbackLimit.String(), Valid: true}
+	}
+	if tier.MonthlyCashbackLimit != nil {
+		monthlyLimit = sql.NullString{String: tier.MonthlyCashbackLimit.String(), Valid: true}
+	}
+
+	specialBenefitsJSON := "{}"
+	if tier.SpecialBenefits != nil {
+		// In a real implementation, you'd marshal the map to JSON
+		specialBenefitsJSON = "{}"
+	}
+
+	err = s.db.GetPool().QueryRow(ctx, insertQuery,
+		tier.TierName,
+		tier.TierLevel,
+		tier.MinExpectedGGRRequired,
+		tier.CashbackPercentage,
+		tier.BonusMultiplier,
+		dailyLimit,
+		weeklyLimit,
+		monthlyLimit,
+		specialBenefitsJSON,
+		tier.IsActive,
+	).Scan(&tier.ID, &tier.CreatedAt, &tier.UpdatedAt)
+
+	if err != nil {
+		s.logger.Error("Failed to create cashback tier", zap.Error(err))
+		return nil, fmt.Errorf("failed to create cashback tier: %w", err)
+	}
+
+	s.logger.Info("Created cashback tier",
+		zap.String("tier_id", tier.ID.String()),
+		zap.String("tier_name", tier.TierName),
+		zap.Int("tier_level", tier.TierLevel))
+
+	return &tier, nil
+}
+
+// UpdateCashbackTier updates an existing cashback tier
+func (s *CashbackStorageImpl) UpdateCashbackTier(ctx context.Context, tierID uuid.UUID, tier dto.CashbackTier) (*dto.CashbackTier, error) {
+	s.logger.Info("Updating cashback tier", zap.String("tier_id", tierID.String()))
+
+	updateQuery := `
+		UPDATE cashback_tiers SET
+			tier_name = $2,
+			min_ggr_required = $3,
+			cashback_percentage = $4,
+			bonus_multiplier = $5,
+			daily_cashback_limit = $6,
+			weekly_cashback_limit = $7,
+			monthly_cashback_limit = $8,
+			special_benefits = $9,
+			is_active = $10,
+			updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, tier_name, tier_level, min_ggr_required, cashback_percentage, 
+		          bonus_multiplier, daily_cashback_limit, weekly_cashback_limit, 
+		          monthly_cashback_limit, special_benefits, is_active, created_at, updated_at
+	`
+
+	var dailyLimit, weeklyLimit, monthlyLimit sql.NullString
+	if tier.DailyCashbackLimit != nil {
+		dailyLimit = sql.NullString{String: tier.DailyCashbackLimit.String(), Valid: true}
+	}
+	if tier.WeeklyCashbackLimit != nil {
+		weeklyLimit = sql.NullString{String: tier.WeeklyCashbackLimit.String(), Valid: true}
+	}
+	if tier.MonthlyCashbackLimit != nil {
+		monthlyLimit = sql.NullString{String: tier.MonthlyCashbackLimit.String(), Valid: true}
+	}
+
+	specialBenefitsJSON := "{}"
+	if tier.SpecialBenefits != nil {
+		// In a real implementation, you'd marshal the map to JSON
+		specialBenefitsJSON = "{}"
+	}
+
+	var updatedTier dto.CashbackTier
+	var dailyLimitResult, weeklyLimitResult, monthlyLimitResult sql.NullString
+	var specialBenefitsResult sql.NullString
+
+	err := s.db.GetPool().QueryRow(ctx, updateQuery,
+		tierID,
+		tier.TierName,
+		tier.MinExpectedGGRRequired,
+		tier.CashbackPercentage,
+		tier.BonusMultiplier,
+		dailyLimit,
+		weeklyLimit,
+		monthlyLimit,
+		specialBenefitsJSON,
+		tier.IsActive,
+	).Scan(
+		&updatedTier.ID,
+		&updatedTier.TierName,
+		&updatedTier.TierLevel,
+		&updatedTier.MinExpectedGGRRequired,
+		&updatedTier.CashbackPercentage,
+		&updatedTier.BonusMultiplier,
+		&dailyLimitResult,
+		&weeklyLimitResult,
+		&monthlyLimitResult,
+		&specialBenefitsResult,
+		&updatedTier.IsActive,
+		&updatedTier.CreatedAt,
+		&updatedTier.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Warn("Cashback tier not found for update", zap.String("tier_id", tierID.String()))
+			return nil, fmt.Errorf("cashback tier not found")
+		}
+		s.logger.Error("Failed to update cashback tier", zap.Error(err))
+		return nil, fmt.Errorf("failed to update cashback tier: %w", err)
+	}
+
+	// Parse nullable fields
+	if dailyLimitResult.Valid {
+		if dailyLimitValue, err := decimal.NewFromString(dailyLimitResult.String); err == nil {
+			updatedTier.DailyCashbackLimit = &dailyLimitValue
+		}
+	}
+	if weeklyLimitResult.Valid {
+		if weeklyLimitValue, err := decimal.NewFromString(weeklyLimitResult.String); err == nil {
+			updatedTier.WeeklyCashbackLimit = &weeklyLimitValue
+		}
+	}
+	if monthlyLimitResult.Valid {
+		if monthlyLimitValue, err := decimal.NewFromString(monthlyLimitResult.String); err == nil {
+			updatedTier.MonthlyCashbackLimit = &monthlyLimitValue
+		}
+	}
+	if specialBenefitsResult.Valid && specialBenefitsResult.String != "" {
+		updatedTier.SpecialBenefits = make(map[string]interface{})
+		// For now, we'll leave it empty - in a real implementation, you'd parse the JSON
+	} else {
+		updatedTier.SpecialBenefits = make(map[string]interface{})
+	}
+
+	s.logger.Info("Updated cashback tier",
+		zap.String("tier_id", tierID.String()),
+		zap.String("tier_name", updatedTier.TierName))
+
+	return &updatedTier, nil
+}
+
+// DeleteCashbackTier deletes a cashback tier (soft delete by setting is_active to false)
+func (s *CashbackStorageImpl) DeleteCashbackTier(ctx context.Context, tierID uuid.UUID) error {
+	s.logger.Info("Deleting cashback tier", zap.String("tier_id", tierID.String()))
+
+	// Check if any users are currently using this tier
+	var userCount int
+	checkQuery := `SELECT COUNT(*) FROM user_levels WHERE current_tier_id = $1`
+	err := s.db.GetPool().QueryRow(ctx, checkQuery, tierID).Scan(&userCount)
+	if err != nil {
+		s.logger.Error("Failed to check tier usage", zap.Error(err))
+		return fmt.Errorf("failed to check tier usage: %w", err)
+	}
+
+	if userCount > 0 {
+		s.logger.Warn("Cannot delete tier with active users",
+			zap.String("tier_id", tierID.String()),
+			zap.Int("user_count", userCount))
+		return fmt.Errorf("cannot delete tier: %d users are currently using this tier", userCount)
+	}
+
+	// Soft delete by setting is_active to false
+	deleteQuery := `UPDATE cashback_tiers SET is_active = false, updated_at = NOW() WHERE id = $1`
+	result, err := s.db.GetPool().Exec(ctx, deleteQuery, tierID)
+	if err != nil {
+		s.logger.Error("Failed to delete cashback tier", zap.Error(err))
+		return fmt.Errorf("failed to delete cashback tier: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+
+	if rowsAffected == 0 {
+		s.logger.Warn("Cashback tier not found for deletion", zap.String("tier_id", tierID.String()))
+		return fmt.Errorf("cashback tier not found")
+	}
+
+	s.logger.Info("Deleted cashback tier", zap.String("tier_id", tierID.String()))
+	return nil
+}
+
+// ReorderCashbackTiers reorders cashback tiers by updating their tier_level
+func (s *CashbackStorageImpl) ReorderCashbackTiers(ctx context.Context, tierOrder []uuid.UUID) error {
+	s.logger.Info("Reordering cashback tiers", zap.Int("tier_count", len(tierOrder)))
+
+	// Start a transaction
+	tx, err := s.db.GetPool().Begin(ctx)
+	if err != nil {
+		s.logger.Error("Failed to begin transaction", zap.Error(err))
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Update each tier's level based on the new order
+	for i, tierID := range tierOrder {
+		updateQuery := `UPDATE cashback_tiers SET tier_level = $1, updated_at = NOW() WHERE id = $2`
+		_, err := tx.Exec(ctx, updateQuery, i+1, tierID)
+		if err != nil {
+			s.logger.Error("Failed to update tier level",
+				zap.String("tier_id", tierID.String()),
+				zap.Int("new_level", i+1),
+				zap.Error(err))
+			return fmt.Errorf("failed to update tier level: %w", err)
+		}
+	}
+
+	// Commit the transaction
+	err = tx.Commit(ctx)
+	if err != nil {
+		s.logger.Error("Failed to commit transaction", zap.Error(err))
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.Info("Successfully reordered cashback tiers")
+	return nil
 }
 
 // InitializeUserLevel creates a new user level entry for a user

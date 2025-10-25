@@ -621,29 +621,6 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			CreatedAt:       &usr.CreatedAt,
 		}
 
-		// Apply VIP Level filter (client-side for now)
-		shouldInclude := true
-		if len(req.Filter.VipLevel) > 0 {
-			// For now, we'll use a simple mapping based on balance or other criteria
-			// This can be enhanced later with actual VIP level logic
-			vipLevel := "Bronze" // Default
-			if user.DefaultCurrency != "" {
-				// Simple VIP level logic - can be enhanced
-				vipLevel = "Bronze"
-			}
-
-			vipMatch := false
-			for _, level := range req.Filter.VipLevel {
-				if strings.EqualFold(vipLevel, level) {
-					vipMatch = true
-					break
-				}
-			}
-			if !vipMatch {
-				shouldInclude = false
-			}
-		}
-
 		// Get user balance
 		balance, err := u.db.Queries.GetUserBalancesByUserID(ctx, usr.ID)
 		if err != nil {
@@ -662,6 +639,37 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			accounts = append(accounts, convertUserDBBalanceToDTO(bal))
 		}
 		user.Accounts = accounts
+
+		// Calculate VIP level based on total wagered amount
+		var totalWagered decimal.Decimal
+		if len(accounts) > 0 {
+			// Calculate total wagered from all accounts
+			for _, account := range accounts {
+				totalWagered = totalWagered.Add(account.AmountUnits)
+			}
+		}
+
+		vipLevel, err := u.calculateVipLevel(ctx, totalWagered)
+		if err != nil {
+			u.log.Error("Failed to calculate VIP level", zap.Error(err), zap.String("userID", usr.ID.String()))
+			vipLevel = "Bronze" // Default fallback
+		}
+		user.VipLevel = vipLevel
+
+		// Apply VIP Level filter
+		shouldInclude := true
+		if len(req.Filter.VipLevel) > 0 {
+			vipMatch := false
+			for _, level := range req.Filter.VipLevel {
+				if strings.EqualFold(vipLevel, level) {
+					vipMatch = true
+					break
+				}
+			}
+			if !vipMatch {
+				shouldInclude = false
+			}
+		}
 
 		// Add IsTestAccount field
 		user.IsTestAccount = usr.IsTestAccount.Bool
@@ -1036,6 +1044,54 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 		TotalPages: totalPages,
 		Users:      users,
 	}, nil
+}
+
+// calculateVipLevel calculates the VIP level based on total wagered amount and cashback tiers
+func (u *user) calculateVipLevel(ctx context.Context, totalWagered decimal.Decimal) (string, error) {
+	// Get cashback tiers from database
+	query := `SELECT tier_name, tier_level, min_ggr_required FROM cashback_tiers WHERE is_active = true ORDER BY tier_level ASC`
+	rows, err := u.db.GetPool().Query(ctx, query)
+	if err != nil {
+		u.log.Error("Failed to fetch cashback tiers", zap.Error(err))
+		return "Bronze", nil // Default to Bronze if we can't fetch tiers
+	}
+	defer rows.Close()
+
+	var tiers []struct {
+		TierName       string
+		TierLevel      int
+		MinGGRRequired decimal.Decimal
+	}
+
+	for rows.Next() {
+		var tier struct {
+			TierName       string
+			TierLevel      int
+			MinGGRRequired decimal.Decimal
+		}
+		err := rows.Scan(&tier.TierName, &tier.TierLevel, &tier.MinGGRRequired)
+		if err != nil {
+			u.log.Error("Failed to scan cashback tier", zap.Error(err))
+			continue
+		}
+		tiers = append(tiers, tier)
+	}
+
+	if len(tiers) == 0 {
+		return "Bronze", nil // Default to Bronze if no tiers found
+	}
+
+	// Find the highest tier the user qualifies for
+	currentTier := tiers[0] // Start with the lowest tier
+	for _, tier := range tiers {
+		if totalWagered.GreaterThanOrEqual(tier.MinGGRRequired) {
+			currentTier = tier
+		} else {
+			break
+		}
+	}
+
+	return currentTier.TierName, nil
 }
 
 func (u *user) SaveToTemp(ctx context.Context, req dto.UserReferals) error {

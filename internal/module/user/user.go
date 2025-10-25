@@ -1708,14 +1708,7 @@ func (u *User) GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPl
 
 	for _, player := range pls.Users {
 		u.log.Info("Processing player", zap.String("player_id", player.ID.String()), zap.String("username", player.Username))
-		balance, err := u.balanceStorage.GetBalancesByUserID(ctx, player.ID)
-		if err != nil {
-			u.log.Error("Failed to get balance for player", zap.Error(err), zap.String("player_id", player.ID.String()))
-			// Don't skip the player, just set empty accounts
-			player.Accounts = []dto.Balance{}
-		} else {
-			player.Accounts = balance
-		}
+		// Accounts are already populated by GetAllUsers, no need to fetch again
 		plys = append(plys, player)
 	}
 

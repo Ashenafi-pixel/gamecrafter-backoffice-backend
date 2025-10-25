@@ -97,8 +97,8 @@ type GameHouseEdgeRequest struct {
 	MinBet         decimal.Decimal  `json:"min_bet" validate:"required,min=0"`
 	MaxBet         *decimal.Decimal `json:"max_bet,omitempty" validate:"omitempty,min=0"`
 	IsActive       bool             `json:"is_active"`
-	EffectiveFrom  *time.Time       `json:"effective_from,omitempty"`
-	EffectiveUntil *time.Time       `json:"effective_until,omitempty"`
+	EffectiveFrom  *FlexibleTime    `json:"effective_from,omitempty"`
+	EffectiveUntil *FlexibleTime    `json:"effective_until,omitempty"`
 }
 
 type GameHouseEdgeResponse struct {

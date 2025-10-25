@@ -61,7 +61,7 @@ func (s *HouseEdgeService) CreateHouseEdge(ctx *gin.Context, req dto.GameHouseEd
 	// Set effective_from to now if not provided
 	effectiveFrom := time.Now()
 	if req.EffectiveFrom != nil {
-		effectiveFrom = *req.EffectiveFrom
+		effectiveFrom = req.EffectiveFrom.Time
 	}
 
 	// Get game info - use provided game_id or generate default
@@ -74,18 +74,23 @@ func (s *HouseEdgeService) CreateHouseEdge(ctx *gin.Context, req dto.GameHouseEd
 
 	// Convert DTO to storage model
 	houseEdgeModel := &game.GameHouseEdge{
-		GameID:         &gameID,
-		GameName:       nil, // Will be populated from games table via JOIN
-		GameType:       req.GameType,
-		GameVariant:    req.GameVariant,
-		HouseEdge:      req.HouseEdge,
-		MinBet:         req.MinBet,
-		MaxBet:         req.MaxBet,
-		IsActive:       req.IsActive,
-		EffectiveFrom:  effectiveFrom,
-		EffectiveUntil: req.EffectiveUntil,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		GameID:        &gameID,
+		GameName:      nil, // Will be populated from games table via JOIN
+		GameType:      req.GameType,
+		GameVariant:   req.GameVariant,
+		HouseEdge:     req.HouseEdge,
+		MinBet:        req.MinBet,
+		MaxBet:        req.MaxBet,
+		IsActive:      req.IsActive,
+		EffectiveFrom: effectiveFrom,
+		EffectiveUntil: func() *time.Time {
+			if req.EffectiveUntil != nil {
+				return &req.EffectiveUntil.Time
+			}
+			return nil
+		}(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	createdHouseEdge, err := s.houseEdgeStorage.CreateHouseEdge(ctx, houseEdgeModel)
@@ -204,10 +209,10 @@ func (s *HouseEdgeService) UpdateHouseEdge(ctx *gin.Context, id uuid.UUID, req d
 	}
 
 	if req.EffectiveFrom != nil {
-		existingHouseEdge.EffectiveFrom = *req.EffectiveFrom
+		existingHouseEdge.EffectiveFrom = req.EffectiveFrom.Time
 	}
 	if req.EffectiveUntil != nil {
-		existingHouseEdge.EffectiveUntil = req.EffectiveUntil
+		existingHouseEdge.EffectiveUntil = &req.EffectiveUntil.Time
 	}
 
 	existingHouseEdge.UpdatedAt = time.Now()

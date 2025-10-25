@@ -101,9 +101,10 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 			ID:            id,
 			UserId:        userID,
 			CurrencyCode:  currencyCode,
+			AmountCents:   amountCents,
 			AmountUnits:   amountUnits,   // amount_units maps to real_money
 			ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
-			ReservedCents: 0,             // Server DB doesn't have points, set to 0
+			ReservedCents: reservedCents, // Use actual reserved_cents from database
 			UpdateAt:      updatedAt,
 		}, nil
 	}
@@ -280,7 +281,7 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 				AmountCents:   amountCents,
 				AmountUnits:   amountUnits,   // amount_units maps to real_money
 				ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
-				ReservedCents: 0,             // Server DB doesn't have points, set to 0
+				ReservedCents: reservedCents, // Use actual reserved_cents from database
 				UpdateAt:      updatedAt,
 			})
 		}
@@ -343,6 +344,7 @@ func (b *balance) GetBalancesByUserID(ctx context.Context, userID uuid.UUID) ([]
 			ID:            id,
 			UserId:        userID,
 			CurrencyCode:  currencyCode,
+			AmountCents:   amountCents,
 			AmountUnits:   realMoney,
 			ReservedUnits: bonusMoney,
 			ReservedCents: int64(points),
@@ -444,9 +446,10 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 			ID:            id,
 			UserId:        userID,
 			CurrencyCode:  currencyCode,
+			AmountCents:   amountCents,
 			AmountUnits:   amountUnits,   // amount_units maps to real_money
 			ReservedUnits: reservedUnits, // reserved_units maps to bonus_money
-			ReservedCents: 0,             // Server DB doesn't have points, set to 0
+			ReservedCents: reservedCents, // Use actual reserved_cents from database
 			UpdateAt:      updatedAt,
 		}, nil
 	}

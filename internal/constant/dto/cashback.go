@@ -259,3 +259,8 @@ type LevelProgressionResult struct {
 	Error     string    `json:"error,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
+
+// ReorderTiersRequest represents a request to reorder cashback tiers
+type ReorderTiersRequest struct {
+	TierOrder []uuid.UUID `json:"tier_order" validate:"required,min=1"`
+}

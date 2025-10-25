@@ -870,7 +870,7 @@ func (t *twoFactorService) RegisterPasskey(ctx context.Context, userID uuid.UUID
 		t.log.Error("Failed to check existing passkeys", zap.Error(err))
 		return fmt.Errorf("failed to check existing passkeys")
 	}
-	
+
 	if len(existingPasskeys) >= 5 {
 		return fmt.Errorf("maximum number of passkeys reached (5). Please delete an existing passkey before adding a new one")
 	}
@@ -931,16 +931,16 @@ func (t *twoFactorService) RegisterPasskey(ctx context.Context, userID uuid.UUID
 		IsActive:          true,
 	}
 
-	err := t.passkeyStorage.CreatePasskeyCredential(ctx, credential)
+	err = t.passkeyStorage.CreatePasskeyCredential(ctx, credential)
 	if err != nil {
 		t.log.Error("Failed to create passkey credential", zap.Error(err))
-		
+
 		// Check if it's a unique constraint violation (duplicate credential)
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") ||
-		   strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return fmt.Errorf("this passkey is already registered. Please use a different passkey or try again")
 		}
-		
+
 		return err
 	}
 
@@ -990,7 +990,7 @@ func (t *twoFactorService) GetPasskeyAssertionOptions(ctx context.Context, userI
 	options := map[string]interface{}{
 		"challenge":        base64.RawURLEncoding.EncodeToString(challenge),
 		"timeout":          60000,
-		"rpId":             "https://console-backoffice.tucanbit.tv", // In production, use your actual domain
+		"rpId":             "tucanbit.tv", // In production, use your actual domain
 		"userVerification": "required",
 		"allowCredentials": allowCredentials,
 	}

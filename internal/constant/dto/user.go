@@ -52,6 +52,7 @@ type User struct {
 	IsEmailVerified          bool       `json:"is_email_verified,omitempty"`
 	WalletVerificationStatus string     `json:"wallet_verification_status,omitempty"`
 	IsTestAccount            bool       `json:"is_test_account,omitempty"`
+	VipLevel                 string     `json:"vip_level,omitempty"`
 }
 
 // profileResponse

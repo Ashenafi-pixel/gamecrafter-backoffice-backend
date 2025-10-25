@@ -53,6 +53,8 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		admin.GET("/tiers", handler.GetCashbackTiers)
 		admin.POST("/tiers", handler.CreateCashbackTier)
 		admin.PUT("/tiers/:id", handler.UpdateCashbackTier)
+		admin.DELETE("/tiers/:id", handler.DeleteCashbackTier)
+		admin.POST("/tiers/reorder", handler.ReorderCashbackTiers)
 		admin.POST("/promotions", handler.CreateCashbackPromotion)
 		admin.POST("/house-edge", handler.CreateGameHouseEdge)
 

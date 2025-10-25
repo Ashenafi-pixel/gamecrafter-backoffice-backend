@@ -222,11 +222,34 @@ func (h *CashbackHandler) CreateCashbackTier(c *gin.Context) {
 
 	h.logger.Info("Creating cashback tier", zap.String("tier_name", request.TierName))
 
-	// Implementation would go here
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Feature not implemented yet",
-	})
+	// Convert request to CashbackTier DTO
+	tier := dto.CashbackTier{
+		TierName:               request.TierName,
+		MinExpectedGGRRequired: request.MinGGRRequired,
+		CashbackPercentage:     request.CashbackPercentage,
+		BonusMultiplier:        request.BonusMultiplier,
+		DailyCashbackLimit:     request.DailyCashbackLimit,
+		WeeklyCashbackLimit:    request.WeeklyCashbackLimit,
+		MonthlyCashbackLimit:   request.MonthlyCashbackLimit,
+		SpecialBenefits:        request.SpecialBenefits,
+		IsActive:               request.IsActive,
+	}
+
+	createdTier, err := h.cashbackService.CreateCashbackTier(c.Request.Context(), tier)
+	if err != nil {
+		h.logger.Error("Failed to create cashback tier", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to create cashback tier",
+		})
+		return
+	}
+
+	h.logger.Info("Created cashback tier successfully",
+		zap.String("tier_id", createdTier.ID.String()),
+		zap.String("tier_name", createdTier.TierName))
+
+	c.JSON(http.StatusCreated, createdTier)
 }
 
 // UpdateCashbackTier updates an existing cashback tier (Admin only)
@@ -271,10 +294,121 @@ func (h *CashbackHandler) UpdateCashbackTier(c *gin.Context) {
 		zap.String("tier_id", tierID.String()),
 		zap.String("tier_name", request.TierName))
 
-	// Implementation would go here
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Feature not implemented yet",
+	// Convert request to CashbackTier DTO
+	tier := dto.CashbackTier{
+		TierName:               request.TierName,
+		MinExpectedGGRRequired: request.MinGGRRequired,
+		CashbackPercentage:     request.CashbackPercentage,
+		BonusMultiplier:        request.BonusMultiplier,
+		DailyCashbackLimit:     request.DailyCashbackLimit,
+		WeeklyCashbackLimit:    request.WeeklyCashbackLimit,
+		MonthlyCashbackLimit:   request.MonthlyCashbackLimit,
+		SpecialBenefits:        request.SpecialBenefits,
+		IsActive:               request.IsActive,
+	}
+
+	updatedTier, err := h.cashbackService.UpdateCashbackTier(c.Request.Context(), tierID, tier)
+	if err != nil {
+		h.logger.Error("Failed to update cashback tier", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to update cashback tier",
+		})
+		return
+	}
+
+	h.logger.Info("Updated cashback tier successfully",
+		zap.String("tier_id", tierID.String()),
+		zap.String("tier_name", updatedTier.TierName))
+
+	c.JSON(http.StatusOK, updatedTier)
+}
+
+// DeleteCashbackTier deletes a cashback tier (Admin only)
+// @Summary Delete cashback tier
+// @Description Deletes a cashback tier (Admin only)
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Tier ID"
+// @Success 200 {object} dto.SuccessResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/tiers/{id} [delete]
+func (h *CashbackHandler) DeleteCashbackTier(c *gin.Context) {
+	tierIDStr := c.Param("id")
+	tierID, err := uuid.Parse(tierIDStr)
+	if err != nil {
+		h.logger.Error("Invalid tier ID", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid tier ID",
+		})
+		return
+	}
+
+	h.logger.Info("Deleting cashback tier", zap.String("tier_id", tierID.String()))
+
+	err = h.cashbackService.DeleteCashbackTier(c.Request.Context(), tierID)
+	if err != nil {
+		h.logger.Error("Failed to delete cashback tier", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to delete cashback tier",
+		})
+		return
+	}
+
+	h.logger.Info("Deleted cashback tier successfully", zap.String("tier_id", tierID.String()))
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: "Cashback tier deleted successfully",
+	})
+}
+
+// ReorderCashbackTiers reorders cashback tiers (Admin only)
+// @Summary Reorder cashback tiers
+// @Description Reorders cashback tiers by updating their tier levels (Admin only)
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.ReorderTiersRequest true "Tier order data"
+// @Success 200 {object} dto.SuccessResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/tiers/reorder [post]
+func (h *CashbackHandler) ReorderCashbackTiers(c *gin.Context) {
+	var request dto.ReorderTiersRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Failed to bind reorder request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	h.logger.Info("Reordering cashback tiers", zap.Int("tier_count", len(request.TierOrder)))
+
+	err := h.cashbackService.ReorderCashbackTiers(c.Request.Context(), request.TierOrder)
+	if err != nil {
+		h.logger.Error("Failed to reorder cashback tiers", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to reorder cashback tiers",
+		})
+		return
+	}
+
+	h.logger.Info("Reordered cashback tiers successfully")
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: "Cashback tiers reordered successfully",
 	})
 }
 
