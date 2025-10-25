@@ -28,6 +28,7 @@ import (
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 
 	"encoding/json"
 
@@ -1466,6 +1467,10 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		updatedUser.LastName = userReq.LastName
 	}
 
+	if userReq.UserName != "" {
+		updatedUser.Username = userReq.UserName
+	}
+
 	if userReq.StreetAddress != "" {
 		updatedUser.StreetAddress = userReq.StreetAddress
 	}
@@ -1544,25 +1549,61 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		zap.Time("timestamp", time.Now()),
 	)
 
-	res, err := u.userStorage.UpdateUser(ctx, dto.UpdateProfileReq{
-		UserID:                   updatedUser.ID,
-		FirstName:                updatedUser.FirstName,
-		LastName:                 updatedUser.LastName,
-		Email:                    updatedUser.Email,
-		DateOfBirth:              updatedUser.DateOfBirth,
-		Phone:                    updatedUser.PhoneNumber,
-		Username:                 updatedUser.Username,
-		StreetAddress:            updatedUser.StreetAddress,
-		City:                     updatedUser.City,
-		PostalCode:               updatedUser.PostalCode,
-		State:                    updatedUser.State,
-		Country:                  updatedUser.Country,
-		KYCStatus:                updatedUser.KYCStatus,
-		Status:                   updatedUser.Status,
-		IsEmailVerified:          updatedUser.IsEmailVerified,
-		DefaultCurrency:          updatedUser.DefaultCurrency,
-		WalletVerificationStatus: updatedUser.WalletVerificationStatus,
-	})
+	// Only update fields that have been provided and are not empty
+	updateReq := dto.UpdateProfileReq{
+		UserID: updatedUser.ID,
+	}
+
+	// Only set fields that have been provided in the request
+	if userReq.FirstName != "" {
+		updateReq.FirstName = updatedUser.FirstName
+	}
+	if userReq.LastName != "" {
+		updateReq.LastName = updatedUser.LastName
+	}
+	if userReq.Email != "" {
+		updateReq.Email = updatedUser.Email
+	}
+	if userReq.DateOfBirth != "" {
+		updateReq.DateOfBirth = updatedUser.DateOfBirth
+	}
+	if userReq.PhoneNumber != "" {
+		updateReq.Phone = updatedUser.PhoneNumber
+	}
+	if userReq.UserName != "" {
+		updateReq.Username = updatedUser.Username
+	}
+	if userReq.StreetAddress != "" {
+		updateReq.StreetAddress = updatedUser.StreetAddress
+	}
+	if userReq.City != "" {
+		updateReq.City = updatedUser.City
+	}
+	if userReq.PostalCode != "" {
+		updateReq.PostalCode = updatedUser.PostalCode
+	}
+	if userReq.State != "" {
+		updateReq.State = updatedUser.State
+	}
+	if userReq.Country != "" {
+		updateReq.Country = updatedUser.Country
+	}
+	if userReq.KYCStatus != "" {
+		updateReq.KYCStatus = updatedUser.KYCStatus
+	}
+	if userReq.Status != "" {
+		updateReq.Status = updatedUser.Status
+	}
+	// Always set these boolean fields if they are provided
+	updateReq.IsEmailVerified = updatedUser.IsEmailVerified
+	if userReq.DefaultCurrency != "" {
+		updateReq.DefaultCurrency = updatedUser.DefaultCurrency
+	}
+	if userReq.WalletVerificationStatus != "" {
+		updateReq.WalletVerificationStatus = updatedUser.WalletVerificationStatus
+	}
+
+	res, err := u.userStorage.UpdateUser(ctx, updateReq)
 	if err != nil {
 		u.log.Error("Failed to update player profile",
 			zap.String("admin_id", userReq.AdminID.String()),
@@ -1783,16 +1824,34 @@ func (u *User) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 }
 
 func (u *User) CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) (dto.Admin, error) {
+	// Hash password before storing
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		u.log.Error("Failed to hash password", zap.Error(err))
+		return dto.Admin{}, fmt.Errorf("failed to hash password: %w", err)
+	}
+
 	// Create user with admin privileges
 	userData := dto.User{
-		Username:    req.Username,
-		Email:       req.Email,
-		Password:    req.Password,
-		FirstName:   req.FirstName,
-		LastName:    req.LastName,
-		PhoneNumber: req.Phone,
-		IsAdmin:     true,
-		Status:      "ACTIVE",
+		Username:                 req.Username,
+		Email:                    req.Email,
+		Password:                 string(hashedPassword),
+		FirstName:                req.FirstName,
+		LastName:                 req.LastName,
+		PhoneNumber:              req.Phone,
+		DateOfBirth:              req.DateOfBirth,
+		StreetAddress:            req.StreetAddress,
+		City:                     req.City,
+		PostalCode:               req.PostalCode,
+		State:                    req.State,
+		Country:                  req.Country,
+		KYCStatus:                req.KycStatus,
+		IsEmailVerified:          req.IsEmailVerified,
+		DefaultCurrency:          req.DefaultCurrency,
+		WalletVerificationStatus: req.WalletVerificationStatus,
+		IsAdmin:                  true,
+		Status:                   req.Status,
+		Type:                     dto.Type(req.UserType),
 	}
 
 	createdUser, err := u.userStorage.CreateUser(ctx, userData)
@@ -1807,16 +1866,27 @@ func (u *User) CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) 
 	}
 
 	return dto.Admin{
-		ID:          createdUser.ID,
-		Username:    createdUser.Username,
-		Email:       createdUser.Email,
-		PhoneNumber: createdUser.PhoneNumber,
-		FirstName:   createdUser.FirstName,
-		LastName:    createdUser.LastName,
-		Status:      createdUser.Status,
-		Roles:       []dto.AdminRoleRes{}, // Empty for now, can be assigned later
-		CreatedAt:   createdAt,
-		LastLogin:   nil,
+		ID:                       createdUser.ID,
+		Username:                 createdUser.Username,
+		Email:                    createdUser.Email,
+		PhoneNumber:              createdUser.PhoneNumber,
+		FirstName:                createdUser.FirstName,
+		LastName:                 createdUser.LastName,
+		DateOfBirth:              createdUser.DateOfBirth,
+		StreetAddress:            createdUser.StreetAddress,
+		City:                     createdUser.City,
+		PostalCode:               createdUser.PostalCode,
+		State:                    createdUser.State,
+		Country:                  createdUser.Country,
+		KycStatus:                createdUser.KYCStatus,
+		IsEmailVerified:          createdUser.IsEmailVerified,
+		DefaultCurrency:          createdUser.DefaultCurrency,
+		WalletVerificationStatus: createdUser.WalletVerificationStatus,
+		Status:                   createdUser.Status,
+		IsAdmin:                  createdUser.IsAdmin,
+		UserType:                 string(createdUser.Type),
+		Roles:                    []dto.AdminRoleRes{}, // Empty for now, can be assigned later
+		CreatedAt:                createdAt,
 	}, nil
 }
 
@@ -1857,9 +1927,17 @@ func (u *User) UpdateAdminUser(ctx context.Context, userID string, req dto.Updat
 	if req.Status != nil {
 		existingUser.Status = *req.Status
 	}
+	if req.IsAdmin != nil {
+		existingUser.IsAdmin = *req.IsAdmin
+	}
+	if req.UserType != nil {
+		existingUser.Type = dto.Type(*req.UserType)
+	}
 
-	// Ensure admin status is maintained
-	existingUser.IsAdmin = true
+	// Ensure admin status is maintained if not explicitly set
+	if req.IsAdmin == nil {
+		existingUser.IsAdmin = true
+	}
 
 	// Update user in storage
 	updatedUser, err := u.userStorage.UpdateAdminUser(ctx, existingUser)
@@ -1883,7 +1961,6 @@ func (u *User) UpdateAdminUser(ctx context.Context, userID string, req dto.Updat
 		Status:      updatedUser.Status,
 		Roles:       []dto.AdminRoleRes{}, // Empty for now, can be assigned later
 		CreatedAt:   createdAt,
-		LastLogin:   nil,
 	}, nil
 }
 

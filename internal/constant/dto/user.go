@@ -364,25 +364,49 @@ type AdminRoleRes struct {
 	Name   string    `json:"name"`
 }
 type Admin struct {
-	ID          uuid.UUID      `json:"id"`
-	Username    string         `json:"username"`
-	Email       string         `json:"email"`
-	PhoneNumber string         `json:"phone_number"`
-	FirstName   string         `json:"first_name"`
-	LastName    string         `json:"last_name"`
-	Status      string         `json:"status"`
-	Roles       []AdminRoleRes `json:"roles"`
-	CreatedAt   time.Time      `json:"created_at"`
-	LastLogin   *time.Time     `json:"last_login,omitempty"`
+	ID                       uuid.UUID      `json:"id"`
+	Username                 string         `json:"username"`
+	Email                    string         `json:"email"`
+	PhoneNumber              string         `json:"phone_number"`
+	FirstName                string         `json:"first_name"`
+	LastName                 string         `json:"last_name"`
+	DateOfBirth              string         `json:"date_of_birth"`
+	StreetAddress            string         `json:"street_address"`
+	City                     string         `json:"city"`
+	PostalCode               string         `json:"postal_code"`
+	State                    string         `json:"state"`
+	Country                  string         `json:"country"`
+	KycStatus                string         `json:"kyc_status"`
+	IsEmailVerified          bool           `json:"is_email_verified"`
+	DefaultCurrency          string         `json:"default_currency"`
+	WalletVerificationStatus string         `json:"wallet_verification_status"`
+	Status                   string         `json:"status"`
+	IsAdmin                  bool           `json:"is_admin"`
+	UserType                 string         `json:"user_type"`
+	Roles                    []AdminRoleRes `json:"roles"`
+	CreatedAt                time.Time      `json:"created_at"`
 }
 
 type CreateAdminUserReq struct {
-	Username  string `json:"username" validate:"required,min=3,max=50"`
-	Email     string `json:"email" validate:"required,email"`
-	Password  string `json:"password" validate:"required,min=6"`
-	FirstName string `json:"first_name" validate:"required,min=2,max=50"`
-	LastName  string `json:"last_name" validate:"required,min=2,max=50"`
-	Phone     string `json:"phone,omitempty"`
+	Username                 string `json:"username" validate:"required,min=3,max=50"`
+	Email                    string `json:"email" validate:"required,email"`
+	Password                 string `json:"password" validate:"required,min=6"`
+	FirstName                string `json:"first_name" validate:"required,min=2,max=50"`
+	LastName                 string `json:"last_name" validate:"required,min=2,max=50"`
+	Phone                    string `json:"phone,omitempty"`
+	DateOfBirth              string `json:"date_of_birth,omitempty"`
+	StreetAddress            string `json:"street_address,omitempty"`
+	City                     string `json:"city,omitempty"`
+	PostalCode               string `json:"postal_code,omitempty"`
+	State                    string `json:"state,omitempty"`
+	Country                  string `json:"country,omitempty"`
+	KycStatus                string `json:"kyc_status,omitempty"`
+	IsEmailVerified          bool   `json:"is_email_verified,omitempty"`
+	DefaultCurrency          string `json:"default_currency,omitempty"`
+	WalletVerificationStatus string `json:"wallet_verification_status,omitempty"`
+	Status                   string `json:"status,omitempty"`
+	IsAdmin                  bool   `json:"is_admin,omitempty"`
+	UserType                 string `json:"user_type,omitempty"`
 }
 
 type UpdateAdminUserReq struct {
@@ -393,6 +417,8 @@ type UpdateAdminUserReq struct {
 	LastName  *string `json:"last_name,omitempty" validate:"omitempty,min=2,max=50"`
 	Phone     *string `json:"phone,omitempty"`
 	Status    *string `json:"status,omitempty" validate:"omitempty,oneof=ACTIVE INACTIVE"`
+	IsAdmin   *bool   `json:"is_admin,omitempty"`
+	UserType  *string `json:"user_type,omitempty"`
 }
 
 type SignUpBonusReq struct {

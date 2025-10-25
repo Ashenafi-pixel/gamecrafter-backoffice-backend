@@ -378,13 +378,13 @@ func (u *user) DeleteOTP(ctx context.Context, userID uuid.UUID) error {
 
 func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileReq) (dto.User, error) {
 	updatedUser, err := u.db.Queries.UpdateProfile(ctx, db.UpdateProfileParams{
-		FirstName:                sql.NullString{String: updateProfile.FirstName, Valid: true},
-		LastName:                 sql.NullString{String: updateProfile.LastName, Valid: true},
-		Email:                    sql.NullString{String: updateProfile.Email, Valid: true},
-		DateOfBirth:              sql.NullString{String: updateProfile.DateOfBirth, Valid: true},
-		PhoneNumber:              sql.NullString{String: updateProfile.Phone, Valid: true},
+		FirstName:                sql.NullString{String: updateProfile.FirstName, Valid: updateProfile.FirstName != ""},
+		LastName:                 sql.NullString{String: updateProfile.LastName, Valid: updateProfile.LastName != ""},
+		Email:                    sql.NullString{String: updateProfile.Email, Valid: updateProfile.Email != ""},
+		DateOfBirth:              sql.NullString{String: updateProfile.DateOfBirth, Valid: updateProfile.DateOfBirth != ""},
+		PhoneNumber:              sql.NullString{String: updateProfile.Phone, Valid: updateProfile.Phone != ""},
 		ID:                       updateProfile.UserID,
-		Username:                 sql.NullString{String: updateProfile.Username, Valid: true},
+		Username:                 sql.NullString{String: updateProfile.Username, Valid: updateProfile.Username != ""},
 		StreetAddress:            updateProfile.StreetAddress,
 		City:                     updateProfile.City,
 		PostalCode:               updateProfile.PostalCode,
@@ -773,6 +773,18 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 			us.first_name,
 			us.last_name,
 			us.date_of_birth,
+			us.street_address,
+			us.city,
+			us.postal_code,
+			us.state,
+			us.country,
+			us.kyc_status,
+			us.is_email_verified,
+			us.default_currency,
+			us.wallet_verification_status,
+			us.created_at,
+			us.is_admin,
+			us.user_type,
 			COALESCE(
 				JSON_AGG(
 					JSON_BUILD_OBJECT(
@@ -786,7 +798,7 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 		LEFT JOIN user_roles ur ON ur.user_id = us.id
 		LEFT JOIN roles r ON r.id = ur.role_id
 		WHERE us.is_admin = true AND us.user_type = 'ADMIN'
-		GROUP BY us.id, us.username, us.phone_number, us.profile, us.email, us.first_name, us.last_name, us.date_of_birth
+		GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.street_address, us.city, us.postal_code, us.state, us.country, us.kyc_status, us.is_email_verified, us.default_currency, us.wallet_verification_status, us.created_at, us.is_admin, us.user_type
 		ORDER BY us.created_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -801,16 +813,28 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 
 	for rows.Next() {
 		var admin struct {
-			UserID      uuid.UUID
-			Username    sql.NullString
-			PhoneNumber sql.NullString
-			Profile     sql.NullString
-			Status      sql.NullString
-			Email       sql.NullString
-			FirstName   sql.NullString
-			LastName    sql.NullString
-			DateOfBirth sql.NullString
-			Roles       pgtype.JSON
+			UserID                   uuid.UUID
+			Username                 sql.NullString
+			PhoneNumber              sql.NullString
+			Profile                  sql.NullString
+			Status                   sql.NullString
+			Email                    sql.NullString
+			FirstName                sql.NullString
+			LastName                 sql.NullString
+			DateOfBirth              sql.NullString
+			StreetAddress            sql.NullString
+			City                     sql.NullString
+			PostalCode               sql.NullString
+			State                    sql.NullString
+			Country                  sql.NullString
+			KycStatus                sql.NullString
+			IsEmailVerified          sql.NullBool
+			DefaultCurrency          sql.NullString
+			WalletVerificationStatus sql.NullString
+			CreatedAt                time.Time
+			IsAdmin                  sql.NullBool
+			UserType                 sql.NullString
+			Roles                    pgtype.JSON
 		}
 
 		err := rows.Scan(
@@ -823,6 +847,18 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 			&admin.FirstName,
 			&admin.LastName,
 			&admin.DateOfBirth,
+			&admin.StreetAddress,
+			&admin.City,
+			&admin.PostalCode,
+			&admin.State,
+			&admin.Country,
+			&admin.KycStatus,
+			&admin.IsEmailVerified,
+			&admin.DefaultCurrency,
+			&admin.WalletVerificationStatus,
+			&admin.CreatedAt,
+			&admin.IsAdmin,
+			&admin.UserType,
 			&admin.Roles,
 		)
 		if err != nil {
@@ -840,13 +876,27 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 		}
 
 		admins = append(admins, dto.Admin{
-			ID:          admin.UserID,
-			PhoneNumber: admin.PhoneNumber.String,
-			FirstName:   admin.FirstName.String,
-			LastName:    admin.LastName.String,
-			Email:       admin.Email.String,
-			Status:      admin.Status.String,
-			Roles:       adminRoles,
+			ID:                       admin.UserID,
+			Username:                 admin.Username.String,
+			PhoneNumber:              admin.PhoneNumber.String,
+			FirstName:                admin.FirstName.String,
+			LastName:                 admin.LastName.String,
+			DateOfBirth:              admin.DateOfBirth.String,
+			StreetAddress:            admin.StreetAddress.String,
+			City:                     admin.City.String,
+			PostalCode:               admin.PostalCode.String,
+			State:                    admin.State.String,
+			Country:                  admin.Country.String,
+			KycStatus:                admin.KycStatus.String,
+			IsEmailVerified:          admin.IsEmailVerified.Bool,
+			DefaultCurrency:          admin.DefaultCurrency.String,
+			WalletVerificationStatus: admin.WalletVerificationStatus.String,
+			Email:                    admin.Email.String,
+			Status:                   admin.Status.String,
+			IsAdmin:                  admin.IsAdmin.Bool,
+			UserType:                 admin.UserType.String,
+			Roles:                    adminRoles,
+			CreatedAt:                admin.CreatedAt,
 		})
 	}
 	return admins, nil
@@ -1468,11 +1518,6 @@ func (u *user) GetAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.A
 			}
 		}
 
-		var lastLogin *time.Time
-		if admin.LastLogin.Valid {
-			lastLogin = &admin.LastLogin.Time
-		}
-
 		admins = append(admins, dto.Admin{
 			ID:          admin.UserID,
 			Username:    admin.Username.String,
@@ -1483,7 +1528,6 @@ func (u *user) GetAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.A
 			Status:      admin.Status.String,
 			Roles:       adminRoles,
 			CreatedAt:   admin.CreatedAt,
-			LastLogin:   lastLogin,
 		})
 	}
 	return admins, nil

@@ -282,9 +282,16 @@ WITH admin_users AS (
         us.first_name,
         us.last_name,
         us.date_of_birth,
+        us.street_address,
+        us.city,
+        us.postal_code,
+        us.state,
+        us.country,
+        us.kyc_status,
+        us.is_email_verified,
+        us.default_currency,
+        us.wallet_verification_status,
         us.created_at,
-        us.updated_at,
-        us.last_login,
         us.is_admin,
         us.user_type,
         COALESCE(
@@ -301,7 +308,7 @@ WITH admin_users AS (
     LEFT JOIN user_roles ur ON ur.user_id = us.id
     LEFT JOIN roles r ON r.id = ur.role_id
     WHERE us.is_admin = true AND us.user_type = 'ADMIN'
-    GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.created_at, us.updated_at, us.last_login, us.is_admin, us.user_type
+    GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.street_address, us.city, us.postal_code, us.state, us.country, us.kyc_status, us.is_email_verified, us.default_currency, us.wallet_verification_status, us.created_at, us.is_admin, us.user_type
 )
 SELECT 
     au.user_id,
@@ -313,9 +320,16 @@ SELECT
     au.first_name,
     au.last_name,
     au.date_of_birth,
+    au.street_address,
+    au.city,
+    au.postal_code,
+    au.state,
+    au.country,
+    au.kyc_status,
+    au.is_email_verified,
+    au.default_currency,
+    au.wallet_verification_status,
     au.created_at,
-    au.updated_at,
-    au.last_login,
     au.is_admin,
     au.user_type,
     au.roles,

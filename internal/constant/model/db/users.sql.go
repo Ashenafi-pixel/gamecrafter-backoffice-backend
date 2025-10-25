@@ -1687,22 +1687,29 @@ type GetAdminUsersParams struct {
 }
 
 type GetAdminUsersRow struct {
-	UserID      uuid.UUID
-	Username    sql.NullString
-	PhoneNumber sql.NullString
-	Profile     sql.NullString
-	Status      sql.NullString
-	Email       sql.NullString
-	FirstName   sql.NullString
-	LastName    sql.NullString
-	DateOfBirth sql.NullString
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	LastLogin   sql.NullTime
-	IsAdmin     sql.NullBool
-	UserType    sql.NullString
-	Roles       pgtype.JSON
-	TotalRows   int64
+	UserID                   uuid.UUID
+	Username                 sql.NullString
+	PhoneNumber              sql.NullString
+	Profile                  sql.NullString
+	Status                   sql.NullString
+	Email                    sql.NullString
+	FirstName                sql.NullString
+	LastName                 sql.NullString
+	DateOfBirth              sql.NullString
+	StreetAddress            sql.NullString
+	City                     sql.NullString
+	PostalCode               sql.NullString
+	State                    sql.NullString
+	Country                  sql.NullString
+	KycStatus                sql.NullString
+	IsEmailVerified          sql.NullBool
+	DefaultCurrency          sql.NullString
+	WalletVerificationStatus sql.NullString
+	CreatedAt                time.Time
+	IsAdmin                  sql.NullBool
+	UserType                 sql.NullString
+	Roles                    pgtype.JSON
+	TotalRows                int64
 }
 
 func (q *Queries) GetAdminUsers(ctx context.Context, arg GetAdminUsersParams) ([]GetAdminUsersRow, error) {
@@ -1724,9 +1731,16 @@ func (q *Queries) GetAdminUsers(ctx context.Context, arg GetAdminUsersParams) ([
 			&i.FirstName,
 			&i.LastName,
 			&i.DateOfBirth,
+			&i.StreetAddress,
+			&i.City,
+			&i.PostalCode,
+			&i.State,
+			&i.Country,
+			&i.KycStatus,
+			&i.IsEmailVerified,
+			&i.DefaultCurrency,
+			&i.WalletVerificationStatus,
 			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.LastLogin,
 			&i.IsAdmin,
 			&i.UserType,
 			&i.Roles,
