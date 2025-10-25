@@ -731,12 +731,12 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		u.logsStorage.CreateLoginAttempts(ctx, loginLogs)
 		return dto.UserLoginRes{}, "", err
 	}
-	// Check if user has 2FA enabled (skip for admin logins)
+	// Check if user has 2FA enabled
 	status, err := u.twoFactorService.Get2FAStatus(ctx, usr.ID)
 	if err != nil {
 		u.log.Error("Failed to check 2FA status", zap.Error(err), zap.String("user_id", usr.ID.String()))
 		// Continue with login if 2FA check fails
-	} else if status.IsEnabled && !adminLogin {
+	} else if status.IsEnabled {
 		// Get available 2FA methods for the user
 		availableMethods, err := u.twoFactorService.GetEnabledMethods(ctx, usr.ID)
 		if err != nil {
@@ -745,48 +745,146 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 			availableMethods = []string{"totp", "backup_codes"}
 		}
 
-		// Return early with 2FA required response
-		userProfile := dto.UserProfile{
-			Username:     usr.Username,
-			UserID:       usr.ID,
-			Email:        usr.Email,
-			PhoneNumber:  usr.PhoneNumber,
-			FirstName:    usr.FirstName,
-			LastName:     usr.LastName,
-			Type:         usr.Type,
-			ReferralCode: usr.ReferralCode,
-		}
+		// For admin logins, allow login with token but still require 2FA
+		if adminLogin {
+			// Generate JWT token for admin login even with 2FA required
+			token, err := utils.GenerateJWTWithVerification(usr.ID, true, true, true)
+			if err != nil {
+				u.log.Error("Failed to generate JWT for admin with 2FA", zap.Error(err))
+				return dto.UserLoginRes{}, "", err
+			}
 
-		return dto.UserLoginRes{
-			Message:             "2FA verification required",
-			AccessToken:         "", // No token until 2FA is verified
-			UserProfile:         &userProfile,
-			Requires2FA:         true,
-			UserID:              usr.ID.String(),
-			Available2FAMethods: availableMethods,
-		}, "", nil
-	} else if !adminLogin {
-		// 2FA is not enabled - force setup (skip for admin logins)
+			// Generate refresh token for admin
+			refreshToken, err := utils.GenerateRefreshJWT(usr.ID)
+			if err != nil {
+				u.log.Error("Failed to generate refresh token for admin", zap.Error(err))
+				return dto.UserLoginRes{}, "", err
+			}
+
+			// Save admin session
+			userSession := dto.UserSessions{
+				UserID:                usr.ID,
+				Token:                 token,
+				ExpiresAt:             time.Now().Add(time.Hour * 1), // 1 hour for admin
+				RefreshToken:          refreshToken,
+				RefreshTokenExpiresAt: time.Now().Add(30 * time.Minute),
+				IpAddress:             loginLogs.IPAddress,
+				UserAgent:             loginLogs.UserAgent,
+			}
+			u.logsStorage.CreateLoginSessions(ctx, userSession)
+
+			userProfile := dto.UserProfile{
+				Username:     usr.Username,
+				UserID:       usr.ID,
+				Email:        usr.Email,
+				PhoneNumber:  usr.PhoneNumber,
+				FirstName:    usr.FirstName,
+				LastName:     usr.LastName,
+				Type:         usr.Type,
+				ReferralCode: usr.ReferralCode,
+			}
+
+			return dto.UserLoginRes{
+				Message:             "Admin login successful - 2FA recommended for security",
+				AccessToken:         token,
+				UserProfile:         &userProfile,
+				Requires2FA:         true, // Still indicate 2FA is recommended
+				UserID:              usr.ID.String(),
+				Available2FAMethods: availableMethods,
+			}, refreshToken, nil
+		} else {
+			// Regular users must complete 2FA before getting token
+			userProfile := dto.UserProfile{
+				Username:     usr.Username,
+				UserID:       usr.ID,
+				Email:        usr.Email,
+				PhoneNumber:  usr.PhoneNumber,
+				FirstName:    usr.FirstName,
+				LastName:     usr.LastName,
+				Type:         usr.Type,
+				ReferralCode: usr.ReferralCode,
+			}
+
+			return dto.UserLoginRes{
+				Message:             "2FA verification required",
+				AccessToken:         "", // No token until 2FA is verified
+				UserProfile:         &userProfile,
+				Requires2FA:         true,
+				UserID:              usr.ID.String(),
+				Available2FAMethods: availableMethods,
+			}, "", nil
+		}
+	} else {
+		// 2FA is not enabled - force setup
 		u.log.Info("2FA not enabled for user, requiring setup", zap.String("user_id", usr.ID.String()))
 
-		userProfile := dto.UserProfile{
-			Username:     usr.Username,
-			UserID:       usr.ID,
-			Email:        usr.Email,
-			PhoneNumber:  usr.PhoneNumber,
-			FirstName:    usr.FirstName,
-			LastName:     usr.LastName,
-			Type:         usr.Type,
-			ReferralCode: usr.ReferralCode,
-		}
+		// For admin logins, allow login with token but still recommend 2FA setup
+		if adminLogin {
+			// Generate JWT token for admin login even without 2FA setup
+			token, err := utils.GenerateJWTWithVerification(usr.ID, true, true, true)
+			if err != nil {
+				u.log.Error("Failed to generate JWT for admin without 2FA", zap.Error(err))
+				return dto.UserLoginRes{}, "", err
+			}
 
-		return dto.UserLoginRes{
-			Message:          "2FA setup required for security",
-			AccessToken:      "", // No token until 2FA is set up
-			UserProfile:      &userProfile,
-			Requires2FASetup: true,
-			UserID:           usr.ID.String(),
-		}, "", nil
+			// Generate refresh token for admin
+			refreshToken, err := utils.GenerateRefreshJWT(usr.ID)
+			if err != nil {
+				u.log.Error("Failed to generate refresh token for admin", zap.Error(err))
+				return dto.UserLoginRes{}, "", err
+			}
+
+			// Save admin session
+			userSession := dto.UserSessions{
+				UserID:                usr.ID,
+				Token:                 token,
+				ExpiresAt:             time.Now().Add(time.Hour * 1), // 1 hour for admin
+				RefreshToken:          refreshToken,
+				RefreshTokenExpiresAt: time.Now().Add(30 * time.Minute),
+				IpAddress:             loginLogs.IPAddress,
+				UserAgent:             loginLogs.UserAgent,
+			}
+			u.logsStorage.CreateLoginSessions(ctx, userSession)
+
+			userProfile := dto.UserProfile{
+				Username:     usr.Username,
+				UserID:       usr.ID,
+				Email:        usr.Email,
+				PhoneNumber:  usr.PhoneNumber,
+				FirstName:    usr.FirstName,
+				LastName:     usr.LastName,
+				Type:         usr.Type,
+				ReferralCode: usr.ReferralCode,
+			}
+
+			return dto.UserLoginRes{
+				Message:          "Admin login successful - 2FA setup recommended for security",
+				AccessToken:      token,
+				UserProfile:      &userProfile,
+				Requires2FASetup: true, // Still indicate 2FA setup is recommended
+				UserID:           usr.ID.String(),
+			}, refreshToken, nil
+		} else {
+			// Regular users must set up 2FA before getting token
+			userProfile := dto.UserProfile{
+				Username:     usr.Username,
+				UserID:       usr.ID,
+				Email:        usr.Email,
+				PhoneNumber:  usr.PhoneNumber,
+				FirstName:    usr.FirstName,
+				LastName:     usr.LastName,
+				Type:         usr.Type,
+				ReferralCode: usr.ReferralCode,
+			}
+
+			return dto.UserLoginRes{
+				Message:          "2FA setup required for security",
+				AccessToken:      "", // No token until 2FA is set up
+				UserProfile:      &userProfile,
+				Requires2FASetup: true,
+				UserID:           usr.ID.String(),
+			}, "", nil
+		}
 	}
 
 	// Check user verification status
