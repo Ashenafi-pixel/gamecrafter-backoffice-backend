@@ -55,24 +55,36 @@ type GeneralSettings struct {
 }
 
 type PaymentSettings struct {
-	MinDepositBTC     float64 `json:"min_deposit_btc"`
-	MaxDepositBTC     float64 `json:"max_deposit_btc"`
-	MinWithdrawalBTC  float64 `json:"min_withdrawal_btc"`
-	MaxWithdrawalBTC  float64 `json:"max_withdrawal_btc"`
-	KycRequired       bool    `json:"kyc_required"`
-	KycThreshold      int     `json:"kyc_threshold"`
+	MinDepositBTC    float64 `json:"min_deposit_btc"`
+	MaxDepositBTC    float64 `json:"max_deposit_btc"`
+	MinWithdrawalBTC float64 `json:"min_withdrawal_btc"`
+	MaxWithdrawalBTC float64 `json:"max_withdrawal_btc"`
+	KycRequired      bool    `json:"kyc_required"`
+	KycThreshold     int     `json:"kyc_threshold"`
 }
 
 type SecuritySettings struct {
-	SessionTimeout           int  `json:"session_timeout"`
-	MaxLoginAttempts         int  `json:"max_login_attempts"`
-	LockoutDuration          int  `json:"lockout_duration"`
-	TwoFactorRequired        bool `json:"two_factor_required"`
-	PasswordMinLength        int  `json:"password_min_length"`
-	PasswordRequireSpecial   bool `json:"password_require_special"`
-	IpWhitelistEnabled       bool `json:"ip_whitelist_enabled"`
-	RateLimitEnabled         bool `json:"rate_limit_enabled"`
-	RateLimitRequests        int  `json:"rate_limit_requests"`
+	SessionTimeout         int  `json:"session_timeout"`
+	MaxLoginAttempts       int  `json:"max_login_attempts"`
+	LockoutDuration        int  `json:"lockout_duration"`
+	TwoFactorRequired      bool `json:"two_factor_required"`
+	PasswordMinLength      int  `json:"password_min_length"`
+	PasswordRequireSpecial bool `json:"password_require_special"`
+	IpWhitelistEnabled     bool `json:"ip_whitelist_enabled"`
+	RateLimitEnabled       bool `json:"rate_limit_enabled"`
+	RateLimitRequests      int  `json:"rate_limit_requests"`
+}
+
+type GeoBlockingSettings struct {
+	EnableGeoBlocking bool     `json:"enable_geo_blocking"`
+	DefaultAction     string   `json:"default_action"` // "allow" or "block"
+	VpnDetection      bool     `json:"vpn_detection"`
+	ProxyDetection    bool     `json:"proxy_detection"`
+	TorBlocking       bool     `json:"tor_blocking"`
+	LogAttempts       bool     `json:"log_attempts"`
+	BlockedCountries  []string `json:"blocked_countries"`
+	AllowedCountries  []string `json:"allowed_countries"`
+	BypassCountries   []string `json:"bypass_countries"`
 }
 
 func NewSystemConfig(db *persistencedb.PersistenceDB, log *zap.Logger) *SystemConfig {
@@ -429,5 +441,55 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 	}
 
 	s.log.Info("Security settings updated successfully")
+	return nil
+}
+
+// GetGeoBlockingSettings retrieves geo blocking settings from system config
+func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context) (GeoBlockingSettings, error) {
+	s.log.Info("Getting geo blocking settings from system config")
+
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "geo_blocking_settings").Scan(&configValue)
+	if err != nil {
+		s.log.Error("Failed to get geo blocking settings from database", zap.Error(err))
+		return GeoBlockingSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get geo blocking settings")
+	}
+
+	var settings GeoBlockingSettings
+	err = json.Unmarshal(configValue, &settings)
+	if err != nil {
+		s.log.Error("Failed to unmarshal geo blocking settings", zap.Error(err))
+		return GeoBlockingSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to parse geo blocking settings")
+	}
+
+	return settings, nil
+}
+
+// UpdateGeoBlockingSettings updates geo blocking settings in system config
+func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings GeoBlockingSettings, adminID uuid.UUID) error {
+	s.log.Info("Updating geo blocking settings")
+
+	configValue, err := json.Marshal(settings)
+	if err != nil {
+		s.log.Error("Failed to marshal geo blocking settings", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to marshal geo blocking settings")
+	}
+
+	_, err = s.db.GetPool().Exec(ctx, `
+		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
+		VALUES ($1, $2, $3, $4, NOW())
+		ON CONFLICT (config_key) 
+		DO UPDATE SET 
+			config_value = EXCLUDED.config_value,
+			updated_by = EXCLUDED.updated_by,
+			updated_at = EXCLUDED.updated_at
+	`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", adminID)
+
+	if err != nil {
+		s.log.Error("Failed to update geo blocking settings in database", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update geo blocking settings")
+	}
+
+	s.log.Info("Geo blocking settings updated successfully")
 	return nil
 }

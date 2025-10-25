@@ -808,7 +808,7 @@ func (h *SystemConfigHandler) UpdateGeneralSettings(ctx *gin.Context) {
 		"site_name":            req.SiteName,
 		"maintenance_mode":     req.MaintenanceMode,
 		"registration_enabled": req.RegistrationEnabled,
-		"demo_mode":           req.DemoMode,
+		"demo_mode":            req.DemoMode,
 	})
 
 	ctx.JSON(http.StatusOK, gin.H{
@@ -933,18 +933,85 @@ func (h *SystemConfigHandler) UpdateSecuritySettings(ctx *gin.Context) {
 
 	// Log admin activity
 	h.logAdminActivity(ctx, "update", "security_settings", "Updated security settings", map[string]interface{}{
-		"session_timeout":         req.SessionTimeout,
-		"max_login_attempts":      req.MaxLoginAttempts,
-		"two_factor_required":     req.TwoFactorRequired,
-		"password_min_length":     req.PasswordMinLength,
-		"ip_whitelist_enabled":    req.IpWhitelistEnabled,
-		"rate_limit_enabled":      req.RateLimitEnabled,
-		"rate_limit_requests":     req.RateLimitRequests,
+		"session_timeout":      req.SessionTimeout,
+		"max_login_attempts":   req.MaxLoginAttempts,
+		"two_factor_required":  req.TwoFactorRequired,
+		"password_min_length":  req.PasswordMinLength,
+		"ip_whitelist_enabled": req.IpWhitelistEnabled,
+		"rate_limit_enabled":   req.RateLimitEnabled,
+		"rate_limit_requests":  req.RateLimitRequests,
 	})
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    req,
 		"message": "Security settings updated successfully",
+	})
+}
+
+// GetGeoBlockingSettings retrieves geo blocking settings
+func (h *SystemConfigHandler) GetGeoBlockingSettings(ctx *gin.Context) {
+	h.log.Info("Getting geo blocking settings")
+
+	settings, err := h.systemConfigStorage.GetGeoBlockingSettings(ctx)
+	if err != nil {
+		h.log.Error("Failed to get geo blocking settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "Geo blocking settings retrieved successfully",
+	})
+}
+
+// UpdateGeoBlockingSettings updates geo blocking settings
+func (h *SystemConfigHandler) UpdateGeoBlockingSettings(ctx *gin.Context) {
+	var req system_config.GeoBlockingSettings
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err := h.systemConfigStorage.UpdateGeoBlockingSettings(ctx, req, adminUUID)
+	if err != nil {
+		h.log.Error("Failed to update geo blocking settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "geo_blocking_settings", "Updated geo blocking settings", map[string]interface{}{
+		"enable_geo_blocking": req.EnableGeoBlocking,
+		"default_action":      req.DefaultAction,
+		"vpn_detection":       req.VpnDetection,
+		"proxy_detection":     req.ProxyDetection,
+		"tor_blocking":        req.TorBlocking,
+		"log_attempts":        req.LogAttempts,
+		"blocked_countries":   len(req.BlockedCountries),
+		"allowed_countries":   len(req.AllowedCountries),
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "Geo blocking settings updated successfully",
 	})
 }

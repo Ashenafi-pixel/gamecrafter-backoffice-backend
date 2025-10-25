@@ -12,7 +12,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 	systemConfigRoutes := []routing.Route{
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/withdrawal/global-status",
+			Path:    "/api/admin/system-config/withdrawal/global-status",
 			Handler: systemConfigHandler.GetWithdrawalGlobalStatus,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -20,7 +20,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/system-config/withdrawal/global-status",
+			Path:    "/api/admin/system-config/withdrawal/global-status",
 			Handler: systemConfigHandler.UpdateWithdrawalGlobalStatus,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -28,7 +28,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/withdrawal/thresholds",
+			Path:    "/api/admin/system-config/withdrawal/thresholds",
 			Handler: systemConfigHandler.GetWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -36,7 +36,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/system-config/withdrawal/thresholds",
+			Path:    "/api/admin/system-config/withdrawal/thresholds",
 			Handler: systemConfigHandler.UpdateWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -44,7 +44,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/withdrawal/manual-review",
+			Path:    "/api/admin/system-config/withdrawal/manual-review",
 			Handler: systemConfigHandler.GetWithdrawalManualReview,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -52,7 +52,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/system-config/withdrawal/manual-review",
+			Path:    "/api/admin/system-config/withdrawal/manual-review",
 			Handler: systemConfigHandler.UpdateWithdrawalManualReview,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -60,7 +60,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/withdrawal/check-allowed",
+			Path:    "/api/admin/system-config/withdrawal/check-allowed",
 			Handler: systemConfigHandler.CheckWithdrawalAllowed,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -68,7 +68,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/withdrawal/check-thresholds",
+			Path:    "/api/admin/system-config/withdrawal/check-thresholds",
 			Handler: systemConfigHandler.CheckWithdrawalThresholds,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -76,7 +76,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/withdrawal/pause-reasons",
+			Path:    "/api/admin/system-config/withdrawal/pause-reasons",
 			Handler: systemConfigHandler.GetWithdrawalPauseReasons,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -85,7 +85,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		// Alert Management Routes
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/alerts/configurations",
+			Path:    "/api/admin/system-config/alerts/configurations",
 			Handler: systemConfigHandler.GetAlertConfigurations,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -93,7 +93,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "POST",
-            Path:    "/api/admin/system-config/alerts/configurations",
+			Path:    "/api/admin/system-config/alerts/configurations",
 			Handler: systemConfigHandler.CreateAlertConfiguration,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -101,7 +101,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/system-config/alerts/configurations/:id",
+			Path:    "/api/admin/system-config/alerts/configurations/:id",
 			Handler: systemConfigHandler.UpdateAlertConfiguration,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -109,7 +109,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "DELETE",
-            Path:    "/api/admin/system-config/alerts/configurations/:id",
+			Path:    "/api/admin/system-config/alerts/configurations/:id",
 			Handler: systemConfigHandler.DeleteAlertConfiguration,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -117,7 +117,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/system-config/alerts/triggers",
+			Path:    "/api/admin/system-config/alerts/triggers",
 			Handler: systemConfigHandler.GetAlertTriggers,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -125,7 +125,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/system-config/alerts/triggers/:id/acknowledge",
+			Path:    "/api/admin/system-config/alerts/triggers/:id/acknowledge",
 			Handler: systemConfigHandler.AcknowledgeAlert,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -134,7 +134,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		// Settings Management Routes
 		{
 			Method:  "GET",
-            Path:    "/api/admin/settings/general",
+			Path:    "/api/admin/settings/general",
 			Handler: systemConfigHandler.GetGeneralSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -142,7 +142,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/settings/general",
+			Path:    "/api/admin/settings/general",
 			Handler: systemConfigHandler.UpdateGeneralSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -150,7 +150,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/settings/payments",
+			Path:    "/api/admin/settings/payments",
 			Handler: systemConfigHandler.GetPaymentSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -158,7 +158,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/settings/payments",
+			Path:    "/api/admin/settings/payments",
 			Handler: systemConfigHandler.UpdatePaymentSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -166,7 +166,7 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
-            Path:    "/api/admin/settings/security",
+			Path:    "/api/admin/settings/security",
 			Handler: systemConfigHandler.GetSecuritySettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
@@ -174,8 +174,24 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "PUT",
-            Path:    "/api/admin/settings/security",
+			Path:    "/api/admin/settings/security",
 			Handler: systemConfigHandler.UpdateSecuritySettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
+			Path:    "/api/admin/settings/geo-blocking",
+			Handler: systemConfigHandler.GetGeoBlockingSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+			Path:    "/api/admin/settings/geo-blocking",
+			Handler: systemConfigHandler.UpdateGeoBlockingSettings,
 			Middleware: []gin.HandlerFunc{
 				middleware.Auth(),
 			},
