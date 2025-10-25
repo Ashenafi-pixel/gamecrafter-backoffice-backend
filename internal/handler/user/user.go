@@ -104,7 +104,19 @@ func (u *user) SetRegistrationService(service interface{}) {
 }
 
 func (u *user) setSecureRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
-	c.SetCookie("refresh_token", refreshToken, maxAge, "/", "", true, true)
+	// In development, use secure=false for HTTP localhost
+	secure := c.Request.TLS != nil // Only secure if using HTTPS
+	u.log.Info("Setting refresh token cookie",
+		zap.String("domain", c.Request.Host),
+		zap.Bool("secure", secure),
+		zap.Int("maxAge", maxAge),
+		zap.String("tokenPreview", func() string {
+			if len(refreshToken) > 20 {
+				return refreshToken[:20] + "..."
+			}
+			return refreshToken
+		}()))
+	c.SetCookie("refresh_token", refreshToken, maxAge, "/", "", secure, true)
 }
 
 // Login handles user login requests.
@@ -1404,13 +1416,23 @@ func (u *user) GetReferralBonus(c *gin.Context) {
 //	@Failure		401	{object}	response.ErrorResponse
 //	@Router			/refresh [post]
 func (u *user) RefreshToken(c *gin.Context) {
+	// Debug: Log all cookies received
+	u.log.Info("Refresh token request received",
+		zap.String("allCookies", c.Request.Header.Get("Cookie")),
+		zap.String("userAgent", c.Request.Header.Get("User-Agent")))
+
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil || refreshToken == "" {
+		u.log.Warn("Refresh token missing",
+			zap.Error(err),
+			zap.String("allCookies", c.Request.Header.Get("Cookie")))
 		err = customErrors.ErrInvalidAccessToken.New("Refresh token missing or invalid")
 		_ = c.Error(err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Refresh token missing or invalid"})
 		return
 	}
+
+	u.log.Info("Refresh token found", zap.String("tokenPreview", refreshToken[:20]+"..."))
 	accessToken, newRefreshToken, newExpiry, err := u.userModule.RefreshTokenFlow(c, refreshToken)
 	if err != nil {
 		_ = c.Error(err)

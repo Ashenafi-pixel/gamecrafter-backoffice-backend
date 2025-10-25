@@ -731,12 +731,12 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		u.logsStorage.CreateLoginAttempts(ctx, loginLogs)
 		return dto.UserLoginRes{}, "", err
 	}
-	// Check if user has 2FA enabled
+	// Check if user has 2FA enabled (skip for admin logins)
 	status, err := u.twoFactorService.Get2FAStatus(ctx, usr.ID)
 	if err != nil {
 		u.log.Error("Failed to check 2FA status", zap.Error(err), zap.String("user_id", usr.ID.String()))
 		// Continue with login if 2FA check fails
-	} else if status.IsEnabled {
+	} else if status.IsEnabled && !adminLogin {
 		// Get available 2FA methods for the user
 		availableMethods, err := u.twoFactorService.GetEnabledMethods(ctx, usr.ID)
 		if err != nil {
@@ -765,8 +765,8 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 			UserID:              usr.ID.String(),
 			Available2FAMethods: availableMethods,
 		}, "", nil
-	} else {
-		// 2FA is not enabled - force setup
+	} else if !adminLogin {
+		// 2FA is not enabled - force setup (skip for admin logins)
 		u.log.Info("2FA not enabled for user, requiring setup", zap.String("user_id", usr.ID.String()))
 
 		userProfile := dto.UserProfile{
