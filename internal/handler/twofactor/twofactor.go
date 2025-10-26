@@ -37,7 +37,7 @@ type TwoFactorService interface {
 
 	// Passkey methods
 	RegisterPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) error
-	GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error)
+	GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID, origin string) (map[string]interface{}, error)
 	VerifyPasskey(ctx context.Context, userID uuid.UUID, credentialData map[string]interface{}) (bool, error)
 	ListPasskeys(ctx context.Context, userID uuid.UUID) ([]map[string]interface{}, error)
 	DeletePasskey(ctx context.Context, userID uuid.UUID, credentialID string) error
