@@ -1458,7 +1458,13 @@ func (h *twoFactorHandler) GetPasskeyAssertionOptions(c *gin.Context) {
 		return
 	}
 
-	options, err := h.service.GetPasskeyAssertionOptions(c.Request.Context(), userUUID)
+	// Extract origin from request to determine RP ID dynamically
+	origin := c.GetHeader("Origin")
+	if origin == "" {
+		origin = c.GetHeader("Referer")
+	}
+
+	options, err := h.service.GetPasskeyAssertionOptions(c.Request.Context(), userUUID, origin)
 	if err != nil {
 		h.log.Error("Failed to get passkey assertion options", zap.Error(err), zap.String("user_id", userUUID.String()))
 		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
@@ -1484,10 +1490,10 @@ func (h *twoFactorHandler) VerifyPasskey(c *gin.Context) {
 			ID       string `json:"id" binding:"required"`
 			RawID    []int  `json:"rawId" binding:"required"`
 			Response struct {
-				AuthenticatorData []int  `json:"authenticatorData" binding:"required"`
-				ClientDataJSON    []int  `json:"clientDataJSON" binding:"required"`
-				Signature         []int  `json:"signature" binding:"required"`
-				UserHandle        []int  `json:"userHandle,omitempty"`
+				AuthenticatorData []int `json:"authenticatorData" binding:"required"`
+				ClientDataJSON    []int `json:"clientDataJSON" binding:"required"`
+				Signature         []int `json:"signature" binding:"required"`
+				UserHandle        []int `json:"userHandle,omitempty"`
 			} `json:"response" binding:"required"`
 			Type string `json:"type" binding:"required"`
 		} `json:"credential" binding:"required"`

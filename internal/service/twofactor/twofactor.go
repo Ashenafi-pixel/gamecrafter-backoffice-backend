@@ -952,7 +952,7 @@ func (t *twoFactorService) RegisterPasskey(ctx context.Context, userID uuid.UUID
 }
 
 // GetPasskeyAssertionOptions generates assertion options for passkey verification
-func (t *twoFactorService) GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+func (t *twoFactorService) GetPasskeyAssertionOptions(ctx context.Context, userID uuid.UUID, origin string) (map[string]interface{}, error) {
 	// Check if user has passkey credentials
 	hasPasskey, err := t.passkeyStorage.CheckPasskeyExists(ctx, userID)
 	if err != nil {
@@ -987,10 +987,43 @@ func (t *twoFactorService) GetPasskeyAssertionOptions(ctx context.Context, userI
 		})
 	}
 
+	// Determine RP ID based on origin
+	// Use apex domain for subdomains to allow passkeys to work across all subdomains
+	rpID := "localhost" // Default for localhost
+	if origin != "" {
+		// Parse origin to get domain
+		originURL, err := url.Parse(origin)
+		if err == nil && originURL.Host != "" {
+			host := originURL.Host
+			// Remove port if present
+			if idx := strings.Index(host, ":"); idx != -1 {
+				host = host[:idx]
+			}
+
+			// Set RP ID based on environment
+			if host == "localhost" || strings.HasPrefix(host, "127.0.0.1") {
+				rpID = "localhost"
+			} else if strings.HasSuffix(host, ".tucanbit.tv") {
+				// Use apex domain for subdomains so passkeys work across all subdomains
+				rpID = "tucanbit.tv"
+			} else if strings.Contains(host, ".") {
+				// Extract apex domain (e.g., console-backoffice.tucanbit.tv -> tucanbit.tv)
+				parts := strings.Split(host, ".")
+				if len(parts) >= 2 {
+					rpID = parts[len(parts)-2] + "." + parts[len(parts)-1]
+				} else {
+					rpID = host
+				}
+			} else {
+				rpID = host
+			}
+		}
+	}
+
 	options := map[string]interface{}{
 		"challenge":        base64.RawURLEncoding.EncodeToString(challenge),
 		"timeout":          60000,
-		"rpId":             "tucanbit.tv", // In production, use your actual domain
+		"rpId":             rpID,
 		"userVerification": "required",
 		"allowCredentials": allowCredentials,
 	}
