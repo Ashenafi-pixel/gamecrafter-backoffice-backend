@@ -96,7 +96,7 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	chain_config.Init(grp, log)
 
 	// System configs routes
-	system_configs.Init(grp, log)
+	system_configs.Init(grp, log, persistence.Database.Queries)
 
 	// Admin activity logs routes
 	admin_activity_logs.Init(grp, *log, handler.AdminActivityLogs, module.Authz, module.AdminActivityLogs, enforcer)

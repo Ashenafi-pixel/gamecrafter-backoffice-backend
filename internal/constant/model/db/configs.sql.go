@@ -48,6 +48,35 @@ func (q *Queries) GetConfigByName(ctx context.Context, name string) (Config, err
 	return i, err
 }
 
+const getAllConfigs = `-- name: GetAllConfigs :many
+SELECT id, name, value, created_at FROM configs ORDER BY id ASC
+`
+
+func (q *Queries) GetAllConfigs(ctx context.Context) ([]Config, error) {
+	rows, err := q.db.Query(ctx, getAllConfigs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Config
+	for rows.Next() {
+		var i Config
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Value,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getScratchCardConfigs = `-- name: GetScratchCardConfigs :many
 SELECT name,value, id FROM configs where name in ('scratch_car','scratch_dollar','scratch_crawn','scratch_cent','scratch_diamond','scratch_cup')
 `

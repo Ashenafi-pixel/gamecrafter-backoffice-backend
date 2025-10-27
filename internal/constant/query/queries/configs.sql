@@ -1,6 +1,9 @@
 -- name: GetConfigByName :one 
 SELECT * FROM configs where name = $1;
 
+-- name: GetAllConfigs :many
+SELECT * FROM configs ORDER BY id ASC;
+
 -- name: CreateConfig :one
 INSERT INTO configs (name,value) values ($1,$2) RETURNING *;
 
