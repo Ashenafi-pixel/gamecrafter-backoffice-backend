@@ -237,6 +237,7 @@ type UpdateProfileReq struct {
 	IsEmailVerified          bool      `json:"is_email_verified"`
 	DefaultCurrency          string    `json:"default_currency"`
 	WalletVerificationStatus string    `json:"wallet_verification_status"`
+	IsTestAccount            *bool     `json:"is_test_account,omitempty"`
 }
 
 type UpdateProfileRes struct {
@@ -297,6 +298,7 @@ type EditProfileAdminReq struct {
 	IsEmailVerified          bool      `json:"is_email_verified"`
 	DefaultCurrency          string    `json:"default_currency"`
 	WalletVerificationStatus string    `json:"wallet_verification_status"`
+	IsTestAccount            *bool     `json:"is_test_account,omitempty"`
 }
 
 type AdminResetPasswordReq struct {

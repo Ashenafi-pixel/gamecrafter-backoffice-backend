@@ -58,8 +58,8 @@ UPDATE users SET password = $2 WHERE id = $1
 RETURNING *;
 
 -- name: UpdateProfile :one 
-UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16 where id = $17
-RETURNING *;
+UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16,is_test_account=$18 where id = $17
+RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, is_email_verified, wallet_verification_status, is_test_account, two_factor_enabled, two_factor_setup_at;
 
 -- name: GetUsersByDepartmentNotificationTypes :many 
 SELECT us.* 

@@ -31,8 +31,8 @@ func (q *Queries) AddReferalCode(ctx context.Context, arg AddReferalCodeParams) 
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status) 
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, user_type, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, refered_by_code, referal_type
+INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status,is_test_account) 
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, user_type, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, refered_by_code, referal_type, is_test_account
 `
 
 type CreateUserParams struct {
@@ -52,6 +52,7 @@ type CreateUserParams struct {
 	ReferedByCode   sql.NullString
 	UserType        sql.NullString
 	Status          sql.NullString
+	IsTestAccount   sql.NullBool
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -72,6 +73,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.ReferedByCode,
 		arg.UserType,
 		arg.Status,
+		arg.IsTestAccount,
 	)
 	var i User
 	err := row.Scan(
@@ -100,6 +102,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Status,
 		&i.ReferedByCode,
 		&i.ReferalType,
+		&i.IsTestAccount,
 	)
 	return i, err
 }
@@ -1377,8 +1380,8 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const updateProfile = `-- name: UpdateProfile :one
-UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16 where id = $17
-RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, is_email_verified, wallet_verification_status
+UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16,is_test_account=$18 where id = $17
+RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, is_email_verified, wallet_verification_status, is_test_account
 `
 
 type UpdateProfileParams struct {
@@ -1399,6 +1402,7 @@ type UpdateProfileParams struct {
 	DefaultCurrency          string
 	WalletVerificationStatus string
 	ID                       uuid.UUID
+	IsTestAccount            sql.NullBool
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (User, error) {
@@ -1420,6 +1424,7 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		arg.DefaultCurrency,
 		arg.WalletVerificationStatus,
 		arg.ID,
+		arg.IsTestAccount,
 	)
 	var i User
 	err := row.Scan(
@@ -1450,6 +1455,7 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		&i.UserType,
 		&i.IsEmailVerified,
 		&i.WalletVerificationStatus,
+		&i.IsTestAccount,
 	)
 	return i, err
 }

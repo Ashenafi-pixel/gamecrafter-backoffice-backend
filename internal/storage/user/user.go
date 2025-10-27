@@ -50,6 +50,7 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 	if len(userRequest.Email) > 3 {
 		email = sql.NullString{String: userRequest.Email, Valid: true}
 	}
+	isTestAccount := sql.NullBool{Bool: userRequest.IsTestAccount, Valid: true}
 	usr, err := u.db.Queries.CreateUser(ctx, db.CreateUserParams{
 		Username:        userRequest.Username,
 		PhoneNumber:     phone,
@@ -67,6 +68,7 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 		UserType:        sql.NullString{String: string(userRequest.Type), Valid: userRequest.Type != ""},
 		ReferedByCode:   sql.NullString{String: string(userRequest.ReferedByCode), Valid: userRequest.ReferedByCode != ""},
 		ReferalType:     sql.NullString{String: string(userRequest.ReferalType), Valid: userRequest.ReferalType != ""},
+		IsTestAccount:   isTestAccount,
 	})
 	if err != nil {
 		u.log.Error("unable to create user ", zap.Error(err), zap.Any("user", userRequest))
@@ -377,6 +379,15 @@ func (u *user) DeleteOTP(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileReq) (dto.User, error) {
+	isTestAccount := sql.NullBool{Valid: false}
+	if updateProfile.IsTestAccount != nil {
+		isTestAccount = sql.NullBool{Bool: *updateProfile.IsTestAccount, Valid: true}
+		u.log.Info("Updating is_test_account in database",
+			zap.Bool("value", *updateProfile.IsTestAccount),
+			zap.Bool("valid", true),
+			zap.String("user_id", updateProfile.UserID.String()))
+	}
+
 	updatedUser, err := u.db.Queries.UpdateProfile(ctx, db.UpdateProfileParams{
 		FirstName:                sql.NullString{String: updateProfile.FirstName, Valid: updateProfile.FirstName != ""},
 		LastName:                 sql.NullString{String: updateProfile.LastName, Valid: updateProfile.LastName != ""},
@@ -395,12 +406,19 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 		IsEmailVerified:          updateProfile.IsEmailVerified,
 		DefaultCurrency:          updateProfile.DefaultCurrency,
 		WalletVerificationStatus: updateProfile.WalletVerificationStatus,
+		IsTestAccount:            isTestAccount,
 	})
 	if err != nil {
 		u.log.Error(err.Error(), zap.Any("updateRequest", updateProfile))
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
 		return dto.User{}, err
 	}
+
+	// Log the is_test_account value returned from database
+	u.log.Info("Database update completed, is_test_account value from DB",
+		zap.Bool("is_test_account", updatedUser.IsTestAccount),
+		zap.String("user_id", updateProfile.UserID.String()))
+
 	return dto.User{
 		ID:                       updateProfile.UserID,
 		PhoneNumber:              updatedUser.PhoneNumber.String,
@@ -424,6 +442,7 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 		Status:                   updateProfile.Status,
 		IsEmailVerified:          updateProfile.IsEmailVerified,
 		WalletVerificationStatus: updateProfile.WalletVerificationStatus,
+		IsTestAccount:            updatedUser.IsTestAccount,
 	}, nil
 }
 

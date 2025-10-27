@@ -1633,8 +1633,11 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		updatedUser.WalletVerificationStatus = userReq.WalletVerificationStatus
 	}
 
-	// Handle boolean field
+	// Handle boolean fields
 	updatedUser.IsEmailVerified = userReq.IsEmailVerified
+	if userReq.IsTestAccount != nil {
+		updatedUser.IsTestAccount = *userReq.IsTestAccount
+	}
 
 	// Log audit information before update
 	u.log.Info("Admin updating player profile",
@@ -1694,6 +1697,15 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 	}
 	// Always set these boolean fields if they are provided
 	updateReq.IsEmailVerified = updatedUser.IsEmailVerified
+
+	// Handle is_test_account if provided - use the updated value from updatedUser
+	if userReq.IsTestAccount != nil {
+		updateReq.IsTestAccount = userReq.IsTestAccount
+		u.log.Info("Setting is_test_account in update request",
+			zap.Bool("value", *userReq.IsTestAccount),
+			zap.String("user_id", userReq.UserID.String()))
+	}
+
 	if userReq.DefaultCurrency != "" {
 		updateReq.DefaultCurrency = updatedUser.DefaultCurrency
 	}
