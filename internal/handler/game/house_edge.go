@@ -104,6 +104,8 @@ func (h *HouseEdgeHandler) GetHouseEdgeByID(c *gin.Context) {
 //	@Param			Authorization	header	string	true	"Bearer <token>"
 //	@Param			page			query	int		false	"Page number (default: 1)"
 //	@Param			per_page		query	int		false	"Items per page (default: 10, max: 100)"
+//	@Param			search			query	string	false	"Search by game_id or game_name"
+//	@Param			game_id			query	string	false	"Filter by specific game ID"
 //	@Param			game_type		query	string	false	"Filter by game type"
 //	@Param			game_variant	query	string	false	"Filter by game variant"
 //	@Param			is_active		query	bool	false	"Filter by active status"
@@ -320,7 +322,7 @@ func (h *HouseEdgeHandler) GetHouseEdgesByGameType(c *gin.Context) {
 func (h *HouseEdgeHandler) GetHouseEdgesByGameVariant(c *gin.Context) {
 	gameType := c.Param("game_type")
 	gameVariant := c.Param("game_variant")
-	
+
 	if gameType == "" {
 		err := errors.ErrInvalidUserInput.New("game_type parameter is required")
 		_ = c.Error(err)

@@ -99,36 +99,36 @@ func (s *HouseEdgeStorageImpl) GetHouseEdges(ctx context.Context, params HouseEd
 	argIndex := 1
 
 	if params.GameType != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("game_type = $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("ghe.game_type = $%d", argIndex))
 		args = append(args, params.GameType)
 		argIndex++
 	}
 
 	if params.GameVariant != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("game_variant = $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("ghe.game_variant = $%d", argIndex))
 		args = append(args, params.GameVariant)
 		argIndex++
 	}
 
 	if params.IsActive != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("is_active = $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("ghe.is_active = $%d", argIndex))
 		args = append(args, *params.IsActive)
 		argIndex++
 	}
 
-	// Add search functionality
+	// Add search functionality - search by game_id and game_name
 	if params.Search != "" {
-		searchCondition := fmt.Sprintf("(game_type ILIKE $%d OR game_variant ILIKE $%d)", argIndex, argIndex+1)
+		searchCondition := fmt.Sprintf("(ghe.game_id ILIKE $%d OR g.game_id ILIKE $%d OR g.name ILIKE $%d)", argIndex, argIndex+1, argIndex+2)
 		whereConditions = append(whereConditions, searchCondition)
 		searchPattern := "%" + params.Search + "%"
-		args = append(args, searchPattern, searchPattern)
-		argIndex += 2
+		args = append(args, searchPattern, searchPattern, searchPattern)
+		argIndex += 3
 	}
 
 	if params.GameID != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("game_id = $%d", argIndex))
-		args = append(args, params.GameID)
-		argIndex++
+		whereConditions = append(whereConditions, fmt.Sprintf("(ghe.game_id = $%d OR g.game_id = $%d)", argIndex, argIndex+1))
+		args = append(args, params.GameID, params.GameID)
+		argIndex += 2
 	}
 
 	whereClause := ""
@@ -136,8 +136,12 @@ func (s *HouseEdgeStorageImpl) GetHouseEdges(ctx context.Context, params HouseEd
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
-	// Count total records
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM game_house_edges %s", whereClause)
+	// Count total records - need to include JOIN for search to work on games table
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM game_house_edges ghe
+		LEFT JOIN games g ON ghe.game_id = g.game_id
+		%s`, whereClause)
 	var totalCount int
 	err := s.db.GetPool().QueryRow(ctx, countQuery, args...).Scan(&totalCount)
 	if err != nil {
@@ -145,8 +149,13 @@ func (s *HouseEdgeStorageImpl) GetHouseEdges(ctx context.Context, params HouseEd
 		return nil, 0, err
 	}
 
-	// Build ORDER BY clause
-	orderBy := fmt.Sprintf("ORDER BY %s %s", params.SortBy, strings.ToUpper(params.SortOrder))
+	// Build ORDER BY clause - qualify with table alias for safety
+	orderByField := params.SortBy
+	// For fields that exist in game_house_edges table, prefix with ghe.
+	if orderByField != "" && (orderByField == "game_type" || orderByField == "game_variant" || orderByField == "house_edge" || orderByField == "created_at" || orderByField == "updated_at") {
+		orderByField = "ghe." + orderByField
+	}
+	orderBy := fmt.Sprintf("ORDER BY %s %s", orderByField, strings.ToUpper(params.SortOrder))
 
 	// Build LIMIT and OFFSET
 	offset := (params.Page - 1) * params.PerPage
