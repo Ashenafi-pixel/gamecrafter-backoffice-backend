@@ -1,0 +1,79 @@
+name: Build and Push
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: "eu-north-1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        id: login-aws
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set variable for main branch
+        if: github.ref == 'refs/heads/main'
+        run: echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+
+      - name: Set variable for main branch
+        if: github.ref == 'refs/heads/prod'
+        run: echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+
+      - name: Set variable for develop branch
+        if: github.ref == 'refs/heads/develop'
+        run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+
+      - name: Fetch config
+        run: |
+          aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/config.yaml ./config/config.yaml
+
+      - name: Build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest-${{ env.ENVIRONMENT }}
+          IMAGE_TAG_SHA: ${{ github.sha }}
+          #          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          ECR_REPOSITORY: "temporary/${{ github.event.repository.name }}"
+        run: |
+          docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA --load .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA
+          echo "${{ github.event.repository.name }}=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "${{ github.event.repository.name }}_sha=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA" >> $GITHUB_OUTPUT
+
+#      - name: Deploy
+#        uses: appleboy/ssh-action@v1
+#        with:
+#          host: ${{ secrets.EC2_HOST }}
+#          username: ${{ secrets.EC2_USER }}
+#          key: ${{ secrets.EC2_KEY }}
+#          script: ~/deploy-front.sh
+
+      - name: Trigger Terraform deploy
+        uses: convictional/trigger-workflow-and-wait@v1.6.1
+        with:
+          owner: tcbtcn
+          repo: tucanbit-infrastructure
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          github_user: dnemchenko #Change later to service account
+          workflow_file_name: 'workflow.yml'
+          client_payload: '{"environment":"${{ env.ENVIRONMENT }}","action":"apply"}'
