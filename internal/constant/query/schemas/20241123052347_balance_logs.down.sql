@@ -1,0 +1,1 @@
+drop table balance_logs  CASCADE;

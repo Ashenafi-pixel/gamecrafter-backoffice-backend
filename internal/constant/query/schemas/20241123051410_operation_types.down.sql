@@ -1,0 +1,1 @@
+drop table operational_types CASCADE;

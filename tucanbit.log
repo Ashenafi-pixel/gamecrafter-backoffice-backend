@@ -1,0 +1,376 @@
+Starting TucanBIT Online Casino application...
+This is API documentation for TucanBIT online casino
+2025/10/04 08:23:00 Initializing application components
+Initializing application components
+2025-10-04T08:23:00.650+0300	INFO	initiator/initiator.go:44	Logger initialized successfully
+2025-10-04T08:23:00.650+0300	INFO	initiator/initiator.go:47	initializing config 
+2025-10-04T08:23:00.651+0300	INFO	initiator/config.go:35	Configuration loaded	{"app.jwt_secret": "tokensecrethere", "auth.jwt_secret": "tokensecrethere", "smtp.host": "smtp.gmail.com", "smtp.port": 465, "smtp.username": "ashenafialemu66@gmail.com", "smtp.from": "noreply@tucanbit.com", "smtp.use_tls": true}
+2025-10-04T08:23:00.651+0300	INFO	initiator/initiator.go:53	initializing config completed
+2025-10-04T08:23:00.652+0300	INFO	initiator/initiator.go:56	initializing database connect
+2025-10-04T08:23:00.652+0300	INFO	initiator/db.go:17	Attempting to connect to database	{"connection_string": "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable"}
+2025-10-04T08:23:00.670+0300	INFO	initiator/initiator.go:58	database connection initialized
+2025-10-04T08:23:00.670+0300	INFO	initiator/initiator.go:63	initializing persistence layer 
+2025-10-04T08:23:00.671+0300	INFO	initiator/initiator.go:65	done initializing persistence layer
+2025-10-04T08:23:00.671+0300	INFO	initiator/initiator.go:72	initializing module layer
+Warning: AWS logging setup failed: AWS logging is disabled in configuration
+2025-10-04T08:23:00.750+0300	INFO	initiator/initiator.go:85	initializing platform layer
+%4|1759555380.756|CONFWARN|rdkafka#producer-1| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1759555380.756|FAIL|rdkafka#producer-1| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+%4|1759555380.760|CONFWARN|rdkafka#consumer-2| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+%3|1759555380.761|FAIL|rdkafka#consumer-2| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+2025-10-04T08:23:00.763+0300	INFO	initiator/initiator.go:87	done initializing platform layer
+2025-10-04T08:23:00.763+0300	INFO	initiator/initiator.go:90	initializing ClickHouse client
+2025-10-04T08:23:00.767+0300	INFO	clickhouse/clickhouse.go:63	ClickHouse connection established successfully	{"host": "localhost", "port": 9000, "database": "tucanbit_analytics"}
+2025-10-04T08:23:00.767+0300	INFO	initiator/initiator.go:105	ClickHouse client initialized successfully
+2025-10-04T08:23:00.817+0300	INFO	initiator/initiator.go:118	initializing email services
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:133	Email service initialized successfully
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:154	Daily report email service initialized successfully
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:155	Daily report cronjob service initialized successfully
+2025-10-04T08:23:00.819+0300	INFO	initiator/initiator.go:158	Analytics integration initialized successfully
+2025-10-04T08:23:00.820+0300	INFO	agent/agent.go:53	Agent callback cron started
+2025-10-04T08:23:00.831+0300	INFO	user/user.go:147	Session monitoring service started
+2025-10-04T08:23:00.831+0300	INFO	user/user.go:1737	Starting session monitoring service
+2025-10-04T08:23:00.844+0300	INFO	initiator/initiator.go:168	Starting cashback Kafka consumer
+2025-10-04T08:23:00.844+0300	INFO	cashback/kafka_consumer.go:50	Starting cashback Kafka consumer
+2025-10-04T08:23:00.845+0300	INFO	cashback/kafka_consumer.go:60	Cashback Kafka consumer started successfully
+2025-10-04T08:23:00.845+0300	INFO	initiator/initiator.go:172	Cashback Kafka consumer started successfully
+2025-10-04T08:23:00.845+0300	INFO	initiator/initiator.go:177	Expired cashback processing job started
+2025-10-04T08:23:00.845+0300	INFO	initiator/initiator.go:182	Starting daily report cronjob service
+2025-10-04T08:23:00.845+0300	INFO	cashback/kafka_consumer.go:129	Starting expired cashback processing job
+2025-10-04T08:23:00.845+0300	ERROR	analytics/daily_report_cronjob.go:81	Failed to add daily report cronjob	{"error": "expected exactly 6 fields, found 5: [59 23 * * *]"}
+github.com/tucanbit/internal/module/analytics.(*dailyReportCronjob).StartScheduler
+	/home/ashenafi-alemu/Downloads/tucanbit/internal/module/analytics/daily_report_cronjob.go:81
+github.com/tucanbit/initiator.Initiate
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:183
+main.main
+	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
+runtime.main
+	/snap/go/10938/src/runtime/proc.go:283
+2025-10-04T08:23:00.846+0300	ERROR	initiator/initiator.go:184	Failed to start daily report cronjob service	{"error": "expected exactly 6 fields, found 5: [59 23 * * *]"}
+github.com/tucanbit/initiator.Initiate
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:184
+main.main
+	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
+runtime.main
+	/snap/go/10938/src/runtime/proc.go:283
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:191	done initializing module layer
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:195	initializing handler layer 
+%4|1759555380.846|CONFWARN|rdkafka#consumer-3| [thrd:app]: Configuration property `sasl.mechanism` set to `PLAIN` but `security.protocol` is not configured for SASL: recommend setting `security.protocol` to SASL_SSL or SASL_PLAINTEXT
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:197	done initializing handler layer
+2025-10-04T08:23:00.846+0300	INFO	initiator/initiator.go:199	initializing http server
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /swagger/*any             --> github.com/swaggo/gin-swagger.CustomWrapHandler.func1 (5 handlers)
+2025-10-04T08:23:00.847+0300	INFO	initiator/initiator.go:208	done initializing server
+2025-10-04T08:23:00.847+0300	INFO	initiator/initiator.go:211	initializing route
+%3|1759555380.847|FAIL|rdkafka#consumer-3| [thrd:localhost:9093/bootstrap]: localhost:9093/bootstrap: Connect to ipv4#127.0.0.1:9093 failed: Connection refused (after 0ms in state CONNECT)
+[GIN-debug] POST   /register                 --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateUserRegistration-fm (7 handlers)
+[GIN-debug] GET    /verify                   --> github.com/tucanbit/internal/glue/user.UserHandler.ServeVerificationPage-fm (7 handlers)
+[GIN-debug] POST   /register/complete        --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteUserRegistration-fm (7 handlers)
+[GIN-debug] POST   /register/resend-verification --> github.com/tucanbit/internal/glue/user.UserHandler.ResendVerificationEmail-fm (7 handlers)
+[GIN-debug] POST   /login                    --> github.com/tucanbit/internal/glue/user.UserHandler.Login-fm (7 handlers)
+[GIN-debug] GET    /api/user/profile         --> github.com/tucanbit/internal/glue/user.UserHandler.GetProfile-fm (8 handlers)
+[GIN-debug] POST   /api/user/profile/picture --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateProfilePicture-fm (8 handlers)
+[GIN-debug] PATCH  /api/user/password        --> github.com/tucanbit/internal/glue/user.UserHandler.ChangePassword-fm (8 handlers)
+[GIN-debug] POST   /api/user/password/forget --> github.com/tucanbit/internal/glue/user.UserHandler.ForgetPassword-fm (7 handlers)
+[GIN-debug] POST   /api/user/password/forget/verify --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyResetPassword-fm (7 handlers)
+[GIN-debug] POST   /api/user/password/reset  --> github.com/tucanbit/internal/glue/user.UserHandler.ResetPassword-fm (7 handlers)
+[GIN-debug] POST   /api/user/profile         --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateProfile-fm (8 handlers)
+[GIN-debug] POST   /api/user/profile/confirm --> github.com/tucanbit/internal/glue/user.UserHandler.ConfirmUpdateProfile-fm (8 handlers)
+[GIN-debug] GET    /user/oauth/google        --> github.com/tucanbit/internal/glue/user.UserHandler.HandleGoogleOauthReq-fm (7 handlers)
+[GIN-debug] GET    /user/oauth/google/res    --> github.com/tucanbit/internal/glue/user.UserHandler.HandleGoogleOauthRes-fm (6 handlers)
+[GIN-debug] GET    /user/oauth/facebook      --> github.com/tucanbit/internal/glue/user.UserHandler.FacebookLoginReq-fm (7 handlers)
+[GIN-debug] GET    /user/oauth/facebook/res  --> github.com/tucanbit/internal/glue/user.UserHandler.HandleFacebookOauthRes-fm (6 handlers)
+[GIN-debug] POST   /api/admin/users/block    --> github.com/tucanbit/internal/glue/user.UserHandler.BlockAccount-fm (9 handlers)
+[GIN-debug] POST   /api/admin/users/block/accounts --> github.com/tucanbit/internal/glue/user.UserHandler.GetBlockedAccount-fm (9 handlers)
+[GIN-debug] POST   /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.AddIpFilter-fm (9 handlers)
+[GIN-debug] GET    /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.GetIpFilter-fm (9 handlers)
+[GIN-debug] PATCH  /api/admin/users          --> github.com/tucanbit/internal/glue/user.UserHandler.AdminUpdateProfile-fm (9 handlers)
+[GIN-debug] POST   /api/admin/users/password --> github.com/tucanbit/internal/glue/user.UserHandler.AdminResetUsersPassword-fm (9 handlers)
+[GIN-debug] POST   /api/admin/users          --> github.com/tucanbit/internal/glue/user.UserHandler.GetUsers-fm (9 handlers)
+[GIN-debug] DELETE /api/admin/ipfilters      --> github.com/tucanbit/internal/glue/user.UserHandler.RemoveIPFilter-fm (9 handlers)
+[GIN-debug] GET    /api/user/referral        --> github.com/tucanbit/internal/glue/user.UserHandler.GetMyReferalCodes-fm (7 handlers)
+[GIN-debug] GET    /api/user/referral/users  --> github.com/tucanbit/internal/glue/user.UserHandler.GetMyRefferedUsersAndPoints-fm (7 handlers)
+[GIN-debug] GET    /api/admin/referrals      --> github.com/tucanbit/internal/glue/user.UserHandler.GetCurrentReferralMultiplier-fm (9 handlers)
+[GIN-debug] POST   /api/admin/referrals      --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateReferralMultiplier-fm (9 handlers)
+[GIN-debug] POST   /api/admin/referrals/users --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateUsersPointsForReferrances-fm (9 handlers)
+[GIN-debug] GET    /api/admin/referrals/users --> github.com/tucanbit/internal/glue/user.UserHandler.GetAdminAssignedPoints-fm (9 handlers)
+[GIN-debug] GET    /api/users/points         --> github.com/tucanbit/internal/glue/user.UserHandler.GetUserPoints-fm (7 handlers)
+[GIN-debug] POST   /api/admin/players/register --> github.com/tucanbit/internal/glue/user.UserHandler.AdminRegisterPlayer-fm (8 handlers)
+[GIN-debug] POST   /api/admin/login          --> github.com/tucanbit/internal/glue/user.UserHandler.AdminLogin-fm (7 handlers)
+[GIN-debug] GET    /api/admins               --> github.com/tucanbit/internal/glue/user.UserHandler.GetAdmins-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/signup/bonus   --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateSignupBonus-fm (8 handlers)
+[GIN-debug] GET    /api/admin/signup/bonus   --> github.com/tucanbit/internal/glue/user.UserHandler.GetSignupBonus-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/referral/bonus/config --> github.com/tucanbit/internal/glue/user.UserHandler.UpdateReferralBonus-fm (9 handlers)
+[GIN-debug] GET    /api/admin/referral/bonus/config --> github.com/tucanbit/internal/glue/user.UserHandler.GetReferralBonus-fm (9 handlers)
+[GIN-debug] POST   /refresh                  --> github.com/tucanbit/internal/glue/user.UserHandler.RefreshToken-fm (7 handlers)
+[GIN-debug] POST   /api/user/verify          --> github.com/tucanbit/internal/glue/user.UserHandler.VerifyUser-fm (6 handlers)
+[GIN-debug] POST   /api/user/resend/verification/otp --> github.com/tucanbit/internal/glue/user.UserHandler.ReSendVerificationOTP-fm (6 handlers)
+[GIN-debug] POST   /api/user/otp             --> github.com/tucanbit/internal/glue/user.UserHandler.GetOtp-fm (6 handlers)
+2025-10-04T08:23:00.848+0300	INFO	user/enterprise_registration.go:18	🔧 Initializing enterprise registration routes...
+2025-10-04T08:23:00.848+0300	INFO	user/enterprise_registration.go:54	🔧 Registering enterprise registration routes...	{"route_count": 4}
+[GIN-debug] POST   /api/enterprise/register  --> github.com/tucanbit/internal/glue/user.UserHandler.InitiateEnterpriseRegistration-fm (6 handlers)
+[GIN-debug] POST   /api/enterprise/register/complete --> github.com/tucanbit/internal/glue/user.UserHandler.CompleteEnterpriseRegistration-fm (6 handlers)
+[GIN-debug] GET    /api/enterprise/register/status/:user_id --> github.com/tucanbit/internal/glue/user.UserHandler.GetEnterpriseRegistrationStatus-fm (6 handlers)
+[GIN-debug] POST   /api/enterprise/register/resend --> github.com/tucanbit/internal/glue/user.UserHandler.ResendEnterpriseVerificationEmail-fm (6 handlers)
+2025-10-04T08:23:00.848+0300	INFO	user/enterprise_registration.go:56	Enterprise registration routes initialized successfully
+[GIN-debug] POST   /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.CreateOperationalGroup-fm (9 handlers)
+[GIN-debug] GET    /api/admin/operationalgroup --> github.com/tucanbit/internal/handler.OpeartionalGroup.GetOperationalGroups-fm (9 handlers)
+[GIN-debug] POST   /api/admin/operationalgrouptype --> github.com/tucanbit/internal/handler.OperationalGroupType.CreateOperationalGroupType-fm (9 handlers)
+[GIN-debug] GET    /api/operationaltypes     --> github.com/tucanbit/internal/handler.OperationalGroupType.GetOperationalGroupTypes-fm (7 handlers)
+[GIN-debug] GET    /api/admin/operationalgrouptype/:groupID --> github.com/tucanbit/internal/handler.OperationalGroupType.GetOperationalGroupTypesByGroupID-fm (9 handlers)
+[GIN-debug] GET    /api/operations/definitions --> github.com/tucanbit/internal/handler.OperationsDefinition.GetOperationsDefinitions-fm (7 handlers)
+[GIN-debug] GET    /api/balance              --> github.com/tucanbit/internal/handler.Balance.GetUserBalances-fm (8 handlers)
+[GIN-debug] POST   /api/balance/exchange     --> github.com/tucanbit/internal/handler.Balance.ExchangeBalance-fm (8 handlers)
+[GIN-debug] POST   /api/admin/players/funding --> github.com/tucanbit/internal/handler.Balance.ManualFunding-fm (8 handlers)
+[GIN-debug] GET    /api/admin/balance/log/funds --> github.com/tucanbit/internal/handler.Balance.GetManualFundLogs-fm (9 handlers)
+[GIN-debug] PATCH  /api/wallet/credit        --> github.com/tucanbit/internal/handler.Balance.CreditWallet-fm (6 handlers)
+[GIN-debug] GET    /api/balance/logs         --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogs-fm (7 handlers)
+[GIN-debug] GET    /api/balance/logs/:id     --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogByID-fm (7 handlers)
+[GIN-debug] GET    /api/admin/balance/logs   --> github.com/tucanbit/internal/handler.BalanceLogs.GetBalanceLogsForAdmin-fm (9 handlers)
+[GIN-debug] POST   /api/conversion/rate      --> github.com/tucanbit/internal/handler.Exchange.GetExcahnge-fm (6 handlers)
+[GIN-debug] GET    /api/currencies           --> github.com/tucanbit/internal/handler.Exchange.GetAvailableCurrencies-fm (6 handlers)
+[GIN-debug] GET    /ws                       --> github.com/tucanbit/internal/handler.WS.HandleWS-fm (6 handlers)
+[GIN-debug] GET    /ws/single/player         --> github.com/tucanbit/internal/handler.WS.SinglePlayerStreamWS-fm (6 handlers)
+[GIN-debug] GET    /ws/level/player          --> github.com/tucanbit/internal/handler.WS.PlayerLevelWS-fm (6 handlers)
+[GIN-debug] GET    /ws/notify                --> github.com/tucanbit/internal/handler.WS.NotificationWS-fm (6 handlers)
+[GIN-debug] GET    /ws/session               --> github.com/tucanbit/internal/handler.WS.SessionWS-fm (6 handlers)
+[GIN-debug] GET    /ws/player/level/progress --> github.com/tucanbit/internal/handler.WS.PlayerProgressBarWS-fm (6 handlers)
+[GIN-debug] GET    /ws/squads/progress       --> github.com/tucanbit/internal/handler.WS.InitiateTriggerSquadsProgressBar-fm (6 handlers)
+[GIN-debug] GET    /ws/balance/player        --> github.com/tucanbit/internal/handler.WS.UserBalanceWS-fm (6 handlers)
+[GIN-debug] GET    /api/game/round           --> github.com/tucanbit/internal/handler.Bet.GetOpenRound-fm (7 handlers)
+[GIN-debug] POST   /api/game/place-bet       --> github.com/tucanbit/internal/handler.Bet.PlaceBet-fm (8 handlers)
+[GIN-debug] POST   /api/game/cash-out        --> github.com/tucanbit/internal/handler.Bet.CashOut-fm (8 handlers)
+[GIN-debug] GET    /api/admin/game/history   --> github.com/tucanbit/internal/handler.Bet.GetBetHistory-fm (9 handlers)
+[GIN-debug] POST   /api/game/cancel          --> github.com/tucanbit/internal/handler.Bet.CancelBet-fm (9 handlers)
+[GIN-debug] GET    /api/game/leaders         --> github.com/tucanbit/internal/handler.Bet.GetLeaders-fm (8 handlers)
+[GIN-debug] GET    /api/user/game/history    --> github.com/tucanbit/internal/handler.Bet.GetMyBetHistory-fm (8 handlers)
+[GIN-debug] GET    /api/admin/failed/rounds  --> github.com/tucanbit/internal/handler.Bet.GetAllFailedRounds-fm (8 handlers)
+[GIN-debug] POST   /api/admin/failed/rounds  --> github.com/tucanbit/internal/handler.Bet.ManualRefundFailedRound-fm (9 handlers)
+[GIN-debug] GET    /api/plinko/config        --> github.com/tucanbit/internal/handler.Bet.GetPlinkoGameConfig-fm (6 handlers)
+[GIN-debug] POST   /api/plinko/drop          --> github.com/tucanbit/internal/handler.Bet.PlacePlinkoBet-fm (7 handlers)
+[GIN-debug] GET    /api/plinko/history       --> github.com/tucanbit/internal/handler.Bet.GetUserPlinkoBetHistory-fm (7 handlers)
+[GIN-debug] GET    /api/plinko/stats         --> github.com/tucanbit/internal/handler.Bet.GetPlinkoGameStats-fm (7 handlers)
+[GIN-debug] POST   /api/admin/football/leagues --> github.com/tucanbit/internal/handler.Bet.CreateLeague-fm (9 handlers)
+[GIN-debug] GET    /api/admin/football/leagues --> github.com/tucanbit/internal/handler.Bet.GetLeagues-fm (9 handlers)
+[GIN-debug] POST   /api/admin/football/clubs --> github.com/tucanbit/internal/handler.Bet.CreateClub-fm (9 handlers)
+[GIN-debug] GET    /api/admin/football/clubs --> github.com/tucanbit/internal/handler.Bet.GetClubs-fm (9 handlers)
+[GIN-debug] PUT    /api/admin/football/configs --> github.com/tucanbit/internal/handler.Bet.UpdateFootballCardMultiplierValue-fm (9 handlers)
+[GIN-debug] GET    /api/admin/football/configs --> github.com/tucanbit/internal/handler.Bet.GetFootballCardMultiplier-fm (9 handlers)
+[GIN-debug] POST   /api/admin/football/rounds --> github.com/tucanbit/internal/handler.Bet.CreateFootballMatchRound-fm (9 handlers)
+[GIN-debug] GET    /api/admin/football/rounds --> github.com/tucanbit/internal/handler.Bet.GetFootballMatchRounds-fm (9 handlers)
+[GIN-debug] POST   /api/admin/football/matches --> github.com/tucanbit/internal/handler.Bet.CreateFootballMatch-fm (9 handlers)
+[GIN-debug] POST   /api/admin/football/rounds/mathces --> github.com/tucanbit/internal/handler.Bet.GetFootballRoundMatchs-fm (9 handlers)
+[GIN-debug] GET    /api/football/rounds/current --> github.com/tucanbit/internal/handler.Bet.GetCurrentFootballRound-fm (6 handlers)
+[GIN-debug] PATCH  /api/admin/football/rounds/matches --> github.com/tucanbit/internal/handler.Bet.CloseFootballMatch-fm (9 handlers)
+[GIN-debug] POST   /api/admin/football/rounds/prices --> github.com/tucanbit/internal/handler.Bet.UpdateFootballRoundPrice-fm (9 handlers)
+[GIN-debug] GET    /api/football/rounds/prices --> github.com/tucanbit/internal/handler.Bet.GetFootballRoundPrice-fm (7 handlers)
+[GIN-debug] POST   /api/football/rounds/bets --> github.com/tucanbit/internal/handler.Bet.PleceBetOnFootballRound-fm (7 handlers)
+[GIN-debug] GET    /api/football/rounds/bets --> github.com/tucanbit/internal/handler.Bet.GetUserFootballBets-fm (7 handlers)
+[GIN-debug] POST   /api/streetkings/bets     --> github.com/tucanbit/internal/handler.Bet.CreateStreetKingsGame-fm (7 handlers)
+[GIN-debug] POST   /api/streetkings/bets/cashout --> github.com/tucanbit/internal/handler.Bet.CashOutStreetKingsBet-fm (7 handlers)
+[GIN-debug] GET    /api/streetkings/bets     --> github.com/tucanbit/internal/handler.Bet.GetStreetkingHistory-fm (7 handlers)
+[GIN-debug] POST   /api/admin/cryptokings/configs --> github.com/tucanbit/internal/handler.Bet.SetCrytoKingsConfig-fm (9 handlers)
+[GIN-debug] POST   /api/cryptokings          --> github.com/tucanbit/internal/handler.Bet.PlaceCryptoKingsBet-fm (7 handlers)
+[GIN-debug] GET    /api/cryptokings          --> github.com/tucanbit/internal/handler.Bet.GetCryptoKingsBetHistory-fm (7 handlers)
+[GIN-debug] GET    /api/cryptokings/price    --> github.com/tucanbit/internal/handler.Bet.GetCryptoKingsCurrentCryptoPrice-fm (7 handlers)
+[GIN-debug] POST   /api/quickhustles         --> github.com/tucanbit/internal/handler.Bet.PlaceQuickHustleBet-fm (7 handlers)
+[GIN-debug] POST   /api/quickhustles/selects --> github.com/tucanbit/internal/handler.Bet.UserSelectCard-fm (7 handlers)
+[GIN-debug] GET    /api/quickhustles         --> github.com/tucanbit/internal/handler.Bet.GetQuickHustleBetHistory-fm (7 handlers)
+[GIN-debug] POST   /api/rolldadices          --> github.com/tucanbit/internal/handler.Bet.CreateRollDaDice-fm (7 handlers)
+[GIN-debug] GET    /api/rolldadices          --> github.com/tucanbit/internal/handler.Bet.GetRollDaDiceHistory-fm (7 handlers)
+[GIN-debug] GET    /api/scratchcards/price   --> github.com/tucanbit/internal/handler.Bet.GetScratchGamePrice-fm (7 handlers)
+[GIN-debug] POST   /api/scratchcards         --> github.com/tucanbit/internal/handler.Bet.PlaceScratchCardBet-fm (7 handlers)
+[GIN-debug] GET    /api/scratchcards         --> github.com/tucanbit/internal/handler.Bet.GetUserScratchCardBetHistories-fm (7 handlers)
+[GIN-debug] GET    /api/spinningwheels/price --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelPrice-fm (7 handlers)
+[GIN-debug] POST   /api/spinningwheels       --> github.com/tucanbit/internal/handler.Bet.PlaceSpinningWheelBet-fm (7 handlers)
+[GIN-debug] GET    /api/spinningwheels       --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelUserBetHistory-fm (7 handlers)
+[GIN-debug] GET    /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.GetGames-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.UpdateGame-fm (8 handlers)
+[GIN-debug] POST   /api/admin/games/disable  --> github.com/tucanbit/internal/handler.Bet.DisableAllGames-fm (8 handlers)
+[GIN-debug] GET    /api/admin/games/available --> github.com/tucanbit/internal/handler.Bet.GetAvailableGames-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.DeleteGame-fm (8 handlers)
+[GIN-debug] POST   /api/admin/games          --> github.com/tucanbit/internal/handler.Bet.AddGame-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/games/status   --> github.com/tucanbit/internal/handler.Bet.UpdateGameStatus-fm (8 handlers)
+[GIN-debug] POST   /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.CreateSpinningWheelMysteries-fm (8 handlers)
+[GIN-debug] GET    /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelMysteries-fm (8 handlers)
+[GIN-debug] DELETE /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.DeleteSpinningWheelMystery-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/spinningwheels/mysteries --> github.com/tucanbit/internal/handler.Bet.UpdateSpinningWheelMystery-fm (8 handlers)
+[GIN-debug] POST   /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.CreateSpinningWheelConfig-fm (8 handlers)
+[GIN-debug] GET    /api/spinningwheels/configs --> github.com/tucanbit/internal/handler.Bet.GetSpinningWheelConfigs-fm (7 handlers)
+[GIN-debug] DELETE /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.DeleteSpinningWheelConfig-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/spinningwheels/config --> github.com/tucanbit/internal/handler.Bet.UpdateSpinningWheelConfig-fm (8 handlers)
+[GIN-debug] POST   /api/admin/bets/icons     --> github.com/tucanbit/internal/handler.Bet.UpdateBetIcon-fm (8 handlers)
+[GIN-debug] GET    /api/scratchcard/configs  --> github.com/tucanbit/internal/handler.Bet.GetScratchCardsConfig-fm (8 handlers)
+[GIN-debug] PUT    /api/scratchcard/configs  --> github.com/tucanbit/internal/handler.Bet.UpdateScratchGameConfig-fm (8 handlers)
+[GIN-debug] POST   /api/admin/levels         --> github.com/tucanbit/internal/handler.Bet.CreateLevel-fm (8 handlers)
+[GIN-debug] GET    /api/levels               --> github.com/tucanbit/internal/handler.Bet.GetLevels-fm (8 handlers)
+[GIN-debug] POST   /api/admin/levels/requirements --> github.com/tucanbit/internal/handler.Bet.CreateLevelRequirements-fm (8 handlers)
+[GIN-debug] PUT    /api/admin/levels/requirements --> github.com/tucanbit/internal/handler.Bet.UpdateLevelRequirement-fm (8 handlers)
+[GIN-debug] GET    /api/users/level          --> github.com/tucanbit/internal/handler.Bet.GetUserLevel-fm (7 handlers)
+[GIN-debug] POST   /api/test/fake/transaction --> github.com/tucanbit/internal/handler.Bet.AddFakeBalanceLog-fm (7 handlers)
+[GIN-debug] POST   /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.CreateLootBox-fm (9 handlers)
+[GIN-debug] PUT    /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.UpdateLootBox-fm (9 handlers)
+[GIN-debug] DELETE /api/admin/lootboxes/:id  --> github.com/tucanbit/internal/handler.Bet.DeleteLootBox-fm (9 handlers)
+[GIN-debug] GET    /api/admin/lootboxes      --> github.com/tucanbit/internal/handler.Bet.GetLootBox-fm (9 handlers)
+[GIN-debug] GET    /api/bet/lootboxes        --> github.com/tucanbit/internal/handler.Bet.PlaceLootBoxBet-fm (7 handlers)
+[GIN-debug] POST   /api/bet/lootboxes/select --> github.com/tucanbit/internal/handler.Bet.SelectLootBox-fm (7 handlers)
+[GIN-debug] POST   /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.CreateDepartement-fm (9 handlers)
+[GIN-debug] GET    /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.GetDepartement-fm (9 handlers)
+[GIN-debug] PATCH  /api/admin/departments    --> github.com/tucanbit/internal/handler.Departements.UpdateDepartment-fm (9 handlers)
+[GIN-debug] POST   /api/admin/departments/assign --> github.com/tucanbit/internal/handler.Departements.AssignUserToDepartment-fm (9 handlers)
+[GIN-debug] GET    /api/admin/performance/financial --> github.com/tucanbit/internal/handler.Performance.GetFinancialMetrics-fm (9 handlers)
+[GIN-debug] GET    /api/admin/performance/game --> github.com/tucanbit/internal/handler.Performance.GameMatrics-fm (9 handlers)
+[GIN-debug] GET    /api/admin/permissions    --> github.com/tucanbit/internal/handler.Authz.GetPermissions-fm (8 handlers)
+[GIN-debug] POST   /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.CreateRole-fm (9 handlers)
+[GIN-debug] GET    /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.GetRoles-fm (9 handlers)
+[GIN-debug] PATCH  /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.UpdateRolePermissions-fm (9 handlers)
+[GIN-debug] DELETE /api/admin/roles          --> github.com/tucanbit/internal/handler.Authz.RemoveRole-fm (9 handlers)
+[GIN-debug] POST   /api/admin/users/roles    --> github.com/tucanbit/internal/handler.Authz.AssignRoleToUser-fm (9 handlers)
+[GIN-debug] DELETE /api/admin/users/roles    --> github.com/tucanbit/internal/handler.Authz.RevokeUserRole-fm (9 handlers)
+[GIN-debug] GET    /api/admin/roles/:id/users --> github.com/tucanbit/internal/handler.Authz.GetRoleUsers-fm (9 handlers)
+[GIN-debug] GET    /api/admin/users/:id/roles --> github.com/tucanbit/internal/handler.Authz.GetUserRoles-fm (9 handlers)
+[GIN-debug] POST   /api/wallet/connect       --> github.com/tucanbit/internal/handler.Authz.ConnectWallet-fm (8 handlers)
+[GIN-debug] DELETE /api/wallet/disconnect/:connection_id --> github.com/tucanbit/internal/handler.Authz.DisconnectWallet-fm (8 handlers)
+[GIN-debug] GET    /api/wallet/list          --> github.com/tucanbit/internal/handler.Authz.GetUserWallets-fm (8 handlers)
+[GIN-debug] POST   /api/wallet/challenge     --> github.com/tucanbit/internal/handler.Authz.CreateWalletChallenge-fm (7 handlers)
+[GIN-debug] POST   /api/wallet/verify        --> github.com/tucanbit/internal/handler.Authz.VerifyWalletChallenge-fm (7 handlers)
+[GIN-debug] POST   /api/wallet/login         --> github.com/tucanbit/internal/handler.Authz.LoginWithWallet-fm (7 handlers)
+[GIN-debug] POST   /api/wallet/test-signature --> github.com/tucanbit/internal/handler.Authz.TestWalletSignature-fm (7 handlers)
+[GIN-debug] POST   /api/admin/logs           --> github.com/tucanbit/internal/handler.SystemLogs.GetSystemLogs-fm (9 handlers)
+[GIN-debug] GET    /api/admin/logs/modules   --> github.com/tucanbit/internal/handler.SystemLogs.GetAvailableLogModules-fm (9 handlers)
+[GIN-debug] POST   /api/admin/companies      --> github.com/tucanbit/internal/handler.Company.CreateCompany-fm (9 handlers)
+[GIN-debug] GET    /api/admin/companies      --> github.com/tucanbit/internal/handler.Company.GetCompanies-fm (9 handlers)
+[GIN-debug] GET    /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.GetCompanyByID-fm (9 handlers)
+[GIN-debug] PATCH  /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.UpdateCompany-fm (9 handlers)
+[GIN-debug] DELETE /api/admin/companies/:id  --> github.com/tucanbit/internal/handler.Company.DeleteCompany-fm (9 handlers)
+[GIN-debug] PATCH  /api/admin/companies/:id/add-ip --> github.com/tucanbit/internal/handler.Company.AddIP-fm (9 handlers)
+[GIN-debug] GET    /api/admin/report/daily   --> github.com/tucanbit/internal/handler.Report.GetDailyReport-fm (9 handlers)
+[GIN-debug] POST   /api/squads               --> github.com/tucanbit/internal/handler.Squads.CreateSquad-fm (7 handlers)
+[GIN-debug] GET    /api/squads               --> github.com/tucanbit/internal/handler.Squads.GetMySquads-fm (7 handlers)
+[GIN-debug] GET    /api/squads/own           --> github.com/tucanbit/internal/handler.Squads.GetMyOwnSquads-fm (7 handlers)
+[GIN-debug] GET    /api/squads/type          --> github.com/tucanbit/internal/handler.Squads.GetSquadsByType-fm (7 handlers)
+[GIN-debug] GET    /api/squads/name          --> github.com/tucanbit/internal/handler.Squads.GetSquadByName-fm (7 handlers)
+[GIN-debug] PUT    /api/squads/own           --> github.com/tucanbit/internal/handler.Squads.UpdateSquadHandle-fm (7 handlers)
+[GIN-debug] DELETE /api/squads/delete        --> github.com/tucanbit/internal/handler.Squads.DeleteSquad-fm (7 handlers)
+[GIN-debug] POST   /api/squads/members       --> github.com/tucanbit/internal/handler.Squads.CreateSquadMember-fm (7 handlers)
+[GIN-debug] GET    /api/squads/members/bysquadid --> github.com/tucanbit/internal/handler.Squads.GetSquadMembersBySquadID-fm (7 handlers)
+[GIN-debug] DELETE /api/squads/members/:member_id --> github.com/tucanbit/internal/handler.Squads.DeleteSquadMember-fm (7 handlers)
+[GIN-debug] DELETE /api/squads/members/all   --> github.com/tucanbit/internal/handler.Squads.DeleteSquadMembersBySquadID-fm (7 handlers)
+[GIN-debug] GET    /api/squads/earns         --> github.com/tucanbit/internal/handler.Squads.GetSquadEarns-fm (7 handlers)
+[GIN-debug] GET    /api/my/squads/earns      --> github.com/tucanbit/internal/handler.Squads.GetMySquadEarns-fm (7 handlers)
+[GIN-debug] GET    /api/squads/total/earns   --> github.com/tucanbit/internal/handler.Squads.GetSquadTotalEarns-fm (7 handlers)
+[GIN-debug] GET    /api/squads/members/earnings --> github.com/tucanbit/internal/handler.Squads.GetSquadMembersEarnings-fm (7 handlers)
+[GIN-debug] GET    /api/squads/tournament/ranking --> github.com/tucanbit/internal/handler.Squads.GetTornamentStyleRanking-fm (7 handlers)
+[GIN-debug] POST   /api/admins/tournaments   --> github.com/tucanbit/internal/handler.Squads.CreateTournaments-fm (9 handlers)
+[GIN-debug] GET    /api/tournaments          --> github.com/tucanbit/internal/handler.Squads.GetTornamentStyles-fm (7 handlers)
+[GIN-debug] DELETE /api/squads/:squad_id/members/leave --> github.com/tucanbit/internal/handler.Squads.LeaveSquad-fm (7 handlers)
+[GIN-debug] POST   /api/squads/:squad_id/members/join --> github.com/tucanbit/internal/handler.Squads.JoinSquad-fm (7 handlers)
+[GIN-debug] GET    /api/squads/waitlist      --> github.com/tucanbit/internal/handler.Squads.GetSquadWaitlist-fm (7 handlers)
+[GIN-debug] DELETE /api/squads/waitlist/remove --> github.com/tucanbit/internal/handler.Squads.RemoveWaitingSquadWaitingUser-fm (7 handlers)
+[GIN-debug] POST   /api/squads/waitlist/approve --> github.com/tucanbit/internal/handler.Squads.ApproveWaitingSquadMember-fm (7 handlers)
+[GIN-debug] POST   /api/notifications        --> github.com/tucanbit/internal/handler.Notification.CreateNotification-fm (7 handlers)
+[GIN-debug] GET    /api/notifications        --> github.com/tucanbit/internal/handler.Notification.GetUserNotifications-fm (7 handlers)
+[GIN-debug] PATCH  /api/notifications/:id/mark-read --> github.com/tucanbit/internal/handler.Notification.MarkNotificationRead-fm (7 handlers)
+[GIN-debug] PATCH  /api/notifications/mark-all-read --> github.com/tucanbit/internal/handler.Notification.MarkAllNotificationsRead-fm (7 handlers)
+[GIN-debug] DELETE /api/notifications/:id    --> github.com/tucanbit/internal/handler.Notification.DeleteNotification-fm (7 handlers)
+[GIN-debug] GET    /api/admin/adds/services  --> github.com/tucanbit/internal/handler.Adds.GetAddsServices-fm (9 handlers)
+[GIN-debug] POST   /api/admin/adds/services  --> github.com/tucanbit/internal/handler.Adds.SaveAddsService-fm (9 handlers)
+[GIN-debug] POST   /api/adds/signin          --> github.com/tucanbit/internal/handler.Adds.SignIn-fm (6 handlers)
+[GIN-debug] POST   /api/adds/balance/update  --> github.com/tucanbit/internal/handler.Adds.UpdateBalance-fm (7 handlers)
+[GIN-debug] GET    /api/admin/banners        --> github.com/tucanbit/internal/handler.Banner.GetAllBanners-fm (9 handlers)
+[GIN-debug] POST   /api/admin/banners        --> github.com/tucanbit/internal/handler.Banner.CreateBanner-fm (9 handlers)
+[GIN-debug] GET    /api/admin/banners/display --> github.com/tucanbit/internal/handler.Banner.GetBannerByPage-fm (9 handlers)
+[GIN-debug] POST   /api/admin/banners/upload --> github.com/tucanbit/internal/handler.Banner.UploadBannerImage-fm (9 handlers)
+[GIN-debug] PATCH  /api/admin/banners/:id    --> github.com/tucanbit/internal/handler.Banner.UpdateBanner-fm (9 handlers)
+[GIN-debug] DELETE /api/admin/banners/:id    --> github.com/tucanbit/internal/handler.Banner.DeleteBanner-fm (9 handlers)
+[GIN-debug] POST   /admin/lottery/service    --> github.com/tucanbit/internal/handler.Lottery.CreateLotteryService-fm (9 handlers)
+[GIN-debug] POST   /admin/lottery/request    --> github.com/tucanbit/internal/handler.Lottery.CreateLotteryRequest-fm (9 handlers)
+[GIN-debug] POST   /lottery/verify/deduct/balance --> github.com/tucanbit/internal/handler.Lottery.CheckUserBalanceAndDeductBalance-fm (7 handlers)
+[GIN-debug] POST   /api/sports/signin        --> github.com/tucanbit/internal/handler.SportsService.SignIn-fm (6 handlers)
+[GIN-debug] POST   /api/sports/placebet      --> github.com/tucanbit/internal/handler.SportsService.PlaceBet-fm (8 handlers)
+[GIN-debug] POST   /api/sports/awardwinnings --> github.com/tucanbit/internal/handler.SportsService.AwardWinnings-fm (8 handlers)
+[GIN-debug] GET    /api/admin/risk/settings  --> github.com/tucanbit/internal/handler.RiskSettings.GetRiskSettings-fm (9 handlers)
+[GIN-debug] PUT    /api/admin/risk/settings  --> github.com/tucanbit/internal/handler.RiskSettings.SetRiskSettings-fm (9 handlers)
+[GIN-debug] POST   /api/agent/links          --> github.com/tucanbit/internal/handler.Agent.CreateAgentReferralLink-fm (6 handlers)
+[GIN-debug] GET    /api/admin/agent/referrals --> github.com/tucanbit/internal/handler.Agent.GetAgentReferrals-fm (9 handlers)
+[GIN-debug] GET    /api/admin/agent/stats    --> github.com/tucanbit/internal/handler.Agent.GetReferralStats-fm (9 handlers)
+[GIN-debug] POST   /api/admin/agent/providers --> github.com/tucanbit/internal/handler.Agent.CreateAgentProvider-fm (9 handlers)
+[GIN-debug] POST   /api/otp/email-verification --> github.com/tucanbit/internal/handler.OTP.CreateEmailVerification-fm (6 handlers)
+[GIN-debug] POST   /api/otp/verify           --> github.com/tucanbit/internal/handler.OTP.VerifyOTP-fm (6 handlers)
+[GIN-debug] POST   /api/otp/resend           --> github.com/tucanbit/internal/handler.OTP.ResendOTP-fm (6 handlers)
+[GIN-debug] GET    /api/otp/:otp_id          --> github.com/tucanbit/internal/handler.OTP.GetOTPInfo-fm (6 handlers)
+[GIN-debug] DELETE /api/otp/:otp_id/invalidate --> github.com/tucanbit/internal/handler.OTP.InvalidateOTP-fm (6 handlers)
+[GIN-debug] POST   /api/otp/cleanup          --> github.com/tucanbit/internal/handler.OTP.CleanupExpiredOTPs-fm (6 handlers)
+[GIN-debug] GET    /api/otp/stats            --> github.com/tucanbit/internal/handler.OTP.GetOTPStats-fm (6 handlers)
+2025-10-04T08:23:00.854+0300	INFO	cashback/cashback.go:13	Initializing cashback routes
+[GIN-debug] GET    /cashback/tiers           --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackTiers-fm (5 handlers)
+[GIN-debug] GET    /cashback/house-edge      --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetGameHouseEdge-fm (5 handlers)
+[GIN-debug] GET    /user/cashback            --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackSummary-fm (6 handlers)
+[GIN-debug] POST   /user/cashback/claim      --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ClaimCashback-fm (6 handlers)
+[GIN-debug] GET    /user/cashback/earnings   --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackEarnings-fm (6 handlers)
+[GIN-debug] GET    /user/cashback/claims     --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackClaims-fm (6 handlers)
+[GIN-debug] GET    /user/cashback/retry-operations --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetRetryableOperations-fm (6 handlers)
+[GIN-debug] POST   /user/cashback/retry-operations/:operation_id --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ManualRetryOperation-fm (6 handlers)
+[GIN-debug] GET    /user/cashback/level-progression --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetLevelProgressionInfo-fm (6 handlers)
+[GIN-debug] GET    /user/balance/validate-sync --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ValidateBalanceSync-fm (6 handlers)
+[GIN-debug] POST   /user/balance/reconcile   --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ReconcileBalances-fm (6 handlers)
+[GIN-debug] GET    /admin/cashback/stats     --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackStats-fm (7 handlers)
+[GIN-debug] POST   /admin/cashback/tiers     --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).CreateCashbackTier-fm (7 handlers)
+[GIN-debug] PUT    /admin/cashback/tiers/:id --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).UpdateCashbackTier-fm (7 handlers)
+[GIN-debug] POST   /admin/cashback/promotions --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).CreateCashbackPromotion-fm (7 handlers)
+[GIN-debug] POST   /admin/cashback/house-edge --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).CreateGameHouseEdge-fm (7 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetDashboardStats-fm (7 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard/analytics --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetCashbackAnalytics-fm (7 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard/health --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetSystemHealth-fm (7 handlers)
+[GIN-debug] GET    /admin/cashback/dashboard/users/:user_id --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).GetUserCashbackDetails-fm (7 handlers)
+[GIN-debug] POST   /admin/cashback/dashboard/manual-cashback --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ProcessManualCashback-fm (7 handlers)
+[GIN-debug] POST   /admin/cashback/retry-failed-operations --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).RetryFailedOperations-fm (7 handlers)
+[GIN-debug] POST   /admin/cashback/bulk-level-progression --> github.com/tucanbit/internal/handler/cashback.(*CashbackHandler).ProcessBulkLevelProgression-fm (7 handlers)
+2025-10-04T08:23:00.855+0300	INFO	cashback/cashback.go:72	Cashback routes initialized successfully
+2025-10-04T08:23:00.855+0300	INFO	groove/groove.go:16	Initializing GrooveTech Transaction API routes
+[GIN-debug] GET    /groove/account           --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetAccount-fm (5 handlers)
+[GIN-debug] GET    /groove/balance           --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetBalance-fm (5 handlers)
+[GIN-debug] GET    /groove/health            --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).HealthCheck-fm (5 handlers)
+[GIN-debug] GET    /groove-official          --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest-fm (6 handlers)
+[GIN-debug] POST   /groove-official          --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessGrooveOfficialRequest-fm (6 handlers)
+[GIN-debug] POST   /groove/legacy/debit      --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).DebitTransaction-fm (5 handlers)
+[GIN-debug] POST   /groove/legacy/credit     --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).CreditTransaction-fm (5 handlers)
+[GIN-debug] POST   /groove/legacy/bet        --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).BetTransaction-fm (5 handlers)
+[GIN-debug] POST   /groove/legacy/win        --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).WinTransaction-fm (5 handlers)
+[GIN-debug] GET    /groove/legacy/transactions --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetTransactionHistory-fm (5 handlers)
+[GIN-debug] GET    /groove                   --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ProcessWagerAndResultOfficial-fm (6 handlers)
+[GIN-debug] POST   /api/groove/launch-game   --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).LaunchGame-fm (5 handlers)
+[GIN-debug] GET    /api/groove/validate-session/:sessionId --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).ValidateGameSession-fm (5 handlers)
+[GIN-debug] GET    /api/player/transactions  --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetPlayerTransactionHistory-fm (5 handlers)
+[GIN-debug] GET    /api/player/transactions/account/:account_id --> github.com/tucanbit/internal/handler/groove.(*GrooveHandler).GetPlayerTransactionHistoryByAccountID-fm (5 handlers)
+2025-10-04T08:23:00.855+0300	INFO	groove/groove.go:115	GrooveTech Transaction API routes initialized successfully
+[GIN-debug] GET    /analytics/users/:user_id/transactions --> github.com/tucanbit/internal/handler.Analytics.GetUserTransactions-fm (5 handlers)
+[GIN-debug] GET    /analytics/users/:user_id/analytics --> github.com/tucanbit/internal/handler.Analytics.GetUserAnalytics-fm (5 handlers)
+[GIN-debug] GET    /analytics/users/:user_id/balance-history --> github.com/tucanbit/internal/handler.Analytics.GetUserBalanceHistory-fm (5 handlers)
+[GIN-debug] GET    /analytics/realtime/stats --> github.com/tucanbit/internal/handler.Analytics.GetRealTimeStats-fm (5 handlers)
+[GIN-debug] GET    /analytics/reports/daily  --> github.com/tucanbit/internal/handler.Analytics.GetDailyReport-fm (5 handlers)
+[GIN-debug] GET    /analytics/reports/daily-enhanced --> github.com/tucanbit/internal/handler.Analytics.GetEnhancedDailyReport-fm (5 handlers)
+[GIN-debug] GET    /analytics/reports/top-games --> github.com/tucanbit/internal/handler.Analytics.GetTopGames-fm (5 handlers)
+[GIN-debug] GET    /analytics/reports/top-players --> github.com/tucanbit/internal/handler.Analytics.GetTopPlayers-fm (5 handlers)
+[GIN-debug] POST   /analytics/daily-report/send --> github.com/tucanbit/internal/handler.Analytics.SendDailyReportEmail-fm (5 handlers)
+[GIN-debug] POST   /analytics/daily-report/send-configured --> github.com/tucanbit/internal/handler.Analytics.SendConfiguredDailyReportEmail-fm (5 handlers)
+[GIN-debug] POST   /analytics/daily-report/yesterday --> github.com/tucanbit/internal/handler.Analytics.SendYesterdayReportEmail-fm (5 handlers)
+[GIN-debug] POST   /analytics/daily-report/schedule --> github.com/tucanbit/internal/handler.Analytics.ScheduleDailyReportCronJob-fm (5 handlers)
+[GIN-debug] POST   /analytics/daily-report/last-week --> github.com/tucanbit/internal/handler.Analytics.SendLastWeekReportEmail-fm (5 handlers)
+[GIN-debug] POST   /analytics/daily-report/test --> github.com/tucanbit/internal/handler.Analytics.SendTestDailyReport-fm (5 handlers)
+[GIN-debug] GET    /analytics/daily-report/cronjob-status --> github.com/tucanbit/internal/handler.Analytics.GetCronjobStatus-fm (5 handlers)
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:213	done initializing route
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:215	Server configuration	{"host": "0.0.0.0", "port": 8080}
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:220	initializing server
+2025-10-04T08:23:00.855+0300	INFO	initiator/initiator.go:234	http server listening on port : 8080
+2025-10-04T08:23:00.856+0300	FATAL	initiator/initiator.go:238	Could not start HTTP server: listen tcp 0.0.0.0:8080: bind: address already in use
+github.com/tucanbit/initiator.Initiate
+	/home/ashenafi-alemu/Downloads/tucanbit/initiator/initiator.go:238
+main.main
+	/home/ashenafi-alemu/Downloads/tucanbit/cmd/main.go:16
+runtime.main
+	/snap/go/10938/src/runtime/proc.go:283
+exit status 1

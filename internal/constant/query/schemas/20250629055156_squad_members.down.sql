@@ -1,0 +1,1 @@
+drop table squads_memebers;

@@ -1,0 +1,1 @@
+ALTER TYPE bet_status ADD VALUE 'failed';

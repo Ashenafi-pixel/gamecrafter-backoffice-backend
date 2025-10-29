@@ -1,0 +1,1 @@
+ALTER TABLE levels ADD COLUMN type VARCHAR(50) NOT NULL DEFAULT 'players' CHECK (type IN ('players', 'squads'));

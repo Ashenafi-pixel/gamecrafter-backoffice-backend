@@ -1,0 +1,200 @@
+# TucanBIT Configuration - Unified Config File
+# This file combines configurations from all previous config files
+
+# Database Configuration
+db:
+  url: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable&connect_timeout=10"
+  idle_conn_timeout: "4m"
+
+# Application Configuration
+app:
+  host: "0.0.0.0"
+  port: 8094
+  timeout: "30m"
+
+# Debug Configuration
+debug: false
+
+# Auth Configuration
+auth:
+  jwt_secret: "tokensecrethere"
+  otp_jwt_secret: "otpkwtsecretgoinghere"
+  otp_attempt_limit: 4
+
+# Payment Microservice Configuration
+paymentMs:
+  secret: "<your_payment_ms_secret_here>"
+
+# Bet Configuration
+bet:
+  max: 15
+  open_duration: "10s"
+
+# AWS Configuration
+aws:
+  bucket:
+    name: "bucketname"
+    accessKey: "accesskeyhere"
+    secretAccessKey: "secretKeyHere"
+    region: "regionHere"
+  logging:
+    enabled: true
+    region: "us-east-1"
+    access_key_id: "your_aws_access_key_id"
+    secret_access_key: "your_aws_secret_access_key"
+    log_group_name: "/tucanbit/application"
+    log_stream_name: "tucanbit-stream"
+    retention_days: 30
+    local_path: "./logs"
+
+# Google Configuration
+google:
+  smtp:
+    password: "drki dvog hvgk adjx"
+    from: "ashenafialemu66@gmail.com"
+  oauth:
+    client_id: "290465420820-dt8oe9om2hbsbdno7nl0mtfunpr6cg1g.apps.googleusercontent.com"
+    client_secret: "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"
+    redirect_url: "http://localhost:8080/user/oauth/google/res"
+
+# OAuth Configuration
+oauth:
+  frontend_oauth_handler_url: "http://localhost:3000/oauth"
+
+# Facebook OAuth Configuration
+facebook:
+  oauth:
+    client_id: "837667311758955"
+    client_secret: "9136275f085069e22f2ca55ce033e3c0"
+    redirect_url: "http://localhost:8080/user/oauth/facebook/res"
+
+# Sports Service Configuration
+sportsservice:
+  api_key: "0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u"
+  api_secret: "0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u"
+
+# Rise and Hustle Configuration
+rise_and_hustle:
+  auth_url: "https://rise-and-hustle-tau.vercel.app/auth"
+
+# Pisi Configuration
+pisi:
+  base_url: "https://api.pisimobile.com/bulksms/v1/"
+  password: ""
+  vaspid: ""
+  sender_id: ""
+  timeout: "30s"
+  retry_count: 3
+  retry_delay: "1000ms"
+
+# Kafka Configuration
+kafka:
+  enabled: false
+  bootstrap_servers: "localhost:9093"
+  topic: "events"
+  cluster_api_key: ""
+  cluster_api_secret: ""
+  security_protocol: "PLAINTEXT"
+  acks: "all"
+  mechanisms: "PLAIN"
+  group_id: "tucanbit_group"
+  auto_offset_reset: "earliest"
+  enable_auto_commit: true
+  session_timeout_ms: 60000
+
+# Redis Configuration
+redis:
+  enabled: true
+  addr: "172.31.36.46:63790"
+  password: "tucanbit_redis_password"
+  db: 0
+  key_prefix: "tucanbit:"
+  ttl: "2h"
+  attempts: 3
+  pool_size: 10
+  min_idle_conns: 2
+
+# ClickHouse Configuration
+clickhouse:
+  host: "172.31.36.46"
+  port: 8123
+  database: "tucanbit_analytics"
+  username: "tucanbit"
+  password: "tucanbit_clickhouse_password"
+  timeout: "10s"
+
+# WMS (Wallet Management System) Configuration
+wms:
+  base_url: "https://wms.tucanbit.tv/wms/api/v1/admin"
+  timeout: "30s"
+  retry_attempts: 3
+  retry_delay: "1s"
+
+# Logger Configuration
+logger:
+  level: 0  # 0=Debug, 1=Info, 2=Warn, 3=Error, 4=Fatal
+  console: true
+  max_size_mb: 100
+  max_backups: 5
+  max_age_days: 30
+  compress: true
+  rotation_enabled: true
+  retention_enabled: true
+  local_retention_days: 90
+  aws_retention_days: 30
+
+# Daily Report Configuration
+daily_reports:
+  enabled: true
+  recipients:
+    - "ashenafialemu27@gmail.com"
+    - "johsjones612@gmail.com"
+  schedule:
+    time: "23:59"  # End of day (11:59 PM)
+    timezone: "UTC"
+  email:
+    subject: "TucanBIT Daily Analytics Report - {{.Date}}"
+    template: "daily_report"
+
+# SMTP Configuration
+smtp:
+  host: "smtp.gmail.com"
+  port: 465
+  username: "kirub.hel@gmail.com"
+  password: "dacc uhlb etak tpoo"
+  from: "kirub.hel@gmail.com"
+  from_name: "TucanBIT Security"
+  use_tls: true
+
+# Groove Gaming Configuration
+groove:
+  operator_id: "3818"
+  api_domain: "https://gprouter.groovegaming.com"
+  api_key: "our_groove_api_key_here"
+  home_url: "https://tucanbit.tv"
+  exit_url: "https://tucanbit.tv"
+  history_url: "https://tucanbit.tv"
+  license_type: "Curacao"
+  signature_validation: false
+  signature_secret: "test_key"
+
+# Falcon Liquidity Configuration
+falcon_liquidity:
+  enabled: true
+  host: "b-72b0d5f8-fd98-47f3-97f9-c4dff10c8040.mq.eu-west-2.on.aws"
+  port: 5671
+  virtual_host: "client_acme"
+  username: "acme"
+  password: "acme-123"
+  exchange_name: "falcon_liquidity"
+  queue_name: "client_acme_queue"
+  routing_key: "client.acme"
+  client_name: "tucanbit"
+  management_port: 15672
+
+# Airtime Configuration
+airtime:
+  base_url: "http://localhost:8080"
+  password: "airtime_password"
+  timeout: "10s"
+  vaspid: 12345

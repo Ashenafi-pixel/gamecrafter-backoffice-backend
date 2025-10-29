@@ -1,0 +1,1 @@
+drop TABLE football_match_rounds;

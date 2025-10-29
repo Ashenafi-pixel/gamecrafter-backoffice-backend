@@ -1,0 +1,1 @@
+drop table spinning_wheel_configs;

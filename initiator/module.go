@@ -1,0 +1,275 @@
+package initiator
+
+import (
+	"sync"
+	"time"
+
+	"github.com/pquerna/otp"
+	"github.com/tucanbit/internal/constant/dto"
+	"github.com/tucanbit/internal/module"
+	"github.com/tucanbit/internal/module/adds"
+	"github.com/tucanbit/internal/module/admin_activity_logs"
+	"github.com/tucanbit/internal/module/agent"
+	"github.com/tucanbit/internal/module/authz"
+	"github.com/tucanbit/internal/module/balance"
+	"github.com/tucanbit/internal/module/balancelogs"
+	"github.com/tucanbit/internal/module/banner"
+	"github.com/tucanbit/internal/module/bet"
+	"github.com/tucanbit/internal/module/campaign"
+	"github.com/tucanbit/internal/module/cashback"
+	"github.com/tucanbit/internal/module/company"
+	"github.com/tucanbit/internal/module/crypto_wallet"
+	"github.com/tucanbit/internal/module/falcon_liquidity"
+	"github.com/tucanbit/internal/module/game"
+	"github.com/tucanbit/internal/module/groove"
+
+	"github.com/tucanbit/internal/module/department"
+	moduleExchange "github.com/tucanbit/internal/module/exchange"
+	"github.com/tucanbit/internal/module/logs"
+	"github.com/tucanbit/internal/module/lottery"
+	"github.com/tucanbit/internal/module/notification"
+	operationdefinition "github.com/tucanbit/internal/module/operationDefinition"
+	"github.com/tucanbit/internal/module/operationalgroup"
+	"github.com/tucanbit/internal/module/operationalgrouptype"
+	otpModule "github.com/tucanbit/internal/module/otp"
+	"github.com/tucanbit/internal/module/performance"
+	"github.com/tucanbit/internal/module/report"
+	"github.com/tucanbit/internal/module/risksettings"
+	"github.com/tucanbit/internal/module/sportsservice"
+	"github.com/tucanbit/internal/module/squads"
+	userModule "github.com/tucanbit/internal/module/user"
+	"github.com/tucanbit/internal/service/twofactor"
+	"github.com/tucanbit/platform"
+	"github.com/tucanbit/platform/pisi"
+	"github.com/tucanbit/platform/redis"
+	"github.com/tucanbit/platform/utils"
+
+	"github.com/casbin/casbin/v2"
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
+	"github.com/tucanbit/internal/module/email"
+)
+
+type Module struct {
+	User                  module.User
+	OperationalGroup      module.OperationalGroup
+	OperationalGroupType  module.OperationalGroupType
+	OperationsDefinitions module.OperationsDefinitions
+	Balance               module.Balance
+	BalanceLogs           module.BalanceLogs
+	Exchange              module.Exchange
+	Bet                   module.Bet
+	Departments           module.Departements
+	Performance           module.Performance
+	Authz                 module.Authz
+	SystemLogs            module.SystemLogs
+	Company               module.Company
+	CryptoWallet          *crypto_wallet.CasinoWalletService
+	Report                module.Report
+	Squads                module.Squads
+	Notification          module.Notification
+	Campaign              module.Campaign
+	Adds                  module.Adds
+	Banner                module.Banner
+	Lottery               module.Lottery
+	SportsService         module.SportsService
+	RiskSettings          module.RiskSettings
+	Agent                 module.Agent
+	OTP                   otpModule.OTPModule
+	Cashback              *cashback.CashbackService
+	CashbackKafkaConsumer *cashback.CashbackKafkaConsumer
+	Groove                groove.GrooveService
+	Game                  *game.GameService
+	HouseEdge             *game.HouseEdgeService
+	Email                 email.EmailService
+	Redis                 *redis.RedisOTP
+	TwoFactor             twofactor.TwoFactorService
+	UserBalanceWS         utils.UserWS
+	AdminActivityLogs     module.AdminActivityLogs
+}
+
+func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, enforcer *casbin.Enforcer, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient) *Module {
+
+	spApiKey := viper.GetString("sportsservice.api_key")
+	apiSecret := viper.GetString("sportsservice.api_secret")
+	if spApiKey == "" || apiSecret == "" {
+		log.Fatal("sports service API key and secret must be set in configuration")
+	}
+
+	// Initialize agent module first
+	agentModule := agent.Init(persistence.Agent, log)
+
+	// Initialize enterprise-grade email service
+	emailService, err := email.NewEmailService(email.SMTPConfig{
+		Host:     viper.GetString("smtp.host"),
+		Port:     viper.GetInt("smtp.port"),
+		Username: viper.GetString("smtp.username"),
+		Password: viper.GetString("smtp.password"),
+		From:     viper.GetString("smtp.from"),
+		FromName: viper.GetString("smtp.from_name"),
+		UseTLS:   viper.GetBool("smtp.use_tls"),
+	}, log)
+	if err != nil {
+		log.Fatal("Failed to initialize email service", zap.Error(err))
+	}
+
+	return &Module{
+		User: userModule.Init(persistence.User,
+			persistence.Logs,
+			log, viper.GetString("aws.bucket.name"),
+			persistence.Balance,
+			viper.GetString("auth.otp_jwt_secret"),
+			viper.GetString("google.oauth.client_id"),
+			viper.GetString("google.oauth.client_secret"),
+			viper.GetString("google.oauth.redirect_url"),
+			viper.GetString("facebook.oauth.client_id"),
+			viper.GetString("facebook.oauth.client_secret"),
+			viper.GetString("facebook.oauth.redirect_url"),
+			persistence.BalanageLogs,
+			persistence.OperationalGroup,
+			persistence.OperationalGroupType,
+			persistence.Config,
+			agentModule,
+			redis,
+			pisiClient,
+			persistence.OTP,
+			emailService,
+			twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
+				Issuer:           "TucanBIT",
+				Algorithm:        otp.AlgorithmSHA1,
+				Digits:           otp.DigitsSix,
+				Period:           30,
+				BackupCodesCount: 10,
+				MaxAttempts:      5,
+				LockoutDuration:  15 * time.Minute,
+				EnabledMethods: []twofactor.TwoFactorMethod{
+					twofactor.MethodTOTP,
+					twofactor.MethodEmailOTP,
+					twofactor.MethodSMSOTP,
+					twofactor.MethodBiometric,
+					twofactor.MethodBackupCodes,
+					twofactor.MethodPasskey,
+				},
+				EmailOTPLength:   6,
+				SMSOTPLength:     6,
+				OTPExpiryMinutes: 5,
+			}, emailService),
+		),
+		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
+		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
+		OperationsDefinitions: operationdefinition.Init(persistence.OperationalGroup, persistence.OperationalGroupType, log),
+		Balance: balance.Init(persistence.Balance,
+			persistence.BalanageLogs,
+			persistence.Exchange,
+			persistence.User,
+			persistence.OperationalGroup,
+			persistence.OperationalGroupType,
+			log,
+			locker),
+		BalanceLogs: balancelogs.Init(persistence.BalanageLogs, log),
+
+		Exchange: moduleExchange.Init(persistence.Exchange, log),
+		Bet: bet.Init(
+			persistence.Bet,
+			persistence.Analytics,
+			persistence.Balance,
+			log,
+			decimal.NewFromInt(int64(viper.GetInt("bet.max"))),
+			viper.GetDuration("bet.open_duration"),
+			locker,
+			persistence.OperationalGroup,
+			persistence.OperationalGroupType,
+			persistence.BalanageLogs,
+			viper.GetString("aws.bucket.name"),
+			persistence.User,
+			persistence.Config,
+			persistence.Squad,
+			userBalanceWs,
+		),
+		Departments:   department.Init(persistence.Departments, persistence.User, log),
+		Performance:   performance.Init(persistence.Performance, log),
+		Authz:         authz.Init(log, persistence.Authz, persistence.User, enforcer),
+		UserBalanceWS: userBalanceWs,
+		SystemLogs:    logs.Init(log, persistence.Logs),
+		Company:       company.Init(persistence.Company, log),
+		CryptoWallet: crypto_wallet.NewCasinoWalletService(
+			persistence.CryptoWallet,
+			persistence.User,
+			persistence.Balance,
+			persistence.Groove,
+			persistence.Cashback,
+			viper.GetString("app.jwt_secret"),
+		),
+		// Crypto: crypto.Init(
+		// 	persistence.Crypto,
+		// 	persistence.Balance,
+		// 	persistence.User,
+		// 	fireblocksClient,
+		// 	exchangeProvider,
+		// ),
+		Report:       report.Init(persistence.Report, log),
+		Squads:       squads.Init(log, persistence.Squad, persistence.User),
+		Notification: notification.Init(persistence.Notification, log),
+		Campaign:     campaign.Init(persistence.Campaign, persistence.Notification, log),
+		Adds:         adds.Init(persistence.Adds, persistence.Balance, persistence.BalanageLogs, log),
+		Banner:       banner.Init(persistence.Banner, log, viper.GetString("aws.bucket.name")),
+		Lottery: lottery.Init(
+			persistence.Lottery,
+			log,
+			kafka,
+			persistence.BalanageLogs,
+			persistence.Balance,
+			persistence.OperationalGroup,
+			persistence.OperationalGroupType,
+		),
+
+		// Initialize the sports service module with the logger
+		SportsService:         sportsservice.Init(log, spApiKey, apiSecret, persistence.Sports, persistence.BalanageLogs, persistence.OperationalGroup, persistence.OperationalGroupType),
+		RiskSettings:          risksettings.Init(persistence.RiskSettings, log),
+		Agent:                 agentModule,
+		OTP:                   otpModule.NewOTPService(persistence.OTP, otpModule.NewUserStorageAdapter(persistence.User), emailService, log),
+		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log),
+		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), kafka, log),
+		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), persistence.User, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
+			Enabled:        viper.GetBool("falcon_liquidity.enabled"),
+			Host:           viper.GetString("falcon_liquidity.host"),
+			Port:           viper.GetInt("falcon_liquidity.port"),
+			VirtualHost:    viper.GetString("falcon_liquidity.virtual_host"),
+			Username:       viper.GetString("falcon_liquidity.username"),
+			Password:       viper.GetString("falcon_liquidity.password"),
+			ExchangeName:   viper.GetString("falcon_liquidity.exchange_name"),
+			QueueName:      viper.GetString("falcon_liquidity.queue_name"),
+			RoutingKey:     viper.GetString("falcon_liquidity.routing_key"),
+			ClientName:     viper.GetString("falcon_liquidity.client_name"),
+			ManagementPort: viper.GetInt("falcon_liquidity.management_port"),
+		}, persistence.FalconMessage), log),
+		Game:      game.NewGameService(persistence.Game, log),
+		HouseEdge: game.NewHouseEdgeService(persistence.HouseEdge, log),
+		Email:     emailService,
+		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
+			Issuer:           "TucanBIT",
+			Algorithm:        otp.AlgorithmSHA1,
+			Digits:           otp.DigitsSix,
+			Period:           30,
+			BackupCodesCount: 10,
+			MaxAttempts:      5,
+			LockoutDuration:  15 * time.Minute,
+			EnabledMethods: []twofactor.TwoFactorMethod{
+				twofactor.MethodTOTP,
+				twofactor.MethodEmailOTP,
+				twofactor.MethodSMSOTP,
+				twofactor.MethodBiometric,
+				twofactor.MethodBackupCodes,
+				twofactor.MethodPasskey,
+			},
+			EmailOTPLength:   6,
+			SMSOTPLength:     6,
+			OTPExpiryMinutes: 5,
+		}, emailService),
+		Redis:             redis,
+		AdminActivityLogs: admin_activity_logs.NewAdminActivityLogsModule(persistence.AdminActivityLogs, log),
+	}
+}
