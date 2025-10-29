@@ -1,17 +1,48 @@
-name: Build and Push
+name: Build and Deploy
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: The Environment For Deploy
+        required: false
+        default: "dev"
+        type: choice
+        options:
+          - stage
+          - prod
+
+  push:
+    branches:
+      - develop
 
 permissions:
   id-token: write
   contents: read
 
 env:
-  AWS_REGION: "eu-north-1"
+  AWS_REGION: "sa-east-1"
 
 jobs:
+
+  notify-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{secrets.SLACK_WEBHOOK_URL}}
+          webhook-type: incoming-webhook
+          payload: |
+            text: |
+              :rocket: Workflow `${{ github.workflow }}` started
+              *Repo:* `${{ github.repository }}`
+              *Branch:* `${{ github.ref_name }}`
+              *Manual(Deploy on stage):* `${{ github.event_name == 'workflow_dispatch' }}`
+
   build:
     runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.ENVIRONMENT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,29 +61,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Set variable for main branch
-        if: github.ref == 'refs/heads/main'
-        run: echo "ENVIRONMENT=prod" >> $GITHUB_ENV
-
-      - name: Set variable for main branch
-        if: github.ref == 'refs/heads/prod'
-        run: echo "ENVIRONMENT=prod" >> $GITHUB_ENV
-
       - name: Set variable for develop branch
-        if: github.ref == 'refs/heads/develop'
-        run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+        id: set-env
+        run: |
+          if [ "${{ github.ref }}" == 'refs/heads/develop' ]; then
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == 'refs/heads/main' ]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "environment=production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == 'refs/heads/stage' ]; then
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+#      - name: Set variable for feature branches TODO: need to utilize existing ec2 instance as testing site
+#        if: startsWith(github.ref, 'refs/heads/feature/')
+#        run: echo "ENVIRONMENT=test" >> $GITHUB_ENV
+
+      - name: Wait 20 seconds #In case of emergency stop after notify
+        run: sleep 20
 
       - name: Fetch config
-        run: |
-          aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/config.yaml ./config/config.yaml
+        run: aws s3 cp s3://tucanbit-environments/${{ github.event.repository.name }}/${{ env.ENVIRONMENT }}/config.yaml ./config/config.yaml
 
       - name: Build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: latest-${{ env.ENVIRONMENT }}
           IMAGE_TAG_SHA: ${{ github.sha }}
-          #          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-          ECR_REPOSITORY: "temporary/${{ github.event.repository.name }}"
+          ECR_REPOSITORY: "${{ github.event.repository.name }}"
         run: |
           docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA --load .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -60,14 +97,10 @@ jobs:
           echo "${{ github.event.repository.name }}=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "${{ github.event.repository.name }}_sha=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SHA" >> $GITHUB_OUTPUT
 
-#      - name: Deploy
-#        uses: appleboy/ssh-action@v1
-#        with:
-#          host: ${{ secrets.EC2_HOST }}
-#          username: ${{ secrets.EC2_USER }}
-#          key: ${{ secrets.EC2_KEY }}
-#          script: ~/deploy-front.sh
-
+  terraform-trigger:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - name: Trigger Terraform deploy
         uses: convictional/trigger-workflow-and-wait@v1.6.1
         with:
@@ -76,4 +109,21 @@ jobs:
           github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           github_user: dnemchenko #Change later to service account
           workflow_file_name: 'workflow.yml'
-          client_payload: '{"environment":"${{ env.ENVIRONMENT }}","action":"apply"}'
+          client_payload: '{"environment":"${{ needs.build.outputs.environment }}","action":"apply"}'
+#      - name: trigger deploy ecr  TODO
+
+  notify-finish:
+    runs-on: ubuntu-latest
+    needs: [build, terraform-trigger]
+    if: always()
+    steps:
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{secrets.SLACK_WEBHOOK_URL}}
+          webhook-type: incoming-webhook
+          payload: |
+            text: |
+              :bell: Workflow `${{ github.workflow }}` finished
+              *Branch:* `${{ github.ref_name }}`
+              *Result:* ${{ needs.build.result }}
