@@ -1,12 +1,14 @@
 # Build stage
 FROM --platform=linux/amd64 golang:1.24-bullseye AS builder
 
-RUN useradd -m app && chown -R app:app /app
+RUN useradd -m app
 
 # Install migrate tool
 RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 WORKDIR /app
+
+RUN chown -R app:app /app
 
 # Copy go mod files first for better caching
 COPY --chown=app:app go.mod go.sum ./
