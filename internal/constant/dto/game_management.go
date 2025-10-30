@@ -65,6 +65,7 @@ type GameResponse struct {
 	Provider           *string   `json:"provider,omitempty"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+	RTPPercent         *string   `json:"rtp_percent,omitempty"`
 }
 
 // Game list response

@@ -26,6 +26,7 @@ import (
 	"github.com/tucanbit/internal/handler/exchange"
 	"github.com/tucanbit/internal/handler/game"
 	"github.com/tucanbit/internal/handler/groove"
+	"github.com/tucanbit/internal/handler/kyc"
 	"github.com/tucanbit/internal/handler/logs"
 	"github.com/tucanbit/internal/handler/lottery"
 	"github.com/tucanbit/internal/handler/notification"
@@ -89,6 +90,7 @@ type Handler struct {
 	Withdrawals           *withdrawals.WithdrawalsHandler
 	AdminActivityLogs     handler.AdminActivityLogs
 	AirtimeProvider       handler.AirtimeProvider
+	KYC                   handler.KYC
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
@@ -151,6 +153,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
 		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
 		AirtimeProvider:       airtime.Init(log, persistence.AirtimeProvider),
+		KYC:                   kyc.NewKYCHandler(persistence.KYC, persistence.AdminActivityLogs, log),
 	}
 }
 

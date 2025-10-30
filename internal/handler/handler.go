@@ -398,6 +398,7 @@ type Agent interface {
 }
 
 type AdminActivityLogs interface {
+	CreateAdminActivityLog(c *gin.Context)
 	GetAdminActivityLogs(c *gin.Context)
 	GetAdminActivityLogByID(c *gin.Context)
 	GetAdminActivityStats(c *gin.Context)
@@ -407,4 +408,18 @@ type AdminActivityLogs interface {
 	DeleteAdminActivityLog(c *gin.Context)
 	DeleteAdminActivityLogsByAdmin(c *gin.Context)
 	DeleteOldAdminActivityLogs(c *gin.Context)
+}
+
+type KYC interface {
+	CreateKYCDocument(c *gin.Context) // POST /api/admin/kyc/document/create
+	GetKYCDocuments(c *gin.Context)   // GET /api/admin/kyc/documents/:user_id
+	UpdateDocumentStatus(c *gin.Context)
+	UpdateUserKYCStatus(c *gin.Context)
+	GetUserKYCStatus(c *gin.Context) // GET /api/admin/kyc/user/:user_id/status
+	BlockUserWithdrawals(c *gin.Context)
+	UnblockUserWithdrawals(c *gin.Context)   // POST /api/admin/kyc/user/:user_id/unblock-withdrawals
+	GetKYCSubmissions(c *gin.Context)        // GET /api/admin/kyc/submissions/:user_id
+	GetStatusChanges(c *gin.Context)         // GET /api/admin/kyc/status-changes/:user_id
+	GetAllSubmissions(c *gin.Context)        // GET /api/admin/kyc/submissions
+	GetWithdrawalBlockStatus(c *gin.Context) // GET /api/admin/kyc/user/:user_id/withdrawal-block
 }

@@ -166,6 +166,22 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
+			Path:    "/api/admin/settings/tips",
+			Handler: systemConfigHandler.GetTipSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+			Path:    "/api/admin/settings/tips",
+			Handler: systemConfigHandler.UpdateTipSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
 			Path:    "/api/admin/settings/security",
 			Handler: systemConfigHandler.GetSecuritySettings,
 			Middleware: []gin.HandlerFunc{

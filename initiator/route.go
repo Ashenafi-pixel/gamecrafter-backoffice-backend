@@ -24,6 +24,8 @@ import (
 	"github.com/tucanbit/internal/glue/falcon_liquidity"
 	"github.com/tucanbit/internal/glue/game"
 	"github.com/tucanbit/internal/glue/groove"
+	"github.com/tucanbit/internal/glue/health"
+	"github.com/tucanbit/internal/glue/kyc"
 	"github.com/tucanbit/internal/glue/logs"
 	"github.com/tucanbit/internal/glue/lottery"
 	"github.com/tucanbit/internal/glue/notification"
@@ -103,6 +105,12 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 
 	// Airtime routes
 	airtime.Init(grp, *log, handler.AirtimeProvider, module.Authz, enforcer, module.SystemLogs)
+
+	// KYC routes
+	kyc.Init(grp, *log, handler.KYC, module.Authz, enforcer, module.SystemLogs)
+
+	// Health route
+	health.Init(grp)
 
 	// Initialize Falcon Liquidity routes (no authentication required)
 	falconStorageInstance := falconStorage.NewFalconMessageStorage(log, persistence.Database)

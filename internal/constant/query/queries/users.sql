@@ -87,8 +87,7 @@ LIMIT $1 OFFSET $2;
 WITH users_data AS (
     SELECT *
     FROM users 
-    WHERE default_currency IS NOT NULL 
-    AND user_type = 'PLAYER'
+    WHERE user_type = 'PLAYER'
     AND is_admin = false
     AND (
         -- Simple OR search across username and email using single searchterm parameter

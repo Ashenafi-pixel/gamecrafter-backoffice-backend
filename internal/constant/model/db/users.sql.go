@@ -1521,7 +1521,39 @@ row_count AS (
     SELECT COUNT(*) AS total_rows
     FROM users_data
 )
-SELECT c.*, r.total_rows
+SELECT 
+    c.id,
+    c.username,
+    c.phone_number,
+    c.password,
+    c.created_at,
+    c.default_currency,
+    c.profile,
+    c.email,
+    c.first_name,
+    c.last_name,
+    c.date_of_birth,
+    c.source,
+    c.is_email_verified,
+    c.referal_code,
+    c.street_address,
+    c.country,
+    c.state,
+    c.city,
+    c.postal_code,
+    c.kyc_status,
+    c.created_by,
+    c.is_admin,
+    c.status,
+    c.referal_type,
+    c.refered_by_code,
+    c.user_type,
+    c.primary_wallet_address,
+    c.wallet_verification_status,
+    c.is_test_account,
+    c.two_factor_enabled,
+    c.two_factor_setup_at,
+    r.total_rows
 FROM users_data c
 CROSS JOIN row_count r
 ORDER BY c.created_at DESC

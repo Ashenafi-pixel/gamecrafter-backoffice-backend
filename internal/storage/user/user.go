@@ -517,8 +517,11 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		}
 
 		// Use filtered query - simple search across username and email using single searchterm parameter
-		// Pass special value for empty search to ensure SQL query works correctly
+		// If user_id substring (>=6) is provided and no searchterm is set, use the user_id substring
 		searchTerm := req.Filter.SearchTerm
+		if searchTerm == "" && req.Filter.UserID != "" && len(req.Filter.UserID) >= 6 {
+			searchTerm = req.Filter.UserID
+		}
 		if searchTerm == "" {
 			searchTerm = "%" // Use single % to match all records
 		}
@@ -527,8 +530,15 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			Status:        normalizedStatus,
 			KycStatus:     normalizedKycStatus,
 			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
-			Limit:         int32(req.PerPage),
-			Offset:        int32(offset),
+		}
+
+		// If searching by user_id substring, fetch a larger window and page client-side after filtering
+		if (req.Filter.UserID != "" && len(req.Filter.UserID) >= 6) || len(req.Filter.VipLevel) > 0 {
+			params.Limit = int32(1000)
+			params.Offset = int32(0)
+		} else {
+			params.Limit = int32(req.PerPage)
+			params.Offset = int32(offset)
 		}
 		u.log.Info("Calling GetAllUsersWithFilters", zap.Any("params", params), zap.Bool("unifiedSearch", unifiedSearch))
 		u.log.Info("Search term details", zap.String("searchterm", req.Filter.SearchTerm), zap.Bool("searchterm_valid", req.Filter.SearchTerm != ""))
@@ -610,7 +620,28 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		}
 	}
 
-	// Convert to DTO and apply VIP level filtering (client-side for now)
+	// Pre-compute VIP level user set if vip_level filter provided, using direct DB lookup to be robust
+	vipAllowedUsers := map[string]bool{}
+	if len(req.Filter.VipLevel) > 0 {
+		for _, level := range req.Filter.VipLevel {
+			q := `SELECT ul.user_id FROM user_levels ul LEFT JOIN cashback_tiers ct ON ul.current_tier_id = ct.id WHERE LOWER(ct.tier_name) LIKE '%' || LOWER($1) || '%';`
+			rows, err := u.db.GetPool().Query(ctx, q, level)
+			if err == nil {
+				for rows.Next() {
+					var uid uuid.UUID
+					if scanErr := rows.Scan(&uid); scanErr == nil {
+						vipAllowedUsers[uid.String()] = true
+					}
+				}
+				rows.Close()
+			} else {
+				u.log.Warn("VIP level prefilter query failed", zap.Error(err), zap.String("level", level))
+			}
+		}
+	}
+
+	// Convert to DTO and apply VIP level filtering (and optional user_id contains) client-side
+	filteredUsers := make([]dto.User, 0, len(usrs))
 	for i, usr := range usrs {
 		u.log.Info("Processing user", zap.Int("index", i), zap.String("username", usr.Username.String), zap.String("email", usr.Email.String))
 		user := dto.User{
@@ -659,18 +690,10 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		}
 		user.Accounts = accounts
 
-		// Calculate VIP level based on total wagered amount
-		var totalWagered decimal.Decimal
-		if len(accounts) > 0 {
-			// Calculate total wagered from all accounts
-			for _, account := range accounts {
-				totalWagered = totalWagered.Add(account.AmountUnits)
-			}
-		}
-
-		vipLevel, err := u.calculateVipLevel(ctx, totalWagered)
+		// Get VIP level from database (user_levels table)
+		vipLevel, err := u.getVipLevelFromDatabase(ctx, usr.ID)
 		if err != nil {
-			u.log.Error("Failed to calculate VIP level", zap.Error(err), zap.String("userID", usr.ID.String()))
+			u.log.Error("Failed to get VIP level from database", zap.Error(err), zap.String("userID", usr.ID.String()))
 			vipLevel = "Bronze" // Default fallback
 		}
 		user.VipLevel = vipLevel
@@ -679,10 +702,16 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		shouldInclude := true
 		if len(req.Filter.VipLevel) > 0 {
 			vipMatch := false
-			for _, level := range req.Filter.VipLevel {
-				if strings.EqualFold(vipLevel, level) {
-					vipMatch = true
-					break
+			// Prefer DB-derived match set if available
+			if len(vipAllowedUsers) > 0 {
+				vipMatch = vipAllowedUsers[usr.ID.String()]
+			} else {
+				for _, level := range req.Filter.VipLevel {
+					// Use contains (case-insensitive) instead of exact match
+					if strings.Contains(strings.ToLower(vipLevel), strings.ToLower(level)) {
+						vipMatch = true
+						break
+					}
 				}
 			}
 			if !vipMatch {
@@ -693,9 +722,43 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		// Add IsTestAccount field
 		user.IsTestAccount = usr.IsTestAccount.Bool
 
-		if shouldInclude {
-			users = append(users, user)
+		// Apply user_id contains filter if provided and reasonably long (>= 6)
+		if req.Filter.UserID != "" && len(req.Filter.UserID) >= 6 {
+			if !strings.Contains(strings.ToLower(usr.ID.String()), strings.ToLower(req.Filter.UserID)) {
+				shouldInclude = false
+			}
 		}
+
+		if shouldInclude {
+			filteredUsers = append(filteredUsers, user)
+		}
+	}
+
+	// If user_id filter applied, paginate after filtering to avoid paging out matches
+	if (req.Filter.UserID != "" && len(req.Filter.UserID) >= 6) || len(req.Filter.VipLevel) > 0 {
+		totalCount = int64(len(filteredUsers))
+		if req.PerPage < 1 {
+			req.PerPage = 10
+		}
+		totalPages = int(totalCount) / req.PerPage
+		if int(totalCount)%req.PerPage != 0 {
+			totalPages++
+		}
+		start := (req.Page - 1) * req.PerPage
+		if start < 0 {
+			start = 0
+		}
+		end := start + req.PerPage
+		if start > len(filteredUsers) {
+			users = []dto.User{}
+		} else {
+			if end > len(filteredUsers) {
+				end = len(filteredUsers)
+			}
+			users = filteredUsers[start:end]
+		}
+	} else {
+		users = filteredUsers
 	}
 
 	result := dto.GetPlayersRes{
@@ -1115,52 +1178,28 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 	}, nil
 }
 
-// calculateVipLevel calculates the VIP level based on total wagered amount and cashback tiers
-func (u *user) calculateVipLevel(ctx context.Context, totalWagered decimal.Decimal) (string, error) {
-	// Get cashback tiers from database
-	query := `SELECT tier_name, tier_level, min_ggr_required FROM cashback_tiers WHERE is_active = true ORDER BY tier_level ASC`
-	rows, err := u.db.GetPool().Query(ctx, query)
+// getVipLevelFromDatabase gets the VIP level directly from the user_levels table
+func (u *user) getVipLevelFromDatabase(ctx context.Context, userID uuid.UUID) (string, error) {
+	query := `
+		SELECT COALESCE(ct.tier_name, 'Bronze') as tier_name
+		FROM user_levels ul
+		LEFT JOIN cashback_tiers ct ON ul.current_tier_id = ct.id
+		WHERE ul.user_id = $1
+	`
+
+	var tierName string
+	err := u.db.GetPool().QueryRow(ctx, query, userID).Scan(&tierName)
 	if err != nil {
-		u.log.Error("Failed to fetch cashback tiers", zap.Error(err))
-		return "Bronze", nil // Default to Bronze if we can't fetch tiers
-	}
-	defer rows.Close()
-
-	var tiers []struct {
-		TierName       string
-		TierLevel      int
-		MinGGRRequired decimal.Decimal
-	}
-
-	for rows.Next() {
-		var tier struct {
-			TierName       string
-			TierLevel      int
-			MinGGRRequired decimal.Decimal
+		if err == sql.ErrNoRows {
+			// User doesn't have a level record yet, return default
+			u.log.Debug("No user level found, returning default Bronze", zap.String("userID", userID.String()))
+			return "Bronze", nil
 		}
-		err := rows.Scan(&tier.TierName, &tier.TierLevel, &tier.MinGGRRequired)
-		if err != nil {
-			u.log.Error("Failed to scan cashback tier", zap.Error(err))
-			continue
-		}
-		tiers = append(tiers, tier)
+		u.log.Error("Failed to get VIP level from database", zap.Error(err), zap.String("userID", userID.String()))
+		return "Bronze", nil // Default to Bronze on error
 	}
 
-	if len(tiers) == 0 {
-		return "Bronze", nil // Default to Bronze if no tiers found
-	}
-
-	// Find the highest tier the user qualifies for
-	currentTier := tiers[0] // Start with the lowest tier
-	for _, tier := range tiers {
-		if totalWagered.GreaterThanOrEqual(tier.MinGGRRequired) {
-			currentTier = tier
-		} else {
-			break
-		}
-	}
-
-	return currentTier.TierName, nil
+	return tierName, nil
 }
 
 func (u *user) SaveToTemp(ctx context.Context, req dto.UserReferals) error {

@@ -325,12 +325,12 @@ func ValidateAdminResetPassword(u AdminResetPasswordReq) error {
 }
 
 type GetPlayersFilter struct {
-	UserID        uuid.UUID `json:"user_id"`
-	SearchTerm    string    `json:"searchterm"`
-	Status        []string  `json:"status"`
-	KycStatus     []string  `json:"kyc_status"`
-	VipLevel      []string  `json:"vip_level"`
-	IsTestAccount *bool     `json:"is_test_account,omitempty"`
+	UserID        string   `json:"user_id"`
+	SearchTerm    string   `json:"searchterm"`
+	Status        []string `json:"status"`
+	KycStatus     []string `json:"kyc_status"`
+	VipLevel      []string `json:"vip_level"`
+	IsTestAccount *bool    `json:"is_test_account,omitempty"`
 }
 type GetPlayersReq struct {
 	Page    int              `json:"page"`

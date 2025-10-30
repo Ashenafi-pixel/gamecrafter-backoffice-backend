@@ -2,7 +2,6 @@ package withdrawal_pause
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -28,7 +27,7 @@ func NewWithdrawalPause(db *platform.Platform, log *zap.Logger) *WithdrawalPause
 // GetWithdrawalPauseSettings retrieves the current pause settings
 func (w *WithdrawalPause) GetWithdrawalPauseSettings(ctx context.Context) (dto.WithdrawalPauseSettings, error) {
 	w.log.Info("Getting withdrawal pause settings")
-	
+
 	settings, err := w.db.Queries.GetWithdrawalPauseSettings(ctx)
 	if err != nil {
 		w.log.Error("Failed to get withdrawal pause settings", zap.Error(err))
@@ -36,19 +35,19 @@ func (w *WithdrawalPause) GetWithdrawalPauseSettings(ctx context.Context) (dto.W
 	}
 
 	return dto.WithdrawalPauseSettings{
-		ID:              settings.ID,
+		ID:               settings.ID,
 		IsGloballyPaused: settings.IsGloballyPaused,
-		PauseReason:     settings.PauseReason,
-		PausedBy:        settings.PausedBy,
-		PausedAt:        settings.PausedAt,
-		CreatedAt:       settings.CreatedAt,
-		UpdatedAt:       settings.UpdatedAt,
+		PauseReason:      settings.PauseReason,
+		PausedBy:         settings.PausedBy,
+		PausedAt:         settings.PausedAt,
+		CreatedAt:        settings.CreatedAt,
+		UpdatedAt:        settings.UpdatedAt,
 	}, nil
 }
 
 // UpdateWithdrawalPauseSettings updates the global pause settings
 func (w *WithdrawalPause) UpdateWithdrawalPauseSettings(ctx context.Context, req dto.UpdateWithdrawalPauseSettingsRequest, adminID uuid.UUID) error {
-	w.log.Info("Updating withdrawal pause settings", 
+	w.log.Info("Updating withdrawal pause settings",
 		zap.Bool("is_globally_paused", req.IsGloballyPaused != nil && *req.IsGloballyPaused),
 		zap.String("pause_reason", getStringValue(req.PauseReason)))
 
@@ -60,10 +59,10 @@ func (w *WithdrawalPause) UpdateWithdrawalPauseSettings(ctx context.Context, req
 	}
 
 	err = w.db.Queries.UpdateWithdrawalPauseSettings(ctx, db.UpdateWithdrawalPauseSettingsParams{
-		ID:              currentSettings.ID,
+		ID:               currentSettings.ID,
 		IsGloballyPaused: req.IsGloballyPaused,
-		PauseReason:     req.PauseReason,
-		PausedBy:        &adminID,
+		PauseReason:      req.PauseReason,
+		PausedBy:         &adminID,
 	})
 	if err != nil {
 		w.log.Error("Failed to update withdrawal pause settings", zap.Error(err))
@@ -77,7 +76,7 @@ func (w *WithdrawalPause) UpdateWithdrawalPauseSettings(ctx context.Context, req
 // GetWithdrawalThresholds retrieves all active thresholds
 func (w *WithdrawalPause) GetWithdrawalThresholds(ctx context.Context) ([]dto.WithdrawalThreshold, error) {
 	w.log.Info("Getting withdrawal thresholds")
-	
+
 	thresholds, err := w.db.Queries.GetWithdrawalThresholds(ctx)
 	if err != nil {
 		w.log.Error("Failed to get withdrawal thresholds", zap.Error(err))
@@ -87,14 +86,14 @@ func (w *WithdrawalPause) GetWithdrawalThresholds(ctx context.Context) ([]dto.Wi
 	result := make([]dto.WithdrawalThreshold, len(thresholds))
 	for i, t := range thresholds {
 		result[i] = dto.WithdrawalThreshold{
-			ID:            t.ID,
-			ThresholdType: t.ThresholdType,
+			ID:             t.ID,
+			ThresholdType:  t.ThresholdType,
 			ThresholdValue: t.ThresholdValue,
-			Currency:      t.Currency,
-			IsActive:      t.IsActive,
-			CreatedBy:     t.CreatedBy,
-			CreatedAt:     t.CreatedAt,
-			UpdatedAt:     t.UpdatedAt,
+			Currency:       t.Currency,
+			IsActive:       t.IsActive,
+			CreatedBy:      t.CreatedBy,
+			CreatedAt:      t.CreatedAt,
+			UpdatedAt:      t.UpdatedAt,
 		}
 	}
 
@@ -103,7 +102,7 @@ func (w *WithdrawalPause) GetWithdrawalThresholds(ctx context.Context) ([]dto.Wi
 
 // CreateWithdrawalThreshold creates a new threshold
 func (w *WithdrawalPause) CreateWithdrawalThreshold(ctx context.Context, req dto.CreateWithdrawalThresholdRequest, adminID uuid.UUID) (dto.WithdrawalThreshold, error) {
-	w.log.Info("Creating withdrawal threshold", 
+	w.log.Info("Creating withdrawal threshold",
 		zap.String("threshold_type", req.ThresholdType),
 		zap.String("threshold_value", req.ThresholdValue.String()),
 		zap.String("currency", req.Currency))
@@ -126,14 +125,14 @@ func (w *WithdrawalPause) CreateWithdrawalThreshold(ctx context.Context, req dto
 	}
 
 	return dto.WithdrawalThreshold{
-		ID:            threshold.ID,
-		ThresholdType: threshold.ThresholdType,
+		ID:             threshold.ID,
+		ThresholdType:  threshold.ThresholdType,
 		ThresholdValue: threshold.ThresholdValue,
-		Currency:      threshold.Currency,
-		IsActive:      threshold.IsActive,
-		CreatedBy:     threshold.CreatedBy,
-		CreatedAt:     threshold.CreatedAt,
-		UpdatedAt:     threshold.UpdatedAt,
+		Currency:       threshold.Currency,
+		IsActive:       threshold.IsActive,
+		CreatedBy:      threshold.CreatedBy,
+		CreatedAt:      threshold.CreatedAt,
+		UpdatedAt:      threshold.UpdatedAt,
 	}, nil
 }
 
@@ -172,20 +171,20 @@ func (w *WithdrawalPause) UpdateWithdrawalThreshold(ctx context.Context, thresho
 	}
 
 	return dto.WithdrawalThreshold{
-		ID:            threshold.ID,
-		ThresholdType: threshold.ThresholdType,
+		ID:             threshold.ID,
+		ThresholdType:  threshold.ThresholdType,
 		ThresholdValue: threshold.ThresholdValue,
-		Currency:      threshold.Currency,
-		IsActive:      threshold.IsActive,
-		CreatedBy:     threshold.CreatedBy,
-		CreatedAt:     threshold.CreatedAt,
-		UpdatedAt:     threshold.UpdatedAt,
+		Currency:       threshold.Currency,
+		IsActive:       threshold.IsActive,
+		CreatedBy:      threshold.CreatedBy,
+		CreatedAt:      threshold.CreatedAt,
+		UpdatedAt:      threshold.UpdatedAt,
 	}, nil
 }
 
 // GetPausedWithdrawals retrieves paused withdrawals with pagination
 func (w *WithdrawalPause) GetPausedWithdrawals(ctx context.Context, req dto.GetPausedWithdrawalsRequest) (dto.GetPausedWithdrawalsResponse, error) {
-	w.log.Info("Getting paused withdrawals", 
+	w.log.Info("Getting paused withdrawals",
 		zap.Int("page", req.Page),
 		zap.Int("per_page", req.PerPage))
 
@@ -237,7 +236,7 @@ func (w *WithdrawalPause) GetPausedWithdrawals(ctx context.Context, req dto.GetP
 
 // PauseWithdrawal pauses a withdrawal and logs the reason
 func (w *WithdrawalPause) PauseWithdrawal(ctx context.Context, withdrawalID uuid.UUID, reason string, thresholdType *string, thresholdValue *decimal.Decimal) error {
-	w.log.Info("Pausing withdrawal", 
+	w.log.Info("Pausing withdrawal",
 		zap.String("withdrawal_id", withdrawalID.String()),
 		zap.String("reason", reason))
 
@@ -255,9 +254,9 @@ func (w *WithdrawalPause) PauseWithdrawal(ctx context.Context, withdrawalID uuid
 
 	// Create pause log
 	_, err = w.db.Queries.CreateWithdrawalPauseLog(ctx, db.CreateWithdrawalPauseLogParams{
-		WithdrawalID:  withdrawalID,
-		PauseReason:   reason,
-		ThresholdType: thresholdType,
+		WithdrawalID:   withdrawalID,
+		PauseReason:    reason,
+		ThresholdType:  thresholdType,
 		ThresholdValue: thresholdValue,
 	})
 	if err != nil {
@@ -288,7 +287,7 @@ func (w *WithdrawalPause) ApproveWithdrawal(ctx context.Context, withdrawalID uu
 	// Update pause log
 	// Note: This assumes we have a way to get the latest pause log for this withdrawal
 	// In a real implementation, you might need to add a query to get the latest log entry
-	
+
 	w.log.Info("Successfully approved withdrawal")
 	return nil
 }
@@ -296,7 +295,7 @@ func (w *WithdrawalPause) ApproveWithdrawal(ctx context.Context, withdrawalID uu
 // GetWithdrawalPauseStats retrieves statistics for the pause system
 func (w *WithdrawalPause) GetWithdrawalPauseStats(ctx context.Context) (dto.WithdrawalPauseStats, error) {
 	w.log.Info("Getting withdrawal pause stats")
-	
+
 	stats, err := w.db.Queries.GetWithdrawalPauseStats(ctx)
 	if err != nil {
 		w.log.Error("Failed to get withdrawal pause stats", zap.Error(err))
@@ -317,20 +316,20 @@ func (w *WithdrawalPause) GetWithdrawalPauseStats(ctx context.Context) (dto.With
 	}
 
 	return dto.WithdrawalPauseStats{
-		TotalPausedToday:      int(stats.TotalPausedToday),
-		TotalPausedThisHour:   int(stats.TotalPausedThisHour),
-		PendingReview:         int(stats.PendingReview),
-		ApprovedToday:         int(stats.ApprovedToday),
-		RejectedToday:         int(stats.RejectedToday),
-		AverageReviewTime:     stats.AverageReviewTimeMinutes,
-		GlobalPauseStatus:     pauseSettings.IsGloballyPaused,
-		ActiveThresholds:      len(thresholds),
+		TotalPausedToday:    int(stats.TotalPausedToday),
+		TotalPausedThisHour: int(stats.TotalPausedThisHour),
+		PendingReview:       int(stats.PendingReview),
+		ApprovedToday:       int(stats.ApprovedToday),
+		RejectedToday:       int(stats.RejectedToday),
+		AverageReviewTime:   stats.AverageReviewTimeMinutes,
+		GlobalPauseStatus:   pauseSettings.IsGloballyPaused,
+		ActiveThresholds:    len(thresholds),
 	}, nil
 }
 
 // CheckThresholds checks if withdrawal exceeds any thresholds
 func (w *WithdrawalPause) CheckThresholds(ctx context.Context, withdrawalID uuid.UUID, userID uuid.UUID, amount decimal.Decimal) (bool, string, error) {
-	w.log.Info("Checking withdrawal thresholds", 
+	w.log.Info("Checking withdrawal thresholds",
 		zap.String("withdrawal_id", withdrawalID.String()),
 		zap.String("user_id", userID.String()),
 		zap.String("amount", amount.String()))
@@ -346,7 +345,7 @@ func (w *WithdrawalPause) CheckThresholds(ctx context.Context, withdrawalID uuid
 	for _, threshold := range thresholds {
 		if threshold.ThresholdType == dto.THRESHOLD_SINGLE_TRANSACTION {
 			if amount.GreaterThan(threshold.ThresholdValue) {
-				w.log.Warn("Single transaction threshold exceeded", 
+				w.log.Warn("Single transaction threshold exceeded",
 					zap.String("amount", amount.String()),
 					zap.String("threshold", threshold.ThresholdValue.String()))
 				return true, dto.PAUSE_REASON_THRESHOLD_EXCEEDED, nil
@@ -365,7 +364,7 @@ func (w *WithdrawalPause) CheckThresholds(ctx context.Context, withdrawalID uuid
 		if threshold.ThresholdType == dto.THRESHOLD_HOURLY_VOLUME {
 			hourlyVolumeDecimal := decimal.NewFromInt(hourlyVolume).Div(decimal.NewFromInt(100))
 			if hourlyVolumeDecimal.GreaterThan(threshold.ThresholdValue) {
-				w.log.Warn("Hourly volume threshold exceeded", 
+				w.log.Warn("Hourly volume threshold exceeded",
 					zap.String("current_volume", hourlyVolumeDecimal.String()),
 					zap.String("threshold", threshold.ThresholdValue.String()))
 				return true, dto.PAUSE_REASON_THRESHOLD_EXCEEDED, nil
@@ -384,7 +383,7 @@ func (w *WithdrawalPause) CheckThresholds(ctx context.Context, withdrawalID uuid
 		if threshold.ThresholdType == dto.THRESHOLD_DAILY_VOLUME {
 			dailyVolumeDecimal := decimal.NewFromInt(dailyVolume).Div(decimal.NewFromInt(100))
 			if dailyVolumeDecimal.GreaterThan(threshold.ThresholdValue) {
-				w.log.Warn("Daily volume threshold exceeded", 
+				w.log.Warn("Daily volume threshold exceeded",
 					zap.String("current_volume", dailyVolumeDecimal.String()),
 					zap.String("threshold", threshold.ThresholdValue.String()))
 				return true, dto.PAUSE_REASON_THRESHOLD_EXCEEDED, nil
@@ -403,7 +402,7 @@ func (w *WithdrawalPause) CheckThresholds(ctx context.Context, withdrawalID uuid
 		if threshold.ThresholdType == dto.THRESHOLD_USER_DAILY {
 			userDailyVolumeDecimal := decimal.NewFromInt(userDailyVolume).Div(decimal.NewFromInt(100))
 			if userDailyVolumeDecimal.GreaterThan(threshold.ThresholdValue) {
-				w.log.Warn("User daily limit threshold exceeded", 
+				w.log.Warn("User daily limit threshold exceeded",
 					zap.String("user_id", userID.String()),
 					zap.String("current_volume", userDailyVolumeDecimal.String()),
 					zap.String("threshold", threshold.ThresholdValue.String()))
@@ -435,7 +434,7 @@ func (w *WithdrawalPause) RejectWithdrawal(ctx context.Context, withdrawalID uui
 	// Update pause log with rejection
 	// Note: This assumes we have a way to get the latest pause log for this withdrawal
 	// In a real implementation, you might need to add a query to get the latest log entry
-	
+
 	w.log.Info("Successfully rejected withdrawal")
 	return nil
 }

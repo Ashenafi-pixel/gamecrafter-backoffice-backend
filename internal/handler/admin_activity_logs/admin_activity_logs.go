@@ -13,6 +13,7 @@ import (
 )
 
 type AdminActivityLogsHandler interface {
+	CreateAdminActivityLog(c *gin.Context)
 	GetAdminActivityLogs(c *gin.Context)
 	GetAdminActivityLogByID(c *gin.Context)
 	GetAdminActivityStats(c *gin.Context)
@@ -34,6 +35,52 @@ func NewAdminActivityLogsHandler(module admin_activity_logs.AdminActivityLogsMod
 		module: module,
 		log:    log,
 	}
+}
+
+// CreateAdminActivityLog handles POST /api/admin/activity-logs
+func (h *adminActivityLogsHandler) CreateAdminActivityLog(c *gin.Context) {
+	var req dto.CreateAdminActivityLogReq
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request payload",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Ensure admin_user_id comes from auth context to satisfy FK and trust
+	if userID := c.GetString("user-id"); userID != "" {
+		if parsedID, err := uuid.Parse(userID); err == nil {
+			req.AdminUserID = parsedID
+		}
+	}
+
+	// Best-effort sanitize empty resource_id if ever provided as zero UUID
+	if req.ResourceID != nil && *req.ResourceID == uuid.Nil {
+		req.ResourceID = nil
+	}
+
+	// Fill IP/UserAgent if missing
+	if req.IPAddress == "" {
+		req.IPAddress = c.GetString("ip")
+	}
+	if req.UserAgent == "" {
+		req.UserAgent = c.GetHeader("User-Agent")
+	}
+
+	if err := h.module.LogAdminActivity(c.Request.Context(), req); err != nil {
+		h.log.Error("Failed to create admin activity log", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create admin activity log",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Admin activity logged",
+	})
 }
 
 // GetAdminActivityLogs handles GET /api/admin/activity-logs

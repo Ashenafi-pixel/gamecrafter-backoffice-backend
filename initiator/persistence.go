@@ -24,6 +24,7 @@ import (
 	"github.com/tucanbit/internal/storage/falcon_liquidity"
 	"github.com/tucanbit/internal/storage/game"
 	"github.com/tucanbit/internal/storage/groove"
+	"github.com/tucanbit/internal/storage/kyc"
 	"github.com/tucanbit/internal/storage/logs"
 	"github.com/tucanbit/internal/storage/lottery"
 	"github.com/tucanbit/internal/storage/notification"
@@ -83,6 +84,7 @@ type Persistence struct {
 	Analytics            storage.Analytics
 	AdminActivityLogs    admin_activity_logs.AdminActivityLogsStorage
 	Alert                alert.AlertStorage
+	KYC                  kyc.KYCStorage
 	Database             *persistencedb.PersistenceDB
 }
 
@@ -133,6 +135,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsStorage(*persistencdb, log),
 		Alert:                alert.NewAlertStorage(*persistencdb, log),
+		KYC:                  kyc.NewKYCStorage(persistencdb, log),
 		Database:             persistencdb,
 	}
 }

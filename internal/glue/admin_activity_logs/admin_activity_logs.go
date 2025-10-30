@@ -23,6 +23,16 @@ func Init(
 
 	routes := []routing.Route{
 		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/activity-logs",
+			Handler: adminActivityLogsHandler.CreateAdminActivityLog,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "Create Admin Activity Log", http.MethodPost),
+			},
+		},
+		{
 			Method:  http.MethodGet,
 			Path:    "/api/admin/activity-logs",
 			Handler: adminActivityLogsHandler.GetAdminActivityLogs,

@@ -14,19 +14,20 @@ import (
 
 // Game represents a game in the database
 type Game struct {
-	ID                 uuid.UUID `db:"id"`
-	Name               string    `db:"name"`
-	Status             string    `db:"status"`
-	Timestamp          time.Time `db:"timestamp"`
-	Photo              *string   `db:"photo"`
-	Price              *string   `db:"price"`
-	Enabled            bool      `db:"enabled"`
-	GameID             *string   `db:"game_id"`
-	InternalName       *string   `db:"internal_name"`
-	IntegrationPartner *string   `db:"integration_partner"`
-	Provider           *string   `db:"provider"`
-	CreatedAt          time.Time `db:"created_at"`
-	UpdatedAt          time.Time `db:"updated_at"`
+	ID                 uuid.UUID        `db:"id"`
+	Name               string           `db:"name"`
+	Status             string           `db:"status"`
+	Timestamp          time.Time        `db:"timestamp"`
+	Photo              *string          `db:"photo"`
+	Price              *string          `db:"price"`
+	Enabled            bool             `db:"enabled"`
+	GameID             *string          `db:"game_id"`
+	InternalName       *string          `db:"internal_name"`
+	IntegrationPartner *string          `db:"integration_partner"`
+	Provider           *string          `db:"provider"`
+	CreatedAt          time.Time        `db:"created_at"`
+	UpdatedAt          time.Time        `db:"updated_at"`
+	HouseEdge          *decimal.Decimal `db:"house_edge"`
 }
 
 // GameHouseEdge represents a house edge configuration
@@ -263,8 +264,17 @@ func (s *GameStorageImpl) GetGames(ctx context.Context, params GameQueryParams) 
 
 	// Execute query
 	query := fmt.Sprintf(`
-		SELECT id, name, status, timestamp, photo, price, enabled, game_id, internal_name, integration_partner, provider, created_at, updated_at
-		FROM games %s %s %s`, whereClause, orderBy, limitOffset)
+        SELECT g.id, g.name, g.status, g.timestamp, g.photo, g.price, g.enabled, g.game_id, g.internal_name, g.integration_partner, g.provider, g.created_at, g.updated_at,
+               he.house_edge
+        FROM games g
+        LEFT JOIN LATERAL (
+            SELECT house_edge
+            FROM game_house_edges
+            WHERE is_active = true AND game_id = g.game_id
+            ORDER BY effective_from DESC, updated_at DESC
+            LIMIT 1
+        ) he ON true
+        %s %s %s`, whereClause, orderBy, limitOffset)
 
 	rows, err := s.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
@@ -280,7 +290,7 @@ func (s *GameStorageImpl) GetGames(ctx context.Context, params GameQueryParams) 
 			&game.ID, &game.Name, &game.Status, &game.Timestamp,
 			&game.Photo, &game.Price, &game.Enabled, &game.GameID,
 			&game.InternalName, &game.IntegrationPartner, &game.Provider,
-			&game.CreatedAt, &game.UpdatedAt)
+			&game.CreatedAt, &game.UpdatedAt, &game.HouseEdge)
 		if err != nil {
 			s.logger.Error("Failed to scan game", zap.Error(err))
 			return nil, 0, err

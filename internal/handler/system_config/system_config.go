@@ -883,6 +883,67 @@ func (h *SystemConfigHandler) UpdatePaymentSettings(ctx *gin.Context) {
 	})
 }
 
+// GetTipSettings retrieves tip settings
+func (h *SystemConfigHandler) GetTipSettings(ctx *gin.Context) {
+	h.log.Info("Getting tip settings")
+
+	settings, err := h.systemConfigStorage.GetTipSettings(ctx)
+	if err != nil {
+		h.log.Error("Failed to get tip settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "Tip settings retrieved successfully",
+	})
+}
+
+// UpdateTipSettings updates tip settings
+func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
+	var req system_config.TipSettings
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err := h.systemConfigStorage.UpdateTipSettings(ctx, req, adminUUID)
+	if err != nil {
+		h.log.Error("Failed to update tip settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "tip_settings", "Updated tip settings", map[string]interface{}{
+		"tip_transaction_fee_from_who": req.TipTransactionFeeFromWho,
+		"transaction_fee":              req.TransactionFee,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "Tip settings updated successfully",
+	})
+}
+
 // GetSecuritySettings retrieves security settings
 func (h *SystemConfigHandler) GetSecuritySettings(ctx *gin.Context) {
 	h.log.Info("Getting security settings")

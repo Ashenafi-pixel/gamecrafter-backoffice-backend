@@ -75,6 +75,11 @@ type SecuritySettings struct {
 	RateLimitRequests      int  `json:"rate_limit_requests"`
 }
 
+type TipSettings struct {
+	TipTransactionFeeFromWho string  `json:"tip_transaction_fee_from_who"` // "sender" or "receiver"
+	TransactionFee           float64 `json:"transaction_fee"`              // 1-100
+}
+
 type GeoBlockingSettings struct {
 	EnableGeoBlocking bool     `json:"enable_geo_blocking"`
 	DefaultAction     string   `json:"default_action"` // "allow" or "block"
@@ -391,6 +396,56 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 	}
 
 	s.log.Info("Payment settings updated successfully")
+	return nil
+}
+
+// GetTipSettings retrieves tip settings from system config
+func (s *SystemConfig) GetTipSettings(ctx context.Context) (TipSettings, error) {
+	s.log.Info("Getting tip settings from system config")
+
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "tip_settings").Scan(&configValue)
+	if err != nil {
+		s.log.Error("Failed to get tip settings from database", zap.Error(err))
+		return TipSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get tip settings")
+	}
+
+	var settings TipSettings
+	err = json.Unmarshal(configValue, &settings)
+	if err != nil {
+		s.log.Error("Failed to unmarshal tip settings", zap.Error(err))
+		return TipSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to parse tip settings")
+	}
+
+	return settings, nil
+}
+
+// UpdateTipSettings updates tip settings in system config
+func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettings, adminID uuid.UUID) error {
+	s.log.Info("Updating tip settings")
+
+	configValue, err := json.Marshal(settings)
+	if err != nil {
+		s.log.Error("Failed to marshal tip settings", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to marshal tip settings")
+	}
+
+	_, err = s.db.GetPool().Exec(ctx, `
+		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
+		VALUES ($1, $2, $3, $4, NOW())
+		ON CONFLICT (config_key) 
+		DO UPDATE SET 
+			config_value = EXCLUDED.config_value,
+			updated_by = EXCLUDED.updated_by,
+			updated_at = EXCLUDED.updated_at
+	`, "tip_settings", configValue, "Tip transaction fee settings", adminID)
+
+	if err != nil {
+		s.log.Error("Failed to update tip settings in database", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings")
+	}
+
+	s.log.Info("Tip settings updated successfully")
 	return nil
 }
 

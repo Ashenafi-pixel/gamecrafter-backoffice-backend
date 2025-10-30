@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/storage/game"
@@ -252,6 +253,14 @@ func (s *GameService) GetGameStats(ctx *gin.Context) (*dto.GameManagementStats, 
 }
 
 func (s *GameService) convertToGameResponse(game *game.Game) *dto.GameResponse {
+	var rtp *string
+	if game.HouseEdge != nil {
+		// rtp_percent = 100 - house_edge (no extra scaling)
+		he := *game.HouseEdge
+		r := decimal.NewFromInt(100).Sub(he).StringFixed(2)
+		rtp = &r
+	}
+
 	return &dto.GameResponse{
 		ID:                 game.ID,
 		Name:               game.Name,
@@ -266,5 +275,6 @@ func (s *GameService) convertToGameResponse(game *game.Game) *dto.GameResponse {
 		Provider:           game.Provider,
 		CreatedAt:          game.CreatedAt,
 		UpdatedAt:          game.UpdatedAt,
+		RTPPercent:         rtp,
 	}
 }
