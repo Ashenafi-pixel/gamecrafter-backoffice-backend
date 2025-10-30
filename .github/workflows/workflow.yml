@@ -71,8 +71,8 @@ jobs:
             echo "ENVIRONMENT=prod" >> $GITHUB_ENV
             echo "environment=prod" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" == 'refs/heads/stage' ]; then
-            echo "ENVIRONMENT=stage" >> $GITHUB_ENV
-            echo "environment=stage" >> $GITHUB_OUTPUT
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "environment=staging" >> $GITHUB_OUTPUT
           fi
 #      - name: Set variable for feature branches TODO: need to utilize existing ec2 instance as testing site
 #        if: startsWith(github.ref, 'refs/heads/feature/')
