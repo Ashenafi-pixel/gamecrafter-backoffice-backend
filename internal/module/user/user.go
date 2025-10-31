@@ -765,7 +765,7 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 			userSession := dto.UserSessions{
 				UserID:                usr.ID,
 				Token:                 token,
-				ExpiresAt:             time.Now().Add(time.Hour * 1), // 1 hour for admin
+				ExpiresAt:             time.Now().Add(time.Hour * 8), // 8 hours for admin
 				RefreshToken:          refreshToken,
 				RefreshTokenExpiresAt: time.Now().Add(30 * time.Minute),
 				IpAddress:             loginLogs.IPAddress,
@@ -838,7 +838,7 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 			userSession := dto.UserSessions{
 				UserID:                usr.ID,
 				Token:                 token,
-				ExpiresAt:             time.Now().Add(time.Hour * 1), // 1 hour for admin
+				ExpiresAt:             time.Now().Add(time.Hour * 8), // 8 hours for admin
 				RefreshToken:          refreshToken,
 				RefreshTokenExpiresAt: time.Now().Add(30 * time.Minute),
 				IpAddress:             loginLogs.IPAddress,
