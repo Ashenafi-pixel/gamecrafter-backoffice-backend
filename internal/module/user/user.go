@@ -24,6 +24,7 @@ import (
 	"github.com/tucanbit/internal/service/twofactor"
 	"github.com/tucanbit/internal/storage"
 	otpStorage "github.com/tucanbit/internal/storage/otp"
+	"github.com/tucanbit/internal/storage/system_config"
 	"github.com/tucanbit/platform/pisi"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
@@ -69,6 +70,22 @@ type User struct {
 	otpModule                     otp.OTPModule
 	twoFactorService              twofactor.TwoFactorService
 	email                         email.EmailService
+	systemConfigStorage           *system_config.SystemConfig
+}
+
+// getSecuritySettings retrieves security settings, returns default values if unavailable
+func (u *User) getSecuritySettings(ctx context.Context) (system_config.SecuritySettings, error) {
+	if u.systemConfigStorage == nil {
+		// Return default settings if storage is not available
+		return system_config.SecuritySettings{
+			SessionTimeout:    480, // 8 hours default
+			MaxLoginAttempts:  5,
+			LockoutDuration:   15,
+			PasswordMinLength: 8,
+			RateLimitRequests: 100,
+		}, nil
+	}
+	return u.systemConfigStorage.GetSecuritySettings(ctx)
 }
 
 func Init(userStorage storage.User,
@@ -93,6 +110,7 @@ func Init(userStorage storage.User,
 	otpStorage otpStorage.OTP,
 	emailService email.EmailService,
 	twoFactorService twofactor.TwoFactorService,
+	systemConfigStorage *system_config.SystemConfig,
 ) module.User {
 	gOauth := &oauth.Config{
 		ClientID:     gclientID,
@@ -747,8 +765,13 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 
 		// For admin logins, allow login with token but still require 2FA
 		if adminLogin {
+			// Get security settings for session timeout
+			var timeoutMinutes int
+			if securitySettings, err := u.getSecuritySettings(ctx); err == nil {
+				timeoutMinutes = securitySettings.SessionTimeout
+			}
 			// Generate JWT token for admin login even with 2FA required
-			token, err := utils.GenerateJWTWithVerification(usr.ID, true, true, true)
+			token, err := utils.GenerateJWTWithVerification(usr.ID, true, true, true, timeoutMinutes)
 			if err != nil {
 				u.log.Error("Failed to generate JWT for admin with 2FA", zap.Error(err))
 				return dto.UserLoginRes{}, "", err
@@ -761,11 +784,15 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 				return dto.UserLoginRes{}, "", err
 			}
 
-			// Save admin session
+			// Save admin session - use security settings timeout
+			sessionTimeout := time.Hour * 8 // Default 8 hours
+			if timeoutMinutes > 0 {
+				sessionTimeout = time.Duration(timeoutMinutes) * time.Minute
+			}
 			userSession := dto.UserSessions{
 				UserID:                usr.ID,
 				Token:                 token,
-				ExpiresAt:             time.Now().Add(time.Hour * 8), // 8 hours for admin
+				ExpiresAt:             time.Now().Add(sessionTimeout),
 				RefreshToken:          refreshToken,
 				RefreshTokenExpiresAt: time.Now().Add(30 * time.Minute),
 				IpAddress:             loginLogs.IPAddress,
@@ -820,8 +847,13 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 
 		// For admin logins, allow login with token but still recommend 2FA setup
 		if adminLogin {
+			// Get security settings for session timeout
+			var timeoutMinutes int
+			if securitySettings, err := u.getSecuritySettings(ctx); err == nil {
+				timeoutMinutes = securitySettings.SessionTimeout
+			}
 			// Generate JWT token for admin login even without 2FA setup
-			token, err := utils.GenerateJWTWithVerification(usr.ID, true, true, true)
+			token, err := utils.GenerateJWTWithVerification(usr.ID, true, true, true, timeoutMinutes)
 			if err != nil {
 				u.log.Error("Failed to generate JWT for admin without 2FA", zap.Error(err))
 				return dto.UserLoginRes{}, "", err
@@ -834,11 +866,15 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 				return dto.UserLoginRes{}, "", err
 			}
 
-			// Save admin session
+			// Save admin session - use security settings timeout
+			sessionTimeout := time.Hour * 8 // Default 8 hours
+			if timeoutMinutes > 0 {
+				sessionTimeout = time.Duration(timeoutMinutes) * time.Minute
+			}
 			userSession := dto.UserSessions{
 				UserID:                usr.ID,
 				Token:                 token,
-				ExpiresAt:             time.Now().Add(time.Hour * 8), // 8 hours for admin
+				ExpiresAt:             time.Now().Add(sessionTimeout),
 				RefreshToken:          refreshToken,
 				RefreshTokenExpiresAt: time.Now().Add(30 * time.Minute),
 				IpAddress:             loginLogs.IPAddress,
@@ -900,8 +936,13 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		phoneVerified = true
 	}
 
+	// Get security settings for session timeout
+	var timeoutMinutes int
+	if securitySettings, err := u.getSecuritySettings(ctx); err == nil {
+		timeoutMinutes = securitySettings.SessionTimeout
+	}
 	// generate jwt token with verification status
-	token, err := utils.GenerateJWTWithVerification(usr.ID, isVerified, emailVerified, phoneVerified)
+	token, err := utils.GenerateJWTWithVerification(usr.ID, isVerified, emailVerified, phoneVerified, timeoutMinutes)
 	if err != nil {
 		err = fmt.Errorf("unable to generate jwt token")
 		u.log.Warn(err.Error(), zap.Any("loginRequest", loginRequest))
@@ -919,11 +960,15 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 	}
 	refreshTokenExpiry := time.Now().Add(30 * time.Minute) // Restored to 30 minutes for production
 
-	// save user session with refresh token
+	// save user session with refresh token - use security settings timeout
+	sessionTimeoutForUser := time.Hour * 8 // Default 8 hours
+	if timeoutMinutes > 0 {
+		sessionTimeoutForUser = time.Duration(timeoutMinutes) * time.Minute
+	}
 	userSession := dto.UserSessions{
 		UserID:                usr.ID,
 		Token:                 token,
-		ExpiresAt:             time.Now().Add(time.Minute * 10),
+		ExpiresAt:             time.Now().Add(sessionTimeoutForUser),
 		RefreshToken:          refreshToken,
 		RefreshTokenExpiresAt: refreshTokenExpiry,
 		IpAddress:             loginLogs.IPAddress,

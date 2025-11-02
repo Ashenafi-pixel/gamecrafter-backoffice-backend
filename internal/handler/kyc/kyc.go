@@ -550,3 +550,78 @@ func (h *KYCHandler) GetAllSubmissions(ctx *gin.Context) {
 		"message": "KYC submissions listed successfully",
 	})
 }
+
+// GetKYCSettings retrieves all KYC settings
+func (h *KYCHandler) GetKYCSettings(ctx *gin.Context) {
+	settings, err := h.kycStorage.GetAllKYCSettings(ctx.Request.Context())
+	if err != nil {
+		h.log.Error("Failed to get KYC settings", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to get KYC settings",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"total":   len(settings),
+		"message": "KYC settings retrieved successfully",
+	})
+}
+
+// UpdateKYCSettings updates a KYC setting
+func (h *KYCHandler) UpdateKYCSettings(ctx *gin.Context) {
+	var req struct {
+		ID           string                 `json:"id" binding:"required"`
+		SettingValue map[string]interface{} `json:"setting_value" binding:"required"`
+		Description  *string                `json:"description,omitempty"`
+		IsActive     bool                   `json:"is_active"`
+	}
+
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	settingID, err := uuid.Parse(req.ID)
+	if err != nil {
+		h.log.Error("Invalid setting ID", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid setting ID",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	err = h.kycStorage.UpdateKYCSettings(ctx.Request.Context(), settingID, req.SettingValue, req.Description, req.IsActive)
+	if err != nil {
+		h.log.Error("Failed to update KYC setting", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update KYC setting",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "kyc_settings", "Updated KYC setting", map[string]interface{}{
+		"setting_id":  req.ID,
+		"setting_key": req.SettingValue,
+		"is_active":   req.IsActive,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "KYC setting updated successfully",
+	})
+}

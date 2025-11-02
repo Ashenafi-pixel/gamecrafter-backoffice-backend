@@ -153,6 +153,30 @@ func Init(
 				middleware.SystemLogs("List KYC Submissions", &log, systemLogs),
 			},
 		},
+		// Get KYC settings
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/kyc/settings",
+			Handler: kyc.GetKYCSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "get kyc settings", http.MethodGet),
+				middleware.SystemLogs("Get KYC Settings", &log, systemLogs),
+			},
+		},
+		// Update KYC settings
+		{
+			Method:  http.MethodPut,
+			Path:    "/api/admin/kyc/settings",
+			Handler: kyc.UpdateKYCSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "update kyc settings", http.MethodPut),
+				middleware.SystemLogs("Update KYC Settings", &log, systemLogs),
+			},
+		},
 	}
 
 	routing.RegisterRoute(group, kycRoutes, log)

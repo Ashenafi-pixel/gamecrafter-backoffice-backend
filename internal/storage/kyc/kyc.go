@@ -3,6 +3,7 @@ package kyc
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -41,6 +42,10 @@ type KYCStorage interface {
 	BlockWithdrawals(ctx context.Context, userID uuid.UUID, reason string, blockedBy uuid.UUID) error
 	UnblockWithdrawals(ctx context.Context, userID uuid.UUID) error
 	IsWithdrawalBlocked(ctx context.Context, userID uuid.UUID) (bool, error)
+
+	// KYC Settings operations
+	GetAllKYCSettings(ctx context.Context) ([]dto.KYCSettings, error)
+	UpdateKYCSettings(ctx context.Context, id uuid.UUID, settingValue map[string]interface{}, description *string, isActive bool) error
 }
 
 // kycImpl implements KYCStorage interface
@@ -627,4 +632,99 @@ func (s *kycImpl) IsWithdrawalBlocked(ctx context.Context, userID uuid.UUID) (bo
 	}
 
 	return blocked, nil
+}
+
+// GetAllKYCSettings retrieves all KYC settings ordered by id ASC
+func (s *kycImpl) GetAllKYCSettings(ctx context.Context) ([]dto.KYCSettings, error) {
+	s.log.Info("Getting all KYC settings")
+
+	query := `
+		SELECT id, setting_key, setting_value, description, is_active, created_at, updated_at
+		FROM kyc_settings
+		ORDER BY id ASC
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query)
+	if err != nil {
+		s.log.Error("Failed to query KYC settings", zap.Error(err))
+		return nil, err
+	}
+	defer rows.Close()
+
+	var settings []dto.KYCSettings
+	for rows.Next() {
+		var setting dto.KYCSettings
+		var settingValueJSON []byte
+		var description sql.NullString
+
+		err := rows.Scan(
+			&setting.ID,
+			&setting.SettingKey,
+			&settingValueJSON,
+			&description,
+			&setting.IsActive,
+			&setting.CreatedAt,
+			&setting.UpdatedAt,
+		)
+		if err != nil {
+			s.log.Error("Failed to scan KYC setting", zap.Error(err))
+			continue
+		}
+
+		// Parse JSONB to map
+		var settingValue map[string]interface{}
+		if err := json.Unmarshal(settingValueJSON, &settingValue); err != nil {
+			s.log.Error("Failed to unmarshal setting_value JSON", zap.Error(err))
+			settingValue = make(map[string]interface{})
+		}
+		setting.SettingValue = settingValue
+
+		if description.Valid {
+			setting.Description = &description.String
+		}
+
+		settings = append(settings, setting)
+	}
+
+	if err = rows.Err(); err != nil {
+		s.log.Error("Error iterating KYC settings", zap.Error(err))
+		return nil, err
+	}
+
+	return settings, nil
+}
+
+// UpdateKYCSettings updates a KYC setting
+func (s *kycImpl) UpdateKYCSettings(ctx context.Context, id uuid.UUID, settingValue map[string]interface{}, description *string, isActive bool) error {
+	s.log.Info("Updating KYC setting", zap.String("id", id.String()))
+
+	// Marshal setting_value to JSON
+	settingValueJSON, err := json.Marshal(settingValue)
+	if err != nil {
+		s.log.Error("Failed to marshal setting_value", zap.Error(err))
+		return err
+	}
+
+	query := `
+		UPDATE kyc_settings
+		SET setting_value = $1,
+		    description = $2,
+		    is_active = $3,
+		    updated_at = NOW()
+		WHERE id = $4
+	`
+
+	result, err := s.db.GetPool().Exec(ctx, query, settingValueJSON, description, isActive, id)
+	if err != nil {
+		s.log.Error("Failed to update KYC setting", zap.Error(err))
+		return err
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("KYC setting with id %s not found", id.String())
+	}
+
+	s.log.Info("KYC setting updated successfully", zap.String("id", id.String()))
+	return nil
 }

@@ -422,4 +422,6 @@ type KYC interface {
 	GetStatusChanges(c *gin.Context)         // GET /api/admin/kyc/status-changes/:user_id
 	GetAllSubmissions(c *gin.Context)        // GET /api/admin/kyc/submissions
 	GetWithdrawalBlockStatus(c *gin.Context) // GET /api/admin/kyc/user/:user_id/withdrawal-block
+	GetKYCSettings(c *gin.Context)           // GET /api/admin/kyc/settings
+	UpdateKYCSettings(c *gin.Context)        // PUT /api/admin/kyc/settings
 }

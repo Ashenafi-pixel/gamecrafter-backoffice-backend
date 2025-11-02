@@ -37,6 +37,7 @@ import (
 	"github.com/tucanbit/internal/storage/risksettings"
 	"github.com/tucanbit/internal/storage/sports"
 	"github.com/tucanbit/internal/storage/squads"
+	"github.com/tucanbit/internal/storage/system_config"
 	"github.com/tucanbit/internal/storage/twofactor"
 	"github.com/tucanbit/internal/storage/user"
 	"github.com/tucanbit/platform/clickhouse"
@@ -85,6 +86,7 @@ type Persistence struct {
 	AdminActivityLogs    admin_activity_logs.AdminActivityLogsStorage
 	Alert                alert.AlertStorage
 	KYC                  kyc.KYCStorage
+	SystemConfig         *system_config.SystemConfig
 	Database             *persistencedb.PersistenceDB
 }
 
@@ -136,6 +138,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsStorage(*persistencdb, log),
 		Alert:                alert.NewAlertStorage(*persistencdb, log),
 		KYC:                  kyc.NewKYCStorage(persistencdb, log),
+		SystemConfig:         system_config.NewSystemConfig(persistencdb, log),
 		Database:             persistencdb,
 	}
 }

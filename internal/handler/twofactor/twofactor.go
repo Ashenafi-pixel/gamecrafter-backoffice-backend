@@ -337,8 +337,8 @@ func (h *twoFactorHandler) VerifyToken(c *gin.Context) {
 
 	h.log.Info("2FA token verified successfully", zap.String("user_id", userID.String()))
 
-	// Generate JWT token for successful 2FA verification
-	token, err := utils.GenerateJWTWithVerification(userID, true, true, true)
+	// Generate JWT token for successful 2FA verification (use default timeout - could be made dynamic)
+	token, err := utils.GenerateJWTWithVerification(userID, true, true, true, 0)
 	if err != nil {
 		h.log.Error("Failed to generate JWT token after 2FA", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{
@@ -1261,7 +1261,7 @@ func (h *twoFactorHandler) EnableTOTPForLogin(c *gin.Context) {
 	}
 
 	// Generate JWT token for successful 2FA setup completion
-	token, err := utils.GenerateJWTWithVerification(userID, true, true, true)
+	token, err := utils.GenerateJWTWithVerification(userID, true, true, true, 0)
 	if err != nil {
 		h.log.Error("Failed to generate JWT token after 2FA setup", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, dto.TwoFactorResponse{

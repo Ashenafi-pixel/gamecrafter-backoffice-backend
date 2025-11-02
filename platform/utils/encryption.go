@@ -32,11 +32,16 @@ func ComparePasswords(hashedPassword, password string) bool {
 
 func GenerateJWT(userID uuid.UUID) (string, error) {
 	// Default to unverified for backward compatibility
-	return GenerateJWTWithVerification(userID, false, false, false)
+	return GenerateJWTWithVerification(userID, false, false, false, 0)
+}
+
+// GenerateJWTWithTimeout generates a JWT token with custom timeout
+func GenerateJWTWithTimeout(userID uuid.UUID, timeoutMinutes int) (string, error) {
+	return GenerateJWTWithVerification(userID, false, false, false, timeoutMinutes)
 }
 
 // GenerateJWTWithVerification generates a JWT token with verification status
-func GenerateJWTWithVerification(userID uuid.UUID, isVerified, emailVerified, phoneVerified bool) (string, error) {
+func GenerateJWTWithVerification(userID uuid.UUID, isVerified, emailVerified, phoneVerified bool, timeoutMinutes int) (string, error) {
 	key := viper.GetString("app.jwt_secret")
 	if key == "" {
 		key = viper.GetString("auth.jwt_secret") // Fallback for backward compatibility
@@ -46,7 +51,14 @@ func GenerateJWTWithVerification(userID uuid.UUID, isVerified, emailVerified, ph
 	}
 
 	jwtKey := []byte(key)
-	expirationTime := time.Now().Add(time.Hour * 8) // 8 hours for backoffice admin session timeout
+	
+	// Use provided timeout, or default to 8 hours for backward compatibility
+	var expirationTime time.Time
+	if timeoutMinutes > 0 {
+		expirationTime = time.Now().Add(time.Duration(timeoutMinutes) * time.Minute)
+	} else {
+		expirationTime = time.Now().Add(time.Hour * 8) // 8 hours default for backoffice admin session timeout
+	}
 
 	claim := &dto.Claim{
 		UserID:        userID,

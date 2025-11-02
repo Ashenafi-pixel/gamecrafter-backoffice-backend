@@ -18,10 +18,10 @@ const (
 
 // KYC Status Values
 const (
-	StatusNoKYC        = "NO_KYC"
-	StatusIDVerified   = "ID_VERIFIED"
+	StatusNoKYC         = "NO_KYC"
+	StatusIDVerified    = "ID_VERIFIED"
 	StatusIDSOFVerified = "ID_SOF_VERIFIED"
-	StatusKYCFailed    = "KYC_FAILED"
+	StatusKYCFailed     = "KYC_FAILED"
 )
 
 // Document Status
@@ -42,43 +42,43 @@ const (
 
 // KYC Document represents an uploaded document
 type KYCDocument struct {
+	ID              uuid.UUID  `json:"id"`
+	UserID          uuid.UUID  `json:"user_id"`
+	DocumentType    string     `json:"document_type"`
+	FileUrl         string     `json:"file_url"`
+	FileName        string     `json:"file_name"`
+	UploadDate      time.Time  `json:"upload_date"`
+	Status          string     `json:"status"`
+	RejectionReason *string    `json:"rejection_reason,omitempty"`
+	ReviewedBy      *uuid.UUID `json:"reviewed_by,omitempty"`
+	ReviewDate      *time.Time `json:"review_date,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+// KYC Submission represents a KYC application
+type KYCSubmission struct {
 	ID             uuid.UUID  `json:"id"`
 	UserID         uuid.UUID  `json:"user_id"`
-	DocumentType   string     `json:"document_type"`
-	FileUrl        string     `json:"file_url"`
-	FileName       string     `json:"file_name"`
-	UploadDate     time.Time  `json:"upload_date"`
-	Status         string     `json:"status"`
-	RejectionReason *string   `json:"rejection_reason,omitempty"`
+	SubmissionDate time.Time  `json:"submission_date"`
+	OverallStatus  string     `json:"overall_status"`
+	Notes          *string    `json:"notes,omitempty"`
 	ReviewedBy     *uuid.UUID `json:"reviewed_by,omitempty"`
 	ReviewDate     *time.Time `json:"review_date,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
-// KYC Submission represents a KYC application
-type KYCSubmission struct {
-	ID            uuid.UUID  `json:"id"`
-	UserID        uuid.UUID  `json:"user_id"`
-	SubmissionDate time.Time  `json:"submission_date"`
-	OverallStatus string     `json:"overall_status"`
-	Notes         *string    `json:"notes,omitempty"`
-	ReviewedBy    *uuid.UUID `json:"reviewed_by,omitempty"`
-	ReviewDate    *time.Time `json:"review_date,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-}
-
 // KYC Status Change represents an audit log entry
 type KYCStatusChange struct {
-	ID           uuid.UUID `json:"id"`
-	UserID       uuid.UUID `json:"user_id"`
-	OldStatus    string    `json:"old_status"`
-	NewStatus    string    `json:"new_status"`
-	ChangedBy    *uuid.UUID `json:"changed_by,omitempty"`
-	ChangeDate   time.Time `json:"change_date"`
-	Reason       *string   `json:"reason,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID         uuid.UUID  `json:"id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	OldStatus  string     `json:"old_status"`
+	NewStatus  string     `json:"new_status"`
+	ChangedBy  *uuid.UUID `json:"changed_by,omitempty"`
+	ChangeDate time.Time  `json:"change_date"`
+	Reason     *string    `json:"reason,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 // Request DTOs for KYC operations
@@ -104,6 +104,17 @@ type UpdateUserKYCStatusRequest struct {
 	UserID    uuid.UUID `json:"user_id" binding:"required"`
 	NewStatus string    `json:"new_status" binding:"required"`
 	Reason    *string   `json:"reason,omitempty"`
+}
+
+// KYCSettings represents a KYC setting from the kyc_settings table
+type KYCSettings struct {
+	ID           uuid.UUID              `json:"id"`
+	SettingKey   string                 `json:"setting_key"`
+	SettingValue map[string]interface{} `json:"setting_value"` // JSONB field
+	Description  *string                `json:"description,omitempty"`
+	IsActive     bool                   `json:"is_active"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 }
 
 // BlockWithdrawalsRequest represents a request to block user withdrawals

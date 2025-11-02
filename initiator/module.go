@@ -157,6 +157,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 				SMSOTPLength:     6,
 				OTPExpiryMinutes: 5,
 			}, emailService),
+			persistence.SystemConfig,
 		),
 		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
