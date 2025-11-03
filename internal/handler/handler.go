@@ -41,6 +41,7 @@ type User interface {
 	GetIpFilter(c *gin.Context)
 	AdminUpdateProfile(c *gin.Context)
 	AdminResetUsersPassword(c *gin.Context)
+	AdminAutoResetUsersPassword(c *gin.Context)
 	GetUsers(c *gin.Context)
 	RemoveIPFilter(c *gin.Context)
 	GetMyReferalCodes(c *gin.Context)

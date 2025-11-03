@@ -318,6 +318,16 @@ type AdminResetPasswordRes struct {
 	User    User   `json:"user"`
 }
 
+type AdminAutoResetPasswordReq struct {
+	UserID  uuid.UUID `json:"user_id"`
+	AdminID uuid.UUID `json:"admin_id" swaggerignore:"true"`
+}
+
+type AdminAutoResetPasswordRes struct {
+	Message string `json:"message"`
+	User    User   `json:"user"`
+}
+
 func ValidateAdminResetPassword(u AdminResetPasswordReq) error {
 	validate := validator.New()
 	validate.RegisterValidation("passwordvalidation", isValidPassword)

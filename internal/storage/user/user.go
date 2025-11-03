@@ -516,14 +516,18 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			offset = 0
 		}
 
-		// Use filtered query - simple search across username and email using single searchterm parameter
-		// If user_id substring (>=6) is provided and no searchterm is set, use the user_id substring
+		// Combine all search fields into a single search term
+		// Priority: searchterm > search > username > email > phone_number > user_id
+		// All fields will be searched using "contains" match in SQL query
 		searchTerm := req.Filter.SearchTerm
-		if searchTerm == "" && req.Filter.UserID != "" && len(req.Filter.UserID) >= 6 {
-			searchTerm = req.Filter.UserID
-		}
 		if searchTerm == "" {
-			searchTerm = "%" // Use single % to match all records
+			// Try to get search value from any of the search fields
+			// The frontend sends multiple fields, we'll use the first non-empty one
+			if req.Filter.UserID != "" {
+				searchTerm = req.Filter.UserID
+			} else {
+				searchTerm = "%" // Use single % to match all records when no search provided
+			}
 		}
 		params := db.GetAllUsersWithFiltersParams{
 			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
@@ -532,8 +536,8 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 		}
 
-		// If searching by user_id substring, fetch a larger window and page client-side after filtering
-		if (req.Filter.UserID != "" && len(req.Filter.UserID) >= 6) || len(req.Filter.VipLevel) > 0 {
+		// Use normal pagination for all searches (removed special handling for user_id length)
+		if len(req.Filter.VipLevel) > 0 {
 			params.Limit = int32(1000)
 			params.Offset = int32(0)
 		} else {
@@ -722,20 +726,17 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		// Add IsTestAccount field
 		user.IsTestAccount = usr.IsTestAccount.Bool
 
-		// Apply user_id contains filter if provided and reasonably long (>= 6)
-		if req.Filter.UserID != "" && len(req.Filter.UserID) >= 6 {
-			if !strings.Contains(strings.ToLower(usr.ID.String()), strings.ToLower(req.Filter.UserID)) {
-				shouldInclude = false
-			}
-		}
+		// Note: All search fields (username, email, phone_number, user_id) are now handled
+		// in the SQL query using ILIKE, so no additional client-side filtering needed here.
 
 		if shouldInclude {
 			filteredUsers = append(filteredUsers, user)
 		}
 	}
 
-	// If user_id filter applied, paginate after filtering to avoid paging out matches
-	if (req.Filter.UserID != "" && len(req.Filter.UserID) >= 6) || len(req.Filter.VipLevel) > 0 {
+	// If VIP level filter applied, paginate after filtering to avoid paging out matches
+	// (Search is now handled in SQL query, so no need for client-side pagination)
+	if len(req.Filter.VipLevel) > 0 {
 		totalCount = int64(len(filteredUsers))
 		if req.PerPage < 1 {
 			req.PerPage = 10

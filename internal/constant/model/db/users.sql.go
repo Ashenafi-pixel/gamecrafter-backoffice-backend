@@ -1510,8 +1510,12 @@ WITH users_data AS (
     AND user_type = 'PLAYER'
     AND is_admin = false
     AND (
-        -- Simple OR search across username and email using single searchterm parameter
-        ($1::text IS NULL OR $1 = '' OR $1 = '%%' OR username ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+        -- Search across all fields using contains (ILIKE) match
+        ($1::text IS NULL OR $1 = '' OR $1 = '%%' OR 
+         (username IS NOT NULL AND username ILIKE '%' || $1 || '%') OR 
+         (email IS NOT NULL AND email ILIKE '%' || $1 || '%') OR 
+         (phone_number IS NOT NULL AND phone_number ILIKE '%' || $1 || '%') OR 
+         (id::text ILIKE '%' || $1 || '%'))
     )
     AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR status = ANY($2))
     AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR kyc_status = ANY($3))

@@ -34,6 +34,7 @@ type User interface {
 	EnforceIPFilerRule(ctx context.Context, ip string) (bool, error)
 	AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAdminReq) (dto.EditProfileAdminRes, error)
 	AdminResetPassword(ctx context.Context, req dto.AdminResetPasswordReq) (dto.AdminResetPasswordRes, error)
+	AdminAutoResetPassword(ctx context.Context, req dto.AdminAutoResetPasswordReq) (dto.AdminAutoResetPasswordRes, error)
 	GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error)
 	RemoveIPFilter(ctx context.Context, req dto.RemoveIPBlockReq) (dto.RemoveIPBlockRes, error)
 	GetMyReferralCode(ctx context.Context, userID uuid.UUID) (string, error)

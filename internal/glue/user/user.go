@@ -34,6 +34,7 @@ type UserHandler interface {
 	GetIpFilter(c *gin.Context)
 	AdminUpdateProfile(c *gin.Context)
 	AdminResetUsersPassword(c *gin.Context)
+	AdminAutoResetUsersPassword(c *gin.Context)
 	GetUsers(c *gin.Context)
 	RemoveIPFilter(c *gin.Context)
 	GetMyReferalCodes(c *gin.Context)
@@ -306,6 +307,16 @@ func Init(
 				middleware.Auth(),
 				middleware.Authz(authModule, enforcer, "reset user account password", http.MethodPost),
 				middleware.SystemLogs("reset user account password", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/users/password/auto-reset",
+			Handler: user.AdminAutoResetUsersPassword,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, enforcer, "reset user account password", http.MethodPost),
+				middleware.SystemLogs("auto reset user account password", &log, systemLog),
 			},
 		}, {
 			Method:  http.MethodGet,

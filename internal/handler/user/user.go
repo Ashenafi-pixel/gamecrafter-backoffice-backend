@@ -42,6 +42,7 @@ type UserHandler interface {
 	GetIpFilter(c *gin.Context)
 	AdminUpdateProfile(c *gin.Context)
 	AdminResetUsersPassword(c *gin.Context)
+	AdminAutoResetUsersPassword(c *gin.Context)
 	GetUsers(c *gin.Context)
 	RemoveIPFilter(c *gin.Context)
 	GetMyReferalCodes(c *gin.Context)
@@ -839,6 +840,45 @@ func (u *user) AdminResetUsersPassword(c *gin.Context) {
 	}
 	req.AdminID = userIDParsed
 	res, err := u.userModule.AdminResetPassword(c, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, res)
+}
+
+// AdminAutoResetUsersPassword resets player's password with auto-generated password.
+//
+//	@Summary		AdminAutoResetUsersPassword
+//	@Description	Allows admins to reset player's password with auto-generated password and send it via email.
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			req				body		dto.AdminAutoResetPasswordReq	true	"auto reset player's password request"
+//	@Param			Authorization	header		string								true	"Bearer <token> "
+//	@Success		200				{object}	dto.AdminAutoResetPasswordRes
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		401				{object}	response.ErrorResponse
+//	@Router			/api/admin/users/password/auto-reset   [POST]
+func (u *user) AdminAutoResetUsersPassword(c *gin.Context) {
+	var req dto.AdminAutoResetPasswordReq
+	//get admin user id
+	userID := c.GetString("user-id")
+	userIDParsed, err := uuid.Parse(userID)
+	if err != nil {
+		u.log.Warn(err.Error(), zap.Any("userID", userID))
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	req.AdminID = userIDParsed
+	res, err := u.userModule.AdminAutoResetPassword(c, req)
 	if err != nil {
 		_ = c.Error(err)
 		return

@@ -22,6 +22,7 @@ type EmailService interface {
 	SendPasswordResetEmail(email, resetToken string, expiresAt time.Time) error
 	SendPasswordResetOTPEmail(email, otpCode, otpId, userId string, expiresAt time.Time, userAgent, ipAddress string) error
 	SendPasswordResetConfirmationEmail(email, firstName string, userAgent, ipAddress string) error
+	SendAdminGeneratedPasswordEmail(email, firstName, newPassword string) error
 	SendSecurityAlert(email, alertType, details string) error
 	SendTwoFactorOTPEmail(email, firstName, otpCode string, expiresAt time.Time, userAgent, ipAddress string) error
 }
@@ -56,6 +57,7 @@ func NewEmailService(config SMTPConfig, logger *zap.Logger) (EmailService, error
 		templates = template.Must(templates.New("password_reset").Parse(passwordResetTemplate))
 		templates = template.Must(templates.New("password_reset_otp").Parse(passwordResetOTPTemplate))
 		templates = template.Must(templates.New("password_reset_confirmation").Parse(passwordResetConfirmationTemplate))
+		templates = template.Must(templates.New("admin_generated_password").Parse(adminGeneratedPasswordTemplate))
 		templates = template.Must(templates.New("security_alert").Parse(securityAlertTemplate))
 		templates = template.Must(templates.New("two_factor_otp").Parse(twoFactorOTPTemplate))
 	}
@@ -294,6 +296,52 @@ func (e *EmailServiceImpl) SendPasswordResetConfirmationEmail(email, firstName, 
 	}
 
 	e.logger.Info("Password reset confirmation email sent successfully",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)))
+
+	return nil
+}
+
+// SendAdminGeneratedPasswordEmail sends an email with admin-generated password to the player
+func (e *EmailServiceImpl) SendAdminGeneratedPasswordEmail(email, firstName, newPassword string) error {
+	subject := "Your Password Has Been Reset - TucanBIT"
+
+	data := map[string]interface{}{
+		"FirstName":    firstName,
+		"Email":        email,
+		"BrandName":    "TucanBIT",
+		"NewPassword":  newPassword,
+		"LoginURL":     "https://tucanbit.tv/login",
+		"SupportEmail": "support@tucanbit.com",
+		"CurrentYear":  time.Now().Year(),
+	}
+
+	htmlBody, err := e.renderTemplate("admin_generated_password", data)
+	if err != nil {
+		return fmt.Errorf("failed to render admin generated password template: %w", err)
+	}
+
+	e.logger.Info("Attempting to send admin-generated password email",
+		zap.String("to", email),
+		zap.String("subject", subject),
+		zap.String("smtp_host", e.config.Host),
+		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)),
+		zap.String("smtp_username", e.config.Username),
+		zap.String("smtp_from", e.config.From),
+		zap.Bool("use_tls", e.config.UseTLS))
+
+	err = e.sendEmail(email, subject, htmlBody)
+	if err != nil {
+		e.logger.Error("Failed to send admin-generated password email",
+			zap.String("to", email),
+			zap.String("subject", subject),
+			zap.Error(err))
+		return err
+	}
+
+	e.logger.Info("Admin-generated password email sent successfully",
 		zap.String("to", email),
 		zap.String("subject", subject),
 		zap.String("smtp_host", e.config.Host),
@@ -1138,6 +1186,196 @@ const securityAlertTemplate = `
         <div class="footer">
             <p>Need help? Contact us at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a></p>
             <p>&copy; 2025 {{.BrandName}}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+const adminGeneratedPasswordTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset - {{.BrandName}}</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f5f6fa;
+        }
+        .email-container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background-color: white; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white; 
+            padding: 40px 30px; 
+            text-align: center;
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 28px; 
+            font-weight: 700;
+        }
+        .content { 
+            padding: 40px 30px; 
+            background: white;
+        }
+        .greeting {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .message {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            color: #555;
+        }
+        .password-box {
+            background: #f8f9fa;
+            border: 2px dashed #e74c3c;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .password-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .password-value {
+            font-size: 24px;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            letter-spacing: 2px;
+            word-break: break-all;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .warning-box h3 {
+            margin: 0 0 10px 0;
+            color: #856404;
+            font-size: 18px;
+        }
+        .warning-box p {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
+        }
+        .cta-section {
+            text-align: center;
+            margin: 40px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+            transition: all 0.3s ease;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
+        }
+        .footer { 
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 30px; 
+            text-align: center;
+            font-size: 14px;
+        }
+        .footer p { 
+            margin: 5px 0; 
+        }
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer a:hover {
+            color: #5dade2;
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .header {
+                padding: 30px 20px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Password Reset by Administrator</h1>
+        </div>
+        <div class="content">
+            <div class="greeting">Hello {{.FirstName}},</div>
+            <div class="message">
+                <p>Your password has been reset by an administrator. Below is your new temporary password. Please log in and change it to a password of your choice for security purposes.</p>
+            </div>
+            
+            <div class="password-box">
+                <div class="password-label">Your New Password</div>
+                <div class="password-value">{{.NewPassword}}</div>
+            </div>
+            
+            <div class="warning-box">
+                <h3>⚠️ Security Notice</h3>
+                <p>For your security, please change this password immediately after logging in. Do not share this password with anyone.</p>
+            </div>
+            
+            <div class="cta-section">
+                <a href="{{.LoginURL}}" class="cta-button">Log In Now</a>
+            </div>
+            
+            <div class="message">
+                <p>If you did not request this password reset, please contact our support team immediately at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a>.</p>
+                <p>Best regards,<br>The {{.BrandName}} Team</p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>This email was sent to {{.Email}} by an administrator.</p>
+            <p>Need help? Contact us at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a></p>
+            <p>&copy; {{.CurrentYear}} {{.BrandName}}. All rights reserved.</p>
         </div>
     </div>
 </body>

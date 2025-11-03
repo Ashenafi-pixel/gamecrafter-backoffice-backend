@@ -1632,8 +1632,17 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 	}
 
 	if userReq.KYCStatus != "" {
-		if userReq.KYCStatus != constant.ACTIVE && userReq.KYCStatus != constant.PENDING && userReq.KYCStatus != constant.INACTIVE {
-			err = fmt.Errorf("only ACTIVE, INACTIVE or PENDING KYC status allowed")
+		// Validate KYC status - allow new status values
+		allowedStatuses := []string{"NO_KYC", "ID_VERIFIED", "ID_SOF_VERIFIED", "KYC_FAILED", "PENDING", "ACTIVE", "INACTIVE"}
+		isValidStatus := false
+		for _, status := range allowedStatuses {
+			if userReq.KYCStatus == status {
+				isValidStatus = true
+				break
+			}
+		}
+		if !isValidStatus {
+			err = fmt.Errorf("invalid KYC status. Allowed values: NO_KYC, ID_VERIFIED, ID_SOF_VERIFIED, KYC_FAILED, PENDING, ACTIVE, INACTIVE")
 			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return dto.EditProfileAdminRes{}, err
 		}
@@ -1872,6 +1881,77 @@ func (u *User) AdminResetPassword(ctx context.Context, req dto.AdminResetPasswor
 
 	return dto.AdminResetPasswordRes{
 		Message: constant.SUCCESS,
+		User: dto.User{
+			ID:              resp.ID,
+			PhoneNumber:     resp.PhoneNumber,
+			FirstName:       resp.FirstName,
+			LastName:        resp.LastName,
+			Email:           resp.Email,
+			DefaultCurrency: resp.DefaultCurrency,
+			ProfilePicture:  resp.ProfilePicture,
+			DateOfBirth:     resp.DateOfBirth,
+		},
+	}, nil
+}
+
+func (u *User) AdminAutoResetPassword(ctx context.Context, req dto.AdminAutoResetPasswordReq) (dto.AdminAutoResetPasswordRes, error) {
+	// Confirm user exists
+	usr, exist, err := u.userStorage.GetUserByID(ctx, req.UserID)
+	if err != nil {
+		u.log.Error("Failed to get user for auto password reset", zap.Error(err), zap.String("user_id", req.UserID.String()))
+		return dto.AdminAutoResetPasswordRes{}, err
+	}
+
+	if !exist {
+		err := fmt.Errorf("unable to find user")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		return dto.AdminAutoResetPasswordRes{}, err
+	}
+
+	// Generate random password (12 characters)
+	newPassword := utils.GenerateRandomPassowrd(12)
+
+	// Hash the password
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		u.log.Error("unable to hash auto-generated password", zap.Error(err), zap.String("user_id", req.UserID.String()))
+		err = errors.ErrInternalServerError.Wrap(err, err.Error())
+		return dto.AdminAutoResetPasswordRes{}, err
+	}
+
+	// Update password in database
+	resp, err := u.userStorage.UpdatePassword(ctx, req.UserID, hashedPassword)
+	if err != nil {
+		u.log.Error("Failed to update password in database", zap.Error(err), zap.String("user_id", req.UserID.String()))
+		return dto.AdminAutoResetPasswordRes{}, err
+	}
+
+	// Send email with the new password
+	if u.email != nil {
+		err = u.email.SendAdminGeneratedPasswordEmail(usr.Email, usr.FirstName, newPassword)
+		if err != nil {
+			// Log error but don't fail the request - password is already updated
+			u.log.Error("Failed to send admin-generated password email",
+				zap.String("email", usr.Email),
+				zap.String("user_id", req.UserID.String()),
+				zap.Error(err))
+		} else {
+			u.log.Info("Admin-generated password email sent successfully",
+				zap.String("email", usr.Email),
+				zap.String("user_id", req.UserID.String()))
+		}
+	} else {
+		u.log.Warn("Email service is not available, skipping admin-generated password email",
+			zap.String("user_id", req.UserID.String()))
+	}
+
+	u.log.Info("Password auto-reset completed by admin",
+		zap.String("user_id", req.UserID.String()),
+		zap.String("admin_id", req.AdminID.String()),
+		zap.String("email", usr.Email))
+
+	return dto.AdminAutoResetPasswordRes{
+		Message: "Password reset successfully. New password has been sent to the player's email.",
 		User: dto.User{
 			ID:              resp.ID,
 			PhoneNumber:     resp.PhoneNumber,
