@@ -5,15 +5,21 @@ import (
 
 	"net/smtp"
 
-	"github.com/tucanbit/internal/constant/dto"
 	"github.com/spf13/viper"
+	"github.com/tucanbit/internal/constant/dto"
 )
 
 func SendEmail(ctx context.Context, emailReq dto.EmailReq) error {
-	smtpPassword := viper.GetString("google.smtp.password")
-	smtpFrom := viper.GetString("google.smtp.from")
-	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
+	smtpPassword := viper.GetString("smtp.password")
+	smtpFrom := viper.GetString("smtp.from")
+	smtpHost := viper.GetString("smtp.host")
+	if smtpHost == "" {
+		smtpHost = "smtp.gmail.com"
+	}
+	smtpPort := viper.GetString("smtp.port")
+	if smtpPort == "" {
+		smtpPort = "587"
+	}
 	auth := smtp.PlainAuth("", smtpFrom, smtpPassword, smtpHost)
 	return smtp.SendMail(smtpHost+":"+smtpPort, auth, smtpFrom, emailReq.To, emailReq.Body)
 }

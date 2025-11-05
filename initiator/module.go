@@ -1,6 +1,9 @@
 package initiator
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,14 +106,40 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 	agentModule := agent.Init(persistence.Agent, log)
 
 	// Initialize enterprise-grade email service
+	// Using google.smtp configuration instead of smtp
+	envSmtpPassword := os.Getenv("SMTP_PASSWORD")
+	envSmtpUsername := os.Getenv("SMTP_USERNAME")
+	// Read from google.smtp (not smtp)
+	smtpPasswordRaw := viper.GetString("google.smtp.password")
+	// Remove any potential leading/trailing quotes from YAML parsing, but keep internal spaces
+	smtpPassword := strings.Trim(smtpPasswordRaw, `"'`)
+	// Use google.smtp.from as username (email address)
+	smtpUsername := strings.TrimSpace(viper.GetString("google.smtp.from"))
+	log.Info("Loading SMTP configuration from google.smtp",
+		zap.String("config_source", "google.smtp.* from config.yaml (viper)"),
+		zap.String("password_source", "viper.GetString('google.smtp.password')"),
+		zap.String("username_source", "viper.GetString('google.smtp.from')"),
+		zap.String("env_SMTP_PASSWORD_set", fmt.Sprintf("%v", envSmtpPassword != "")),
+		zap.String("env_SMTP_USERNAME_set", fmt.Sprintf("%v", envSmtpUsername != "")),
+		zap.String("env_SMTP_PASSWORD_length", fmt.Sprintf("%d", len(envSmtpPassword))),
+		zap.String("env_SMTP_USERNAME_length", fmt.Sprintf("%d", len(envSmtpUsername))),
+		zap.String("host", "smtp.gmail.com"), // Gmail SMTP host
+		zap.Int("port", 465),                 // Gmail SMTP port
+		zap.String("username", smtpUsername),
+		zap.String("username_raw", smtpUsername),
+		zap.Int("username_length", len(smtpUsername)),
+		zap.Bool("password_set", smtpPassword != ""),
+		zap.Int("password_length", len(smtpPassword)),
+		zap.String("password_raw", smtpPassword),
+		zap.String("from", smtpUsername)) // Use same email as username
 	emailService, err := email.NewEmailService(email.SMTPConfig{
-		Host:     viper.GetString("smtp.host"),
-		Port:     viper.GetInt("smtp.port"),
-		Username: viper.GetString("smtp.username"),
-		Password: viper.GetString("smtp.password"),
-		From:     viper.GetString("smtp.from"),
+		Host:     "smtp.gmail.com",
+		Port:     465,
+		Username: smtpUsername,
+		Password: smtpPassword,
+		From:     smtpUsername,
 		FromName: viper.GetString("smtp.from_name"),
-		UseTLS:   viper.GetBool("smtp.use_tls"),
+		UseTLS:   true,
 	}, log)
 	if err != nil {
 		log.Fatal("Failed to initialize email service", zap.Error(err))
@@ -168,6 +197,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			persistence.User,
 			persistence.OperationalGroup,
 			persistence.OperationalGroupType,
+			persistence.Alert,
 			log,
 			locker),
 		BalanceLogs: balancelogs.Init(persistence.BalanageLogs, log),

@@ -13,6 +13,7 @@ import (
 	"github.com/tucanbit/internal/handler/admin_activity_logs"
 	"github.com/tucanbit/internal/handler/agent"
 	"github.com/tucanbit/internal/handler/airtime"
+	"github.com/tucanbit/internal/handler/alert"
 	analyticsHandler "github.com/tucanbit/internal/handler/analytics"
 	"github.com/tucanbit/internal/handler/authz"
 	"github.com/tucanbit/internal/handler/balance"
@@ -86,6 +87,8 @@ type Handler struct {
 	TwoFactor             handler.TwoFactor
 	Analytics             handler.Analytics
 	SystemConfig          *system_config.SystemConfigHandler
+	Alert                 alert.AlertHandler
+	AlertEmailGroup       alert.AlertEmailGroupHandler
 	WithdrawalManagement  *withdrawal_management.WithdrawalManagementHandler
 	Withdrawals           *withdrawals.WithdrawalsHandler
 	AdminActivityLogs     handler.AdminActivityLogs
@@ -149,6 +152,8 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
 		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, persistence.Alert, log),
+		Alert:                 alert.NewAlertHandler(persistence.Alert, persistence.AlertEmailGroups, module.Email, log),
+		AlertEmailGroup:       alert.NewAlertEmailGroupHandler(persistence.AlertEmailGroups, log),
 		WithdrawalManagement:  withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
 		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
 		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),

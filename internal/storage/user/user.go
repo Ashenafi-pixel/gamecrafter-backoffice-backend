@@ -97,31 +97,92 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 		// Don't return error here as user was created successfully
 	}
 
+	// Handle withdrawal_limit in user_limits table if provided
+	if (userRequest.WithdrawalLimitEnabled && userRequest.WithdrawalLimit != nil) ||
+		(!userRequest.WithdrawalLimitEnabled && userRequest.WithdrawalLimit != nil) ||
+		(userRequest.WithdrawalLimitEnabled && userRequest.WithdrawalAllTimeLimit != nil) {
+		var dailyLimitCents *int64
+		var allTimeLimitCents *int64
+
+		if userRequest.WithdrawalLimit != nil {
+			cents := userRequest.WithdrawalLimit.Mul(decimal.NewFromInt(100)).IntPart()
+			dailyLimitCents = &cents
+		}
+		if userRequest.WithdrawalAllTimeLimit != nil {
+			cents := userRequest.WithdrawalAllTimeLimit.Mul(decimal.NewFromInt(100)).IntPart()
+			allTimeLimitCents = &cents
+		}
+
+		_, err := u.db.GetPool().Exec(ctx, `
+			INSERT INTO user_limits (user_id, limit_type, daily_limit_cents, all_time_limit_cents, withdrawal_limit_enabled)
+			VALUES ($1, 'withdrawal', $2, $3, $4)
+			ON CONFLICT (user_id, limit_type) 
+			DO UPDATE SET 
+				daily_limit_cents = COALESCE(EXCLUDED.daily_limit_cents, user_limits.daily_limit_cents),
+				all_time_limit_cents = COALESCE(EXCLUDED.all_time_limit_cents, user_limits.all_time_limit_cents),
+				withdrawal_limit_enabled = EXCLUDED.withdrawal_limit_enabled,
+				updated_at = NOW()
+		`, usr.ID, dailyLimitCents, allTimeLimitCents, userRequest.WithdrawalLimitEnabled)
+		if err != nil {
+			u.log.Error("Failed to create withdrawal limit", zap.Error(err), zap.String("user_id", usr.ID.String()))
+			// Don't fail the entire user creation if limit creation fails
+		}
+	}
+
+	// Load withdrawal limit from user_limits table (if exists)
+	var withdrawalLimit *decimal.Decimal
+	var withdrawalLimitEnabled bool
+	var withdrawalAllTimeLimit *decimal.Decimal
+	var dailyLimitCents sql.NullInt64
+	var allTimeLimitCents sql.NullInt64
+	var limitEnabled sql.NullBool
+	errLimit := u.db.GetPool().QueryRow(ctx, `
+		SELECT daily_limit_cents, all_time_limit_cents, withdrawal_limit_enabled
+		FROM user_limits 
+		WHERE user_id = $1 AND limit_type = 'withdrawal'
+	`, usr.ID).Scan(&dailyLimitCents, &allTimeLimitCents, &limitEnabled)
+	if errLimit == nil && (dailyLimitCents.Valid || allTimeLimitCents.Valid) {
+		if dailyLimitCents.Valid {
+			// Convert cents to decimal (divide by 100)
+			limit := decimal.NewFromInt(dailyLimitCents.Int64).Div(decimal.NewFromInt(100))
+			withdrawalLimit = &limit
+		}
+		if allTimeLimitCents.Valid {
+			// Convert cents to decimal (divide by 100)
+			limit := decimal.NewFromInt(allTimeLimitCents.Int64).Div(decimal.NewFromInt(100))
+			withdrawalAllTimeLimit = &limit
+		}
+		withdrawalLimitEnabled = limitEnabled.Valid && limitEnabled.Bool
+	}
+
 	return dto.User{
-		ID:              usr.ID,
-		Username:        usr.Username.String,
-		PhoneNumber:     usr.PhoneNumber.String,
-		Password:        usr.Password,
-		DefaultCurrency: usr.DefaultCurrency.String,
-		FirstName:       usr.FirstName.String,
-		LastName:        usr.LastName.String,
-		Email:           usr.Email.String,
-		ProfilePicture:  usr.Profile.String,
-		DateOfBirth:     usr.DateOfBirth.String,
-		Source:          usr.Source.String,
-		ReferralCode:    usr.ReferalCode.String,
-		StreetAddress:   usr.StreetAddress.String,
-		Country:         usr.Country.String,
-		State:           usr.State.String,
-		City:            usr.City.String,
-		PostalCode:      usr.PostalCode.String,
-		KYCStatus:       usr.KycStatus.String,
-		CreatedBy:       usr.CreatedBy.UUID,
-		IsAdmin:         usr.IsAdmin.Bool,
-		Status:          usr.Status.String,
-		ReferalType:     dto.Type(usr.ReferalType.String),
-		ReferedByCode:   usr.ReferedByCode.String,
-		Type:            dto.Type(usr.UserType.String),
+		ID:                     usr.ID,
+		Username:               usr.Username.String,
+		PhoneNumber:            usr.PhoneNumber.String,
+		Password:               usr.Password,
+		DefaultCurrency:        usr.DefaultCurrency.String,
+		FirstName:              usr.FirstName.String,
+		LastName:               usr.LastName.String,
+		Email:                  usr.Email.String,
+		ProfilePicture:         usr.Profile.String,
+		DateOfBirth:            usr.DateOfBirth.String,
+		Source:                 usr.Source.String,
+		ReferralCode:           usr.ReferalCode.String,
+		StreetAddress:          usr.StreetAddress.String,
+		Country:                usr.Country.String,
+		State:                  usr.State.String,
+		City:                   usr.City.String,
+		PostalCode:             usr.PostalCode.String,
+		KYCStatus:              usr.KycStatus.String,
+		CreatedBy:              usr.CreatedBy.UUID,
+		IsAdmin:                usr.IsAdmin.Bool,
+		Status:                 usr.Status.String,
+		ReferalType:            dto.Type(usr.ReferalType.String),
+		ReferedByCode:          usr.ReferedByCode.String,
+		Type:                   dto.Type(usr.UserType.String),
+		WithdrawalLimit:        withdrawalLimit,
+		WithdrawalLimitEnabled: withdrawalLimitEnabled,
+		WithdrawalAllTimeLimit: withdrawalAllTimeLimit,
 	}, nil
 }
 
@@ -215,32 +276,61 @@ func (u *user) GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, boo
 		zap.String("userID", usr.ID.String()),
 		zap.Bool("is_test_account", usr.IsTestAccount))
 
+	// Load withdrawal limit from user_limits table
+	var withdrawalLimit *decimal.Decimal
+	var withdrawalLimitEnabled bool
+	var withdrawalAllTimeLimit *decimal.Decimal
+	var dailyLimitCents sql.NullInt64
+	var allTimeLimitCents sql.NullInt64
+	var limitEnabled sql.NullBool
+	errLimit := u.db.GetPool().QueryRow(ctx, `
+		SELECT daily_limit_cents, all_time_limit_cents, withdrawal_limit_enabled
+		FROM user_limits 
+		WHERE user_id = $1 AND limit_type = 'withdrawal'
+	`, usr.ID).Scan(&dailyLimitCents, &allTimeLimitCents, &limitEnabled)
+	if errLimit == nil && (dailyLimitCents.Valid || allTimeLimitCents.Valid) {
+		if dailyLimitCents.Valid {
+			// Convert cents to decimal (divide by 100)
+			limit := decimal.NewFromInt(dailyLimitCents.Int64).Div(decimal.NewFromInt(100))
+			withdrawalLimit = &limit
+		}
+		if allTimeLimitCents.Valid {
+			// Convert cents to decimal (divide by 100)
+			limit := decimal.NewFromInt(allTimeLimitCents.Int64).Div(decimal.NewFromInt(100))
+			withdrawalAllTimeLimit = &limit
+		}
+		withdrawalLimitEnabled = limitEnabled.Valid && limitEnabled.Bool
+	}
+
 	return dto.User{
-		ID:              usr.ID,
-		Username:        usr.Username.String,
-		PhoneNumber:     usr.PhoneNumber.String,
-		Email:           usr.Email.String,
-		DefaultCurrency: usr.DefaultCurrency.String,
-		ProfilePicture:  usr.Profile.String,
-		Password:        usr.Password,
-		FirstName:       usr.FirstName.String,
-		LastName:        usr.LastName.String,
-		DateOfBirth:     usr.DateOfBirth.String,
-		Source:          usr.Source.String,
-		ReferralCode:    usr.ReferalCode.String,
-		StreetAddress:   usr.StreetAddress.String,
-		Country:         usr.Country.String,
-		State:           usr.State.String,
-		City:            usr.City.String,
-		PostalCode:      usr.PostalCode.String,
-		KYCStatus:       usr.KycStatus.String,
-		IsAdmin:         usr.IsAdmin.Bool,
-		ReferedByCode:   usr.ReferedByCode.String,
-		ReferalType:     dto.Type(usr.ReferalType.String),
-		Type:            dto.Type(usr.UserType.String),
-		Status:          usr.Status.String,
-		CreatedAt:       &usr.CreatedAt,
-		IsTestAccount:   usr.IsTestAccount,
+		ID:                     usr.ID,
+		Username:               usr.Username.String,
+		PhoneNumber:            usr.PhoneNumber.String,
+		Email:                  usr.Email.String,
+		DefaultCurrency:        usr.DefaultCurrency.String,
+		ProfilePicture:         usr.Profile.String,
+		Password:               usr.Password,
+		FirstName:              usr.FirstName.String,
+		LastName:               usr.LastName.String,
+		DateOfBirth:            usr.DateOfBirth.String,
+		Source:                 usr.Source.String,
+		ReferralCode:           usr.ReferalCode.String,
+		StreetAddress:          usr.StreetAddress.String,
+		Country:                usr.Country.String,
+		State:                  usr.State.String,
+		City:                   usr.City.String,
+		PostalCode:             usr.PostalCode.String,
+		KYCStatus:              usr.KycStatus.String,
+		IsAdmin:                usr.IsAdmin.Bool,
+		ReferedByCode:          usr.ReferedByCode.String,
+		ReferalType:            dto.Type(usr.ReferalType.String),
+		Type:                   dto.Type(usr.UserType.String),
+		Status:                 usr.Status.String,
+		CreatedAt:              &usr.CreatedAt,
+		IsTestAccount:          usr.IsTestAccount,
+		WithdrawalLimit:        withdrawalLimit,
+		WithdrawalLimitEnabled: withdrawalLimitEnabled,
+		WithdrawalAllTimeLimit: withdrawalAllTimeLimit,
 	}, true, nil
 }
 
@@ -408,6 +498,68 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 		WalletVerificationStatus: updateProfile.WalletVerificationStatus,
 		IsTestAccount:            isTestAccount,
 	})
+
+	// Handle withdrawal_limit in user_limits table
+	if updateProfile.WithdrawalLimitEnabled != nil || updateProfile.WithdrawalLimit != nil || updateProfile.WithdrawalAllTimeLimit != nil {
+		var dailyLimitCents *int64
+		var allTimeLimitCents *int64
+		var enabled bool
+
+		if updateProfile.WithdrawalLimit != nil {
+			cents := updateProfile.WithdrawalLimit.Mul(decimal.NewFromInt(100)).IntPart()
+			dailyLimitCents = &cents
+		}
+		if updateProfile.WithdrawalAllTimeLimit != nil {
+			cents := updateProfile.WithdrawalAllTimeLimit.Mul(decimal.NewFromInt(100)).IntPart()
+			allTimeLimitCents = &cents
+		}
+		if updateProfile.WithdrawalLimitEnabled != nil {
+			enabled = *updateProfile.WithdrawalLimitEnabled
+		} else {
+			// If enabled flag not provided, check if we have a record and use its current enabled state
+			var currentEnabled sql.NullBool
+			err := u.db.GetPool().QueryRow(ctx, `
+				SELECT withdrawal_limit_enabled
+				FROM user_limits 
+				WHERE user_id = $1 AND limit_type = 'withdrawal'
+			`, updateProfile.UserID).Scan(&currentEnabled)
+			if err == nil && currentEnabled.Valid {
+				enabled = currentEnabled.Bool
+			} else {
+				enabled = true // Default to enabled if no existing record
+			}
+		}
+
+		// Only proceed if we have at least one limit value or enabled flag
+		if dailyLimitCents != nil || allTimeLimitCents != nil || updateProfile.WithdrawalLimitEnabled != nil {
+			_, err := u.db.GetPool().Exec(ctx, `
+				INSERT INTO user_limits (user_id, limit_type, daily_limit_cents, all_time_limit_cents, withdrawal_limit_enabled)
+				VALUES ($1, 'withdrawal', $2, $3, $4)
+				ON CONFLICT (user_id, limit_type) 
+				DO UPDATE SET 
+					daily_limit_cents = COALESCE(EXCLUDED.daily_limit_cents, user_limits.daily_limit_cents),
+					all_time_limit_cents = COALESCE(EXCLUDED.all_time_limit_cents, user_limits.all_time_limit_cents),
+					withdrawal_limit_enabled = COALESCE(EXCLUDED.withdrawal_limit_enabled, user_limits.withdrawal_limit_enabled),
+					updated_at = NOW()
+			`, updateProfile.UserID, dailyLimitCents, allTimeLimitCents, enabled)
+			if err != nil {
+				u.log.Error("Failed to upsert withdrawal limit", zap.Error(err), zap.String("user_id", updateProfile.UserID.String()))
+				// Don't fail the entire update if limit update fails
+			}
+		}
+
+		// If disabled and no limits provided, delete the record
+		if updateProfile.WithdrawalLimitEnabled != nil && !*updateProfile.WithdrawalLimitEnabled &&
+			updateProfile.WithdrawalLimit == nil && updateProfile.WithdrawalAllTimeLimit == nil {
+			_, err := u.db.GetPool().Exec(ctx, `
+				DELETE FROM user_limits 
+				WHERE user_id = $1 AND limit_type = 'withdrawal'
+			`, updateProfile.UserID)
+			if err != nil {
+				u.log.Error("Failed to delete withdrawal limit", zap.Error(err), zap.String("user_id", updateProfile.UserID.String()))
+			}
+		}
+	}
 	if err != nil {
 		u.log.Error(err.Error(), zap.Any("updateRequest", updateProfile))
 		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
@@ -418,6 +570,32 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 	u.log.Info("Database update completed, is_test_account value from DB",
 		zap.Bool("is_test_account", updatedUser.IsTestAccount),
 		zap.String("user_id", updateProfile.UserID.String()))
+
+	// Load withdrawal limit from user_limits table
+	var withdrawalLimit *decimal.Decimal
+	var withdrawalLimitEnabled bool
+	var withdrawalAllTimeLimit *decimal.Decimal
+	var dailyLimitCents sql.NullInt64
+	var allTimeLimitCents sql.NullInt64
+	var limitEnabled sql.NullBool
+	errLimit := u.db.GetPool().QueryRow(ctx, `
+		SELECT daily_limit_cents, all_time_limit_cents, withdrawal_limit_enabled
+		FROM user_limits 
+		WHERE user_id = $1 AND limit_type = 'withdrawal'
+	`, updateProfile.UserID).Scan(&dailyLimitCents, &allTimeLimitCents, &limitEnabled)
+	if errLimit == nil && (dailyLimitCents.Valid || allTimeLimitCents.Valid) {
+		if dailyLimitCents.Valid {
+			// Convert cents to decimal (divide by 100)
+			limit := decimal.NewFromInt(dailyLimitCents.Int64).Div(decimal.NewFromInt(100))
+			withdrawalLimit = &limit
+		}
+		if allTimeLimitCents.Valid {
+			// Convert cents to decimal (divide by 100)
+			limit := decimal.NewFromInt(allTimeLimitCents.Int64).Div(decimal.NewFromInt(100))
+			withdrawalAllTimeLimit = &limit
+		}
+		withdrawalLimitEnabled = limitEnabled.Valid && limitEnabled.Bool
+	}
 
 	return dto.User{
 		ID:                       updateProfile.UserID,
@@ -443,6 +621,9 @@ func (u *user) UpdateUser(ctx context.Context, updateProfile dto.UpdateProfileRe
 		IsEmailVerified:          updateProfile.IsEmailVerified,
 		WalletVerificationStatus: updateProfile.WalletVerificationStatus,
 		IsTestAccount:            updatedUser.IsTestAccount,
+		WithdrawalLimit:          withdrawalLimit,
+		WithdrawalLimitEnabled:   withdrawalLimitEnabled,
+		WithdrawalAllTimeLimit:   withdrawalAllTimeLimit,
 	}, nil
 }
 

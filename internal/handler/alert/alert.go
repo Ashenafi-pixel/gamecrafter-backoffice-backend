@@ -1,7 +1,9 @@
 package alert
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,17 +21,35 @@ type AlertHandler interface {
 	GetAlertTriggers(c *gin.Context)
 	GetAlertTrigger(c *gin.Context)
 	AcknowledgeAlert(c *gin.Context)
+	TestTriggerAlert(c *gin.Context) // Test endpoint to manually trigger alerts
 }
 
 type alertHandler struct {
-	alertStorage alert.AlertStorage
-	log          *zap.Logger
+	alertStorage      alert.AlertStorage
+	emailGroupStorage alert.AlertEmailGroupStorage
+	emailService      alert.AlertEmailSender
+	log               *zap.Logger
 }
 
-func NewAlertHandler(alertStorage alert.AlertStorage, log *zap.Logger) AlertHandler {
+// emailServiceAdapter adapts EmailService to AlertEmailSender interface
+type emailServiceAdapter struct {
+	emailService interface {
+		SendAlertEmail(ctx context.Context, to []string, alertConfig interface{}, trigger interface{}) error
+	}
+}
+
+func (a *emailServiceAdapter) SendAlertEmail(ctx context.Context, to []string, alertConfig *dto.AlertConfiguration, trigger *dto.AlertTrigger) error {
+	return a.emailService.SendAlertEmail(ctx, to, alertConfig, trigger)
+}
+
+func NewAlertHandler(alertStorage alert.AlertStorage, emailGroupStorage alert.AlertEmailGroupStorage, emailService interface {
+	SendAlertEmail(ctx context.Context, to []string, alertConfig interface{}, trigger interface{}) error
+}, log *zap.Logger) AlertHandler {
 	return &alertHandler{
-		alertStorage: alertStorage,
-		log:          log,
+		alertStorage:      alertStorage,
+		emailGroupStorage: emailGroupStorage,
+		emailService:      &emailServiceAdapter{emailService: emailService},
+		log:               log,
 	}
 }
 
@@ -397,5 +417,104 @@ func (h *alertHandler) AcknowledgeAlert(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.AlertTriggerResponse{
 		Success: true,
 		Message: "Alert acknowledged successfully",
+	})
+}
+
+// TestTriggerAlert manually creates a trigger for testing email sending
+// This is a test endpoint to verify alert email functionality
+func (h *alertHandler) TestTriggerAlert(c *gin.Context) {
+	var req struct {
+		AlertConfigurationID uuid.UUID  `json:"alert_configuration_id" binding:"required"`
+		TriggerValue         float64    `json:"trigger_value" binding:"required"`
+		UserID               *uuid.UUID `json:"user_id"`
+		TransactionID        *string    `json:"transaction_id"`
+		AmountUSD            *float64   `json:"amount_usd"`
+		CurrencyCode         *string    `json:"currency_code"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.AlertTriggerResponse{
+			Success: false,
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Get the alert configuration
+	alertConfig, err := h.alertStorage.GetAlertConfigurationByID(c.Request.Context(), req.AlertConfigurationID)
+	if err != nil {
+		h.log.Error("Failed to get alert configuration", zap.Error(err))
+		c.JSON(http.StatusNotFound, dto.AlertTriggerResponse{
+			Success: false,
+			Message: "Alert configuration not found",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if alertConfig == nil {
+		c.JSON(http.StatusNotFound, dto.AlertTriggerResponse{
+			Success: false,
+			Message: "Alert configuration not found",
+		})
+		return
+	}
+
+	// Create a test trigger
+	trigger := &dto.AlertTrigger{
+		AlertConfigurationID: req.AlertConfigurationID,
+		TriggeredAt:          time.Now(),
+		TriggerValue:         req.TriggerValue,
+		ThresholdValue:       alertConfig.ThresholdAmount,
+		UserID:               req.UserID,
+		TransactionID:        req.TransactionID,
+		AmountUSD:            req.AmountUSD,
+	}
+
+	if req.CurrencyCode != nil {
+		currency := dto.CurrencyType(*req.CurrencyCode)
+		trigger.CurrencyCode = &currency
+	}
+
+	// Save the trigger
+	err = h.alertStorage.CreateAlertTrigger(c.Request.Context(), trigger)
+	if err != nil {
+		h.log.Error("Failed to create alert trigger", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AlertTriggerResponse{
+			Success: false,
+			Message: "Failed to create alert trigger",
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Send emails to assigned groups
+	err = alert.SendAlertEmailsToGroups(
+		c.Request.Context(),
+		h.emailGroupStorage,
+		h.emailService,
+		alertConfig,
+		trigger,
+		h.log,
+	)
+
+	if err != nil {
+		h.log.Error("Failed to send alert emails", zap.Error(err))
+		// Still return success for trigger creation, but log the email error
+		c.JSON(http.StatusOK, dto.AlertTriggerResponse{
+			Success: true,
+			Message: "Alert trigger created successfully, but failed to send emails. Check logs for details.",
+			Data:    trigger,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.AlertTriggerResponse{
+		Success: true,
+		Message: "Alert trigger created and emails sent successfully",
+		Data:    trigger,
 	})
 }

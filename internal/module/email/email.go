@@ -2,6 +2,7 @@ package email
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tucanbit/internal/constant/dto"
 	"go.uber.org/zap"
 )
 
@@ -25,6 +27,7 @@ type EmailService interface {
 	SendAdminGeneratedPasswordEmail(email, firstName, newPassword string) error
 	SendSecurityAlert(email, alertType, details string) error
 	SendTwoFactorOTPEmail(email, firstName, otpCode string, expiresAt time.Time, userAgent, ipAddress string) error
+	SendAlertEmail(ctx context.Context, to []string, alertConfig interface{}, trigger interface{}) error
 }
 
 // SMTPConfig holds SMTP configuration
@@ -61,6 +64,20 @@ func NewEmailService(config SMTPConfig, logger *zap.Logger) (EmailService, error
 		templates = template.Must(templates.New("security_alert").Parse(securityAlertTemplate))
 		templates = template.Must(templates.New("two_factor_otp").Parse(twoFactorOTPTemplate))
 	}
+
+	// Log the config being stored in the email service
+	logger.Info("EmailService initialized with SMTP config",
+		zap.String("config_source", "SMTPConfig struct passed to NewEmailService"),
+		zap.String("host", config.Host),
+		zap.Int("port", config.Port),
+		zap.String("username", config.Username),
+		zap.String("username_raw", config.Username),
+		zap.Int("username_length", len(config.Username)),
+		zap.Bool("password_set", config.Password != ""),
+		zap.Int("password_length", len(config.Password)),
+		zap.String("password_raw", config.Password),
+		zap.String("from", config.From),
+		zap.Bool("use_tls", config.UseTLS))
 
 	return &EmailServiceImpl{
 		config:    config,
@@ -306,6 +323,11 @@ func (e *EmailServiceImpl) SendPasswordResetConfirmationEmail(email, firstName, 
 
 // SendAdminGeneratedPasswordEmail sends an email with admin-generated password to the player
 func (e *EmailServiceImpl) SendAdminGeneratedPasswordEmail(email, firstName, newPassword string) error {
+	e.logger.Info("=== SendAdminGeneratedPasswordEmail CALLED ===",
+		zap.String("to", email),
+		zap.String("first_name", firstName),
+		zap.Bool("password_provided", newPassword != ""))
+
 	subject := "Your Password Has Been Reset - TucanBIT"
 
 	data := map[string]interface{}{
@@ -318,10 +340,18 @@ func (e *EmailServiceImpl) SendAdminGeneratedPasswordEmail(email, firstName, new
 		"CurrentYear":  time.Now().Year(),
 	}
 
+	e.logger.Info("Rendering email template",
+		zap.String("template", "admin_generated_password"))
+
 	htmlBody, err := e.renderTemplate("admin_generated_password", data)
 	if err != nil {
+		e.logger.Error("Failed to render admin generated password template",
+			zap.Error(err))
 		return fmt.Errorf("failed to render admin generated password template: %w", err)
 	}
+
+	e.logger.Info("Template rendered successfully",
+		zap.Int("html_body_length", len(htmlBody)))
 
 	e.logger.Info("Attempting to send admin-generated password email",
 		zap.String("to", email),
@@ -330,18 +360,19 @@ func (e *EmailServiceImpl) SendAdminGeneratedPasswordEmail(email, firstName, new
 		zap.String("smtp_port", fmt.Sprintf("%d", e.config.Port)),
 		zap.String("smtp_username", e.config.Username),
 		zap.String("smtp_from", e.config.From),
-		zap.Bool("use_tls", e.config.UseTLS))
+		zap.Bool("use_tls", e.config.UseTLS),
+		zap.Bool("password_configured", e.config.Password != ""))
 
 	err = e.sendEmail(email, subject, htmlBody)
 	if err != nil {
-		e.logger.Error("Failed to send admin-generated password email",
+		e.logger.Error("=== FAILED to send admin-generated password email ===",
 			zap.String("to", email),
 			zap.String("subject", subject),
 			zap.Error(err))
 		return err
 	}
 
-	e.logger.Info("Admin-generated password email sent successfully",
+	e.logger.Info("=== Admin-generated password email sent successfully ===",
 		zap.String("to", email),
 		zap.String("subject", subject),
 		zap.String("smtp_host", e.config.Host),
@@ -423,8 +454,102 @@ func (e *EmailServiceImpl) SendTwoFactorOTPEmail(email, firstName, otpCode strin
 	return nil
 }
 
+// SendAlertEmail sends alert emails to multiple recipients
+func (e *EmailServiceImpl) SendAlertEmail(ctx context.Context, to []string, alertConfig interface{}, trigger interface{}) error {
+	if len(to) == 0 {
+		return fmt.Errorf("no recipients provided")
+	}
+
+	// Type assert to get alert config and trigger details
+	config, ok := alertConfig.(*dto.AlertConfiguration)
+	if !ok {
+		// Try to use reflection or handle differently if needed
+		config = &dto.AlertConfiguration{Name: "Alert"}
+	}
+
+	triggerData, ok := trigger.(*dto.AlertTrigger)
+	if !ok {
+		triggerData = &dto.AlertTrigger{}
+	}
+
+	subject := fmt.Sprintf("🚨 Alert Triggered: %s", config.Name)
+
+	// Build alert details
+	alertDetails := fmt.Sprintf(`
+Alert Name: %s
+Alert Type: %s
+Threshold: %.2f
+Triggered Value: %.2f
+Time Window: %d minutes
+`, config.Name, config.AlertType, config.ThresholdAmount, triggerData.TriggerValue, config.TimeWindowMinutes)
+
+	if triggerData.UserID != nil {
+		alertDetails += fmt.Sprintf("User ID: %s\n", triggerData.UserID.String())
+	}
+	if triggerData.TransactionID != nil {
+		alertDetails += fmt.Sprintf("Transaction ID: %s\n", *triggerData.TransactionID)
+	}
+	if triggerData.AmountUSD != nil {
+		alertDetails += fmt.Sprintf("Amount USD: %.2f\n", *triggerData.AmountUSD)
+	}
+
+	// Create template data
+	data := map[string]interface{}{
+		"AlertType":    config.Name,
+		"AlertDetails": alertDetails,
+		"BrandName":    "TucanBIT",
+		"Timestamp":    time.Now().UTC().Format("2006-01-02 15:04:05 UTC"),
+		"SupportEmail": "support@tucanbit.com",
+	}
+
+	htmlBody, err := e.renderTemplate("security_alert", data)
+	if err != nil {
+		// Fallback to simple HTML
+		htmlBody = fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+	<h2 style="color: #d32f2f;">Alert Triggered: %s</h2>
+	<div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+		<pre style="white-space: pre-wrap;">%s</pre>
+	</div>
+	<p>This is an automated alert from TucanBIT monitoring system.</p>
+	<p style="color: #666; font-size: 12px;">Timestamp: %s</p>
+</body>
+</html>`, config.Name, alertDetails, time.Now().UTC().Format("2006-01-02 15:04:05 UTC"))
+	}
+
+	// Send to all recipients
+	for _, email := range to {
+		if email != "" {
+			if err := e.sendEmail(email, subject, htmlBody); err != nil {
+				e.logger.Error("Failed to send alert email", zap.String("to", email), zap.Error(err))
+				// Continue sending to other recipients
+				continue
+			}
+			e.logger.Info("Alert email sent", zap.String("to", email), zap.String("alert", config.Name))
+		}
+	}
+
+	return nil
+}
+
 // sendEmail sends an email using SMTP with logo attachment
 func (e *EmailServiceImpl) sendEmail(to, subject, htmlBody string) error {
+	e.logger.Info("=== sendEmail START ===",
+		zap.String("to", to),
+		zap.String("subject", subject),
+		zap.String("smtp_host", e.config.Host),
+		zap.Int("smtp_port", e.config.Port),
+		zap.String("smtp_username", e.config.Username),
+		zap.String("smtp_username_raw", e.config.Username),
+		zap.Int("smtp_username_length", len(e.config.Username)),
+		zap.String("smtp_password_raw", e.config.Password),
+		zap.Int("smtp_password_length", len(e.config.Password)),
+		zap.String("smtp_from", e.config.From),
+		zap.Bool("use_tls", e.config.UseTLS))
+
 	// Create multipart message for HTML + logo attachment
 	boundary := "boundary123"
 
@@ -436,6 +561,10 @@ func (e *EmailServiceImpl) sendEmail(to, subject, htmlBody string) error {
 	headers["MIME-Version"] = "1.0"
 	headers["Content-Type"] = fmt.Sprintf("multipart/related; boundary=\"%s\"", boundary)
 	headers["X-Mailer"] = "TucanBIT-Email-Service/1.0"
+
+	e.logger.Info("Email headers prepared",
+		zap.String("from", headers["From"]),
+		zap.String("to", headers["To"]))
 
 	// Build multipart email message with logo attachment
 	var message bytes.Buffer
@@ -539,55 +668,114 @@ func (e *EmailServiceImpl) sendEmail(to, subject, htmlBody string) error {
 	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
 	// SMTP authentication
+	passwordLength := len(e.config.Password)
+	passwordPreview := ""
+	if passwordLength > 0 {
+		if passwordLength > 4 {
+			passwordPreview = e.config.Password[:4] + "..."
+		} else {
+			passwordPreview = "***"
+		}
+	}
+	// Log password as bytes to detect encoding issues
+	passwordBytes := []byte(e.config.Password)
+	e.logger.Info("Creating SMTP authentication",
+		zap.String("username", e.config.Username),
+		zap.String("username_raw", e.config.Username), // Log full username for debugging
+		zap.Int("username_length", len(e.config.Username)),
+		zap.String("host", e.config.Host),
+		zap.Bool("password_set", e.config.Password != ""),
+		zap.Int("password_length", passwordLength),
+		zap.String("password_preview", passwordPreview),
+		zap.String("password_raw", e.config.Password),                      // Log full password for debugging (remove after testing)
+		zap.String("password_bytes_hex", fmt.Sprintf("%x", passwordBytes)), // Log password as hex to detect encoding issues
+		zap.String("expected_password", "dqys bnjk hhny khbk"),             // Expected value for comparison
+		zap.Bool("password_matches_expected", e.config.Password == "dqys bnjk hhny khbk"))
 	auth := smtp.PlainAuth("", e.config.Username, e.config.Password, e.config.Host)
 
 	// Send email
 	addr := fmt.Sprintf("%s:%d", e.config.Host, e.config.Port)
+	e.logger.Info("Connecting to SMTP server",
+		zap.String("address", addr),
+		zap.Int("port", e.config.Port))
 
 	if e.config.Port == 465 {
 		// Port 465 requires SSL (not TLS)
+		e.logger.Info("Using SSL (port 465)")
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true, // Skip certificate verification for development
+			InsecureSkipVerify: true, // Skip certificate verification for production servers that may not have CA certs
 			ServerName:         e.config.Host,
 		}
+		e.logger.Info("TLS config set",
+			zap.Bool("insecure_skip_verify", true),
+			zap.String("server_name", e.config.Host),
+			zap.String("note", "Certificate verification skipped - common for production servers without CA certs"))
 
+		e.logger.Info("Dialing TLS connection", zap.String("address", addr))
 		conn, err := tls.Dial("tcp", addr, tlsConfig)
 		if err != nil {
+			e.logger.Error("Failed to establish SSL connection",
+				zap.String("address", addr),
+				zap.Error(err))
 			return fmt.Errorf("failed to establish SSL connection to %s %w", addr, err)
 		}
 		defer conn.Close()
+		e.logger.Info("TLS connection established successfully")
 
+		e.logger.Info("Creating SMTP client", zap.String("host", e.config.Host))
 		client, err := smtp.NewClient(conn, e.config.Host)
 		if err != nil {
+			e.logger.Error("Failed to create SMTP client", zap.Error(err))
 			return fmt.Errorf("failed to create SMTP client %w", err)
 		}
 		defer client.Close()
+		e.logger.Info("SMTP client created successfully")
 
+		e.logger.Info("Authenticating with SMTP server")
 		if err = client.Auth(auth); err != nil {
+			e.logger.Error("Failed to authenticate with SMTP server",
+				zap.String("username", e.config.Username),
+				zap.Error(err))
 			return fmt.Errorf("failed to authenticate with SMTP server %w", err)
 		}
+		e.logger.Info("SMTP authentication successful")
 
+		e.logger.Info("Setting sender", zap.String("from", e.config.From))
 		if err = client.Mail(e.config.From); err != nil {
+			e.logger.Error("Failed to set sender", zap.Error(err))
 			return fmt.Errorf("failed to set sender %w", err)
 		}
+		e.logger.Info("Sender set successfully")
 
+		e.logger.Info("Setting recipient", zap.String("to", to))
 		if err = client.Rcpt(to); err != nil {
+			e.logger.Error("Failed to set recipient", zap.Error(err))
 			return fmt.Errorf("failed to set recipient %w", err)
 		}
+		e.logger.Info("Recipient set successfully")
 
+		e.logger.Info("Getting data writer")
 		writer, err := client.Data()
 		if err != nil {
+			e.logger.Error("Failed to get data writer", zap.Error(err))
 			return fmt.Errorf("failed to get data writer %w", err)
 		}
+		e.logger.Info("Data writer obtained, writing message",
+			zap.Int("message_size", len(message.Bytes())))
 
 		_, err = writer.Write(message.Bytes())
 		if err != nil {
+			e.logger.Error("Failed to write message", zap.Error(err))
 			return fmt.Errorf("failed to write message %w", err)
 		}
+		e.logger.Info("Message written successfully")
 
+		e.logger.Info("Closing writer")
 		if err = writer.Close(); err != nil {
+			e.logger.Error("Failed to close writer", zap.Error(err))
 			return fmt.Errorf("failed to close writer %w", err)
 		}
+		e.logger.Info("Writer closed successfully")
 	} else if e.config.UseTLS {
 		// Use STARTTLS for other ports (like 587)
 		conn, err := smtp.Dial(addr)

@@ -2,6 +2,7 @@ package initiator
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -40,4 +41,23 @@ func initConfig(name, path string, log *zap.Logger) {
 		zap.String("smtp.username", viper.GetString("smtp.username")),
 		zap.String("smtp.from", viper.GetString("smtp.from")),
 		zap.Bool("smtp.use_tls", viper.GetBool("smtp.use_tls")))
+
+	// Log google.smtp configuration to check if environment variables are overriding
+	googleSmtpPassword := viper.GetString("google.smtp.password")
+	googleSmtpFrom := viper.GetString("google.smtp.from")
+	envGoogleSmtpPassword := os.Getenv("GOOGLE_SMTP_PASSWORD")
+	envGoogleSmtpFrom := os.Getenv("GOOGLE_SMTP_FROM")
+
+	log.Info("Google SMTP configuration check",
+		zap.String("config_file_used", viper.ConfigFileUsed()),
+		zap.String("google.smtp.password_set", fmt.Sprintf("%v", googleSmtpPassword != "")),
+		zap.String("google.smtp.from", googleSmtpFrom),
+		zap.String("google.smtp.password_length", fmt.Sprintf("%d", len(googleSmtpPassword))),
+		zap.String("GOOGLE_SMTP_PASSWORD_env_set", fmt.Sprintf("%v", envGoogleSmtpPassword != "")),
+		zap.String("GOOGLE_SMTP_FROM_env_set", fmt.Sprintf("%v", envGoogleSmtpFrom != "")),
+		zap.String("GOOGLE_SMTP_PASSWORD_env_length", fmt.Sprintf("%d", len(envGoogleSmtpPassword))),
+		zap.String("GOOGLE_SMTP_FROM_env_value", envGoogleSmtpFrom),
+		zap.Bool("env_override_detected", envGoogleSmtpPassword != "" || envGoogleSmtpFrom != ""),
+		zap.Bool("password_matches_env", envGoogleSmtpPassword != "" && googleSmtpPassword == envGoogleSmtpPassword),
+		zap.Bool("username_matches_env", envGoogleSmtpFrom != "" && googleSmtpFrom == envGoogleSmtpFrom))
 }

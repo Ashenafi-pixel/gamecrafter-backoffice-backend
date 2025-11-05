@@ -8,10 +8,73 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"go.uber.org/zap"
 )
+
+// UUIDArray is a helper type for scanning PostgreSQL UUID arrays
+type UUIDArray []uuid.UUID
+
+// Scan implements the sql.Scanner interface for UUIDArray
+func (a *UUIDArray) Scan(src interface{}) error {
+	if src == nil {
+		*a = []uuid.UUID{}
+		return nil
+	}
+
+	var strArray pq.StringArray
+	if err := strArray.Scan(src); err != nil {
+		// If scanning as string array fails, try direct byte/string parsing
+		switch v := src.(type) {
+		case []byte:
+			return a.scanBytes(v)
+		case string:
+			return a.scanBytes([]byte(v))
+		default:
+			return fmt.Errorf("cannot scan %T into UUIDArray", src)
+		}
+	}
+
+	result := make([]uuid.UUID, 0, len(strArray))
+	for _, str := range strArray {
+		if id, err := uuid.Parse(str); err == nil {
+			result = append(result, id)
+		}
+	}
+	*a = result
+	return nil
+}
+
+func (a *UUIDArray) scanBytes(src []byte) error {
+	// PostgreSQL array format: {uuid1,uuid2,uuid3}
+	if len(src) < 2 || src[0] != '{' || src[len(src)-1] != '}' {
+		*a = []uuid.UUID{}
+		return nil
+	}
+
+	str := string(src[1 : len(src)-1]) // Remove { }
+	if str == "" {
+		*a = []uuid.UUID{}
+		return nil
+	}
+
+	parts := strings.Split(str, ",")
+	result := make([]uuid.UUID, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		// Remove quotes if present
+		if len(part) > 0 && part[0] == '"' && part[len(part)-1] == '"' {
+			part = part[1 : len(part)-1]
+		}
+		if id, err := uuid.Parse(part); err == nil {
+			result = append(result, id)
+		}
+	}
+	*a = result
+	return nil
+}
 
 type AlertStorage interface {
 	// Alert Configuration methods
@@ -52,23 +115,35 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	query := `
         INSERT INTO alert_configurations (
             name, description, alert_type, threshold_amount, time_window_minutes,
-            currency_code, email_notifications, webhook_url, created_by
+            currency_code, email_notifications, webhook_url, email_group_ids, created_by
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9
-        ) RETURNING *
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+        ) RETURNING 
+            id, name, description, alert_type, status, threshold_amount, time_window_minutes,
+            currency_code, email_notifications, webhook_url, email_group_ids,
+            created_by, created_at, updated_at, updated_by
     `
 
+	var emailGroupIDs interface{} = pq.Array([]uuid.UUID{})
+	if len(req.EmailGroupIDs) > 0 {
+		emailGroupIDs = pq.Array(req.EmailGroupIDs)
+	}
+
 	var config dto.AlertConfiguration
+	var scannedEmailGroupIDs UUIDArray
 	err := s.db.GetPool().QueryRow(ctx, query,
 		req.Name, req.Description, req.AlertType, req.ThresholdAmount,
 		req.TimeWindowMinutes, req.CurrencyCode, req.EmailNotifications,
-		req.WebhookURL, createdBy,
+		req.WebhookURL, emailGroupIDs, createdBy,
 	).Scan(
 		&config.ID, &config.Name, &config.Description, &config.AlertType,
 		&config.Status, &config.ThresholdAmount, &config.TimeWindowMinutes,
 		&config.CurrencyCode, &config.EmailNotifications, &config.WebhookURL,
-		&config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
+		&scannedEmailGroupIDs, &config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
 	)
+	if err == nil {
+		config.EmailGroupIDs = []uuid.UUID(scannedEmailGroupIDs)
+	}
 
 	if err != nil {
 		s.log.Error("Failed to create alert configuration", zap.Error(err))
@@ -80,15 +155,23 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 
 // GetAlertConfigurationByID gets an alert configuration by ID
 func (s *alertStorage) GetAlertConfigurationByID(ctx context.Context, id uuid.UUID) (*dto.AlertConfiguration, error) {
-	query := `SELECT * FROM alert_configurations WHERE id = $1`
+	query := `SELECT 
+		id, name, description, alert_type, status, threshold_amount, time_window_minutes,
+		currency_code, email_notifications, webhook_url, email_group_ids,
+		created_by, created_at, updated_at, updated_by
+		FROM alert_configurations WHERE id = $1`
 
 	var config dto.AlertConfiguration
+	var emailGroupIDs UUIDArray
 	err := s.db.GetPool().QueryRow(ctx, query, id).Scan(
 		&config.ID, &config.Name, &config.Description, &config.AlertType,
 		&config.Status, &config.ThresholdAmount, &config.TimeWindowMinutes,
 		&config.CurrencyCode, &config.EmailNotifications, &config.WebhookURL,
-		&config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
+		&emailGroupIDs, &config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
 	)
+	if err == nil {
+		config.EmailGroupIDs = []uuid.UUID(emailGroupIDs)
+	}
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -150,7 +233,11 @@ func (s *alertStorage) GetAlertConfigurations(ctx context.Context, req *dto.GetA
 
 	// Get configurations
 	query := fmt.Sprintf(`
-		SELECT * FROM alert_configurations 
+		SELECT 
+			id, name, description, alert_type, status, threshold_amount, time_window_minutes,
+			currency_code, email_notifications, webhook_url, email_group_ids,
+			created_by, created_at, updated_at, updated_by
+		FROM alert_configurations 
 		%s 
 		ORDER BY created_at DESC 
 		LIMIT $%d OFFSET $%d
@@ -168,16 +255,18 @@ func (s *alertStorage) GetAlertConfigurations(ctx context.Context, req *dto.GetA
 	var configs []dto.AlertConfiguration
 	for rows.Next() {
 		var config dto.AlertConfiguration
+		var emailGroupIDs UUIDArray
 		err := rows.Scan(
 			&config.ID, &config.Name, &config.Description, &config.AlertType,
 			&config.Status, &config.ThresholdAmount, &config.TimeWindowMinutes,
 			&config.CurrencyCode, &config.EmailNotifications, &config.WebhookURL,
-			&config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
+			&emailGroupIDs, &config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
 		)
 		if err != nil {
 			s.log.Error("Failed to scan alert configuration", zap.Error(err))
 			return nil, 0, err
 		}
+		config.EmailGroupIDs = []uuid.UUID(emailGroupIDs)
 		configs = append(configs, config)
 	}
 
@@ -230,9 +319,18 @@ func (s *alertStorage) UpdateAlertConfiguration(ctx context.Context, id uuid.UUI
 		args = append(args, *req.WebhookURL)
 		argIdx++
 	}
+	if req.EmailGroupIDs != nil {
+		setClauses = append(setClauses, fmt.Sprintf("email_group_ids = $%d", argIdx))
+		var emailGroupIDs interface{} = pq.Array([]uuid.UUID{})
+		if len(req.EmailGroupIDs) > 0 {
+			emailGroupIDs = pq.Array(req.EmailGroupIDs)
+		}
+		args = append(args, emailGroupIDs)
+		argIdx++
+	}
 
 	// Always update updated_at and updated_by
-	setClauses = append(setClauses, fmt.Sprintf("updated_at = NOW()"))
+	setClauses = append(setClauses, "updated_at = NOW()")
 	setClauses = append(setClauses, fmt.Sprintf("updated_by = $%d", argIdx))
 	args = append(args, updatedBy)
 	argIdx++
@@ -246,18 +344,25 @@ func (s *alertStorage) UpdateAlertConfiguration(ctx context.Context, id uuid.UUI
         UPDATE alert_configurations
         SET %s
         WHERE id = $%d
-        RETURNING *
+        RETURNING 
+            id, name, description, alert_type, status, threshold_amount, time_window_minutes,
+            currency_code, email_notifications, webhook_url, email_group_ids,
+            created_by, created_at, updated_at, updated_by
     `, strings.Join(setClauses, ", "), argIdx)
 
 	args = append(args, id)
 
 	var config dto.AlertConfiguration
+	var emailGroupIDs UUIDArray
 	err := s.db.GetPool().QueryRow(ctx, query, args...).Scan(
 		&config.ID, &config.Name, &config.Description, &config.AlertType,
 		&config.Status, &config.ThresholdAmount, &config.TimeWindowMinutes,
 		&config.CurrencyCode, &config.EmailNotifications, &config.WebhookURL,
-		&config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
+		&emailGroupIDs, &config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
 	)
+	if err == nil {
+		config.EmailGroupIDs = []uuid.UUID(emailGroupIDs)
+	}
 	if err != nil {
 		s.log.Error("Failed to update alert configuration", zap.Error(err))
 		return nil, err
@@ -470,7 +575,131 @@ func (s *alertStorage) CheckBetAmountAlerts(ctx context.Context, timeWindow time
 }
 
 func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.Duration) error {
-	// Implementation for checking deposit alerts
+	// Get all active deposit alert configurations
+	req := &dto.GetAlertConfigurationsRequest{
+		Page:    1,
+		PerPage: 100,
+		Status:  func() *dto.AlertStatus { status := dto.AlertStatusActive; return &status }(),
+	}
+
+	configs, _, err := s.GetAlertConfigurations(ctx, req)
+	if err != nil {
+		s.log.Error("Failed to get alert configurations", zap.Error(err))
+		return err
+	}
+
+	// Filter for deposit-related alerts
+	depositAlertTypes := []dto.AlertType{
+		dto.AlertTypeDepositsTotalMore,
+		dto.AlertTypeDepositsTotalLess,
+		dto.AlertTypeDepositsTypeMore,
+		dto.AlertTypeDepositsTypeLess,
+	}
+
+	depositConfigs := make([]dto.AlertConfiguration, 0)
+	for _, config := range configs {
+		for _, alertType := range depositAlertTypes {
+			if config.AlertType == alertType && config.EmailNotifications {
+				depositConfigs = append(depositConfigs, config)
+				break
+			}
+		}
+	}
+
+	if len(depositConfigs) == 0 {
+		return nil // No deposit alerts configured
+	}
+
+	// Calculate time window start
+	timeWindowStart := time.Now().Add(-timeWindow)
+
+	// Check each deposit alert configuration
+	for _, config := range depositConfigs {
+		var totalAmount float64
+		var query string
+		var args []interface{}
+
+		// Build query based on alert type
+		if config.AlertType == dto.AlertTypeDepositsTotalMore || config.AlertType == dto.AlertTypeDepositsTotalLess {
+			// Total deposits (all currencies, convert to USD)
+			query = `
+				SELECT COALESCE(SUM(amount_cents), 0) / 100.0
+				FROM manual_funds
+				WHERE type = 'add_fund'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+			args = []interface{}{timeWindowStart, time.Now()}
+		} else if config.AlertType == dto.AlertTypeDepositsTypeMore || config.AlertType == dto.AlertTypeDepositsTypeLess {
+			// Type-specific deposits
+			if config.CurrencyCode == nil {
+				continue // Skip if no currency specified
+			}
+			query = `
+				SELECT COALESCE(SUM(amount_cents), 0) / 100.0
+				FROM manual_funds
+				WHERE type = 'add_fund'
+					AND currency_code = $1
+					AND created_at >= $2
+					AND created_at <= $3
+			`
+			args = []interface{}{string(*config.CurrencyCode), timeWindowStart, time.Now()}
+		} else {
+			continue
+		}
+
+		err := s.db.GetPool().QueryRow(ctx, query, args...).Scan(&totalAmount)
+		if err != nil {
+			s.log.Error("Failed to calculate deposit total", zap.Error(err), zap.String("alert_id", config.ID.String()))
+			continue
+		}
+
+		// Check if threshold is exceeded
+		shouldTrigger := false
+		if config.AlertType == dto.AlertTypeDepositsTotalMore || config.AlertType == dto.AlertTypeDepositsTypeMore {
+			shouldTrigger = totalAmount >= config.ThresholdAmount
+		} else if config.AlertType == dto.AlertTypeDepositsTotalLess || config.AlertType == dto.AlertTypeDepositsTypeLess {
+			shouldTrigger = totalAmount <= config.ThresholdAmount
+		}
+
+		if shouldTrigger {
+			// Check if we already triggered this alert recently (avoid duplicates)
+			recentTriggerQuery := `
+				SELECT COUNT(*) FROM alert_triggers
+				WHERE alert_configuration_id = $1
+					AND triggered_at >= $2
+			`
+			var recentCount int64
+			err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, timeWindowStart).Scan(&recentCount)
+			if err == nil && recentCount == 0 {
+				// Create trigger
+				trigger := &dto.AlertTrigger{
+					AlertConfigurationID: config.ID,
+					TriggeredAt:          time.Now(),
+					TriggerValue:         totalAmount,
+					ThresholdValue:       config.ThresholdAmount,
+					AmountUSD:            &totalAmount,
+				}
+				if config.CurrencyCode != nil {
+					trigger.CurrencyCode = config.CurrencyCode
+				}
+
+				err = s.CreateAlertTrigger(ctx, trigger)
+				if err != nil {
+					s.log.Error("Failed to create deposit alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
+				} else {
+					s.log.Info("Deposit alert triggered",
+						zap.String("alert_id", config.ID.String()),
+						zap.String("alert_type", string(config.AlertType)),
+						zap.Float64("total_amount", totalAmount),
+						zap.Float64("threshold", config.ThresholdAmount))
+					// Note: Email sending will be handled by a background job or webhook
+					// For now, triggers are created and can be checked via the API
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

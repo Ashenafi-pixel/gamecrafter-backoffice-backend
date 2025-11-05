@@ -8,6 +8,7 @@ import (
 	"github.com/tucanbit/internal/glue/admin_notification"
 	"github.com/tucanbit/internal/glue/agent"
 	"github.com/tucanbit/internal/glue/airtime"
+	"github.com/tucanbit/internal/glue/alert"
 	"github.com/tucanbit/internal/glue/analytics"
 	"github.com/tucanbit/internal/glue/authz"
 	"github.com/tucanbit/internal/glue/balance"
@@ -20,6 +21,7 @@ import (
 	"github.com/tucanbit/internal/glue/company"
 	"github.com/tucanbit/internal/glue/currency_config"
 	"github.com/tucanbit/internal/glue/department"
+	"github.com/tucanbit/internal/glue/email"
 	"github.com/tucanbit/internal/glue/exchange"
 	"github.com/tucanbit/internal/glue/falcon_liquidity"
 	"github.com/tucanbit/internal/glue/game"
@@ -46,6 +48,7 @@ import (
 	"github.com/tucanbit/internal/glue/withdrawal_management"
 	"github.com/tucanbit/internal/glue/withdrawals"
 	"github.com/tucanbit/internal/glue/ws"
+	emailModule "github.com/tucanbit/internal/module/email"
 	falconStorage "github.com/tucanbit/internal/storage/falcon_liquidity"
 	"go.uber.org/zap"
 )
@@ -108,6 +111,12 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 
 	// KYC routes
 	kyc.Init(grp, *log, handler.KYC, module.Authz, enforcer, module.SystemLogs)
+
+	// Alert routes
+	alert.Init(grp.Group("/api/admin"), handler.Alert, handler.AlertEmailGroup)
+
+	// Email test routes
+	email.Init(grp, *log, module.Email.(emailModule.EmailService))
 
 	// Health route
 	health.Init(grp)

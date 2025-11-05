@@ -21,38 +21,41 @@ const (
 
 // User represents the user registration request payload.
 type User struct {
-	ID                       uuid.UUID  `json:"id,omitempty"  swaggerignore:"true"`
-	Username                 string     `json:"username,omitempty"`
-	PhoneNumber              string     `json:"phone_number" validate:"omitempty,e164,min=8"`
-	FirstName                string     `json:"first_name"`
-	LastName                 string     `json:"last_name"`
-	Email                    string     `json:"email"`
-	ReferralCode             string     `json:"referral_code,omitempty" `
-	Password                 string     `json:"password,omitempty" validate:"passwordvalidation"`
-	DefaultCurrency          string     `json:"default_currency"`
-	ProfilePicture           string     `json:"profile_picture"`
-	DateOfBirth              string     `json:"date_of_birth"`
-	Source                   string     `json:"source,omitempty"  swaggerignore:"true"`
-	Roles                    []Role     `gorm:"many2many:user_roles;" json:"user_roles,omitempty" swaggerignore:"true"`
-	StreetAddress            string     `json:"street_address"`
-	Country                  string     `json:"country"`
-	State                    string     `json:"state"`
-	City                     string     `json:"city"`
-	Status                   string     `json:"status,omitempty" swaggerignore:"true"`
-	CreatedBy                uuid.UUID  `json:"created_by" swaggerignore:"true"`
-	IsAdmin                  bool       `json:"is_admin,omitempty" swaggerignore:"true"`
-	PostalCode               string     `json:"postal_code"`
-	KYCStatus                string     `json:"kyc_status"`
-	Type                     Type       `json:"type,omitempty"`
-	ReferalType              Type       `json:"referal_type,omitempty"`
-	ReferedByCode            string     `json:"refered_by_code,omitempty"`
-	AgentRequestID           string     `json:"agent_request_id,omitempty"`
-	Accounts                 []Balance  `json:"accounts"`
-	CreatedAt                *time.Time `json:"created_at,omitempty"`
-	IsEmailVerified          bool       `json:"is_email_verified,omitempty"`
-	WalletVerificationStatus string     `json:"wallet_verification_status,omitempty"`
-	IsTestAccount            bool       `json:"is_test_account,omitempty"`
-	VipLevel                 string     `json:"vip_level,omitempty"`
+	ID                       uuid.UUID        `json:"id,omitempty"  swaggerignore:"true"`
+	Username                 string           `json:"username,omitempty"`
+	PhoneNumber              string           `json:"phone_number" validate:"omitempty,e164,min=8"`
+	FirstName                string           `json:"first_name"`
+	LastName                 string           `json:"last_name"`
+	Email                    string           `json:"email"`
+	ReferralCode             string           `json:"referral_code,omitempty" `
+	Password                 string           `json:"password,omitempty" validate:"passwordvalidation"`
+	DefaultCurrency          string           `json:"default_currency"`
+	ProfilePicture           string           `json:"profile_picture"`
+	DateOfBirth              string           `json:"date_of_birth"`
+	Source                   string           `json:"source,omitempty"  swaggerignore:"true"`
+	Roles                    []Role           `gorm:"many2many:user_roles;" json:"user_roles,omitempty" swaggerignore:"true"`
+	StreetAddress            string           `json:"street_address"`
+	Country                  string           `json:"country"`
+	State                    string           `json:"state"`
+	City                     string           `json:"city"`
+	Status                   string           `json:"status,omitempty" swaggerignore:"true"`
+	CreatedBy                uuid.UUID        `json:"created_by" swaggerignore:"true"`
+	IsAdmin                  bool             `json:"is_admin,omitempty" swaggerignore:"true"`
+	PostalCode               string           `json:"postal_code"`
+	KYCStatus                string           `json:"kyc_status"`
+	Type                     Type             `json:"type,omitempty"`
+	ReferalType              Type             `json:"referal_type,omitempty"`
+	ReferedByCode            string           `json:"refered_by_code,omitempty"`
+	AgentRequestID           string           `json:"agent_request_id,omitempty"`
+	Accounts                 []Balance        `json:"accounts"`
+	CreatedAt                *time.Time       `json:"created_at,omitempty"`
+	IsEmailVerified          bool             `json:"is_email_verified,omitempty"`
+	WalletVerificationStatus string           `json:"wallet_verification_status,omitempty"`
+	IsTestAccount            bool             `json:"is_test_account,omitempty"`
+	VipLevel                 string           `json:"vip_level,omitempty"`
+	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
+	WithdrawalLimitEnabled   bool             `json:"withdrawal_limit_enabled,omitempty"`
+	WithdrawalAllTimeLimit   *decimal.Decimal `json:"withdrawal_all_time_limit,omitempty"`
 }
 
 // profileResponse
@@ -219,25 +222,28 @@ func ValidateResetPassword(rp ResetPasswordReq) error {
 }
 
 type UpdateProfileReq struct {
-	UserID                   uuid.UUID `json:"user_id" swaggerignore:"true"`
-	FirstName                string    `json:"first_name"`
-	LastName                 string    `json:"last_name"`
-	Email                    string    `json:"email"`
-	DateOfBirth              string    `json:"date_of_birth"`
-	Phone                    string    `json:"phone"`
-	Username                 string    `json:"username" swaggerignore:"true"`
-	Source                   string    `json:"source" swaggerignore:"true"`
-	StreetAddress            string    `json:"street_address"`
-	City                     string    `json:"city"`
-	PostalCode               string    `json:"postal_code"`
-	State                    string    `json:"state"`
-	Country                  string    `json:"country"`
-	KYCStatus                string    `json:"kyc_status"`
-	Status                   string    `json:"status"`
-	IsEmailVerified          bool      `json:"is_email_verified"`
-	DefaultCurrency          string    `json:"default_currency"`
-	WalletVerificationStatus string    `json:"wallet_verification_status"`
-	IsTestAccount            *bool     `json:"is_test_account,omitempty"`
+	UserID                   uuid.UUID        `json:"user_id" swaggerignore:"true"`
+	FirstName                string           `json:"first_name"`
+	LastName                 string           `json:"last_name"`
+	Email                    string           `json:"email"`
+	DateOfBirth              string           `json:"date_of_birth"`
+	Phone                    string           `json:"phone"`
+	Username                 string           `json:"username" swaggerignore:"true"`
+	Source                   string           `json:"source" swaggerignore:"true"`
+	StreetAddress            string           `json:"street_address"`
+	City                     string           `json:"city"`
+	PostalCode               string           `json:"postal_code"`
+	State                    string           `json:"state"`
+	Country                  string           `json:"country"`
+	KYCStatus                string           `json:"kyc_status"`
+	Status                   string           `json:"status"`
+	IsEmailVerified          bool             `json:"is_email_verified"`
+	DefaultCurrency          string           `json:"default_currency"`
+	WalletVerificationStatus string           `json:"wallet_verification_status"`
+	IsTestAccount            *bool            `json:"is_test_account,omitempty"`
+	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
+	WithdrawalLimitEnabled   *bool            `json:"withdrawal_limit_enabled,omitempty"`
+	WithdrawalAllTimeLimit   *decimal.Decimal `json:"withdrawal_all_time_limit,omitempty"`
 }
 
 type UpdateProfileRes struct {
@@ -280,25 +286,28 @@ type NotifyDepartmentsReq struct {
 }
 
 type EditProfileAdminReq struct {
-	UserID                   uuid.UUID `json:"user_id"`
-	AdminID                  uuid.UUID `json:"admin_id" swaggerignore:"true"`
-	FirstName                string    `json:"first_name"`
-	LastName                 string    `json:"last_name"`
-	UserName                 string    `json:"username"`
-	Email                    string    `json:"email"`
-	PhoneNumber              string    `json:"phone_number"`
-	StreetAddress            string    `json:"street_address"`
-	City                     string    `json:"city"`
-	PostalCode               string    `json:"postal_code"`
-	State                    string    `json:"state"`
-	Country                  string    `json:"country"`
-	KYCStatus                string    `json:"kyc_status"`
-	DateOfBirth              string    `json:"date_of_birth"`
-	Status                   string    `json:"status"`
-	IsEmailVerified          bool      `json:"is_email_verified"`
-	DefaultCurrency          string    `json:"default_currency"`
-	WalletVerificationStatus string    `json:"wallet_verification_status"`
-	IsTestAccount            *bool     `json:"is_test_account,omitempty"`
+	UserID                   uuid.UUID        `json:"user_id"`
+	AdminID                  uuid.UUID        `json:"admin_id" swaggerignore:"true"`
+	FirstName                string           `json:"first_name"`
+	LastName                 string           `json:"last_name"`
+	UserName                 string           `json:"username"`
+	Email                    string           `json:"email"`
+	PhoneNumber              string           `json:"phone_number"`
+	StreetAddress            string           `json:"street_address"`
+	City                     string           `json:"city"`
+	PostalCode               string           `json:"postal_code"`
+	State                    string           `json:"state"`
+	Country                  string           `json:"country"`
+	KYCStatus                string           `json:"kyc_status"`
+	DateOfBirth              string           `json:"date_of_birth"`
+	Status                   string           `json:"status"`
+	IsEmailVerified          bool             `json:"is_email_verified"`
+	DefaultCurrency          string           `json:"default_currency"`
+	WalletVerificationStatus string           `json:"wallet_verification_status"`
+	IsTestAccount            *bool            `json:"is_test_account,omitempty"`
+	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
+	WithdrawalLimitEnabled   *bool            `json:"withdrawal_limit_enabled,omitempty"`
+	WithdrawalAllTimeLimit   *decimal.Decimal `json:"withdrawal_all_time_limit,omitempty"`
 }
 
 type AdminResetPasswordReq struct {
@@ -400,25 +409,27 @@ type Admin struct {
 }
 
 type CreateAdminUserReq struct {
-	Username                 string `json:"username" validate:"required,min=3,max=50"`
-	Email                    string `json:"email" validate:"required,email"`
-	Password                 string `json:"password" validate:"required,min=6"`
-	FirstName                string `json:"first_name" validate:"required,min=2,max=50"`
-	LastName                 string `json:"last_name" validate:"required,min=2,max=50"`
-	Phone                    string `json:"phone,omitempty"`
-	DateOfBirth              string `json:"date_of_birth,omitempty"`
-	StreetAddress            string `json:"street_address,omitempty"`
-	City                     string `json:"city,omitempty"`
-	PostalCode               string `json:"postal_code,omitempty"`
-	State                    string `json:"state,omitempty"`
-	Country                  string `json:"country,omitempty"`
-	KycStatus                string `json:"kyc_status,omitempty"`
-	IsEmailVerified          bool   `json:"is_email_verified,omitempty"`
-	DefaultCurrency          string `json:"default_currency,omitempty"`
-	WalletVerificationStatus string `json:"wallet_verification_status,omitempty"`
-	Status                   string `json:"status,omitempty"`
-	IsAdmin                  bool   `json:"is_admin,omitempty"`
-	UserType                 string `json:"user_type,omitempty"`
+	Username                 string           `json:"username" validate:"required,min=3,max=50"`
+	Email                    string           `json:"email" validate:"required,email"`
+	Password                 string           `json:"password" validate:"required,min=6"`
+	FirstName                string           `json:"first_name" validate:"required,min=2,max=50"`
+	LastName                 string           `json:"last_name" validate:"required,min=2,max=50"`
+	Phone                    string           `json:"phone,omitempty"`
+	DateOfBirth              string           `json:"date_of_birth,omitempty"`
+	StreetAddress            string           `json:"street_address,omitempty"`
+	City                     string           `json:"city,omitempty"`
+	PostalCode               string           `json:"postal_code,omitempty"`
+	State                    string           `json:"state,omitempty"`
+	Country                  string           `json:"country,omitempty"`
+	KycStatus                string           `json:"kyc_status,omitempty"`
+	IsEmailVerified          bool             `json:"is_email_verified,omitempty"`
+	DefaultCurrency          string           `json:"default_currency,omitempty"`
+	WalletVerificationStatus string           `json:"wallet_verification_status,omitempty"`
+	Status                   string           `json:"status,omitempty"`
+	IsAdmin                  bool             `json:"is_admin,omitempty"`
+	UserType                 string           `json:"user_type,omitempty"`
+	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
+	WithdrawalLimitEnabled   bool             `json:"withdrawal_limit_enabled,omitempty"`
 }
 
 type UpdateAdminUserReq struct {

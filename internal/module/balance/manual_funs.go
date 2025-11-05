@@ -127,6 +127,20 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		b.balanceLogStorage.DeleteBalanceLog(ctx, blog.ID)
 		return dto.ManualFundRes{}, err
 	}
+
+	// Check for deposit alerts after successful deposit
+	if fund.Type == constant.ADD_FUND && b.alertStorage != nil {
+		// Check alerts for all active configurations (using the longest time window from active configs)
+		// Use a reasonable default time window (60 minutes) if no configs exist
+		timeWindow := 60 * time.Minute
+		go func() {
+			// Run in background to not block the response
+			if err := b.alertStorage.CheckDepositAlerts(context.Background(), timeWindow); err != nil {
+				b.log.Error("Failed to check deposit alerts", zap.Error(err))
+			}
+		}()
+	}
+
 	return manualFund, nil
 }
 

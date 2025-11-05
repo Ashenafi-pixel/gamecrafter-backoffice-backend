@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -146,14 +147,57 @@ func Initiate() {
 
 	// Initialize email services
 	logger.Info("initializing email services")
+	// Using google.smtp configuration instead of smtp
+	envSmtpPassword := os.Getenv("SMTP_PASSWORD")
+	envSmtpUsername := os.Getenv("SMTP_USERNAME")
+	envGoogleSmtpPassword := os.Getenv("GOOGLE_SMTP_PASSWORD") // viper converts dots to underscores
+	envGoogleSmtpFrom := os.Getenv("GOOGLE_SMTP_FROM")
+
+	// Read from google.smtp (not smtp)
+	smtpPasswordRaw := viper.GetString("google.smtp.password")
+	// Remove any potential leading/trailing quotes from YAML parsing, but keep internal spaces
+	smtpPassword := strings.Trim(smtpPasswordRaw, `"'`)
+	// Use google.smtp.from as username (email address)
+	smtpUsername := strings.TrimSpace(viper.GetString("google.smtp.from"))
+
+	// Log all potential sources to diagnose server issues
+	logger.Info("Loading SMTP configuration from google.smtp (via viper)",
+		zap.String("config_file_used", viper.ConfigFileUsed()),
+		zap.String("config_source", "viper.GetString('google.smtp.*') from config.yaml"),
+		zap.String("password_source", "viper.GetString('google.smtp.password')"),
+		zap.String("username_source", "viper.GetString('google.smtp.from')"),
+		zap.String("env_SMTP_PASSWORD_set", fmt.Sprintf("%v", envSmtpPassword != "")),
+		zap.String("env_SMTP_USERNAME_set", fmt.Sprintf("%v", envSmtpUsername != "")),
+		zap.String("env_GOOGLE_SMTP_PASSWORD_set", fmt.Sprintf("%v", envGoogleSmtpPassword != "")),
+		zap.String("env_GOOGLE_SMTP_FROM_set", fmt.Sprintf("%v", envGoogleSmtpFrom != "")),
+		zap.String("env_SMTP_PASSWORD_length", fmt.Sprintf("%d", len(envSmtpPassword))),
+		zap.String("env_SMTP_USERNAME_length", fmt.Sprintf("%d", len(envSmtpUsername))),
+		zap.String("env_GOOGLE_SMTP_PASSWORD_length", fmt.Sprintf("%d", len(envGoogleSmtpPassword))),
+		zap.String("env_GOOGLE_SMTP_FROM_length", fmt.Sprintf("%d", len(envGoogleSmtpFrom))),
+		zap.String("host", "smtp.gmail.com"),
+		zap.Int("port", 465),
+		zap.String("username", smtpUsername),
+		zap.String("username_raw", smtpUsername),
+		zap.Int("username_length", len(smtpUsername)),
+		zap.Bool("password_set", smtpPassword != ""),
+		zap.Int("password_length", len(smtpPassword)),
+		zap.String("password_preview", func() string {
+			if len(smtpPassword) > 4 {
+				return smtpPassword[:4] + "..."
+			}
+			return "***"
+		}()),
+		zap.String("password_raw", smtpPassword),
+		zap.String("from", smtpUsername),
+		zap.Bool("env_override_detected", envGoogleSmtpPassword != "" || envGoogleSmtpFrom != ""))
 	smtpConfig := emailModule.SMTPConfig{
-		Host:     viper.GetString("smtp.host"),
-		Port:     viper.GetInt("smtp.port"),
-		Username: viper.GetString("smtp.username"),
-		Password: viper.GetString("smtp.password"),
-		From:     viper.GetString("smtp.from"),
+		Host:     "smtp.gmail.com",
+		Port:     465,
+		Username: smtpUsername,
+		Password: smtpPassword,
+		From:     smtpUsername,
 		FromName: viper.GetString("smtp.from_name"),
-		UseTLS:   viper.GetBool("smtp.use_tls"),
+		UseTLS:   true,
 	}
 	emailService, err := emailModule.NewEmailService(smtpConfig, logger)
 	if err != nil {

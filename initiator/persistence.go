@@ -85,6 +85,7 @@ type Persistence struct {
 	Analytics            storage.Analytics
 	AdminActivityLogs    admin_activity_logs.AdminActivityLogsStorage
 	Alert                alert.AlertStorage
+	AlertEmailGroups     alert.AlertEmailGroupStorage
 	KYC                  kyc.KYCStorage
 	SystemConfig         *system_config.SystemConfig
 	Database             *persistencedb.PersistenceDB
@@ -137,6 +138,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
 		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsStorage(*persistencdb, log),
 		Alert:                alert.NewAlertStorage(*persistencdb, log),
+		AlertEmailGroups:     alert.NewAlertEmailGroupStorage(*persistencdb, log),
 		KYC:                  kyc.NewKYCStorage(persistencdb, log),
 		SystemConfig:         system_config.NewSystemConfig(persistencdb, log),
 		Database:             persistencdb,

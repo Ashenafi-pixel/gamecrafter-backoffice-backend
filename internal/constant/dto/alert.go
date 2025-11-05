@@ -60,6 +60,7 @@ type AlertConfiguration struct {
 	CurrencyCode       *CurrencyType `json:"currency_code" db:"currency_code"`
 	EmailNotifications bool          `json:"email_notifications" db:"email_notifications"`
 	WebhookURL         *string       `json:"webhook_url" db:"webhook_url"`
+	EmailGroupIDs      []uuid.UUID   `json:"email_group_ids" db:"email_group_ids"` // Array of email group IDs
 	CreatedBy          *uuid.UUID    `json:"created_by" db:"created_by"`
 	CreatedAt          time.Time     `json:"created_at" db:"created_at"`
 	UpdatedAt          time.Time     `json:"updated_at" db:"updated_at"`
@@ -99,6 +100,7 @@ type CreateAlertConfigurationRequest struct {
 	CurrencyCode       *CurrencyType `json:"currency_code"`
 	EmailNotifications bool          `json:"email_notifications"`
 	WebhookURL         *string       `json:"webhook_url"`
+	EmailGroupIDs      []uuid.UUID   `json:"email_group_ids"` // Array of email group IDs
 }
 
 // UpdateAlertConfigurationRequest represents the request to update an alert configuration
@@ -111,6 +113,7 @@ type UpdateAlertConfigurationRequest struct {
 	CurrencyCode       *CurrencyType `json:"currency_code"`
 	EmailNotifications *bool         `json:"email_notifications"`
 	WebhookURL         *string       `json:"webhook_url"`
+	EmailGroupIDs      []uuid.UUID   `json:"email_group_ids"` // Array of email group IDs
 }
 
 // GetAlertConfigurationsRequest represents the request to get alert configurations
@@ -175,4 +178,55 @@ type AlertTriggersResponse struct {
 // AcknowledgeAlertRequest represents the request to acknowledge an alert
 type AcknowledgeAlertRequest struct {
 	Acknowledged bool `json:"acknowledged" binding:"required"`
+}
+
+// AlertEmailGroup represents an email group for alerts
+type AlertEmailGroup struct {
+	ID          uuid.UUID  `json:"id" db:"id"`
+	Name        string     `json:"name" db:"name"`
+	Description *string    `json:"description" db:"description"`
+	CreatedBy   *uuid.UUID `json:"created_by" db:"created_by"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	UpdatedBy   *uuid.UUID `json:"updated_by" db:"updated_by"`
+	Emails      []string   `json:"emails,omitempty"` // Populated when fetching with members
+}
+
+// AlertEmailGroupMember represents an email member in a group
+type AlertEmailGroupMember struct {
+	ID        uuid.UUID `json:"id" db:"id"`
+	GroupID   uuid.UUID `json:"group_id" db:"group_id"`
+	Email     string    `json:"email" db:"email"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// CreateAlertEmailGroupRequest represents the request to create an email group
+type CreateAlertEmailGroupRequest struct {
+	Name        string   `json:"name" binding:"required"`
+	Description *string  `json:"description"`
+	Emails      []string `json:"emails" binding:"required,min=1"`
+}
+
+// UpdateAlertEmailGroupRequest represents the request to update an email group
+type UpdateAlertEmailGroupRequest struct {
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Emails      []string `json:"emails"` // If provided, replaces all emails
+}
+
+// AlertEmailGroupResponse represents the response for email group operations
+type AlertEmailGroupResponse struct {
+	Success bool             `json:"success"`
+	Message string           `json:"message"`
+	Data    *AlertEmailGroup `json:"data,omitempty"`
+	Error   string           `json:"error,omitempty"`
+}
+
+// AlertEmailGroupsResponse represents the response for multiple email groups
+type AlertEmailGroupsResponse struct {
+	Success    bool              `json:"success"`
+	Message    string            `json:"message"`
+	Data       []AlertEmailGroup `json:"data"`
+	TotalCount int64             `json:"total_count"`
+	Error      string            `json:"error,omitempty"`
 }

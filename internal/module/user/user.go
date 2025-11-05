@@ -1767,6 +1767,17 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		updateReq.WalletVerificationStatus = updatedUser.WalletVerificationStatus
 	}
 
+	// Handle withdrawal_limit fields
+	if userReq.WithdrawalLimit != nil {
+		updateReq.WithdrawalLimit = userReq.WithdrawalLimit
+	}
+	if userReq.WithdrawalLimitEnabled != nil {
+		updateReq.WithdrawalLimitEnabled = userReq.WithdrawalLimitEnabled
+	}
+	if userReq.WithdrawalAllTimeLimit != nil {
+		updateReq.WithdrawalAllTimeLimit = userReq.WithdrawalAllTimeLimit
+	}
+
 	res, err := u.userStorage.UpdateUser(ctx, updateReq)
 	if err != nil {
 		u.log.Error("Failed to update player profile",
@@ -1927,22 +1938,34 @@ func (u *User) AdminAutoResetPassword(ctx context.Context, req dto.AdminAutoRese
 	}
 
 	// Send email with the new password
+	u.log.Info("=== AdminAutoResetPassword: Preparing to send email ===",
+		zap.String("user_id", req.UserID.String()),
+		zap.String("email", usr.Email),
+		zap.String("first_name", usr.FirstName),
+		zap.Bool("email_service_available", u.email != nil))
+
 	if u.email != nil {
+		u.log.Info("Email service is available, calling SendAdminGeneratedPasswordEmail",
+			zap.String("email", usr.Email),
+			zap.String("user_id", req.UserID.String()))
+
 		err = u.email.SendAdminGeneratedPasswordEmail(usr.Email, usr.FirstName, newPassword)
 		if err != nil {
 			// Log error but don't fail the request - password is already updated
-			u.log.Error("Failed to send admin-generated password email",
+			u.log.Error("=== FAILED: Admin-generated password email ===",
 				zap.String("email", usr.Email),
 				zap.String("user_id", req.UserID.String()),
-				zap.Error(err))
+				zap.Error(err),
+				zap.String("error_type", fmt.Sprintf("%T", err)))
 		} else {
-			u.log.Info("Admin-generated password email sent successfully",
+			u.log.Info("=== SUCCESS: Admin-generated password email sent ===",
 				zap.String("email", usr.Email),
 				zap.String("user_id", req.UserID.String()))
 		}
 	} else {
-		u.log.Warn("Email service is not available, skipping admin-generated password email",
-			zap.String("user_id", req.UserID.String()))
+		u.log.Warn("=== EMAIL SERVICE IS NIL - Cannot send email ===",
+			zap.String("user_id", req.UserID.String()),
+			zap.String("email", usr.Email))
 	}
 
 	u.log.Info("Password auto-reset completed by admin",
