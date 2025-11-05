@@ -1,0 +1,43 @@
+name: Security Check
+on:
+  pull_request:
+    branches:
+      - develop
+      - stage
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+  security-events: write
+
+env:
+  TRIVY_CACHE_DIR: /tmp/trivy-cache
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout full repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: Security Check
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+
+      - name: Run License Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: json
+          output: trivy-license-results.json
+          scanners: license
+          cache-dir: ${{ env.TRIVY_CACHE_DIR }}
