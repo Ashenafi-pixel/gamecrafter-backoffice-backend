@@ -207,6 +207,14 @@ func Initiate() {
 		logger.Info("Expired cashback processing job started")
 	}
 
+	// Start rakeback scheduler for automatic schedule activation/deactivation
+	if module.Cashback != nil {
+		logger.Info("Starting rakeback scheduler")
+		rakebackScheduler := module.Cashback.GetRakebackScheduler(persistence.Cashback, logger)
+		rakebackScheduler.Start(context.Background())
+		logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
+	}
+
 	// Start daily report cronjob service
 	if dailyReportCronjobService != nil {
 		logger.Info("Starting daily report cronjob service")

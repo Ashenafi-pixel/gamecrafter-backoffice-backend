@@ -299,3 +299,74 @@ type GlobalRakebackOverrideResponse struct {
 	DisabledAt         *time.Time      `json:"disabled_at,omitempty"`
 	Message            string          `json:"message"`
 }
+
+// RakebackSchedule represents a scheduled rakeback event
+type RakebackSchedule struct {
+	ID            uuid.UUID       `json:"id" db:"id"`
+	Name          string          `json:"name" db:"name"`
+	Description   *string         `json:"description,omitempty" db:"description"`
+	StartTime     time.Time       `json:"start_time" db:"start_time"`
+	EndTime       time.Time       `json:"end_time" db:"end_time"`
+	Percentage    decimal.Decimal `json:"percentage" db:"percentage"`
+	ScopeType     string          `json:"scope_type" db:"scope_type"`
+	ScopeValue    *string         `json:"scope_value,omitempty" db:"scope_value"`
+	Status        string          `json:"status" db:"status"`
+	CreatedBy     *uuid.UUID      `json:"created_by,omitempty" db:"created_by"`
+	ActivatedAt   *time.Time      `json:"activated_at,omitempty" db:"activated_at"`
+	DeactivatedAt *time.Time      `json:"deactivated_at,omitempty" db:"deactivated_at"`
+	CreatedAt     time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// CreateRakebackScheduleRequest represents a request to create a scheduled rakeback
+type CreateRakebackScheduleRequest struct {
+	Name        string          `json:"name" validate:"required"`
+	Description string          `json:"description"`
+	StartTime   time.Time       `json:"start_time" validate:"required"`
+	EndTime     time.Time       `json:"end_time" validate:"required"`
+	Percentage  decimal.Decimal `json:"percentage" validate:"required,gte=0,lte=100"`
+	ScopeType   string          `json:"scope_type" validate:"required,oneof=all provider game"`
+	ScopeValue  string          `json:"scope_value"`
+}
+
+// UpdateRakebackScheduleRequest represents a request to update a scheduled rakeback
+type UpdateRakebackScheduleRequest struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	StartTime   time.Time       `json:"start_time"`
+	EndTime     time.Time       `json:"end_time"`
+	Percentage  decimal.Decimal `json:"percentage" validate:"gte=0,lte=100"`
+	ScopeType   string          `json:"scope_type" validate:"omitempty,oneof=all provider game"`
+	ScopeValue  string          `json:"scope_value"`
+}
+
+// RakebackScheduleResponse represents the response with schedule details
+type RakebackScheduleResponse struct {
+	ID              uuid.UUID       `json:"id"`
+	Name            string          `json:"name"`
+	Description     *string         `json:"description,omitempty"`
+	StartTime       time.Time       `json:"start_time"`
+	EndTime         time.Time       `json:"end_time"`
+	Percentage      decimal.Decimal `json:"percentage"`
+	ScopeType       string          `json:"scope_type"`
+	ScopeValue      *string         `json:"scope_value,omitempty"`
+	Status          string          `json:"status"`
+	CreatedBy       *uuid.UUID      `json:"created_by,omitempty"`
+	CreatedByName   *string         `json:"created_by_name,omitempty"`
+	ActivatedAt     *time.Time      `json:"activated_at,omitempty"`
+	DeactivatedAt   *time.Time      `json:"deactivated_at,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	IsActive        bool            `json:"is_active"`
+	TimeRemaining   *string         `json:"time_remaining,omitempty"`
+	TimeUntilStart  *string         `json:"time_until_start,omitempty"`
+}
+
+// ListRakebackSchedulesResponse represents a paginated list of schedules
+type ListRakebackSchedulesResponse struct {
+	Schedules  []RakebackScheduleResponse `json:"schedules"`
+	Total      int                        `json:"total"`
+	Page       int                        `json:"page"`
+	PageSize   int                        `json:"page_size"`
+	TotalPages int                        `json:"total_pages"`
+}

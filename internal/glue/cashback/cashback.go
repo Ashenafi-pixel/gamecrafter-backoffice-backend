@@ -74,6 +74,13 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		// Global Rakeback Override routes (Happy Hour Mode)
 		admin.GET("/global-override", handler.GetGlobalRakebackOverride)
 		admin.PUT("/global-override", handler.UpdateGlobalRakebackOverride)
+
+		// Rakeback Schedule routes (Scheduled Happy Hours)
+		admin.POST("/schedules", handler.CreateRakebackSchedule)
+		admin.GET("/schedules", handler.ListRakebackSchedules)
+		admin.GET("/schedules/:id", handler.GetRakebackSchedule)
+		admin.PUT("/schedules/:id", handler.UpdateRakebackSchedule)
+		admin.DELETE("/schedules/:id", handler.DeleteRakebackSchedule)
 	}
 
 	log.Info("Cashback routes initialized successfully")
