@@ -96,6 +96,10 @@ type CashbackStorage interface {
 	GetRetryableOperationsByUser(ctx context.Context, userID uuid.UUID) ([]RetryableOperation, error)
 	GetFailedRetryableOperations(ctx context.Context) ([]RetryableOperation, error)
 	DeleteRetryableOperation(ctx context.Context, operationID uuid.UUID) error
+
+	// Global Rakeback Override operations (Happy Hour Mode)
+	GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error)
+	UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalRakebackOverride) (*dto.GlobalRakebackOverride, error)
 }
 
 // CashbackStorageImpl provides a production-ready implementation with real database integration
@@ -1907,4 +1911,140 @@ func (s *CashbackStorageImpl) InitializeUserLevel(ctx context.Context, userID uu
 		zap.Int("tier_level", defaultTier.TierLevel))
 
 	return &savedUserLevel, nil
+}
+
+// GetGlobalRakebackOverride retrieves the global rakeback override configuration
+func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error) {
+	s.logger.Info("Getting global rakeback override configuration")
+
+	query := `
+		SELECT id, is_enabled, override_percentage, enabled_by, enabled_at, 
+		       disabled_by, disabled_at, created_at, updated_at
+		FROM global_rakeback_override
+		WHERE id = '00000000-0000-0000-0000-000000000001'::uuid
+		LIMIT 1
+	`
+
+	var override dto.GlobalRakebackOverride
+	var enabledBy, disabledBy sql.NullString
+	var enabledAt, disabledAt sql.NullTime
+
+	err := s.db.GetPool().QueryRow(ctx, query).Scan(
+		&override.ID,
+		&override.IsEnabled,
+		&override.OverridePercentage,
+		&enabledBy,
+		&enabledAt,
+		&disabledBy,
+		&disabledAt,
+		&override.CreatedAt,
+		&override.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Warn("Global rakeback override not found, returning default disabled state")
+			// Return default disabled state if not found
+			return &dto.GlobalRakebackOverride{
+				ID:                 uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+				IsEnabled:          false,
+				OverridePercentage: decimal.Zero,
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
+			}, nil
+		}
+		s.logger.Error("Failed to get global rakeback override", zap.Error(err))
+		return nil, fmt.Errorf("failed to get global rakeback override: %w", err)
+	}
+
+	// Handle nullable UUID fields
+	if enabledBy.Valid {
+		enabledByUUID, _ := uuid.Parse(enabledBy.String)
+		override.EnabledBy = &enabledByUUID
+	}
+	if disabledBy.Valid {
+		disabledByUUID, _ := uuid.Parse(disabledBy.String)
+		override.DisabledBy = &disabledByUUID
+	}
+	if enabledAt.Valid {
+		override.EnabledAt = &enabledAt.Time
+	}
+	if disabledAt.Valid {
+		override.DisabledAt = &disabledAt.Time
+	}
+
+	s.logger.Info("Retrieved global rakeback override",
+		zap.Bool("is_enabled", override.IsEnabled),
+		zap.String("override_percentage", override.OverridePercentage.String()))
+
+	return &override, nil
+}
+
+// UpdateGlobalRakebackOverride updates the global rakeback override configuration
+func (s *CashbackStorageImpl) UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalRakebackOverride) (*dto.GlobalRakebackOverride, error) {
+	s.logger.Info("Updating global rakeback override",
+		zap.Bool("is_enabled", override.IsEnabled),
+		zap.String("override_percentage", override.OverridePercentage.String()))
+
+	query := `
+		UPDATE global_rakeback_override
+		SET is_enabled = $1,
+		    override_percentage = $2,
+		    enabled_by = $3,
+		    enabled_at = $4,
+		    disabled_by = $5,
+		    disabled_at = $6,
+		    updated_at = NOW()
+		WHERE id = '00000000-0000-0000-0000-000000000001'::uuid
+		RETURNING id, is_enabled, override_percentage, enabled_by, enabled_at,
+		          disabled_by, disabled_at, created_at, updated_at
+	`
+
+	var updated dto.GlobalRakebackOverride
+	var enabledBy, disabledBy sql.NullString
+	var enabledAt, disabledAt sql.NullTime
+
+	err := s.db.GetPool().QueryRow(ctx, query,
+		override.IsEnabled,
+		override.OverridePercentage,
+		override.EnabledBy,
+		override.EnabledAt,
+		override.DisabledBy,
+		override.DisabledAt,
+	).Scan(
+		&updated.ID,
+		&updated.IsEnabled,
+		&updated.OverridePercentage,
+		&enabledBy,
+		&enabledAt,
+		&disabledBy,
+		&disabledAt,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		s.logger.Error("Failed to update global rakeback override", zap.Error(err))
+		return nil, fmt.Errorf("failed to update global rakeback override: %w", err)
+	}
+
+	// Handle nullable UUID fields
+	if enabledBy.Valid {
+		enabledByUUID, _ := uuid.Parse(enabledBy.String)
+		updated.EnabledBy = &enabledByUUID
+	}
+	if disabledBy.Valid {
+		disabledByUUID, _ := uuid.Parse(disabledBy.String)
+		updated.DisabledBy = &disabledByUUID
+	}
+	if enabledAt.Valid {
+		updated.EnabledAt = &enabledAt.Time
+	}
+	if disabledAt.Valid {
+		updated.DisabledAt = &disabledAt.Time
+	}
+
+	s.logger.Info("Global rakeback override updated successfully",
+		zap.Bool("is_enabled", updated.IsEnabled),
+		zap.String("override_percentage", updated.OverridePercentage.String()))
+
+	return &updated, nil
 }

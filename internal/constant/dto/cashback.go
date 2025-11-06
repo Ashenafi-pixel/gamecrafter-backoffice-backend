@@ -112,18 +112,21 @@ type CashbackPromotion struct {
 
 // UserCashbackSummary represents a user's cashback summary
 type UserCashbackSummary struct {
-	UserID            uuid.UUID              `json:"user_id"`
-	CurrentTier       CashbackTier           `json:"current_tier"`
-	LevelProgress     decimal.Decimal        `json:"level_progress"`
-	TotalGGR          decimal.Decimal        `json:"total_ggr"`
-	AvailableCashback decimal.Decimal        `json:"available_cashback"`
-	PendingCashback   decimal.Decimal        `json:"pending_cashback"`
-	TotalClaimed      decimal.Decimal        `json:"total_claimed"`
-	NextTierGGR       decimal.Decimal        `json:"next_tier_ggr"`
-	DailyLimit        *decimal.Decimal       `json:"daily_limit"`
-	WeeklyLimit       *decimal.Decimal       `json:"weekly_limit"`
-	MonthlyLimit      *decimal.Decimal       `json:"monthly_limit"`
-	SpecialBenefits   map[string]interface{} `json:"special_benefits"`
+	UserID                   uuid.UUID              `json:"user_id"`
+	CurrentTier              CashbackTier           `json:"current_tier"`
+	LevelProgress            decimal.Decimal        `json:"level_progress"`
+	TotalGGR                 decimal.Decimal        `json:"total_ggr"`
+	AvailableCashback        decimal.Decimal        `json:"available_cashback"`
+	PendingCashback          decimal.Decimal        `json:"pending_cashback"`
+	TotalClaimed             decimal.Decimal        `json:"total_claimed"`
+	NextTierGGR              decimal.Decimal        `json:"next_tier_ggr"`
+	DailyLimit               *decimal.Decimal       `json:"daily_limit"`
+	WeeklyLimit              *decimal.Decimal       `json:"weekly_limit"`
+	MonthlyLimit             *decimal.Decimal       `json:"monthly_limit"`
+	SpecialBenefits          map[string]interface{} `json:"special_benefits"`
+	GlobalOverrideActive     bool                   `json:"global_override_active"`
+	EffectiveCashbackPercent decimal.Decimal        `json:"effective_cashback_percent"`
+	HappyHourMessage         string                 `json:"happy_hour_message,omitempty"`
 }
 
 // EnhancedUserCashbackSummary represents a user's cashback summary with game-specific details
@@ -263,4 +266,36 @@ type LevelProgressionResult struct {
 // ReorderTiersRequest represents a request to reorder cashback tiers
 type ReorderTiersRequest struct {
 	TierOrder []uuid.UUID `json:"tier_order" validate:"required,min=1"`
+}
+
+// GlobalRakebackOverride represents the global rakeback override configuration (Happy Hour Mode)
+type GlobalRakebackOverride struct {
+	ID                 uuid.UUID       `json:"id" db:"id"`
+	IsEnabled          bool            `json:"is_enabled" db:"is_enabled"`
+	OverridePercentage decimal.Decimal `json:"override_percentage" db:"override_percentage"`
+	EnabledBy          *uuid.UUID      `json:"enabled_by" db:"enabled_by"`
+	EnabledAt          *time.Time      `json:"enabled_at" db:"enabled_at"`
+	DisabledBy         *uuid.UUID      `json:"disabled_by" db:"disabled_by"`
+	DisabledAt         *time.Time      `json:"disabled_at" db:"disabled_at"`
+	CreatedAt          time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// GlobalRakebackOverrideRequest represents a request to update global rakeback override
+type GlobalRakebackOverrideRequest struct {
+	IsEnabled          bool            `json:"is_enabled" validate:"required"`
+	OverridePercentage decimal.Decimal `json:"override_percentage" validate:"required,gte=0,lte=100"`
+}
+
+// GlobalRakebackOverrideResponse represents the response for global rakeback override
+type GlobalRakebackOverrideResponse struct {
+	IsEnabled          bool            `json:"is_enabled"`
+	OverridePercentage decimal.Decimal `json:"override_percentage"`
+	EnabledBy          *uuid.UUID      `json:"enabled_by,omitempty"`
+	EnabledByUsername  *string         `json:"enabled_by_username,omitempty"`
+	EnabledAt          *time.Time      `json:"enabled_at,omitempty"`
+	DisabledBy         *uuid.UUID      `json:"disabled_by,omitempty"`
+	DisabledByUsername *string         `json:"disabled_by_username,omitempty"`
+	DisabledAt         *time.Time      `json:"disabled_at,omitempty"`
+	Message            string          `json:"message"`
 }

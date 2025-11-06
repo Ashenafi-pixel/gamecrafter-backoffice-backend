@@ -647,7 +647,7 @@ func (h *CashbackHandler) ProcessManualCashback(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} BalanceSyncStatus
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
@@ -1032,4 +1032,118 @@ func (h *CashbackHandler) ProcessBulkLevelProgression(c *gin.Context) {
 		"successful":  successCount,
 		"failed":      len(userUUIDs) - successCount,
 	})
+}
+
+// GetGlobalRakebackOverride returns the current global rakeback override configuration
+// @Summary Get global rakeback override
+// @Description Returns the current global rakeback override configuration (Happy Hour mode)
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} dto.GlobalRakebackOverride
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/global-override [get]
+func (h *CashbackHandler) GetGlobalRakebackOverride(c *gin.Context) {
+	h.logger.Info("Getting global rakeback override configuration")
+
+	override, err := h.cashbackService.GetGlobalRakebackOverride(c.Request.Context())
+	if err != nil {
+		h.logger.Error("Failed to get global rakeback override", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to get global rakeback override",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, override)
+}
+
+// UpdateGlobalRakebackOverride updates the global rakeback override configuration
+// @Summary Update global rakeback override
+// @Description Updates the global rakeback override configuration (Happy Hour mode) - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.GlobalRakebackOverrideRequest true "Global rakeback override configuration"
+// @Success 200 {object} dto.GlobalRakebackOverrideResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/global-override [put]
+func (h *CashbackHandler) UpdateGlobalRakebackOverride(c *gin.Context) {
+	// Get admin user ID from context
+	adminUserIDStr := c.GetString("user-id")
+	if adminUserIDStr == "" {
+		h.logger.Error("Admin user ID not found in context")
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Admin user not authenticated",
+		})
+		return
+	}
+
+	adminUserID, err := uuid.Parse(adminUserIDStr)
+	if err != nil {
+		h.logger.Error("Invalid admin user ID format", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid admin user ID",
+		})
+		return
+	}
+
+	var request dto.GlobalRakebackOverrideRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Failed to bind global rakeback override request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	h.logger.Info("Updating global rakeback override",
+		zap.String("admin_user_id", adminUserID.String()),
+		zap.Bool("is_enabled", request.IsEnabled),
+		zap.String("override_percentage", request.OverridePercentage.String()))
+
+	updated, err := h.cashbackService.UpdateGlobalRakebackOverride(c.Request.Context(), adminUserID, request)
+	if err != nil {
+		h.logger.Error("Failed to update global rakeback override", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to update global rakeback override",
+		})
+		return
+	}
+
+	// Prepare response
+	var message string
+	if updated.IsEnabled {
+		message = fmt.Sprintf("Global rakeback override enabled! All users now receive %s%% rakeback (Happy Hour activated)", updated.OverridePercentage.String())
+	} else {
+		message = "Global rakeback override disabled. Users will receive VIP tier-based rakeback."
+	}
+
+	response := dto.GlobalRakebackOverrideResponse{
+		IsEnabled:          updated.IsEnabled,
+		OverridePercentage: updated.OverridePercentage,
+		EnabledBy:          updated.EnabledBy,
+		EnabledAt:          updated.EnabledAt,
+		DisabledBy:         updated.DisabledBy,
+		DisabledAt:         updated.DisabledAt,
+		Message:            message,
+	}
+
+	h.logger.Info("Global rakeback override updated successfully",
+		zap.Bool("is_enabled", updated.IsEnabled),
+		zap.String("override_percentage", updated.OverridePercentage.String()),
+		zap.String("admin_user_id", adminUserID.String()))
+
+	c.JSON(http.StatusOK, response)
 }
