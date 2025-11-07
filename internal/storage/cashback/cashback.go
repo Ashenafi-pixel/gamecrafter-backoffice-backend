@@ -96,6 +96,22 @@ type CashbackStorage interface {
 	GetRetryableOperationsByUser(ctx context.Context, userID uuid.UUID) ([]RetryableOperation, error)
 	GetFailedRetryableOperations(ctx context.Context) ([]RetryableOperation, error)
 	DeleteRetryableOperation(ctx context.Context, operationID uuid.UUID) error
+
+	// Global Rakeback Override operations (Happy Hour Mode)
+	GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error)
+	UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalRakebackOverride) (*dto.GlobalRakebackOverride, error)
+
+	// Rakeback Schedule operations
+	CreateRakebackSchedule(ctx context.Context, schedule dto.RakebackSchedule) (*dto.RakebackSchedule, error)
+	GetRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) (*dto.RakebackSchedule, error)
+	ListRakebackSchedules(ctx context.Context, status string, page, pageSize int) ([]dto.RakebackSchedule, int, error)
+	UpdateRakebackSchedule(ctx context.Context, scheduleID uuid.UUID, schedule dto.RakebackSchedule) (*dto.RakebackSchedule, error)
+	DeleteRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) error
+	GetSchedulesToActivate(ctx context.Context) ([]dto.RakebackSchedule, error)
+	GetSchedulesToDeactivate(ctx context.Context) ([]dto.RakebackSchedule, error)
+	ActivateSchedule(ctx context.Context, scheduleID uuid.UUID) error
+	DeactivateSchedule(ctx context.Context, scheduleID uuid.UUID) error
+	GetActiveScheduleForBet(ctx context.Context, gameType, gameID string) (*dto.RakebackSchedule, error)
 }
 
 // CashbackStorageImpl provides a production-ready implementation with real database integration
@@ -1907,4 +1923,615 @@ func (s *CashbackStorageImpl) InitializeUserLevel(ctx context.Context, userID uu
 		zap.Int("tier_level", defaultTier.TierLevel))
 
 	return &savedUserLevel, nil
+}
+
+// GetGlobalRakebackOverride retrieves the global rakeback override configuration
+func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error) {
+	s.logger.Info("Getting global rakeback override configuration")
+
+	query := `
+		SELECT id, is_enabled, override_percentage, enabled_by, enabled_at, 
+		       disabled_by, disabled_at, created_at, updated_at
+		FROM global_rakeback_override
+		WHERE id = '00000000-0000-0000-0000-000000000001'::uuid
+		LIMIT 1
+	`
+
+	var override dto.GlobalRakebackOverride
+	var enabledBy, disabledBy sql.NullString
+	var enabledAt, disabledAt sql.NullTime
+
+	err := s.db.GetPool().QueryRow(ctx, query).Scan(
+		&override.ID,
+		&override.IsEnabled,
+		&override.OverridePercentage,
+		&enabledBy,
+		&enabledAt,
+		&disabledBy,
+		&disabledAt,
+		&override.CreatedAt,
+		&override.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Warn("Global rakeback override not found, returning default disabled state")
+			// Return default disabled state if not found
+			return &dto.GlobalRakebackOverride{
+				ID:                 uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+				IsEnabled:          false,
+				OverridePercentage: decimal.Zero,
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
+			}, nil
+		}
+		s.logger.Error("Failed to get global rakeback override", zap.Error(err))
+		return nil, fmt.Errorf("failed to get global rakeback override: %w", err)
+	}
+
+	// Handle nullable UUID fields
+	if enabledBy.Valid {
+		enabledByUUID, _ := uuid.Parse(enabledBy.String)
+		override.EnabledBy = &enabledByUUID
+	}
+	if disabledBy.Valid {
+		disabledByUUID, _ := uuid.Parse(disabledBy.String)
+		override.DisabledBy = &disabledByUUID
+	}
+	if enabledAt.Valid {
+		override.EnabledAt = &enabledAt.Time
+	}
+	if disabledAt.Valid {
+		override.DisabledAt = &disabledAt.Time
+	}
+
+	s.logger.Info("Retrieved global rakeback override",
+		zap.Bool("is_enabled", override.IsEnabled),
+		zap.String("override_percentage", override.OverridePercentage.String()))
+
+	return &override, nil
+}
+
+// UpdateGlobalRakebackOverride updates the global rakeback override configuration
+func (s *CashbackStorageImpl) UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalRakebackOverride) (*dto.GlobalRakebackOverride, error) {
+	s.logger.Info("Updating global rakeback override",
+		zap.Bool("is_enabled", override.IsEnabled),
+		zap.String("override_percentage", override.OverridePercentage.String()))
+
+	query := `
+		UPDATE global_rakeback_override
+		SET is_enabled = $1,
+		    override_percentage = $2,
+		    enabled_by = $3,
+		    enabled_at = $4,
+		    disabled_by = $5,
+		    disabled_at = $6,
+		    updated_at = NOW()
+		WHERE id = '00000000-0000-0000-0000-000000000001'::uuid
+		RETURNING id, is_enabled, override_percentage, enabled_by, enabled_at,
+		          disabled_by, disabled_at, created_at, updated_at
+	`
+
+	var updated dto.GlobalRakebackOverride
+	var enabledBy, disabledBy sql.NullString
+	var enabledAt, disabledAt sql.NullTime
+
+	err := s.db.GetPool().QueryRow(ctx, query,
+		override.IsEnabled,
+		override.OverridePercentage,
+		override.EnabledBy,
+		override.EnabledAt,
+		override.DisabledBy,
+		override.DisabledAt,
+	).Scan(
+		&updated.ID,
+		&updated.IsEnabled,
+		&updated.OverridePercentage,
+		&enabledBy,
+		&enabledAt,
+		&disabledBy,
+		&disabledAt,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		s.logger.Error("Failed to update global rakeback override", zap.Error(err))
+		return nil, fmt.Errorf("failed to update global rakeback override: %w", err)
+	}
+
+	// Handle nullable UUID fields
+	if enabledBy.Valid {
+		enabledByUUID, _ := uuid.Parse(enabledBy.String)
+		updated.EnabledBy = &enabledByUUID
+	}
+	if disabledBy.Valid {
+		disabledByUUID, _ := uuid.Parse(disabledBy.String)
+		updated.DisabledBy = &disabledByUUID
+	}
+	if enabledAt.Valid {
+		updated.EnabledAt = &enabledAt.Time
+	}
+	if disabledAt.Valid {
+		updated.DisabledAt = &disabledAt.Time
+	}
+
+	s.logger.Info("Global rakeback override updated successfully",
+		zap.Bool("is_enabled", updated.IsEnabled),
+		zap.String("override_percentage", updated.OverridePercentage.String()))
+
+	return &updated, nil
+}
+
+// CreateRakebackSchedule creates a new rakeback schedule
+func (s *CashbackStorageImpl) CreateRakebackSchedule(ctx context.Context, schedule dto.RakebackSchedule) (*dto.RakebackSchedule, error) {
+	s.logger.Info("Creating rakeback schedule", zap.String("name", schedule.Name))
+
+	query := `
+		INSERT INTO rakeback_schedules (
+			name, description, start_time, end_time, percentage,
+			scope_type, scope_value, status, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, created_at, updated_at
+	`
+
+	var id uuid.UUID
+	var createdAt, updatedAt time.Time
+
+	err := s.db.GetPool().QueryRow(ctx, query,
+		schedule.Name,
+		schedule.Description,
+		schedule.StartTime,
+		schedule.EndTime,
+		schedule.Percentage,
+		schedule.ScopeType,
+		schedule.ScopeValue,
+		schedule.Status,
+		schedule.CreatedBy,
+	).Scan(&id, &createdAt, &updatedAt)
+
+	if err != nil {
+		s.logger.Error("Failed to create rakeback schedule", zap.Error(err))
+		return nil, fmt.Errorf("failed to create rakeback schedule: %w", err)
+	}
+
+	schedule.ID = id
+	schedule.CreatedAt = createdAt
+	schedule.UpdatedAt = updatedAt
+
+	s.logger.Info("Rakeback schedule created successfully", zap.String("id", id.String()))
+	return &schedule, nil
+}
+
+// GetRakebackSchedule retrieves a rakeback schedule by ID
+func (s *CashbackStorageImpl) GetRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) (*dto.RakebackSchedule, error) {
+	s.logger.Info("Getting rakeback schedule", zap.String("id", scheduleID.String()))
+
+	query := `
+		SELECT id, name, description, start_time, end_time, percentage,
+		       scope_type, scope_value, status, created_by, activated_at,
+		       deactivated_at, created_at, updated_at
+		FROM rakeback_schedules
+		WHERE id = $1
+	`
+
+	var schedule dto.RakebackSchedule
+	var description, scopeValue sql.NullString
+	var createdBy sql.NullString
+	var activatedAt, deactivatedAt sql.NullTime
+
+	err := s.db.GetPool().QueryRow(ctx, query, scheduleID).Scan(
+		&schedule.ID,
+		&schedule.Name,
+		&description,
+		&schedule.StartTime,
+		&schedule.EndTime,
+		&schedule.Percentage,
+		&schedule.ScopeType,
+		&scopeValue,
+		&schedule.Status,
+		&createdBy,
+		&activatedAt,
+		&deactivatedAt,
+		&schedule.CreatedAt,
+		&schedule.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("rakeback schedule not found")
+		}
+		s.logger.Error("Failed to get rakeback schedule", zap.Error(err))
+		return nil, fmt.Errorf("failed to get rakeback schedule: %w", err)
+	}
+
+	if description.Valid {
+		schedule.Description = &description.String
+	}
+	if scopeValue.Valid {
+		schedule.ScopeValue = &scopeValue.String
+	}
+	if createdBy.Valid {
+		createdByUUID, _ := uuid.Parse(createdBy.String)
+		schedule.CreatedBy = &createdByUUID
+	}
+	if activatedAt.Valid {
+		schedule.ActivatedAt = &activatedAt.Time
+	}
+	if deactivatedAt.Valid {
+		schedule.DeactivatedAt = &deactivatedAt.Time
+	}
+
+	return &schedule, nil
+}
+
+// ListRakebackSchedules retrieves a paginated list of rakeback schedules
+func (s *CashbackStorageImpl) ListRakebackSchedules(ctx context.Context, status string, page, pageSize int) ([]dto.RakebackSchedule, int, error) {
+	s.logger.Info("Listing rakeback schedules", zap.String("status", status), zap.Int("page", page))
+
+	offset := (page - 1) * pageSize
+
+	// Count total
+	countQuery := `SELECT COUNT(*) FROM rakeback_schedules WHERE ($1 = '' OR status = $1)`
+	var total int
+	err := s.db.GetPool().QueryRow(ctx, countQuery, status).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count schedules: %w", err)
+	}
+
+	// Get schedules
+	query := `
+		SELECT id, name, description, start_time, end_time, percentage,
+		       scope_type, scope_value, status, created_by, activated_at,
+		       deactivated_at, created_at, updated_at
+		FROM rakeback_schedules
+		WHERE ($1 = '' OR status = $1)
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query, status, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list schedules: %w", err)
+	}
+	defer rows.Close()
+
+	var schedules []dto.RakebackSchedule
+	for rows.Next() {
+		var schedule dto.RakebackSchedule
+		var description, scopeValue sql.NullString
+		var createdBy sql.NullString
+		var activatedAt, deactivatedAt sql.NullTime
+
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.Name,
+			&description,
+			&schedule.StartTime,
+			&schedule.EndTime,
+			&schedule.Percentage,
+			&schedule.ScopeType,
+			&scopeValue,
+			&schedule.Status,
+			&createdBy,
+			&activatedAt,
+			&deactivatedAt,
+			&schedule.CreatedAt,
+			&schedule.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan schedule: %w", err)
+		}
+
+		if description.Valid {
+			schedule.Description = &description.String
+		}
+		if scopeValue.Valid {
+			schedule.ScopeValue = &scopeValue.String
+		}
+		if createdBy.Valid {
+			createdByUUID, _ := uuid.Parse(createdBy.String)
+			schedule.CreatedBy = &createdByUUID
+		}
+		if activatedAt.Valid {
+			schedule.ActivatedAt = &activatedAt.Time
+		}
+		if deactivatedAt.Valid {
+			schedule.DeactivatedAt = &deactivatedAt.Time
+		}
+
+		schedules = append(schedules, schedule)
+	}
+
+	return schedules, total, nil
+}
+
+// UpdateRakebackSchedule updates an existing rakeback schedule
+func (s *CashbackStorageImpl) UpdateRakebackSchedule(ctx context.Context, scheduleID uuid.UUID, schedule dto.RakebackSchedule) (*dto.RakebackSchedule, error) {
+	s.logger.Info("Updating rakeback schedule", zap.String("id", scheduleID.String()))
+
+	query := `
+		UPDATE rakeback_schedules
+		SET name = $1, description = $2, start_time = $3, end_time = $4,
+		    percentage = $5, scope_type = $6, scope_value = $7, updated_at = NOW()
+		WHERE id = $8
+		RETURNING updated_at
+	`
+
+	var updatedAt time.Time
+	err := s.db.GetPool().QueryRow(ctx, query,
+		schedule.Name,
+		schedule.Description,
+		schedule.StartTime,
+		schedule.EndTime,
+		schedule.Percentage,
+		schedule.ScopeType,
+		schedule.ScopeValue,
+		scheduleID,
+	).Scan(&updatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("rakeback schedule not found")
+		}
+		s.logger.Error("Failed to update rakeback schedule", zap.Error(err))
+		return nil, fmt.Errorf("failed to update rakeback schedule: %w", err)
+	}
+
+	schedule.ID = scheduleID
+	schedule.UpdatedAt = updatedAt
+
+	return &schedule, nil
+}
+
+// DeleteRakebackSchedule deletes (cancels) a rakeback schedule
+func (s *CashbackStorageImpl) DeleteRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) error {
+	s.logger.Info("Deleting rakeback schedule", zap.String("id", scheduleID.String()))
+
+	query := `
+		UPDATE rakeback_schedules
+		SET status = 'cancelled', updated_at = NOW()
+		WHERE id = $1 AND status = 'scheduled'
+	`
+
+	result, err := s.db.GetPool().Exec(ctx, query, scheduleID)
+	if err != nil {
+		s.logger.Error("Failed to delete rakeback schedule", zap.Error(err))
+		return fmt.Errorf("failed to delete rakeback schedule: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("schedule not found or cannot be cancelled")
+	}
+
+	return nil
+}
+
+// GetSchedulesToActivate retrieves schedules that should be activated now
+func (s *CashbackStorageImpl) GetSchedulesToActivate(ctx context.Context) ([]dto.RakebackSchedule, error) {
+	query := `
+		SELECT id, name, description, start_time, end_time, percentage,
+		       scope_type, scope_value, status, created_by, activated_at,
+		       deactivated_at, created_at, updated_at
+		FROM rakeback_schedules
+		WHERE status = 'scheduled' AND start_time <= NOW() AND end_time > NOW()
+		ORDER BY start_time ASC
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedules to activate: %w", err)
+	}
+	defer rows.Close()
+
+	var schedules []dto.RakebackSchedule
+	for rows.Next() {
+		var schedule dto.RakebackSchedule
+		var description, scopeValue sql.NullString
+		var createdBy sql.NullString
+		var activatedAt, deactivatedAt sql.NullTime
+
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.Name,
+			&description,
+			&schedule.StartTime,
+			&schedule.EndTime,
+			&schedule.Percentage,
+			&schedule.ScopeType,
+			&scopeValue,
+			&schedule.Status,
+			&createdBy,
+			&activatedAt,
+			&deactivatedAt,
+			&schedule.CreatedAt,
+			&schedule.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		if description.Valid {
+			schedule.Description = &description.String
+		}
+		if scopeValue.Valid {
+			schedule.ScopeValue = &scopeValue.String
+		}
+		if createdBy.Valid {
+			createdByUUID, _ := uuid.Parse(createdBy.String)
+			schedule.CreatedBy = &createdByUUID
+		}
+
+		schedules = append(schedules, schedule)
+	}
+
+	return schedules, nil
+}
+
+// GetSchedulesToDeactivate retrieves active schedules that have ended
+func (s *CashbackStorageImpl) GetSchedulesToDeactivate(ctx context.Context) ([]dto.RakebackSchedule, error) {
+	query := `
+		SELECT id, name, description, start_time, end_time, percentage,
+		       scope_type, scope_value, status, created_by, activated_at,
+		       deactivated_at, created_at, updated_at
+		FROM rakeback_schedules
+		WHERE status = 'active' AND end_time <= NOW()
+		ORDER BY end_time ASC
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedules to deactivate: %w", err)
+	}
+	defer rows.Close()
+
+	var schedules []dto.RakebackSchedule
+	for rows.Next() {
+		var schedule dto.RakebackSchedule
+		var description, scopeValue sql.NullString
+		var createdBy sql.NullString
+		var activatedAt, deactivatedAt sql.NullTime
+
+		err := rows.Scan(
+			&schedule.ID,
+			&schedule.Name,
+			&description,
+			&schedule.StartTime,
+			&schedule.EndTime,
+			&schedule.Percentage,
+			&schedule.ScopeType,
+			&scopeValue,
+			&schedule.Status,
+			&createdBy,
+			&activatedAt,
+			&deactivatedAt,
+			&schedule.CreatedAt,
+			&schedule.UpdatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		if description.Valid {
+			schedule.Description = &description.String
+		}
+		if scopeValue.Valid {
+			schedule.ScopeValue = &scopeValue.String
+		}
+		if createdBy.Valid {
+			createdByUUID, _ := uuid.Parse(createdBy.String)
+			schedule.CreatedBy = &createdByUUID
+		}
+
+		schedules = append(schedules, schedule)
+	}
+
+	return schedules, nil
+}
+
+// ActivateSchedule marks a schedule as active
+func (s *CashbackStorageImpl) ActivateSchedule(ctx context.Context, scheduleID uuid.UUID) error {
+	s.logger.Info("Activating rakeback schedule", zap.String("id", scheduleID.String()))
+
+	query := `
+		UPDATE rakeback_schedules
+		SET status = 'active', activated_at = NOW(), updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := s.db.GetPool().Exec(ctx, query, scheduleID)
+	if err != nil {
+		s.logger.Error("Failed to activate schedule", zap.Error(err))
+		return fmt.Errorf("failed to activate schedule: %w", err)
+	}
+
+	return nil
+}
+
+// DeactivateSchedule marks a schedule as completed
+func (s *CashbackStorageImpl) DeactivateSchedule(ctx context.Context, scheduleID uuid.UUID) error {
+	s.logger.Info("Deactivating rakeback schedule", zap.String("id", scheduleID.String()))
+
+	query := `
+		UPDATE rakeback_schedules
+		SET status = 'completed', deactivated_at = NOW(), updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := s.db.GetPool().Exec(ctx, query, scheduleID)
+	if err != nil {
+		s.logger.Error("Failed to deactivate schedule", zap.Error(err))
+		return fmt.Errorf("failed to deactivate schedule: %w", err)
+	}
+
+	return nil
+}
+
+// GetActiveScheduleForBet retrieves the active schedule that applies to a specific bet
+func (s *CashbackStorageImpl) GetActiveScheduleForBet(ctx context.Context, gameType, gameID string) (*dto.RakebackSchedule, error) {
+	query := `
+		SELECT id, name, description, start_time, end_time, percentage,
+		       scope_type, scope_value, status, created_by, activated_at,
+		       deactivated_at, created_at, updated_at
+		FROM rakeback_schedules
+		WHERE status = 'active'
+		  AND (
+		      scope_type = 'all' OR
+		      (scope_type = 'provider' AND scope_value = $1) OR
+		      (scope_type = 'game' AND scope_value = $2)
+		  )
+		ORDER BY 
+		  CASE 
+		    WHEN scope_type = 'game' THEN 1
+		    WHEN scope_type = 'provider' THEN 2
+		    ELSE 3
+		  END
+		LIMIT 1
+	`
+
+	var schedule dto.RakebackSchedule
+	var description, scopeValue sql.NullString
+	var createdBy sql.NullString
+	var activatedAt, deactivatedAt sql.NullTime
+
+	err := s.db.GetPool().QueryRow(ctx, query, gameType, gameID).Scan(
+		&schedule.ID,
+		&schedule.Name,
+		&description,
+		&schedule.StartTime,
+		&schedule.EndTime,
+		&schedule.Percentage,
+		&schedule.ScopeType,
+		&scopeValue,
+		&schedule.Status,
+		&createdBy,
+		&activatedAt,
+		&deactivatedAt,
+		&schedule.CreatedAt,
+		&schedule.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // No active schedule for this bet
+		}
+		return nil, fmt.Errorf("failed to get active schedule: %w", err)
+	}
+
+	if description.Valid {
+		schedule.Description = &description.String
+	}
+	if scopeValue.Valid {
+		schedule.ScopeValue = &scopeValue.String
+	}
+	if createdBy.Valid {
+		createdByUUID, _ := uuid.Parse(createdBy.String)
+		schedule.CreatedBy = &createdByUUID
+	}
+	if activatedAt.Valid {
+		schedule.ActivatedAt = &activatedAt.Time
+	}
+	if deactivatedAt.Valid {
+		schedule.DeactivatedAt = &deactivatedAt.Time
+	}
+
+	return &schedule, nil
 }

@@ -112,18 +112,21 @@ type CashbackPromotion struct {
 
 // UserCashbackSummary represents a user's cashback summary
 type UserCashbackSummary struct {
-	UserID            uuid.UUID              `json:"user_id"`
-	CurrentTier       CashbackTier           `json:"current_tier"`
-	LevelProgress     decimal.Decimal        `json:"level_progress"`
-	TotalGGR          decimal.Decimal        `json:"total_ggr"`
-	AvailableCashback decimal.Decimal        `json:"available_cashback"`
-	PendingCashback   decimal.Decimal        `json:"pending_cashback"`
-	TotalClaimed      decimal.Decimal        `json:"total_claimed"`
-	NextTierGGR       decimal.Decimal        `json:"next_tier_ggr"`
-	DailyLimit        *decimal.Decimal       `json:"daily_limit"`
-	WeeklyLimit       *decimal.Decimal       `json:"weekly_limit"`
-	MonthlyLimit      *decimal.Decimal       `json:"monthly_limit"`
-	SpecialBenefits   map[string]interface{} `json:"special_benefits"`
+	UserID                   uuid.UUID              `json:"user_id"`
+	CurrentTier              CashbackTier           `json:"current_tier"`
+	LevelProgress            decimal.Decimal        `json:"level_progress"`
+	TotalGGR                 decimal.Decimal        `json:"total_ggr"`
+	AvailableCashback        decimal.Decimal        `json:"available_cashback"`
+	PendingCashback          decimal.Decimal        `json:"pending_cashback"`
+	TotalClaimed             decimal.Decimal        `json:"total_claimed"`
+	NextTierGGR              decimal.Decimal        `json:"next_tier_ggr"`
+	DailyLimit               *decimal.Decimal       `json:"daily_limit"`
+	WeeklyLimit              *decimal.Decimal       `json:"weekly_limit"`
+	MonthlyLimit             *decimal.Decimal       `json:"monthly_limit"`
+	SpecialBenefits          map[string]interface{} `json:"special_benefits"`
+	GlobalOverrideActive     bool                   `json:"global_override_active"`
+	EffectiveCashbackPercent decimal.Decimal        `json:"effective_cashback_percent"`
+	HappyHourMessage         string                 `json:"happy_hour_message,omitempty"`
 }
 
 // EnhancedUserCashbackSummary represents a user's cashback summary with game-specific details
@@ -263,4 +266,107 @@ type LevelProgressionResult struct {
 // ReorderTiersRequest represents a request to reorder cashback tiers
 type ReorderTiersRequest struct {
 	TierOrder []uuid.UUID `json:"tier_order" validate:"required,min=1"`
+}
+
+// GlobalRakebackOverride represents the global rakeback override configuration (Happy Hour Mode)
+type GlobalRakebackOverride struct {
+	ID                 uuid.UUID       `json:"id" db:"id"`
+	IsEnabled          bool            `json:"is_enabled" db:"is_enabled"`
+	OverridePercentage decimal.Decimal `json:"override_percentage" db:"override_percentage"`
+	EnabledBy          *uuid.UUID      `json:"enabled_by" db:"enabled_by"`
+	EnabledAt          *time.Time      `json:"enabled_at" db:"enabled_at"`
+	DisabledBy         *uuid.UUID      `json:"disabled_by" db:"disabled_by"`
+	DisabledAt         *time.Time      `json:"disabled_at" db:"disabled_at"`
+	CreatedAt          time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// GlobalRakebackOverrideRequest represents a request to update global rakeback override
+type GlobalRakebackOverrideRequest struct {
+	IsEnabled          bool            `json:"is_enabled" validate:"required"`
+	OverridePercentage decimal.Decimal `json:"override_percentage" validate:"required,gte=0,lte=100"`
+}
+
+// GlobalRakebackOverrideResponse represents the response for global rakeback override
+type GlobalRakebackOverrideResponse struct {
+	IsEnabled          bool            `json:"is_enabled"`
+	OverridePercentage decimal.Decimal `json:"override_percentage"`
+	EnabledBy          *uuid.UUID      `json:"enabled_by,omitempty"`
+	EnabledByUsername  *string         `json:"enabled_by_username,omitempty"`
+	EnabledAt          *time.Time      `json:"enabled_at,omitempty"`
+	DisabledBy         *uuid.UUID      `json:"disabled_by,omitempty"`
+	DisabledByUsername *string         `json:"disabled_by_username,omitempty"`
+	DisabledAt         *time.Time      `json:"disabled_at,omitempty"`
+	Message            string          `json:"message"`
+}
+
+// RakebackSchedule represents a scheduled rakeback event
+type RakebackSchedule struct {
+	ID            uuid.UUID       `json:"id" db:"id"`
+	Name          string          `json:"name" db:"name"`
+	Description   *string         `json:"description,omitempty" db:"description"`
+	StartTime     time.Time       `json:"start_time" db:"start_time"`
+	EndTime       time.Time       `json:"end_time" db:"end_time"`
+	Percentage    decimal.Decimal `json:"percentage" db:"percentage"`
+	ScopeType     string          `json:"scope_type" db:"scope_type"`
+	ScopeValue    *string         `json:"scope_value,omitempty" db:"scope_value"`
+	Status        string          `json:"status" db:"status"`
+	CreatedBy     *uuid.UUID      `json:"created_by,omitempty" db:"created_by"`
+	ActivatedAt   *time.Time      `json:"activated_at,omitempty" db:"activated_at"`
+	DeactivatedAt *time.Time      `json:"deactivated_at,omitempty" db:"deactivated_at"`
+	CreatedAt     time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// CreateRakebackScheduleRequest represents a request to create a scheduled rakeback
+type CreateRakebackScheduleRequest struct {
+	Name        string          `json:"name" validate:"required"`
+	Description string          `json:"description"`
+	StartTime   time.Time       `json:"start_time" validate:"required"`
+	EndTime     time.Time       `json:"end_time" validate:"required"`
+	Percentage  decimal.Decimal `json:"percentage" validate:"required,gte=0,lte=100"`
+	ScopeType   string          `json:"scope_type" validate:"required,oneof=all provider game"`
+	ScopeValue  string          `json:"scope_value"`
+}
+
+// UpdateRakebackScheduleRequest represents a request to update a scheduled rakeback
+type UpdateRakebackScheduleRequest struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	StartTime   time.Time       `json:"start_time"`
+	EndTime     time.Time       `json:"end_time"`
+	Percentage  decimal.Decimal `json:"percentage" validate:"gte=0,lte=100"`
+	ScopeType   string          `json:"scope_type" validate:"omitempty,oneof=all provider game"`
+	ScopeValue  string          `json:"scope_value"`
+}
+
+// RakebackScheduleResponse represents the response with schedule details
+type RakebackScheduleResponse struct {
+	ID              uuid.UUID       `json:"id"`
+	Name            string          `json:"name"`
+	Description     *string         `json:"description,omitempty"`
+	StartTime       time.Time       `json:"start_time"`
+	EndTime         time.Time       `json:"end_time"`
+	Percentage      decimal.Decimal `json:"percentage"`
+	ScopeType       string          `json:"scope_type"`
+	ScopeValue      *string         `json:"scope_value,omitempty"`
+	Status          string          `json:"status"`
+	CreatedBy       *uuid.UUID      `json:"created_by,omitempty"`
+	CreatedByName   *string         `json:"created_by_name,omitempty"`
+	ActivatedAt     *time.Time      `json:"activated_at,omitempty"`
+	DeactivatedAt   *time.Time      `json:"deactivated_at,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	IsActive        bool            `json:"is_active"`
+	TimeRemaining   *string         `json:"time_remaining,omitempty"`
+	TimeUntilStart  *string         `json:"time_until_start,omitempty"`
+}
+
+// ListRakebackSchedulesResponse represents a paginated list of schedules
+type ListRakebackSchedulesResponse struct {
+	Schedules  []RakebackScheduleResponse `json:"schedules"`
+	Total      int                        `json:"total"`
+	Page       int                        `json:"page"`
+	PageSize   int                        `json:"page_size"`
+	TotalPages int                        `json:"total_pages"`
 }
