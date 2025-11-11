@@ -204,7 +204,8 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 			zap.String("original_house_edge", houseEdge.String()))
 	} else {
 		// Check for scheduled rakeback (if no global override)
-		activeSchedule, err := s.storage.GetActiveScheduleForBet(ctx, gameType, bet.GameID)
+		// Use gameVariant (which contains the game ID) for scheduled rakeback lookup
+		activeSchedule, err := s.storage.GetActiveScheduleForBet(ctx, gameType, gameVariant)
 		if err == nil && activeSchedule != nil {
 			// Scheduled rakeback is active and applies to this bet
 			cashbackRate = activeSchedule.Percentage
@@ -240,7 +241,7 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		// When override or scheduled rakeback is active, calculate based on percentage
 		// Percentage is already in % format (e.g., 100.00 = 100%)
 		earnedCashback = bet.Amount.Mul(cashbackRate).Div(decimal.NewFromInt(100))
-		
+
 		if isScheduledRakebackActive {
 			s.logger.Info("Calculated scheduled rakeback cashback",
 				zap.String("schedule_name", scheduleName),
@@ -1164,6 +1165,13 @@ func (s *CashbackService) ProcessBulkLevelProgression(ctx context.Context, userI
 	return s.levelProgressionService.ProcessBulkLevelProgression(ctx, userIDs)
 }
 
+// ProcessSingleLevelProgression processes level progression for a single user
+func (s *CashbackService) ProcessSingleLevelProgression(ctx context.Context, userID uuid.UUID) (*dto.LevelProgressionResult, error) {
+	s.logger.Info("Processing single level progression", zap.String("user_id", userID.String()))
+
+	return s.levelProgressionService.ProcessSingleLevelProgression(ctx, userID)
+}
+
 // CreateRakebackSchedule creates a new scheduled rakeback event
 func (s *CashbackService) CreateRakebackSchedule(ctx context.Context, adminUserID uuid.UUID, req dto.CreateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
 	s.logger.Info("Creating rakeback schedule",
@@ -1325,7 +1333,7 @@ func (s *CashbackService) DeleteRakebackSchedule(ctx context.Context, scheduleID
 // scheduleToResponse converts a RakebackSchedule to RakebackScheduleResponse with metadata
 func (s *CashbackService) scheduleToResponse(schedule *dto.RakebackSchedule) dto.RakebackScheduleResponse {
 	now := time.Now()
-	
+
 	response := dto.RakebackScheduleResponse{
 		ID:            schedule.ID,
 		Name:          schedule.Name,
