@@ -710,11 +710,22 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 				searchTerm = "%" // Use single % to match all records when no search provided
 			}
 		}
+		// Convert brand_id strings to UUIDs
+		var brandIDs []uuid.UUID
+		if len(req.Filter.BrandID) > 0 {
+			for _, brandIDStr := range req.Filter.BrandID {
+				if brandID, err := uuid.Parse(brandIDStr); err == nil {
+					brandIDs = append(brandIDs, brandID)
+				}
+			}
+		}
+		
 		params := db.GetAllUsersWithFiltersParams{
 			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
 			Status:        normalizedStatus,
 			KycStatus:     normalizedKycStatus,
 			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
+			BrandID:       brandIDs,
 		}
 
 		// Use normal pagination for all searches (removed special handling for user_id length)

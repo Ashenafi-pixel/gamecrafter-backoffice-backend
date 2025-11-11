@@ -229,7 +229,9 @@ func (s *alertEmailGroupStorage) UpdateEmailGroup(ctx context.Context, id uuid.U
 		argPos++
 	}
 
-	if len(updates) > 0 {
+	// Always update updated_by and updated_at if there are any changes (name, description, or emails)
+	hasChanges := len(updates) > 0 || req.Emails != nil
+	if hasChanges {
 		updates = append(updates, fmt.Sprintf("updated_by = $%d", argPos))
 		args = append(args, updatedBy)
 		argPos++

@@ -350,6 +350,7 @@ type GetPlayersFilter struct {
 	KycStatus     []string `json:"kyc_status"`
 	VipLevel      []string `json:"vip_level"`
 	IsTestAccount *bool    `json:"is_test_account,omitempty"`
+	BrandID       []string `json:"brand_id,omitempty"`
 }
 type GetPlayersReq struct {
 	Page    int              `json:"page"`

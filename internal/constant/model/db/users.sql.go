@@ -1520,6 +1520,7 @@ WITH users_data AS (
     AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR status = ANY($2))
     AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR kyc_status = ANY($3))
     AND ($4::boolean IS NULL OR is_test_account = $4)
+    AND ($5::uuid[] IS NULL OR array_length($5, 1) IS NULL OR array_length($5, 1) = 0 OR brand_id = ANY($5))
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -1561,7 +1562,7 @@ SELECT
 FROM users_data c
 CROSS JOIN row_count r
 ORDER BY c.created_at DESC
-LIMIT $5 OFFSET $6
+LIMIT $6 OFFSET $7
 `
 
 type GetAllUsersWithFiltersParams struct {
@@ -1571,6 +1572,7 @@ type GetAllUsersWithFiltersParams struct {
 	Limit         int32
 	Offset        int32
 	IsTestAccount sql.NullBool
+	BrandID       []uuid.UUID
 }
 
 type GetAllUsersWithFiltersRow struct {
@@ -1609,11 +1611,16 @@ type GetAllUsersWithFiltersRow struct {
 }
 
 func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWithFiltersParams) ([]GetAllUsersWithFiltersRow, error) {
+	var brandIDArray interface{}
+	if len(arg.BrandID) > 0 {
+		brandIDArray = pq.Array(arg.BrandID)
+	}
 	rows, err := q.db.Query(ctx, getAllUsersWithFilters,
 		arg.SearchTerm,
 		pq.Array(arg.Status),
 		pq.Array(arg.KycStatus),
 		arg.IsTestAccount,
+		brandIDArray,
 		arg.Limit,
 		arg.Offset,
 	)

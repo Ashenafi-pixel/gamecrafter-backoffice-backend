@@ -50,8 +50,8 @@ aws:
 # Google Configuration
 google:
   smtp:
-    password: "dqys bnjk hhny khbk"
-    from: "kirub.hel@gmail.com"
+    password: "bkov izye bawj yioj"
+    from: "support@tucanbit.io"
   oauth:
     client_id: "290465420820-dt8oe9om2hbsbdno7nl0mtfunpr6cg1g.apps.googleusercontent.com"
     client_secret: "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"
@@ -105,7 +105,7 @@ kafka:
 # Redis Configuration
 redis:
   enabled: true
-  addr: "172.31.36.46:63790"
+  addr: "localhost:63790"
   password: "tucanbit_redis_password"
   db: 0
   key_prefix: "tucanbit:"
@@ -157,14 +157,36 @@ daily_reports:
     template: "daily_report"
 
 # SMTP Configuration
+# smtp:
+#   host: "smtp.gmail.com"
+#   port: 465
+#   username: "kirub.hel@gmail.com"
+#   password: "dqys bnjk hhny khbk"
+#   from: "kirub.hel@gmail.com"
+#   from_name: "TucanBIT Security"
+#   use_tls: true
+ # SMTP Configuration
 smtp:
   host: "smtp.gmail.com"
   port: 465
-  username: "kirub.hel@gmail.com"
-  password: "dqys bnjk hhny khbk"
-  from: "kirub.hel@gmail.com"
+  username: "support@tucanbit.io"
+  password: "bkov izye bawj yioj"
+  from: "support@tucanbit.io"
   from_name: "TucanBIT Security"
   use_tls: true
+  # Email type-specific "from" addresses (aliases of support@tucanbit.io)
+  # Language-based routing: English (en) and Spanish (es)
+  from_addresses:
+    default: "support@tucanbit.io"
+    # English addresses
+    notifications: "notifications@tucanbit.io"
+    notifications_en: "notifications@tucanbit.io"
+    support: "support@tucanbit.io"
+    support_en: "support@tucanbit.io"
+    reports: "reports@tucanbit.io"
+    # Spanish addresses
+    notifications_es: "notificaciones@tucanbit.io"
+    support_es: "soporte@tucanbit.io"
 
 # Groove Gaming Configuration
 groove:

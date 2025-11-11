@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"github.com/lib/pq"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -123,7 +124,7 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	if err == nil {
 		// An active alert with this type already exists
 		return nil, fmt.Errorf("an active alert configuration with alert_type '%s' already exists. Only one active alert per type is allowed", req.AlertType)
-	} else if err != sql.ErrNoRows {
+	} else if err != nil && err != pgx.ErrNoRows {
 		// Database error occurred
 		s.log.Error("Failed to check for existing alert configuration", zap.Error(err))
 		return nil, err
@@ -132,6 +133,36 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	// CreateAlertConfigurationRequest doesn't have Status field - always create as 'active'
 	// The check above already ensures no active alert of this type exists
 
+	// Start a transaction to ensure atomicity and better error handling
+	tx, err := s.db.GetPool().Begin(ctx)
+	if err != nil {
+		s.log.Error("Failed to begin transaction", zap.Error(err))
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Prepare email_group_ids array
+	var emailGroupIDs interface{} = pq.Array([]uuid.UUID{})
+	if len(req.EmailGroupIDs) > 0 {
+		emailGroupIDs = pq.Array(req.EmailGroupIDs)
+	}
+
+	// Handle nullable fields - use NULL for empty strings
+	var descriptionVal interface{} = nil
+	if req.Description != nil && *req.Description != "" {
+		descriptionVal = *req.Description
+	}
+	
+	var currencyCodeVal interface{} = nil
+	if req.CurrencyCode != nil {
+		currencyCodeVal = string(*req.CurrencyCode)
+	}
+	
+	var webhookURLVal interface{} = nil
+	if req.WebhookURL != nil && *req.WebhookURL != "" {
+		webhookURLVal = *req.WebhookURL
+	}
+	
 	query := `
         INSERT INTO alert_configurations (
             name, description, alert_type, status, threshold_amount, time_window_minutes,
@@ -144,38 +175,94 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
             created_by, created_at, updated_at, updated_by
     `
 
-	var emailGroupIDs interface{} = pq.Array([]uuid.UUID{})
-	if len(req.EmailGroupIDs) > 0 {
-		emailGroupIDs = pq.Array(req.EmailGroupIDs)
-	}
-
-	// Always create with 'active' status (default)
-	status := dto.AlertStatusActive
-
+	s.log.Info("Creating alert configuration",
+		zap.String("name", req.Name),
+		zap.String("alert_type", string(req.AlertType)),
+		zap.Any("email_group_ids", req.EmailGroupIDs),
+		zap.Any("description", descriptionVal),
+		zap.Any("currency_code", currencyCodeVal),
+		zap.Any("webhook_url", webhookURLVal),
+	)
+	
+	// Execute the query and scan the result
 	var config dto.AlertConfiguration
 	var scannedEmailGroupIDs UUIDArray
-	err = s.db.GetPool().QueryRow(ctx, query,
-		req.Name, req.Description, req.AlertType, status, req.ThresholdAmount,
-		req.TimeWindowMinutes, req.CurrencyCode, req.EmailNotifications,
-		req.WebhookURL, emailGroupIDs, createdBy,
+	
+	// Use sql.NullString for nullable text/enum fields when scanning
+	var scannedDescription sql.NullString
+	var scannedCurrencyCode sql.NullString
+	var scannedWebhookURL sql.NullString
+	
+	err = tx.QueryRow(ctx, query,
+		req.Name, descriptionVal, req.AlertType, req.ThresholdAmount,
+		req.TimeWindowMinutes, currencyCodeVal, req.EmailNotifications,
+		webhookURLVal, emailGroupIDs, createdBy,
 	).Scan(
-		&config.ID, &config.Name, &config.Description, &config.AlertType,
+		&config.ID, &config.Name, &scannedDescription, &config.AlertType,
 		&config.Status, &config.ThresholdAmount, &config.TimeWindowMinutes,
-		&config.CurrencyCode, &config.EmailNotifications, &config.WebhookURL,
+		&scannedCurrencyCode, &config.EmailNotifications, &scannedWebhookURL,
 		&scannedEmailGroupIDs, &config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
 	)
+	
+	// Convert scanned nullable fields to pointers
+	if scannedDescription.Valid {
+		config.Description = &scannedDescription.String
+	}
+	if scannedCurrencyCode.Valid {
+		currencyType := dto.CurrencyType(scannedCurrencyCode.String)
+		config.CurrencyCode = &currencyType
+	}
+	if scannedWebhookURL.Valid {
+		config.WebhookURL = &scannedWebhookURL.String
+	}
+	
 	if err == nil {
 		config.EmailGroupIDs = []uuid.UUID(scannedEmailGroupIDs)
+		// Commit the transaction
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			s.log.Error("Failed to commit transaction", zap.Error(commitErr))
+			return nil, commitErr
+		}
 	}
 
 	if err != nil {
+		// Rollback transaction on error
+		tx.Rollback(ctx)
+		
 		// Check if it's a unique constraint violation
 		if strings.Contains(err.Error(), "idx_alert_configurations_type_unique_active") || 
 		   strings.Contains(err.Error(), "unique constraint") {
 			return nil, fmt.Errorf("an active alert configuration with alert_type '%s' already exists. Only one active alert per type is allowed", req.AlertType)
 		}
-		s.log.Error("Failed to create alert configuration", zap.Error(err))
-		return nil, err
+		
+		// Check for foreign key constraint violations
+		if strings.Contains(err.Error(), "foreign key") || strings.Contains(err.Error(), "violates foreign key constraint") {
+			return nil, fmt.Errorf("invalid reference: %w", err)
+		}
+		
+		// Log detailed error information
+		s.log.Error("Failed to create alert configuration",
+			zap.Error(err),
+			zap.String("error_type", fmt.Sprintf("%T", err)),
+			zap.String("error_message", err.Error()),
+			zap.String("name", req.Name),
+			zap.String("alert_type", string(req.AlertType)),
+			zap.Float64("threshold_amount", req.ThresholdAmount),
+			zap.Int("time_window_minutes", req.TimeWindowMinutes),
+			zap.Bool("email_notifications", req.EmailNotifications),
+			zap.Any("description", descriptionVal),
+			zap.Any("currency_code", currencyCodeVal),
+			zap.Any("webhook_url", webhookURLVal),
+			zap.Any("email_group_ids", emailGroupIDs),
+			zap.String("created_by", createdBy.String()),
+		)
+		
+		// Return a more descriptive error
+		if err == pgx.ErrNoRows || err == sql.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			return nil, fmt.Errorf("insert query returned no rows - this may indicate a database constraint, trigger, or data type issue. Please check server logs for details: %w", err)
+		}
+		
+		return nil, fmt.Errorf("failed to create alert configuration: %w", err)
 	}
 
 	return &config, nil
@@ -508,8 +595,8 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 	query := fmt.Sprintf(`
         SELECT 
             t.id, t.alert_configuration_id, t.triggered_at, t.trigger_value, t.threshold_value,
-            t.user_id, t.transaction_id, t.amount_usd, t.currency_code, t.context_data,
-            t.acknowledged, t.acknowledged_by, t.acknowledged_at, t.created_at,
+            t.user_id::text, t.transaction_id, t.amount_usd, t.currency_code, t.context_data,
+            t.acknowledged, t.acknowledged_by::text, t.acknowledged_at, t.created_at,
             ac.id, ac.name, ac.description, ac.alert_type, ac.status, ac.threshold_amount,
             ac.time_window_minutes, ac.currency_code, ac.email_notifications, ac.webhook_url,
             ac.created_by, ac.created_at, ac.updated_at, ac.updated_by,
@@ -537,10 +624,18 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 		var ac dto.AlertConfiguration
 		var username sql.NullString
 		var email sql.NullString
+		var userIDStr sql.NullString
+		var acknowledgedByStr sql.NullString
+		var transactionID sql.NullString
+		var amountUSD sql.NullFloat64
+		var currencyCode sql.NullString
+		var contextData sql.NullString
+		var acknowledgedAt sql.NullTime
+		
 		if err := rows.Scan(
 			&t.ID, &t.AlertConfigurationID, &t.TriggeredAt, &t.TriggerValue, &t.ThresholdValue,
-			&t.UserID, &t.TransactionID, &t.AmountUSD, &t.CurrencyCode, &t.ContextData,
-			&t.Acknowledged, &t.AcknowledgedBy, &t.AcknowledgedAt, &t.CreatedAt,
+			&userIDStr, &transactionID, &amountUSD, &currencyCode, &contextData,
+			&t.Acknowledged, &acknowledgedByStr, &acknowledgedAt, &t.CreatedAt,
 			&ac.ID, &ac.Name, &ac.Description, &ac.AlertType, &ac.Status, &ac.ThresholdAmount,
 			&ac.TimeWindowMinutes, &ac.CurrencyCode, &ac.EmailNotifications, &ac.WebhookURL,
 			&ac.CreatedBy, &ac.CreatedAt, &ac.UpdatedAt, &ac.UpdatedBy,
@@ -549,6 +644,50 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 			s.log.Error("Failed to scan alert trigger", zap.Error(err))
 			return nil, 0, err
 		}
+		
+		// Handle nullable UUID fields - scan as string and parse
+		if userIDStr.Valid && userIDStr.String != "" {
+			if userUUID, err := uuid.Parse(userIDStr.String); err == nil {
+				t.UserID = &userUUID
+			} else {
+				s.log.Warn("Failed to parse user_id", zap.String("user_id_str", userIDStr.String), zap.Error(err))
+			}
+		}
+		
+		if acknowledgedByStr.Valid && acknowledgedByStr.String != "" {
+			if ackByUUID, err := uuid.Parse(acknowledgedByStr.String); err == nil {
+				t.AcknowledgedBy = &ackByUUID
+			} else {
+				s.log.Warn("Failed to parse acknowledged_by", zap.String("acknowledged_by_str", acknowledgedByStr.String), zap.Error(err))
+			}
+		}
+		
+		// Handle nullable string fields
+		if transactionID.Valid && transactionID.String != "" {
+			t.TransactionID = &transactionID.String
+		}
+		
+		// Handle nullable float fields
+		if amountUSD.Valid {
+			t.AmountUSD = &amountUSD.Float64
+		}
+		
+		// Handle nullable currency code
+		if currencyCode.Valid && currencyCode.String != "" {
+			currencyType := dto.CurrencyType(currencyCode.String)
+			t.CurrencyCode = &currencyType
+		}
+		
+		// Handle nullable context data
+		if contextData.Valid && contextData.String != "" {
+			t.ContextData = &contextData.String
+		}
+		
+		// Handle nullable timestamp
+		if acknowledgedAt.Valid {
+			t.AcknowledgedAt = &acknowledgedAt.Time
+		}
+		
 		// attach joined fields
 		t.AlertConfiguration = &ac
 		
