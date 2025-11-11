@@ -112,12 +112,32 @@ func NewAlertStorage(db persistencedb.PersistenceDB, log *zap.Logger) AlertStora
 
 // CreateAlertConfiguration creates a new alert configuration
 func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.CreateAlertConfigurationRequest, createdBy uuid.UUID) (*dto.AlertConfiguration, error) {
+	// Check if an active alert configuration with the same alert_type already exists
+	checkQuery := `
+		SELECT id FROM alert_configurations 
+		WHERE alert_type = $1 AND status = 'active'
+		LIMIT 1
+	`
+	var existingID uuid.UUID
+	err := s.db.GetPool().QueryRow(ctx, checkQuery, req.AlertType).Scan(&existingID)
+	if err == nil {
+		// An active alert with this type already exists
+		return nil, fmt.Errorf("an active alert configuration with alert_type '%s' already exists. Only one active alert per type is allowed", req.AlertType)
+	} else if err != sql.ErrNoRows {
+		// Database error occurred
+		s.log.Error("Failed to check for existing alert configuration", zap.Error(err))
+		return nil, err
+	}
+
+	// CreateAlertConfigurationRequest doesn't have Status field - always create as 'active'
+	// The check above already ensures no active alert of this type exists
+
 	query := `
         INSERT INTO alert_configurations (
-            name, description, alert_type, threshold_amount, time_window_minutes,
+            name, description, alert_type, status, threshold_amount, time_window_minutes,
             currency_code, email_notifications, webhook_url, email_group_ids, created_by
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+            $1, $2, $3, 'active'::alert_status, $4, $5, $6, $7, $8, $9, $10
         ) RETURNING 
             id, name, description, alert_type, status, threshold_amount, time_window_minutes,
             currency_code, email_notifications, webhook_url, email_group_ids,
@@ -129,10 +149,13 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 		emailGroupIDs = pq.Array(req.EmailGroupIDs)
 	}
 
+	// Always create with 'active' status (default)
+	status := dto.AlertStatusActive
+
 	var config dto.AlertConfiguration
 	var scannedEmailGroupIDs UUIDArray
-	err := s.db.GetPool().QueryRow(ctx, query,
-		req.Name, req.Description, req.AlertType, req.ThresholdAmount,
+	err = s.db.GetPool().QueryRow(ctx, query,
+		req.Name, req.Description, req.AlertType, status, req.ThresholdAmount,
 		req.TimeWindowMinutes, req.CurrencyCode, req.EmailNotifications,
 		req.WebhookURL, emailGroupIDs, createdBy,
 	).Scan(
@@ -146,6 +169,11 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	}
 
 	if err != nil {
+		// Check if it's a unique constraint violation
+		if strings.Contains(err.Error(), "idx_alert_configurations_type_unique_active") || 
+		   strings.Contains(err.Error(), "unique constraint") {
+			return nil, fmt.Errorf("an active alert configuration with alert_type '%s' already exists. Only one active alert per type is allowed", req.AlertType)
+		}
 		s.log.Error("Failed to create alert configuration", zap.Error(err))
 		return nil, err
 	}
@@ -523,12 +551,17 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 		}
 		// attach joined fields
 		t.AlertConfiguration = &ac
-		if username.Valid {
+		
+		// Set username from users table (not user_id)
+		if username.Valid && username.String != "" {
 			t.Username = &username.String
 		}
-		if email.Valid {
+		
+		// Set user email from users table
+		if email.Valid && email.String != "" {
 			t.UserEmail = &email.String
 		}
+		
 		triggers = append(triggers, t)
 	}
 
@@ -565,12 +598,238 @@ func (s *alertStorage) AcknowledgeAlert(ctx context.Context, id uuid.UUID, ackno
 
 // Alert checking methods (to be implemented based on business logic)
 func (s *alertStorage) CheckBetCountAlerts(ctx context.Context, timeWindow time.Duration) error {
-	// Implementation for checking bet count alerts
+	// Get all active bet count alert configurations
+	req := &dto.GetAlertConfigurationsRequest{
+		Page:    1,
+		PerPage: 100,
+		Status:  func() *dto.AlertStatus { status := dto.AlertStatusActive; return &status }(),
+	}
+
+	configs, _, err := s.GetAlertConfigurations(ctx, req)
+	if err != nil {
+		s.log.Error("Failed to get alert configurations", zap.Error(err))
+		return err
+	}
+
+	// Filter for bet count-related alerts
+	betCountAlertTypes := []dto.AlertType{
+		dto.AlertTypeBetsCountMore,
+		dto.AlertTypeBetsCountLess,
+	}
+
+	betCountConfigs := make([]dto.AlertConfiguration, 0)
+	for _, config := range configs {
+		for _, alertType := range betCountAlertTypes {
+			if config.AlertType == alertType {
+				betCountConfigs = append(betCountConfigs, config)
+				break
+			}
+		}
+	}
+
+	if len(betCountConfigs) == 0 {
+		return nil // No bet count alerts configured
+	}
+
+	// Check each bet count alert configuration
+	for _, config := range betCountConfigs {
+		// Skip inactive alerts
+		if config.Status != dto.AlertStatusActive {
+			continue
+		}
+		
+		// Use the config's time window instead of the parameter
+		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
+
+		// Count bets from all sources: bets, groove_transactions (wager type), sport_bets, plinko
+		query := `
+			SELECT COUNT(*)::float
+			FROM (
+				SELECT id, timestamp as created_at FROM bets 
+				WHERE timestamp >= $1 AND timestamp <= $2
+				UNION ALL
+				SELECT id::text as id, created_at FROM groove_transactions 
+				WHERE type = 'wager' AND created_at >= $1 AND created_at <= $2
+				UNION ALL
+				SELECT id::text as id, created_at FROM sport_bets 
+				WHERE created_at >= $1 AND created_at <= $2
+				UNION ALL
+				SELECT id::text as id, timestamp as created_at FROM plinko 
+				WHERE timestamp >= $1 AND timestamp <= $2
+			) all_bets
+		`
+
+		var betCount float64
+		err := s.db.GetPool().QueryRow(ctx, query, configTimeWindowStart, time.Now()).Scan(&betCount)
+		if err != nil {
+			s.log.Error("Failed to calculate bet count", zap.Error(err), zap.String("alert_id", config.ID.String()))
+			continue
+		}
+
+		// Check if threshold is exceeded
+		shouldTrigger := false
+		if config.AlertType == dto.AlertTypeBetsCountMore {
+			shouldTrigger = betCount >= config.ThresholdAmount
+		} else if config.AlertType == dto.AlertTypeBetsCountLess {
+			shouldTrigger = betCount <= config.ThresholdAmount
+		}
+
+		if shouldTrigger {
+			// Check if we already triggered this alert recently (avoid duplicates within the last 5 minutes)
+			// Use a shorter window (5 minutes) to prevent spam while still allowing new triggers
+			recentWindowStart := time.Now().Add(-5 * time.Minute)
+			recentTriggerQuery := `
+				SELECT COUNT(*) FROM alert_triggers
+				WHERE alert_configuration_id = $1
+					AND triggered_at >= $2
+			`
+			var recentCount int64
+			err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, recentWindowStart).Scan(&recentCount)
+			if err != nil {
+				s.log.Error("Failed to check for recent triggers", zap.Error(err), zap.String("alert_id", config.ID.String()))
+				// Continue anyway - don't block trigger creation due to check failure
+			}
+			
+			if recentCount == 0 {
+				// Create trigger
+				trigger := &dto.AlertTrigger{
+					AlertConfigurationID: config.ID,
+					TriggeredAt:          time.Now(),
+					TriggerValue:         betCount,
+					ThresholdValue:       config.ThresholdAmount,
+				}
+
+				err = s.CreateAlertTrigger(ctx, trigger)
+				if err != nil {
+					s.log.Error("Failed to create bet count alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
+				} else {
+					s.log.Info("Bet count alert triggered",
+						zap.String("alert_id", config.ID.String()),
+						zap.String("alert_type", string(config.AlertType)),
+						zap.Float64("bet_count", betCount),
+						zap.Float64("threshold", config.ThresholdAmount))
+				}
+			} else {
+				s.log.Debug("Skipping duplicate trigger",
+					zap.String("alert_id", config.ID.String()),
+					zap.Int64("recent_count", recentCount))
+			}
+		}
+	}
+
 	return nil
 }
 
 func (s *alertStorage) CheckBetAmountAlerts(ctx context.Context, timeWindow time.Duration) error {
-	// Implementation for checking bet amount alerts
+	// Get all active bet amount alert configurations
+	req := &dto.GetAlertConfigurationsRequest{
+		Page:    1,
+		PerPage: 100,
+		Status:  func() *dto.AlertStatus { status := dto.AlertStatusActive; return &status }(),
+	}
+
+	configs, _, err := s.GetAlertConfigurations(ctx, req)
+	if err != nil {
+		s.log.Error("Failed to get alert configurations", zap.Error(err))
+		return err
+	}
+
+	// Filter for bet amount-related alerts
+	betAmountAlertTypes := []dto.AlertType{
+		dto.AlertTypeBetsAmountMore,
+		dto.AlertTypeBetsAmountLess,
+	}
+
+	betAmountConfigs := make([]dto.AlertConfiguration, 0)
+	for _, config := range configs {
+		for _, alertType := range betAmountAlertTypes {
+			if config.AlertType == alertType {
+				betAmountConfigs = append(betAmountConfigs, config)
+				break
+			}
+		}
+	}
+
+	if len(betAmountConfigs) == 0 {
+		return nil // No bet amount alerts configured
+	}
+
+	// Check each bet amount alert configuration
+	for _, config := range betAmountConfigs {
+		// Use the config's time window
+		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
+
+		// Sum bet amounts from all sources (convert to USD)
+		// Note: This is a simplified calculation - you may need to add currency conversion
+		query := `
+			SELECT COALESCE(SUM(amount_usd), 0)
+			FROM (
+				SELECT COALESCE(amount, 0) as amount_usd, timestamp as created_at 
+				FROM bets 
+				WHERE timestamp >= $1 AND timestamp <= $2
+				UNION ALL
+				SELECT COALESCE(ABS(amount), 0) as amount_usd, created_at 
+				FROM groove_transactions 
+				WHERE type = 'wager' AND amount < 0 AND created_at >= $1 AND created_at <= $2
+				UNION ALL
+				SELECT COALESCE(bet_amount, 0) as amount_usd, created_at 
+				FROM sport_bets 
+				WHERE created_at >= $1 AND created_at <= $2
+				UNION ALL
+				SELECT COALESCE(bet_amount, 0) as amount_usd, timestamp as created_at 
+				FROM plinko 
+				WHERE timestamp >= $1 AND timestamp <= $2
+			) all_bets
+		`
+
+		var totalBetAmount float64
+		err := s.db.GetPool().QueryRow(ctx, query, configTimeWindowStart, time.Now()).Scan(&totalBetAmount)
+		if err != nil {
+			s.log.Error("Failed to calculate bet amount total", zap.Error(err), zap.String("alert_id", config.ID.String()))
+			continue
+		}
+
+		// Check if threshold is exceeded
+		shouldTrigger := false
+		if config.AlertType == dto.AlertTypeBetsAmountMore {
+			shouldTrigger = totalBetAmount >= config.ThresholdAmount
+		} else if config.AlertType == dto.AlertTypeBetsAmountLess {
+			shouldTrigger = totalBetAmount <= config.ThresholdAmount
+		}
+
+		if shouldTrigger {
+			// Check if we already triggered this alert recently (avoid duplicates)
+			recentTriggerQuery := `
+				SELECT COUNT(*) FROM alert_triggers
+				WHERE alert_configuration_id = $1
+					AND triggered_at >= $2
+			`
+			var recentCount int64
+			err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, configTimeWindowStart).Scan(&recentCount)
+			if err == nil && recentCount == 0 {
+				// Create trigger
+				trigger := &dto.AlertTrigger{
+					AlertConfigurationID: config.ID,
+					TriggeredAt:          time.Now(),
+					TriggerValue:         totalBetAmount,
+					ThresholdValue:       config.ThresholdAmount,
+					AmountUSD:            &totalBetAmount,
+				}
+
+				err = s.CreateAlertTrigger(ctx, trigger)
+				if err != nil {
+					s.log.Error("Failed to create bet amount alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
+				} else {
+					s.log.Info("Bet amount alert triggered",
+						zap.String("alert_id", config.ID.String()),
+						zap.String("alert_type", string(config.AlertType)),
+						zap.Float64("total_amount", totalBetAmount),
+						zap.Float64("threshold", config.ThresholdAmount))
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -704,11 +963,326 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 }
 
 func (s *alertStorage) CheckWithdrawalAlerts(ctx context.Context, timeWindow time.Duration) error {
-	// Implementation for checking withdrawal alerts
+	// Get all active withdrawal alert configurations
+	req := &dto.GetAlertConfigurationsRequest{
+		Page:    1,
+		PerPage: 100,
+		Status:  func() *dto.AlertStatus { status := dto.AlertStatusActive; return &status }(),
+	}
+
+	configs, _, err := s.GetAlertConfigurations(ctx, req)
+	if err != nil {
+		s.log.Error("Failed to get alert configurations", zap.Error(err))
+		return err
+	}
+
+	// Filter for withdrawal-related alerts
+	withdrawalAlertTypes := []dto.AlertType{
+		dto.AlertTypeWithdrawalsTotalMore,
+		dto.AlertTypeWithdrawalsTotalLess,
+		dto.AlertTypeWithdrawalsTypeMore,
+		dto.AlertTypeWithdrawalsTypeLess,
+	}
+
+	withdrawalConfigs := make([]dto.AlertConfiguration, 0)
+	for _, config := range configs {
+		for _, alertType := range withdrawalAlertTypes {
+			if config.AlertType == alertType {
+				withdrawalConfigs = append(withdrawalConfigs, config)
+				break
+			}
+		}
+	}
+
+	if len(withdrawalConfigs) == 0 {
+		return nil // No withdrawal alerts configured
+	}
+
+	// Check each withdrawal alert configuration
+	for _, config := range withdrawalConfigs {
+		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
+		var totalAmount float64
+		var query string
+		var args []interface{}
+
+		// Build query based on alert type
+		if config.AlertType == dto.AlertTypeWithdrawalsTotalMore || config.AlertType == dto.AlertTypeWithdrawalsTotalLess {
+			// Total withdrawals (all currencies, convert to USD)
+			query = `
+				SELECT COALESCE(SUM(usd_amount_cents), 0) / 100.0
+				FROM withdrawals
+				WHERE status IN ('completed', 'processing')
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+			args = []interface{}{configTimeWindowStart, time.Now()}
+		} else if config.AlertType == dto.AlertTypeWithdrawalsTypeMore || config.AlertType == dto.AlertTypeWithdrawalsTypeLess {
+			// Type-specific withdrawals
+			if config.CurrencyCode == nil {
+				continue // Skip if no currency specified
+			}
+			query = `
+				SELECT COALESCE(SUM(usd_amount_cents), 0) / 100.0
+				FROM withdrawals
+				WHERE status IN ('completed', 'processing')
+					AND currency_code = $1
+					AND created_at >= $2
+					AND created_at <= $3
+			`
+			args = []interface{}{string(*config.CurrencyCode), configTimeWindowStart, time.Now()}
+		} else {
+			continue
+		}
+
+		err := s.db.GetPool().QueryRow(ctx, query, args...).Scan(&totalAmount)
+		if err != nil {
+			s.log.Error("Failed to calculate withdrawal total", zap.Error(err), zap.String("alert_id", config.ID.String()))
+			continue
+		}
+
+		// Check if threshold is exceeded
+		shouldTrigger := false
+		if config.AlertType == dto.AlertTypeWithdrawalsTotalMore || config.AlertType == dto.AlertTypeWithdrawalsTypeMore {
+			shouldTrigger = totalAmount >= config.ThresholdAmount
+		} else if config.AlertType == dto.AlertTypeWithdrawalsTotalLess || config.AlertType == dto.AlertTypeWithdrawalsTypeLess {
+			shouldTrigger = totalAmount <= config.ThresholdAmount
+		}
+
+		if shouldTrigger {
+			// Check if we already triggered this alert recently (avoid duplicates)
+			recentTriggerQuery := `
+				SELECT COUNT(*) FROM alert_triggers
+				WHERE alert_configuration_id = $1
+					AND triggered_at >= $2
+			`
+			var recentCount int64
+			err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, configTimeWindowStart).Scan(&recentCount)
+			if err == nil && recentCount == 0 {
+				// Create trigger
+				trigger := &dto.AlertTrigger{
+					AlertConfigurationID: config.ID,
+					TriggeredAt:          time.Now(),
+					TriggerValue:         totalAmount,
+					ThresholdValue:       config.ThresholdAmount,
+					AmountUSD:            &totalAmount,
+				}
+				if config.CurrencyCode != nil {
+					trigger.CurrencyCode = config.CurrencyCode
+				}
+
+				err = s.CreateAlertTrigger(ctx, trigger)
+				if err != nil {
+					s.log.Error("Failed to create withdrawal alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
+				} else {
+					s.log.Info("Withdrawal alert triggered",
+						zap.String("alert_id", config.ID.String()),
+						zap.String("alert_type", string(config.AlertType)),
+						zap.Float64("total_amount", totalAmount),
+						zap.Float64("threshold", config.ThresholdAmount))
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (s *alertStorage) CheckGGRAlerts(ctx context.Context, timeWindow time.Duration) error {
-	// Implementation for checking GGR alerts
+	// Get all active GGR alert configurations
+	req := &dto.GetAlertConfigurationsRequest{
+		Page:    1,
+		PerPage: 100,
+		Status:  func() *dto.AlertStatus { status := dto.AlertStatusActive; return &status }(),
+	}
+
+	configs, _, err := s.GetAlertConfigurations(ctx, req)
+	if err != nil {
+		s.log.Error("Failed to get alert configurations", zap.Error(err))
+		return err
+	}
+
+	// Filter for GGR-related alerts
+	ggrAlertTypes := []dto.AlertType{
+		dto.AlertTypeGGRTotalMore,
+		dto.AlertTypeGGRTotalLess,
+		dto.AlertTypeGGRSingleMore,
+	}
+
+	ggrConfigs := make([]dto.AlertConfiguration, 0)
+	for _, config := range configs {
+		for _, alertType := range ggrAlertTypes {
+			if config.AlertType == alertType {
+				ggrConfigs = append(ggrConfigs, config)
+				break
+			}
+		}
+	}
+
+	if len(ggrConfigs) == 0 {
+		return nil // No GGR alerts configured
+	}
+
+	// Check each GGR alert configuration
+	for _, config := range ggrConfigs {
+		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
+
+		if config.AlertType == dto.AlertTypeGGRSingleMore {
+			// Check for single transaction GGR (bet - win) exceeding threshold
+			// This checks individual transactions, not aggregates
+			query := `
+				SELECT 
+					gt.account_id,
+					gt.transaction_id,
+					ABS(gt.amount) as bet_amount,
+					COALESCE(gt2.amount, 0) as win_amount,
+					(ABS(gt.amount) - COALESCE(gt2.amount, 0)) as ggr
+				FROM groove_transactions gt
+				LEFT JOIN groove_transactions gt2 ON gt2.account_id = gt.account_id 
+					AND gt2.round_id = gt.round_id 
+					AND gt2.type = 'result'
+					AND gt2.created_at > gt.created_at
+					AND gt2.created_at <= gt.created_at + INTERVAL '5 minutes'
+				WHERE gt.type = 'wager'
+					AND gt.amount < 0
+					AND gt.created_at >= $1
+					AND gt.created_at <= $2
+					AND (ABS(gt.amount) - COALESCE(gt2.amount, 0)) >= $3
+				ORDER BY gt.created_at DESC
+				LIMIT 1
+			`
+
+			var accountID, transactionID sql.NullString
+			var betAmount, winAmount, ggr float64
+			err := s.db.GetPool().QueryRow(ctx, query, configTimeWindowStart, time.Now(), config.ThresholdAmount).Scan(
+				&accountID, &transactionID, &betAmount, &winAmount, &ggr)
+			if err == nil && ggr >= config.ThresholdAmount {
+				// Check if we already triggered this alert recently
+				recentTriggerQuery := `
+					SELECT COUNT(*) FROM alert_triggers
+					WHERE alert_configuration_id = $1
+						AND triggered_at >= $2
+						AND transaction_id = $3
+				`
+				var recentCount int64
+				txID := transactionID.String
+				err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, configTimeWindowStart, txID).Scan(&recentCount)
+				if err == nil && recentCount == 0 {
+					trigger := &dto.AlertTrigger{
+						AlertConfigurationID: config.ID,
+						TriggeredAt:          time.Now(),
+						TriggerValue:         ggr,
+						ThresholdValue:       config.ThresholdAmount,
+						AmountUSD:            &ggr,
+					}
+					if transactionID.Valid {
+						trigger.TransactionID = &transactionID.String
+					}
+
+					err = s.CreateAlertTrigger(ctx, trigger)
+					if err != nil {
+						s.log.Error("Failed to create GGR single alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
+					} else {
+						s.log.Info("GGR single alert triggered",
+							zap.String("alert_id", config.ID.String()),
+							zap.Float64("ggr", ggr),
+							zap.Float64("threshold", config.ThresholdAmount))
+					}
+				}
+			}
+		} else {
+			// Total GGR alerts (GGRTotalMore, GGRTotalLess)
+			// GGR = Total Bets - Total Wins
+			query := `
+				SELECT 
+					COALESCE(SUM(bet_amount), 0) - COALESCE(SUM(win_amount), 0) as total_ggr
+				FROM (
+					SELECT 
+						ABS(gt.amount) as bet_amount,
+						0 as win_amount,
+						gt.created_at
+					FROM groove_transactions gt
+					WHERE gt.type = 'wager' AND gt.amount < 0
+						AND gt.created_at >= $1 AND gt.created_at <= $2
+					UNION ALL
+					SELECT 
+						0 as bet_amount,
+						gt.amount as win_amount,
+						gt.created_at
+					FROM groove_transactions gt
+					WHERE gt.type = 'result' AND gt.amount > 0
+						AND gt.created_at >= $1 AND gt.created_at <= $2
+					UNION ALL
+					SELECT 
+						b.amount as bet_amount,
+						COALESCE(b.payout, 0) as win_amount,
+						COALESCE(b.timestamp, NOW()) as created_at
+					FROM bets b
+					WHERE COALESCE(b.timestamp, NOW()) >= $1 AND COALESCE(b.timestamp, NOW()) <= $2
+					UNION ALL
+					SELECT 
+						sb.bet_amount as bet_amount,
+						COALESCE(sb.actual_win, 0) as win_amount,
+						sb.created_at
+					FROM sport_bets sb
+					WHERE sb.created_at >= $1 AND sb.created_at <= $2
+					UNION ALL
+					SELECT 
+						p.bet_amount as bet_amount,
+						COALESCE(p.win_amount, 0) as win_amount,
+						p.timestamp as created_at
+					FROM plinko p
+					WHERE p.timestamp >= $1 AND p.timestamp <= $2
+				) all_transactions
+			`
+
+			var totalGGR float64
+			err := s.db.GetPool().QueryRow(ctx, query, configTimeWindowStart, time.Now()).Scan(&totalGGR)
+			if err != nil {
+				s.log.Error("Failed to calculate GGR total", zap.Error(err), zap.String("alert_id", config.ID.String()))
+				continue
+			}
+
+			// Check if threshold is exceeded
+			shouldTrigger := false
+			if config.AlertType == dto.AlertTypeGGRTotalMore {
+				shouldTrigger = totalGGR >= config.ThresholdAmount
+			} else if config.AlertType == dto.AlertTypeGGRTotalLess {
+				shouldTrigger = totalGGR <= config.ThresholdAmount
+			}
+
+			if shouldTrigger {
+				// Check if we already triggered this alert recently (avoid duplicates)
+				recentTriggerQuery := `
+					SELECT COUNT(*) FROM alert_triggers
+					WHERE alert_configuration_id = $1
+						AND triggered_at >= $2
+				`
+				var recentCount int64
+				err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, configTimeWindowStart).Scan(&recentCount)
+				if err == nil && recentCount == 0 {
+					// Create trigger
+					trigger := &dto.AlertTrigger{
+						AlertConfigurationID: config.ID,
+						TriggeredAt:          time.Now(),
+						TriggerValue:         totalGGR,
+						ThresholdValue:       config.ThresholdAmount,
+						AmountUSD:            &totalGGR,
+					}
+
+					err = s.CreateAlertTrigger(ctx, trigger)
+					if err != nil {
+						s.log.Error("Failed to create GGR alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
+					} else {
+						s.log.Info("GGR alert triggered",
+							zap.String("alert_id", config.ID.String()),
+							zap.String("alert_type", string(config.AlertType)),
+							zap.Float64("total_ggr", totalGGR),
+							zap.Float64("threshold", config.ThresholdAmount))
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
