@@ -20,8 +20,10 @@ import (
 	"github.com/spf13/viper"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
+	alertModule "github.com/tucanbit/internal/module/alert"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	emailModule "github.com/tucanbit/internal/module/email"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
@@ -211,6 +213,7 @@ func Initiate() {
 	var analyticsIntegration *analyticsStorage.AnalyticsIntegration
 	var dailyReportService analyticsModule.DailyReportService
 	var dailyReportCronjobService analyticsModule.DailyReportCronjobService
+	var alertCronjobService alertModule.AlertCronjobService
 	if clickhouseClient != nil {
 		analyticsStorageInstance := analyticsStorage.NewAnalyticsStorage(clickhouseClient, logger)
 		syncService := analyticsModule.NewSyncService(analyticsStorageInstance, persistence.Groove, logger)
@@ -232,6 +235,25 @@ func Initiate() {
 		logger.Info("Analytics integration initialized successfully")
 	} else {
 		logger.Warn("ClickHouse client not available, analytics integration disabled")
+	}
+
+	// Initialize alert service and cronjob
+	if emailService != nil {
+		// Create email service adapter for alert service
+		// The alert service needs an AlertEmailSender interface
+		alertEmailSender := &alertEmailServiceAdapter{
+			emailService: emailService,
+		}
+
+		alertService := alertModule.NewAlertService(
+			persistence.Alert,
+			persistence.AlertEmailGroups,
+			alertEmailSender,
+			logger,
+		)
+		alertCronjobService = alertModule.NewAlertCronjobService(alertService, logger)
+		logger.Info("Alert service initialized successfully")
+		logger.Info("Alert cronjob service initialized successfully")
 	}
 	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
@@ -267,6 +289,17 @@ func Initiate() {
 		} else {
 			logger.Info("Daily report cronjob service started successfully")
 			logger.Info("Daily reports will be sent automatically at 23:59 UTC to configured recipients")
+		}
+	}
+
+	// Start alert cronjob service
+	if alertCronjobService != nil {
+		logger.Info("Starting alert cronjob service")
+		if err := alertCronjobService.StartScheduler(context.Background()); err != nil {
+			logger.Error("Failed to start alert cronjob service", zap.Error(err))
+		} else {
+			logger.Info("Alert cronjob service started successfully")
+			logger.Info("Alerts will be checked automatically every minute")
 		}
 	}
 
@@ -320,4 +353,13 @@ func Initiate() {
 		logger.Fatal(fmt.Sprintf("Could not start HTTP server: %s", err))
 	}
 
+}
+
+// alertEmailServiceAdapter adapts EmailService to AlertEmailSender interface
+type alertEmailServiceAdapter struct {
+	emailService emailModule.EmailService
+}
+
+func (a *alertEmailServiceAdapter) SendAlertEmail(ctx context.Context, to []string, alertConfig *dto.AlertConfiguration, trigger *dto.AlertTrigger) error {
+	return a.emailService.SendAlertEmail(ctx, to, alertConfig, trigger)
 }

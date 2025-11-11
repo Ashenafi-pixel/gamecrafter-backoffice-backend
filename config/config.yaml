@@ -105,7 +105,7 @@ kafka:
 # Redis Configuration
 redis:
   enabled: true
-  addr: "loclhost:63790"
+  addr: "172.31.36.46:63790"
   password: "tucanbit_redis_password"
   db: 0
   key_prefix: "tucanbit:"

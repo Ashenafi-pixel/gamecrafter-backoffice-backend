@@ -353,6 +353,14 @@ type Company interface {
 	AddIP(ctx context.Context, companyID uuid.UUID, ip string) (dto.UpdateCompanyRes, error)
 }
 
+type Brand interface {
+	CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.CreateBrandRes, error)
+	GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, bool, error)
+	GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBrandsRes, error)
+	UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.UpdateBrandRes, error)
+	DeleteBrand(ctx context.Context, id uuid.UUID) error
+}
+
 type Report interface {
 	DailyReport(ctx context.Context, req dto.DailyReportReq) (dto.DailyReportRes, error)
 }

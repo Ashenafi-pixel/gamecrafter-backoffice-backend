@@ -269,6 +269,14 @@ type Company interface {
 	AddIP(c *gin.Context)
 }
 
+type Brand interface {
+	CreateBrand(c *gin.Context)
+	GetBrandByID(c *gin.Context)
+	GetBrands(c *gin.Context)
+	UpdateBrand(c *gin.Context)
+	DeleteBrand(c *gin.Context)
+}
+
 type Report interface {
 	GetDailyReport(c *gin.Context)
 }

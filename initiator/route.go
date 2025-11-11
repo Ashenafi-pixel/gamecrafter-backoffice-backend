@@ -19,6 +19,7 @@ import (
 	"github.com/tucanbit/internal/glue/cashback"
 	"github.com/tucanbit/internal/glue/chain_config"
 	"github.com/tucanbit/internal/glue/company"
+	"github.com/tucanbit/internal/glue/brand"
 	"github.com/tucanbit/internal/glue/currency_config"
 	"github.com/tucanbit/internal/glue/department"
 	"github.com/tucanbit/internal/glue/email"
@@ -68,6 +69,7 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	authz.Init(grp, *log, handler.Authz, module.Authz, enforcer, module.SystemLogs)
 	logs.Init(grp, *log, handler.SystemLogs, module.Authz, module.SystemLogs, enforcer)
 	company.Init(grp, *log, handler.Company, module.Authz, enforcer, module.SystemLogs)
+	brand.Init(grp, *log, handler.Brand, module.Authz, enforcer, module.SystemLogs)
 	report.Init(grp, *log, handler.Report, module.Authz, enforcer, module.SystemLogs)
 	squads.Init(grp, *log, handler.Squads, module.Authz, enforcer, module.SystemLogs)
 	notification.Init(grp, *log, handler.Notification)

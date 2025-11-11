@@ -171,6 +171,19 @@ CREATE TABLE company (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Brands table
+CREATE TABLE brands (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    domain VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(code),
+    UNIQUE(name)
+);
+
 -- Configs table
 CREATE TABLE configs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

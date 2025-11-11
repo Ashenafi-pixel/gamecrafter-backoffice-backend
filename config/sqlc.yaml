@@ -34,3 +34,20 @@ sql:
           - db_type: "pg_catalog.numeric"
             go_type: "github.com/shopspring/decimal.Decimal"
             nullable: false
+
+  - schema: "../internal/constant/query/schemas/sqlc_schema.sql"
+    queries: "../internal/constant/query/queries/brand.sql"
+    engine: "postgresql"
+
+    gen:
+      go:
+        package: "db"
+        out: "../internal/constant/model/db"
+        sql_package: "pgx/v4"
+        overrides:
+          - db_type: "pg_catalog.numeric"
+            go_type: "github.com/shopspring/decimal.NullDecimal"
+            nullable: true
+          - db_type: "pg_catalog.numeric"
+            go_type: "github.com/shopspring/decimal.Decimal"
+            nullable: false
