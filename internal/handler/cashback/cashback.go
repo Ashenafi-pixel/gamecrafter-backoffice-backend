@@ -1034,6 +1034,65 @@ func (h *CashbackHandler) ProcessBulkLevelProgression(c *gin.Context) {
 	})
 }
 
+// ProcessSingleLevelProgression processes level progression for a single user (admin only)
+// @Summary Process single level progression
+// @Description Processes level progression for a single user
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user_id body string true "User ID"
+// @Success 200 {object} dto.LevelProgressionResult
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/level-progression [post]
+func (h *CashbackHandler) ProcessSingleLevelProgression(c *gin.Context) {
+	var request struct {
+		UserID string `json:"user_id" validate:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Invalid request body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request body",
+		})
+		return
+	}
+
+	// Parse user ID
+	userUUID, err := uuid.Parse(request.UserID)
+	if err != nil {
+		h.logger.Error("Invalid user ID format", zap.String("user_id", request.UserID), zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("Invalid user ID: %s", request.UserID),
+		})
+		return
+	}
+
+	h.logger.Info("Processing single level progression",
+		zap.String("user_id", userUUID.String()))
+
+	result, err := h.cashbackService.ProcessSingleLevelProgression(c.Request.Context(), userUUID)
+	if err != nil {
+		h.logger.Error("Failed to process single level progression", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to process single level progression",
+		})
+		return
+	}
+
+	h.logger.Info("Single level progression completed",
+		zap.String("user_id", userUUID.String()),
+		zap.Bool("success", result.Success),
+		zap.Int("new_level", result.NewLevel))
+
+	c.JSON(http.StatusOK, result)
+}
+
 // GetGlobalRakebackOverride returns the current global rakeback override configuration
 // @Summary Get global rakeback override
 // @Description Returns the current global rakeback override configuration (Happy Hour mode)

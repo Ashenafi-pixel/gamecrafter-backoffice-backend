@@ -70,6 +70,7 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 
 		// Admin Level Progression routes
 		admin.POST("/bulk-level-progression", handler.ProcessBulkLevelProgression)
+		admin.POST("/level-progression", handler.ProcessSingleLevelProgression)
 
 		// Global Rakeback Override routes (Happy Hour Mode)
 		admin.GET("/global-override", handler.GetGlobalRakebackOverride)
