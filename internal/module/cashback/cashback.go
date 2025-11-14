@@ -152,11 +152,33 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 			zap.String("tier_id", userLevel.CurrentTierID.String()))
 	}
 
-	// Get current tier for user level tracking (not used for cashback rate anymore)
-	currentTier, err := s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel)
+	// Get effective tier for cashback calculations
+	effectiveTier, err := s.storage.GetCashbackTierByID(ctx, userLevel.EffectiveTierID)
 	if err != nil {
-		s.logger.Error("Failed to get current tier", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to get current tier")
+		s.logger.Warn("Failed to get effective tier by ID, falling back to level",
+			zap.Error(err),
+			zap.String("user_id", bet.UserID.String()),
+			zap.String("tier_id", userLevel.EffectiveTierID.String()))
+
+		effectiveTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.EffectiveLevel)
+		if err != nil {
+			s.logger.Error("Failed to get effective tier", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to get effective tier")
+		}
+	}
+
+	currentTier, err := s.storage.GetCashbackTierByID(ctx, userLevel.CurrentTierID)
+	if err != nil {
+		s.logger.Warn("Failed to get current tier", zap.Error(err))
+		currentTier = effectiveTier
+	}
+	if currentTier != nil && effectiveTier != nil && currentTier.ID != effectiveTier.ID {
+		s.logger.Info("Manual override tier applied for cashback",
+			zap.String("user_id", bet.UserID.String()),
+			zap.String("actual_tier", currentTier.TierName),
+			zap.String("effective_tier", effectiveTier.TierName),
+			zap.Int("actual_level", userLevel.CurrentLevel),
+			zap.Int("effective_level", userLevel.EffectiveLevel))
 	}
 
 	// Get configurable house edge for the specific game
@@ -260,7 +282,7 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 	// Create cashback earning
 	cashbackEarning := dto.CashbackEarning{
 		UserID:            bet.UserID,
-		TierID:            userLevel.CurrentTierID,
+		TierID:            userLevel.EffectiveTierID,
 		EarningType:       "bet",
 		SourceBetID:       nil,         // Set to nil for GrooveTech transactions to avoid foreign key constraint
 		ExpectedGGRAmount: expectedGGR, // Store actual expected GGR based on house edge
@@ -330,7 +352,7 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		zap.String("expected_ggr", expectedGGR.String()),
 		zap.String("cashback_rate", cashbackRate.String()),
 		zap.String("earned_cashback", earnedCashback.String()),
-		zap.String("user_tier", currentTier.TierName))
+		zap.String("user_tier", effectiveTier.TierName))
 
 	// Trigger WebSocket notification for new cashback availability with game details
 	if s.userWS != nil {
@@ -424,11 +446,19 @@ func (s *CashbackService) ClaimCashback(ctx context.Context, userID uuid.UUID, r
 		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get user level")
 	}
 
-	// Get current tier to check limits
-	currentTier, err := s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel)
+	// Get effective tier to check limits
+	currentTier, err := s.storage.GetCashbackTierByID(ctx, userLevel.EffectiveTierID)
 	if err != nil {
-		s.logger.Error("Failed to get current tier", zap.Error(err))
-		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get current tier")
+		s.logger.Warn("Failed to get effective tier by ID for claim limits",
+			zap.Error(err),
+			zap.String("user_id", userID.String()),
+			zap.String("tier_id", userLevel.EffectiveTierID.String()))
+
+		currentTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.EffectiveLevel)
+		if err != nil {
+			s.logger.Error("Failed to get effective tier for claim limits", zap.Error(err))
+			return nil, errors.ErrInternalServerError.Wrap(err, "failed to get effective tier")
+		}
 	}
 
 	// Check daily limit

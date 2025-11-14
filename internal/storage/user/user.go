@@ -302,7 +302,7 @@ func (u *user) GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, boo
 		withdrawalLimitEnabled = limitEnabled.Valid && limitEnabled.Bool
 	}
 
-	return dto.User{
+	user := dto.User{
 		ID:                     usr.ID,
 		Username:               usr.Username.String,
 		PhoneNumber:            usr.PhoneNumber.String,
@@ -331,7 +331,34 @@ func (u *user) GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, boo
 		WithdrawalLimit:        withdrawalLimit,
 		WithdrawalLimitEnabled: withdrawalLimitEnabled,
 		WithdrawalAllTimeLimit: withdrawalAllTimeLimit,
-	}, true, nil
+	}
+
+	// Default level information
+	defaultOverride := false
+	user.LevelManualOverride = &defaultOverride
+	user.VipLevel = "Bronze"
+	user.CurrentLevel = 1
+	user.EffectiveLevel = 1
+
+	levelInfo, levelErr := u.GetUserLevelDetails(ctx, usr.ID)
+	if levelErr != nil {
+		u.log.Warn("Failed to get user level details", zap.Error(levelErr), zap.String("user_id", usr.ID.String()))
+	} else if levelInfo != nil {
+		user.CurrentLevel = levelInfo.CurrentLevel
+		user.EffectiveLevel = levelInfo.EffectiveLevel
+		user.ManualOverrideLevel = levelInfo.ManualOverrideLevel
+		user.ManualOverrideSetBy = levelInfo.ManualOverrideSetBy
+		user.ManualOverrideSetAt = levelInfo.ManualOverrideSetAt
+		defaultOverride = levelInfo.IsManualOverride
+
+		if levelInfo.EffectiveTierName != "" {
+			user.VipLevel = levelInfo.EffectiveTierName
+		} else if levelInfo.CurrentTierName != "" {
+			user.VipLevel = levelInfo.CurrentTierName
+		}
+	}
+
+	return user, true, nil
 }
 
 func (u *user) UpdateProfilePicuter(ctx context.Context, userID uuid.UUID, filename string) (string, error) {
@@ -719,7 +746,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 				}
 			}
 		}
-		
+
 		params := db.GetAllUsersWithFiltersParams{
 			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
 			Status:        normalizedStatus,
@@ -886,13 +913,35 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		}
 		user.Accounts = accounts
 
-		// Get VIP level from database (user_levels table)
-		vipLevel, err := u.getVipLevelFromDatabase(ctx, usr.ID)
-		if err != nil {
-			u.log.Error("Failed to get VIP level from database", zap.Error(err), zap.String("userID", usr.ID.String()))
-			vipLevel = "Bronze" // Default fallback
+		// Get level details from database (user_levels table)
+		// Set defaults for level-related fields
+		overrideEnabled := false
+		user.LevelManualOverride = &overrideEnabled
+		user.VipLevel = "Bronze"
+		user.CurrentLevel = 1
+		user.EffectiveLevel = 1
+
+		levelInfo, levelErr := u.GetUserLevelDetails(ctx, usr.ID)
+		if levelErr != nil {
+			u.log.Error("Failed to get level details from database", zap.Error(levelErr), zap.String("userID", usr.ID.String()))
+		} else if levelInfo != nil {
+			if levelInfo.EffectiveTierName != "" {
+				user.VipLevel = levelInfo.EffectiveTierName
+			} else if levelInfo.CurrentTierName != "" {
+				user.VipLevel = levelInfo.CurrentTierName
+			}
+
+			user.CurrentLevel = levelInfo.CurrentLevel
+			user.EffectiveLevel = levelInfo.EffectiveLevel
+			user.ManualOverrideLevel = levelInfo.ManualOverrideLevel
+			if levelInfo.ManualOverrideSetBy != nil {
+				user.ManualOverrideSetBy = levelInfo.ManualOverrideSetBy
+			}
+			if levelInfo.ManualOverrideSetAt != nil {
+				user.ManualOverrideSetAt = levelInfo.ManualOverrideSetAt
+			}
+			overrideEnabled = levelInfo.IsManualOverride
 		}
-		user.VipLevel = vipLevel
 
 		// Apply VIP Level filter
 		shouldInclude := true
@@ -1031,6 +1080,198 @@ func (u *user) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin
 		})
 	}
 	return admins, nil
+}
+
+func (u *user) GetUserLevelDetails(ctx context.Context, userID uuid.UUID) (*dto.UserLevel, error) {
+	query := `
+		SELECT 
+			ul.id,
+			ul.current_level,
+			ul.current_tier_id,
+			ul.is_manual_override,
+			ul.manual_override_level,
+			ul.manual_override_tier_id,
+			ul.manual_override_set_by,
+			ul.manual_override_set_at,
+			ul.last_level_up,
+			ul.created_at,
+			ul.updated_at,
+			COALESCE(ct_current.tier_name, 'Bronze') AS current_tier_name,
+			COALESCE(ct_override.tier_name, '') AS manual_override_tier_name
+		FROM user_levels ul
+		LEFT JOIN cashback_tiers ct_current ON ct_current.id = ul.current_tier_id
+		LEFT JOIN cashback_tiers ct_override ON ct_override.id = ul.manual_override_tier_id
+		WHERE ul.user_id = $1
+	`
+
+	var (
+		manualLevel      sql.NullInt64
+		manualTierID     uuid.NullUUID
+		manualSetBy      uuid.NullUUID
+		manualSetAt      sql.NullTime
+		lastLevelUp      sql.NullTime
+		currentTierName  sql.NullString
+		overrideTierName sql.NullString
+	)
+
+	userLevel := &dto.UserLevel{
+		UserID: userID,
+	}
+
+	err := u.db.GetPool().QueryRow(ctx, query, userID).Scan(
+		&userLevel.ID,
+		&userLevel.CurrentLevel,
+		&userLevel.CurrentTierID,
+		&userLevel.IsManualOverride,
+		&manualLevel,
+		&manualTierID,
+		&manualSetBy,
+		&manualSetAt,
+		&lastLevelUp,
+		&userLevel.CreatedAt,
+		&userLevel.UpdatedAt,
+		&currentTierName,
+		&overrideTierName,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if lastLevelUp.Valid {
+		userLevel.LastLevelUp = &lastLevelUp.Time
+	}
+	if manualLevel.Valid {
+		level := int(manualLevel.Int64)
+		userLevel.ManualOverrideLevel = &level
+	}
+	if manualTierID.Valid {
+		tierID := manualTierID.UUID
+		userLevel.ManualOverrideTierID = &tierID
+	}
+	if manualSetBy.Valid {
+		setBy := manualSetBy.UUID
+		userLevel.ManualOverrideSetBy = &setBy
+	}
+	if manualSetAt.Valid {
+		setAt := manualSetAt.Time
+		userLevel.ManualOverrideSetAt = &setAt
+	}
+
+	currentTier := "Bronze"
+	if currentTierName.Valid && currentTierName.String != "" {
+		currentTier = currentTierName.String
+	}
+	userLevel.CurrentTierName = currentTier
+
+	overrideTier := ""
+	if overrideTierName.Valid && overrideTierName.String != "" {
+		overrideTier = overrideTierName.String
+	}
+	userLevel.ManualOverrideTierName = overrideTier
+
+	effectiveLevel := userLevel.CurrentLevel
+	effectiveTierID := userLevel.CurrentTierID
+	effectiveTierName := currentTier
+
+	if userLevel.IsManualOverride && userLevel.ManualOverrideLevel != nil {
+		effectiveLevel = *userLevel.ManualOverrideLevel
+		if userLevel.ManualOverrideTierID != nil {
+			effectiveTierID = *userLevel.ManualOverrideTierID
+		}
+		if overrideTier != "" {
+			effectiveTierName = overrideTier
+		}
+	}
+
+	userLevel.EffectiveLevel = effectiveLevel
+	userLevel.EffectiveTierID = effectiveTierID
+	userLevel.EffectiveTierName = effectiveTierName
+
+	return userLevel, nil
+}
+
+func (u *user) UpdateUserLevelManualOverride(ctx context.Context, req dto.UserLevelManualOverride) (*dto.UserLevel, error) {
+	if req.UserID == uuid.Nil {
+		return nil, fmt.Errorf("invalid user ID")
+	}
+
+	if req.IsManualOverride {
+		if req.ManualLevel == nil {
+			return nil, fmt.Errorf("manual override level is required when override is enabled")
+		}
+		if *req.ManualLevel <= 0 {
+			return nil, fmt.Errorf("manual override level must be greater than zero")
+		}
+	}
+
+	_, err := u.db.GetPool().Exec(ctx, `
+		INSERT INTO user_levels (user_id, current_level, current_tier_id)
+		SELECT $1, 1, ct.id
+		FROM cashback_tiers ct
+		WHERE ct.tier_level = 1
+		ON CONFLICT (user_id) DO NOTHING
+	`, req.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	var manualTierID *uuid.UUID
+	if req.IsManualOverride && req.ManualLevel != nil {
+		var tierID uuid.UUID
+		err = u.db.GetPool().QueryRow(ctx, `
+			SELECT id FROM cashback_tiers WHERE tier_level = $1
+		`, *req.ManualLevel).Scan(&tierID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, fmt.Errorf("cashback tier not found for level %d", *req.ManualLevel)
+			}
+			return nil, err
+		}
+		manualTierID = &tierID
+	}
+
+	var manualLevelVal interface{}
+	var manualTierVal interface{}
+	var adminID interface{}
+	var setAt interface{}
+
+	if req.IsManualOverride && req.ManualLevel != nil {
+		manualLevelVal = *req.ManualLevel
+		if manualTierID != nil {
+			manualTierVal = *manualTierID
+		}
+		if req.AdminID != uuid.Nil {
+			adminID = req.AdminID
+		}
+		setAt = time.Now().UTC()
+	} else {
+		manualLevelVal = nil
+		manualTierVal = nil
+		adminID = nil
+		setAt = nil
+	}
+
+	commandTag, err := u.db.GetPool().Exec(ctx, `
+		UPDATE user_levels
+		SET is_manual_override = $2,
+			manual_override_level = $3,
+			manual_override_tier_id = $4,
+			manual_override_set_by = $5,
+			manual_override_set_at = $6,
+			updated_at = NOW()
+		WHERE user_id = $1
+	`, req.UserID, req.IsManualOverride, manualLevelVal, manualTierVal, adminID, setAt)
+	if err != nil {
+		return nil, err
+	}
+	if commandTag.RowsAffected() == 0 {
+		return nil, fmt.Errorf("failed to update user level override for user %s", req.UserID.String())
+	}
+
+	return u.GetUserLevelDetails(ctx, req.UserID)
 }
 
 func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
@@ -1373,26 +1614,24 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 
 // getVipLevelFromDatabase gets the VIP level directly from the user_levels table
 func (u *user) getVipLevelFromDatabase(ctx context.Context, userID uuid.UUID) (string, error) {
-	query := `
-		SELECT COALESCE(ct.tier_name, 'Bronze') as tier_name
-		FROM user_levels ul
-		LEFT JOIN cashback_tiers ct ON ul.current_tier_id = ct.id
-		WHERE ul.user_id = $1
-	`
-
-	var tierName string
-	err := u.db.GetPool().QueryRow(ctx, query, userID).Scan(&tierName)
+	levelInfo, err := u.GetUserLevelDetails(ctx, userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			// User doesn't have a level record yet, return default
-			u.log.Debug("No user level found, returning default Bronze", zap.String("userID", userID.String()))
-			return "Bronze", nil
-		}
 		u.log.Error("Failed to get VIP level from database", zap.Error(err), zap.String("userID", userID.String()))
-		return "Bronze", nil // Default to Bronze on error
+		return "Bronze", nil
+	}
+	if levelInfo == nil {
+		u.log.Debug("No user level found, returning default Bronze", zap.String("userID", userID.String()))
+		return "Bronze", nil
 	}
 
-	return tierName, nil
+	if levelInfo.EffectiveTierName != "" {
+		return levelInfo.EffectiveTierName, nil
+	}
+	if levelInfo.CurrentTierName != "" {
+		return levelInfo.CurrentTierName, nil
+	}
+
+	return "Bronze", nil
 }
 
 func (u *user) SaveToTemp(ctx context.Context, req dto.UserReferals) error {
