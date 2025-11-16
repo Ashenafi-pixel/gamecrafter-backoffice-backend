@@ -15,6 +15,938 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/cashback/bulk-level-progression": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Processes level progression for multiple users",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Process bulk level progression",
+                "parameters": [
+                    {
+                        "description": "Array of user IDs",
+                        "name": "user_ids",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.LevelProgressionResult"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/global-override": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the current global rakeback override configuration (Happy Hour mode)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get global rakeback override",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GlobalRakebackOverride"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the global rakeback override configuration (Happy Hour mode) - Admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Update global rakeback override",
+                "parameters": [
+                    {
+                        "description": "Global rakeback override configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GlobalRakebackOverrideRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GlobalRakebackOverrideResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/house-edge": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new game house edge configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge"
+                ],
+                "summary": "Create game house edge",
+                "parameters": [
+                    {
+                        "description": "House edge configuration",
+                        "name": "houseEdge",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdge"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdge"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/promotions": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new cashback promotion (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Create cashback promotion",
+                "parameters": [
+                    {
+                        "description": "Cashback promotion data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackPromotionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackPromotion"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/schedules": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lists all rakeback schedules with optional status filter and pagination - Admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "List rakeback schedules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status (scheduled, active, completed, cancelled)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ListRakebackSchedulesResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new scheduled rakeback event (Happy Hour, Weekend Boost, etc.) - Admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Create rakeback schedule",
+                "parameters": [
+                    {
+                        "description": "Rakeback schedule configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateRakebackScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RakebackScheduleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/schedules/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves details of a specific rakeback schedule - Admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get rakeback schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RakebackScheduleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates an existing scheduled rakeback event (only if not yet active) - Admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Update rakeback schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated schedule configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateRakebackScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RakebackScheduleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cancels a scheduled rakeback event (only if not yet active) - Admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Delete rakeback schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns comprehensive statistics for the cashback system (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get cashback statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminCashbackStats"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/tiers": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new cashback tier (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Create cashback tier",
+                "parameters": [
+                    {
+                        "description": "Cashback tier data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackTierUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackTier"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/tiers/reorder": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reorders cashback tiers by updating their tier levels (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Reorder cashback tiers",
+                "parameters": [
+                    {
+                        "description": "Tier order data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReorderTiersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/cashback/tiers/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates an existing cashback tier (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Update cashback tier",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tier ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cashback tier data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackTierUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackTier"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a cashback tier (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Delete cashback tier",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tier ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/lottery/request": {
             "post": {
                 "description": "Create a new lottery request with the provided details",
@@ -116,6 +1048,781 @@ const docTemplate = `{
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/cronjob-status": {
+            "get": {
+                "description": "Get the current status of the daily report cronjob service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get cronjob status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/last-week": {
+            "post": {
+                "description": "Send daily reports for the last 7 days to specified recipients",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Send last week's reports email",
+                "parameters": [
+                    {
+                        "description": "Last week's reports email request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/analytics.SendLastWeekReportEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/schedule": {
+            "post": {
+                "description": "Schedule automatic sending of daily reports at specified time",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Schedule daily report cronjob",
+                "parameters": [
+                    {
+                        "description": "Daily report scheduling request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/analytics.SendDailyReportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/send": {
+            "post": {
+                "description": "Send daily report email to specified recipients for a specific date",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Send daily report email",
+                "parameters": [
+                    {
+                        "description": "Daily report email request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/analytics.SendDailyReportEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/send-configured": {
+            "post": {
+                "description": "Send daily report email to recipients configured in the system (ashenafialemu27@gmail.com, johsjones612@gmail.com)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Send daily report email to configured recipients",
+                "parameters": [
+                    {
+                        "description": "Configured daily report email request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/analytics.SendConfiguredDailyReportEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/test": {
+            "post": {
+                "description": "Send a test daily report to configured recipients for verification",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Send test daily report",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/daily-report/yesterday": {
+            "post": {
+                "description": "Send yesterday's daily report email to specified recipients",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Send yesterday's report email",
+                "parameters": [
+                    {
+                        "description": "Yesterday's report email request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/analytics.SendYesterdayReportEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/games/top": {
+            "get": {
+                "description": "Retrieve top performing games",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get top games",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of games to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (RFC3339)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (RFC3339)",
+                        "name": "date_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/players/top": {
+            "get": {
+                "description": "Retrieve top players by various metrics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get top players",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of players to return",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (RFC3339)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (RFC3339)",
+                        "name": "date_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/realtime": {
+            "get": {
+                "description": "Retrieve real-time statistics for the last hour",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get real-time statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/reports/daily": {
+            "get": {
+                "description": "Retrieve daily analytics report for a specific date",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get daily report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Date (YYYY-MM-DD)",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/reports/daily-enhanced": {
+            "get": {
+                "description": "Retrieve enhanced daily analytics report with comparison metrics (previous day, MTD, SPLM)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get enhanced daily report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Date (YYYY-MM-DD)",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/reports/transactions": {
+            "get": {
+                "description": "Retrieve transaction report with optional filters including player_id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get transaction report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Player ID to filter by",
+                        "name": "player_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (RFC3339)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (RFC3339)",
+                        "name": "date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction type",
+                        "name": "transaction_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Limit results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset results",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/users/{user_id}/analytics": {
+            "get": {
+                "description": "Retrieve comprehensive analytics for a specific user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get user analytics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (RFC3339)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (RFC3339)",
+                        "name": "date_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/users/{user_id}/balance-history": {
+            "get": {
+                "description": "Retrieve user balance history for the last N hours",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get user balance history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 24,
+                        "description": "Number of hours to look back",
+                        "name": "hours",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/users/{user_id}/transactions": {
+            "get": {
+                "description": "Retrieve user transactions with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get user transactions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (RFC3339)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (RFC3339)",
+                        "name": "date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction type",
+                        "name": "transaction_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game ID",
+                        "name": "game_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Limit results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset results",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AnalyticsResponse"
                         }
                     }
                 }
@@ -803,6 +2510,29 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/auth/logout": {
+            "post": {
+                "description": "Logout a user and invalidate their session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Logout",
+                "responses": {
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
@@ -1976,6 +3706,210 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/falcon-liquidity/data": {
+            "get": {
+                "description": "Retrieve all Falcon Liquidity messages and data without authentication",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Falcon Liquidity"
+                ],
+                "summary": "Get All Falcon Liquidity Data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit number of results (default: 100, max: 1000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by message type",
+                        "name": "message_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by transaction ID",
+                        "name": "transaction_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/falcon-liquidity/summary": {
+            "get": {
+                "description": "Retrieve summary statistics for Falcon Liquidity data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Falcon Liquidity"
+                ],
+                "summary": "Get Falcon Liquidity Summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by message type",
+                        "name": "message_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by transaction ID",
+                        "name": "transaction_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.FalconMessageSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/falcon-liquidity/transaction/{transaction_id}": {
+            "get": {
+                "description": "Retrieve Falcon Liquidity messages by specific transaction ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Falcon Liquidity"
+                ],
+                "summary": "Get Falcon Liquidity by Transaction ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "transaction_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/falcon-liquidity/user/{user_id}": {
+            "get": {
+                "description": "Retrieve Falcon Liquidity messages by specific user ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Falcon Liquidity"
+                ],
+                "summary": "Get Falcon Liquidity by User ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit number of results (default: 100, max: 1000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/football/clubs": {
             "get": {
                 "description": "GetClubs allow admin  to get leagues",
@@ -2562,46 +4496,92 @@ const docTemplate = `{
         },
         "/api/admin/games": {
             "get": {
-                "description": "GetGames allow user  to get games active games",
+                "description": "Retrieve a paginated list of games with optional filtering",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "Game Management"
                 ],
-                "summary": "GetGames",
+                "summary": "Get Games",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Bearer \u003ctoken\u003e ",
+                        "description": "Bearer \u003ctoken\u003e",
                         "name": "Authorization",
                         "in": "header",
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "page type (required)",
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
                         "name": "page",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10, max: 100)",
+                        "name": "per_page",
+                        "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "per_page type (required)",
-                        "name": "per_page",
-                        "in": "query",
-                        "required": true
+                        "description": "Search by name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (ACTIVE, INACTIVE, MAINTENANCE)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by provider",
+                        "name": "provider",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by enabled status",
+                        "name": "enabled",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field (name, status, created_at, updated_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GetGamesResp"
+                            "$ref": "#/definitions/dto.GameListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -2654,7 +4634,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "AddGame allow admin to add game",
+                "description": "Create a new game with all necessary details",
                 "consumes": [
                     "application/json"
                 ],
@@ -2662,36 +4642,48 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin"
+                    "Game Management"
                 ],
-                "summary": "AddGame",
+                "summary": "Create Game",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Bearer \u003ctoken\u003e ",
+                        "description": "Bearer \u003ctoken\u003e",
                         "name": "Authorization",
                         "in": "header",
                         "required": true
                     },
                     {
-                        "description": "add game  Request",
-                        "name": "req",
+                        "description": "Game creation request",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.Game"
+                            "$ref": "#/definitions/dto.CreateGameRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dto.Game"
+                            "$ref": "#/definitions/dto.GameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -2782,6 +4774,119 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/games/bulk-status": {
+            "put": {
+                "description": "Update the status of multiple games at once",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game Management"
+                ],
+                "summary": "Bulk Update Game Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Bulk update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BulkUpdateGameStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/games/by-game-id/{game_id}": {
+            "get": {
+                "description": "Retrieve a game by its game_id field (external game identifier)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game Management"
+                ],
+                "summary": "Get Game by Game ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "External Game ID",
+                        "name": "game_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/games/disable": {
             "post": {
                 "description": "DisableAllGames allow admin to disable all games.",
@@ -2813,6 +4918,47 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/games/stats": {
+            "get": {
+                "description": "Retrieve statistics about games in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game Management"
+                ],
+                "summary": "Get Game Statistics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameStats"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -2860,6 +5006,772 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/games/summary": {
+            "get": {
+                "description": "GetGameSummary allow admin to get game summary data for dashboard cards",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "GetGameSummary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e ",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetGameSummaryResp"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/games/{id}": {
+            "get": {
+                "description": "Retrieve a specific game by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game Management"
+                ],
+                "summary": "Get Game by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing game's details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game Management"
+                ],
+                "summary": "Update Game",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Game update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateGameRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a game by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Game Management"
+                ],
+                "summary": "Delete Game",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/house-edges": {
+            "get": {
+                "description": "Retrieve a paginated list of house edge configurations with optional filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Get House Edges",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10, max: 100)",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by game type",
+                        "name": "game_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by game variant",
+                        "name": "game_variant",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by active status",
+                        "name": "is_active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field (game_type, game_variant, house_edge, created_at, updated_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdgeListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new house edge configuration for a game",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Create House Edge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "House edge creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdgeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdgeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/house-edges/bulk-status": {
+            "put": {
+                "description": "Update the active status of multiple house edge configurations at once",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Bulk Update House Edge Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Bulk update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BulkUpdateHouseEdgeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/house-edges/by-game-type/{game_type}": {
+            "get": {
+                "description": "Retrieve all house edge configurations for a specific game type",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Get House Edges by Game Type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game Type",
+                        "name": "game_type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.GameHouseEdgeResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/house-edges/by-game-variant/{game_type}/{game_variant}": {
+            "get": {
+                "description": "Retrieve all house edge configurations for a specific game type and variant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Get House Edges by Game Variant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game Type",
+                        "name": "game_type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game Variant",
+                        "name": "game_variant",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.GameHouseEdgeResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/house-edges/stats": {
+            "get": {
+                "description": "Retrieve statistics about house edge configurations in the system",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Get House Edge Statistics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.HouseEdgeStats"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/house-edges/{id}": {
+            "get": {
+                "description": "Retrieve a specific house edge configuration by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Get House Edge by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "House Edge ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdgeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing house edge configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Update House Edge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "House Edge ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "House edge update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdgeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdgeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a house edge configuration by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge Management"
+                ],
+                "summary": "Delete House Edge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "House Edge ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -3476,6 +6388,92 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/manual-funds": {
+            "get": {
+                "description": "Get all manual funds for admin management with pagination and filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "GetAllManualFunds",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e ",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10)",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by username, email, or transaction ID",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by type (add_fund, remove_fund)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by currency",
+                        "name": "currency",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter from date (YYYY-MM-DD)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to date (YYYY-MM-DD)",
+                        "name": "date_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAllManualFundsRes"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/metrics/financial": {
             "get": {
                 "description": "Retrieve Financial Metrics.",
@@ -3560,6 +6558,66 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/notifications": {
+            "get": {
+                "description": "Mark a notification as read\nGet paginated notifications for admin management (all users)",
+                "consumes": [
+                    "application/json",
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification",
+                    "Admin Notification"
+                ],
+                "summary": "GetAdminNotifications",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetNotificationsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -3947,6 +7005,67 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/rbac/users": {
+            "get": {
+                "description": "SearchAdminUsers Retrieve list of admin users for RBAC role assignments",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "SearchAdminUsers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e ",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "page type (required)",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "per-page type (required)",
+                        "name": "per-page",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.Admin"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -4890,6 +8009,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/transactions/summary": {
+            "get": {
+                "description": "Get transaction summary statistics for dashboard",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "GetTransactionSummary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e ",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetTransactionSummaryResp"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/user/block": {
             "post": {
                 "description": "Allows a admins to  block account.",
@@ -5000,8 +8157,8 @@ const docTemplate = `{
             }
         },
         "/api/admin/users": {
-            "post": {
-                "description": "Allows a admins to get players.",
+            "get": {
+                "description": "Get all admin users with is_admin=true and user_type='ADMIN'",
                 "consumes": [
                     "application/json"
                 ],
@@ -5011,30 +8168,73 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "GetUsers",
+                "summary": "GetAdminUsers",
                 "parameters": [
                     {
-                        "description": "get players req",
-                        "name": "req",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.GetPlayersReq"
-                        }
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Bearer \u003ctoken\u003e ",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.GetPlayersRes"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.Admin"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new admin user with is_admin=true and user_type='ADMIN'",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "CreateAdminUser",
+                "parameters": [
+                    {
+                        "description": "Create admin user request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateAdminUserReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Admin"
                         }
                     },
                     "400": {
@@ -5234,6 +8434,95 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/users/{id}": {
+            "put": {
+                "description": "Update an existing admin user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "UpdateAdminUser",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update admin user request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateAdminUserReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Admin"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an admin user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "DeleteAdminUser",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -5544,6 +8833,288 @@ const docTemplate = `{
                         "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/2fa/disable": {
+            "post": {
+                "description": "Disable 2FA for the user with token verification",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Disable 2FA",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "2FA disable request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorDisableRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/2fa/enable": {
+            "post": {
+                "description": "Verify a TOTP token and enable 2FA for the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Enable 2FA",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "2FA setup request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorSetupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/2fa/generate-secret": {
+            "post": {
+                "description": "Generate a new TOTP secret and QR code for 2FA setup",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Generate 2FA Secret",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/2fa/status": {
+            "get": {
+                "description": "Get the current 2FA status and settings for the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get 2FA Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/2fa/verify": {
+            "post": {
+                "description": "Verify a TOTP token or backup code during login",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Verify 2FA Token",
+                "parameters": [
+                    {
+                        "description": "2FA verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorVerifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TwoFactorResponse"
                         }
                     }
                 }
@@ -6905,17 +10476,20 @@ const docTemplate = `{
         },
         "/api/notifications/{id}/mark-read": {
             "patch": {
-                "description": "Mark a notification as read",
+                "description": "Mark a notification as read\nGet paginated notifications for admin management (all users)",
                 "consumes": [
+                    "application/json",
                     "application/json"
                 ],
                 "produces": [
+                    "application/json",
                     "application/json"
                 ],
                 "tags": [
-                    "Notification"
+                    "Notification",
+                    "Admin Notification"
                 ],
-                "summary": "MarkNotificationRead",
+                "summary": "GetAdminNotifications",
                 "parameters": [
                     {
                         "type": "string",
@@ -6930,13 +10504,32 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer \u003ctoken\u003e",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.MarkNotificationReadResponse"
+                            "$ref": "#/definitions/dto.GetNotificationsResponse"
                         }
                     },
                     "400": {
@@ -7080,6 +10673,52 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "Resend OTP request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ResendOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ResendOTPResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/otp/resend-password-reset": {
+            "post": {
+                "description": "Resend a password reset OTP to the specified email address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTP"
+                ],
+                "summary": "Resend Password Reset OTP",
+                "parameters": [
+                    {
+                        "description": "Resend password reset OTP request",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -10577,6 +14216,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/wallet/test-signature": {
+            "post": {
+                "description": "Debug endpoint to test wallet signature verification",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Wallet"
+                ],
+                "summary": "Test Wallet Signature",
+                "parameters": [
+                    {
+                        "description": "Wallet Verification Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.WalletVerificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/wallet/verify": {
             "post": {
                 "description": "Verify a wallet challenge signature",
@@ -10624,6 +14309,667 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/campaign-notifications-dashboard": {
+            "get": {
+                "description": "Get paginated campaign notifications for dashboard view",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get Campaign Notifications Dashboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Notification status filter",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Notification type filter",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID filter",
+                        "name": "user_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CampaignNotificationsDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/campaigns": {
+            "get": {
+                "description": "Get campaigns with pagination and optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get Campaigns",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Campaign status filter",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Message type filter",
+                        "name": "message_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Created by user ID filter",
+                        "name": "created_by",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.GetCampaignsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new message campaign with segments and recipients",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Create Message Campaign",
+                "parameters": [
+                    {
+                        "description": "Campaign creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateCampaignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CampaignResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/campaigns/{id}": {
+            "get": {
+                "description": "Get a specific campaign by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get Campaign by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CampaignResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing campaign",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Update Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Campaign update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateCampaignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CampaignResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a campaign and all its associated data",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Delete Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/campaigns/{id}/recipients": {
+            "get": {
+                "description": "Get recipients for a specific campaign",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get Campaign Recipients",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Recipient status filter",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.GetCampaignRecipientsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/campaigns/{id}/send": {
+            "post": {
+                "description": "Send a campaign to all its recipients",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Send Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/campaigns/{id}/stats": {
+            "get": {
+                "description": "Get delivery and read statistics for a campaign",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get Campaign Statistics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/dto.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.CampaignStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/cashback/house-edge": {
+            "get": {
+                "description": "Returns the house edge configuration for a specific game type",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "House Edge"
+                ],
+                "summary": "Get game house edge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Game type (e.g., groovetech, plinko, crash)",
+                        "name": "game_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Game variant (optional)",
+                        "name": "game_variant",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GameHouseEdge"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/cashback/tiers": {
+            "get": {
+                "description": "Returns all available cashback tiers",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get cashback tiers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.CashbackTier"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
                 }
@@ -10721,6 +15067,184 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/player/transactions": {
+            "get": {
+                "description": "Get comprehensive transaction history for a player including GrooveTech gaming, sports betting, and general betting transactions",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Player Transactions"
+                ],
+                "summary": "Get player transaction history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "GrooveTech Account ID (optional)",
+                        "name": "account_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction type (wager, result, rollback, bet, sport_bet)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction category (gaming, sports, general)",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit results (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Include summary statistics (default false)",
+                        "name": "include_summary",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PlayerTransactionHistoryWithSummaryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/player/transactions/account/{account_id}": {
+            "get": {
+                "description": "Get transaction history for a specific GrooveTech account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Player Transactions"
+                ],
+                "summary": "Get player transaction history by GrooveTech account ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GrooveTech Account ID",
+                        "name": "account_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction type (wager, result, rollback)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transaction status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit results (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset for pagination (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PlayerTransactionHistoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -10870,7 +15394,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.ResendOTPRequest"
+                            "$ref": "#/definitions/dto.ResendRegistrationOTPRequest"
                         }
                     }
                 ],
@@ -10878,11 +15402,390 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.ResendOTPResponse"
+                            "$ref": "#/definitions/dto.ResendRegistrationOTPResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/balance/reconcile": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Synchronizes GrooveTech account balance with main balance",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Balance"
+                ],
+                "summary": "Reconcile user balances",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/balance/validate-sync": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Validates if user balances are synchronized between main and GrooveTech systems",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Balance"
+                ],
+                "summary": "Validate balance synchronization",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/cashback": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns comprehensive cashback information for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get user cashback summary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserCashbackSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/cashback/claim": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows users to claim their available cashback",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Claim cashback",
+                "parameters": [
+                    {
+                        "description": "Cashback claim request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackClaimRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CashbackClaimResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/cashback/claims": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the user's cashback claims history",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get user cashback claims",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.CashbackClaim"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/cashback/earnings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the user's cashback earnings history",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get user cashback earnings",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.CashbackEarning"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/cashback/level-progression": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns detailed level progression information including current tier, next tier, and progress",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cashback"
+                ],
+                "summary": "Get user level progression info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.LevelProgressionInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -11308,6 +16211,122 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "analytics.SendConfiguredDailyReportEmailRequest": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "description": "Date in YYYY-MM-DD format (optional, defaults to yesterday)",
+                    "type": "string",
+                    "example": "2025-01-15"
+                }
+            }
+        },
+        "analytics.SendDailyReportEmailRequest": {
+            "type": "object",
+            "required": [
+                "date",
+                "recipients"
+            ],
+            "properties": {
+                "date": {
+                    "description": "Date in YYYY-MM-DD format",
+                    "type": "string",
+                    "example": "2025-01-15"
+                },
+                "recipients": {
+                    "description": "Email recipients",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "admin@example.com",
+                        "manager@example.com"
+                    ]
+                }
+            }
+        },
+        "analytics.SendDailyReportRequest": {
+            "type": "object",
+            "required": [
+                "recipients"
+            ],
+            "properties": {
+                "auto_schedule": {
+                    "description": "Whether to schedule future automatic sending",
+                    "type": "boolean"
+                },
+                "date": {
+                    "description": "Date in YYYY-MM-DD format (optional, defaults to yesterday if empty)",
+                    "type": "string"
+                },
+                "include_top_games": {
+                    "description": "Include top games section in report",
+                    "type": "boolean"
+                },
+                "include_top_players": {
+                    "description": "Include top players section in report",
+                    "type": "boolean"
+                },
+                "recipients": {
+                    "description": "Email recipients",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "send_frequency": {
+                    "description": "Daily, Weekly, Monthly frequency",
+                    "type": "string"
+                },
+                "time_of_day": {
+                    "description": "Hour of day to send (0-23)",
+                    "type": "integer"
+                },
+                "timezone": {
+                    "description": "Timezone for sending time (default: UTC)",
+                    "type": "string"
+                }
+            }
+        },
+        "analytics.SendLastWeekReportEmailRequest": {
+            "type": "object",
+            "required": [
+                "recipients"
+            ],
+            "properties": {
+                "recipients": {
+                    "description": "Email recipients",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "admin@example.com",
+                        "manager@example.com"
+                    ]
+                }
+            }
+        },
+        "analytics.SendYesterdayReportEmailRequest": {
+            "type": "object",
+            "required": [
+                "recipients"
+            ],
+            "properties": {
+                "recipients": {
+                    "description": "Email recipients",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "admin@example.com",
+                        "manager@example.com"
+                    ]
+                }
+            }
+        },
         "dto.AccountBlockReq": {
             "type": "object",
             "properties": {
@@ -11493,6 +16512,21 @@ const docTemplate = `{
         "dto.Admin": {
             "type": "object",
             "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date_of_birth": {
+                    "type": "string"
+                },
+                "default_currency": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
@@ -11502,10 +16536,22 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "kyc_status": {
+                    "type": "string"
+                },
                 "last_name": {
                     "type": "string"
                 },
                 "phone_number": {
+                    "type": "string"
+                },
+                "postal_code": {
                     "type": "string"
                 },
                 "roles": {
@@ -11514,8 +16560,58 @@ const docTemplate = `{
                         "$ref": "#/definitions/dto.AdminRoleRes"
                     }
                 },
+                "state": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "string"
+                },
+                "street_address": {
+                    "type": "string"
+                },
+                "user_type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "wallet_verification_status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AdminCashbackStats": {
+            "type": "object",
+            "properties": {
+                "average_cashback_rate": {
+                    "type": "number"
+                },
+                "daily_cashback_claims": {
+                    "type": "number"
+                },
+                "monthly_cashback_claims": {
+                    "type": "number"
+                },
+                "tier_distribution": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total_cashback_claimed": {
+                    "type": "number"
+                },
+                "total_cashback_earned": {
+                    "type": "number"
+                },
+                "total_cashback_pending": {
+                    "type": "number"
+                },
+                "total_users_with_cashback": {
+                    "type": "integer"
+                },
+                "weekly_cashback_claims": {
+                    "type": "number"
                 }
             }
         },
@@ -11743,6 +16839,21 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.AnalyticsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "meta": {
+                    "$ref": "#/definitions/dto.Meta"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dto.AssignDepartmentToUserReq": {
             "type": "object",
             "properties": {
@@ -11785,19 +16896,29 @@ const docTemplate = `{
         "dto.Balance": {
             "type": "object",
             "required": [
-                "currency"
+                "currency_code"
             ],
             "properties": {
-                "bonus_money": {
+                "amount_cents": {
+                    "description": "amount in cents",
+                    "type": "integer"
+                },
+                "amount_units": {
+                    "description": "amount in units",
                     "type": "number"
                 },
-                "currency": {
+                "currency_code": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "real_money": {
+                "reserved_cents": {
+                    "description": "reserved amount in cents",
+                    "type": "integer"
+                },
+                "reserved_units": {
+                    "description": "reserved amount in units",
                     "type": "number"
                 },
                 "updated_at": {
@@ -12082,6 +17203,231 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.BulkUpdateGameStatusRequest": {
+            "type": "object",
+            "required": [
+                "game_ids",
+                "status"
+            ],
+            "properties": {
+                "game_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ACTIVE",
+                        "INACTIVE",
+                        "MAINTENANCE"
+                    ]
+                }
+            }
+        },
+        "dto.BulkUpdateHouseEdgeRequest": {
+            "type": "object",
+            "required": [
+                "house_edge_ids"
+            ],
+            "properties": {
+                "house_edge_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dto.CampaignNotificationDashboardItem": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string"
+                },
+                "campaign_title": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivered": {
+                    "type": "boolean"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "read": {
+                    "type": "boolean"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CampaignNotificationStats": {
+            "type": "object",
+            "properties": {
+                "delivered_notifications": {
+                    "type": "integer"
+                },
+                "delivery_rate": {
+                    "type": "number"
+                },
+                "read_notifications": {
+                    "type": "integer"
+                },
+                "read_rate": {
+                    "type": "number"
+                },
+                "total_notifications": {
+                    "type": "integer"
+                },
+                "unread_notifications": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CampaignNotificationsDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "notifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CampaignNotificationDashboardItem"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "stats": {
+                    "$ref": "#/definitions/dto.CampaignNotificationStats"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CampaignResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "delivered_count": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message_type": {
+                    "$ref": "#/definitions/dto.NotificationType"
+                },
+                "read_count": {
+                    "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/dto.CampaignStatus"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "total_recipients": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CampaignStatsResponse": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string"
+                },
+                "delivered_count": {
+                    "type": "integer"
+                },
+                "delivery_rate": {
+                    "type": "number"
+                },
+                "failed_count": {
+                    "type": "integer"
+                },
+                "read_count": {
+                    "type": "integer"
+                },
+                "read_rate": {
+                    "type": "number"
+                },
+                "sent_count": {
+                    "type": "integer"
+                },
+                "total_recipients": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CampaignStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "scheduled",
+                "sending",
+                "sent",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "CAMPAIGN_STATUS_DRAFT",
+                "CAMPAIGN_STATUS_SCHEDULED",
+                "CAMPAIGN_STATUS_SENDING",
+                "CAMPAIGN_STATUS_SENT",
+                "CAMPAIGN_STATUS_CANCELLED"
+            ]
+        },
         "dto.CancelBetReq": {
             "type": "object",
             "properties": {
@@ -12142,6 +17488,343 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "payout": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.CashbackClaim": {
+            "type": "object",
+            "properties": {
+                "admin_notes": {
+                    "type": "string"
+                },
+                "claim_amount": {
+                    "type": "number"
+                },
+                "claimed_earnings": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "net_amount": {
+                    "type": "number"
+                },
+                "processed_at": {
+                    "type": "string"
+                },
+                "processing_fee": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CashbackClaimRequest": {
+            "type": "object",
+            "required": [
+                "amount"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.CashbackClaimResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "claim_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "net_amount": {
+                    "type": "number"
+                },
+                "processing_fee": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CashbackEarning": {
+            "type": "object",
+            "properties": {
+                "available_amount": {
+                    "type": "number"
+                },
+                "cashback_rate": {
+                    "type": "number"
+                },
+                "claimed_amount": {
+                    "type": "number"
+                },
+                "claimed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "earned_amount": {
+                    "type": "number"
+                },
+                "earning_type": {
+                    "type": "string"
+                },
+                "expected_ggr_amount": {
+                    "type": "number"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "source_bet_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tier_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CashbackPromotion": {
+            "type": "object",
+            "properties": {
+                "bonus_amount": {
+                    "type": "number"
+                },
+                "boost_multiplier": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "max_bonus_amount": {
+                    "type": "number"
+                },
+                "min_bet_amount": {
+                    "type": "number"
+                },
+                "promotion_name": {
+                    "type": "string"
+                },
+                "promotion_type": {
+                    "type": "string"
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "target_games": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "target_tiers": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CashbackPromotionRequest": {
+            "type": "object",
+            "required": [
+                "boost_multiplier",
+                "promotion_name",
+                "promotion_type",
+                "starts_at"
+            ],
+            "properties": {
+                "bonus_amount": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "boost_multiplier": {
+                    "type": "number",
+                    "minimum": 1
+                },
+                "description": {
+                    "type": "string"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "max_bonus_amount": {
+                    "type": "number"
+                },
+                "min_bet_amount": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "promotion_name": {
+                    "type": "string"
+                },
+                "promotion_type": {
+                    "type": "string",
+                    "enum": [
+                        "boost",
+                        "bonus",
+                        "special"
+                    ]
+                },
+                "starts_at": {
+                    "type": "string"
+                },
+                "target_games": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "target_tiers": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "dto.CashbackTier": {
+            "type": "object",
+            "properties": {
+                "bonus_multiplier": {
+                    "type": "number"
+                },
+                "cashback_percentage": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "daily_cashback_limit": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "min_expected_ggr_required": {
+                    "type": "number"
+                },
+                "monthly_cashback_limit": {
+                    "type": "number"
+                },
+                "player_count": {
+                    "type": "integer"
+                },
+                "special_benefits": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "tier_level": {
+                    "type": "integer"
+                },
+                "tier_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "weekly_cashback_limit": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.CashbackTierUpdateRequest": {
+            "type": "object",
+            "required": [
+                "bonus_multiplier",
+                "cashback_percentage",
+                "min_ggr_required",
+                "tier_name"
+            ],
+            "properties": {
+                "bonus_multiplier": {
+                    "type": "number",
+                    "minimum": 1
+                },
+                "cashback_percentage": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "daily_cashback_limit": {
+                    "type": "number"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "min_ggr_required": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "monthly_cashback_limit": {
+                    "type": "number"
+                },
+                "special_benefits": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "tier_name": {
+                    "type": "string"
+                },
+                "weekly_cashback_limit": {
                     "type": "number"
                 }
             }
@@ -12466,6 +18149,82 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreateAdminUserReq": {
+            "type": "object",
+            "required": [
+                "email",
+                "first_name",
+                "last_name",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "date_of_birth": {
+                    "type": "string"
+                },
+                "default_currency": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "kyc_status": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "street_address": {
+                    "type": "string"
+                },
+                "user_type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
+                },
+                "wallet_verification_status": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateAgentProviderReq": {
             "type": "object",
             "required": [
@@ -12555,6 +18314,61 @@ const docTemplate = `{
                 "tagline": {
                     "type": "string",
                     "maxLength": 500
+                }
+            }
+        },
+        "dto.CreateCampaignRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "message_type",
+                "segments",
+                "subject",
+                "title"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "minLength": 1
+                },
+                "message_type": {
+                    "enum": [
+                        "promotional",
+                        "kyc",
+                        "bonus",
+                        "welcome",
+                        "system",
+                        "alert",
+                        "payments",
+                        "security",
+                        "general"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.NotificationType"
+                        }
+                    ]
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "segments": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dto.CreateSegmentRequest"
+                    }
+                },
+                "subject": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
                 }
             }
         },
@@ -12753,6 +18567,53 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreateGameRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "status"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "game_id": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "integration_partner": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "internal_name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "photo": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ACTIVE",
+                        "INACTIVE",
+                        "MAINTENANCE"
+                    ]
+                }
+            }
+        },
         "dto.CreateLootBoxReq": {
             "type": "object",
             "properties": {
@@ -12859,6 +18720,46 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreateRakebackScheduleRequest": {
+            "type": "object",
+            "required": [
+                "end_time",
+                "name",
+                "percentage",
+                "scope_type",
+                "start_time"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "percentage": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "scope_type": {
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "provider",
+                        "game"
+                    ]
+                },
+                "scope_value": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateRoleReq": {
             "type": "object",
             "properties": {
@@ -12901,6 +18802,33 @@ const docTemplate = `{
                 },
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.CreateSegmentRequest": {
+            "type": "object",
+            "required": [
+                "segment_type"
+            ],
+            "properties": {
+                "criteria": {},
+                "csv_data": {
+                    "type": "string"
+                },
+                "segment_name": {
+                    "type": "string"
+                },
+                "segment_type": {
+                    "enum": [
+                        "criteria",
+                        "csv",
+                        "all_users"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SegmentType"
+                        }
+                    ]
                 }
             }
         },
@@ -13321,6 +19249,9 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -13333,11 +19264,23 @@ const docTemplate = `{
                 "country": {
                     "type": "string"
                 },
+                "date_of_birth": {
+                    "type": "string"
+                },
+                "default_currency": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "first_name": {
                     "type": "string"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "is_test_account": {
+                    "type": "boolean"
                 },
                 "kyc_status": {
                     "type": "string"
@@ -13354,6 +19297,9 @@ const docTemplate = `{
                 "state": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "street_address": {
                     "type": "string"
                 },
@@ -13361,6 +19307,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                },
+                "wallet_verification_status": {
                     "type": "string"
                 }
             }
@@ -13725,6 +19674,41 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.FalconMessageSummary": {
+            "type": "object",
+            "properties": {
+                "acknowledged_messages": {
+                    "type": "integer"
+                },
+                "average_house_edge": {
+                    "type": "number"
+                },
+                "disputed_messages": {
+                    "type": "integer"
+                },
+                "failed_messages": {
+                    "type": "integer"
+                },
+                "last_message_at": {
+                    "type": "string"
+                },
+                "pending_messages": {
+                    "type": "integer"
+                },
+                "sent_messages": {
+                    "type": "integer"
+                },
+                "total_bet_amount": {
+                    "type": "number"
+                },
+                "total_messages": {
+                    "type": "integer"
+                },
+                "total_payout_amount": {
+                    "type": "number"
+                }
+            }
+        },
         "dto.FinancialMatrix": {
             "type": "object",
             "properties": {
@@ -13745,6 +19729,14 @@ const docTemplate = `{
                 },
                 "total_withdrawal_amount": {
                     "type": "number"
+                }
+            }
+        },
+        "dto.FlexibleTime": {
+            "type": "object",
+            "properties": {
+                "time.Time": {
+                    "type": "string"
                 }
             }
         },
@@ -13908,7 +19900,13 @@ const docTemplate = `{
         "dto.ForgetPasswordRes": {
             "type": "object",
             "properties": {
+                "email": {
+                    "type": "string"
+                },
                 "message": {
+                    "type": "string"
+                },
+                "otp_id": {
                     "type": "string"
                 }
             }
@@ -13919,6 +19917,9 @@ const docTemplate = `{
                 "enabled": {
                     "type": "boolean"
                 },
+                "game_type": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -13928,8 +19929,220 @@ const docTemplate = `{
                 "photo": {
                     "type": "string"
                 },
+                "popularity": {
+                    "type": "integer"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "rtp": {
+                    "type": "number"
+                },
                 "status": {
                     "type": "string"
+                },
+                "total_players": {
+                    "type": "integer"
+                },
+                "total_rounds": {
+                    "type": "integer"
+                },
+                "total_wagered": {
+                    "type": "number"
+                },
+                "total_won": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.GameHouseEdge": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "effective_from": {
+                    "type": "string"
+                },
+                "effective_until": {
+                    "type": "string"
+                },
+                "game_type": {
+                    "type": "string"
+                },
+                "game_variant": {
+                    "type": "string"
+                },
+                "house_edge": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "max_bet": {
+                    "type": "number"
+                },
+                "min_bet": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GameHouseEdgeListResponse": {
+            "type": "object",
+            "properties": {
+                "house_edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GameHouseEdgeResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GameHouseEdgeRequest": {
+            "type": "object",
+            "required": [
+                "game_type",
+                "house_edge",
+                "min_bet"
+            ],
+            "properties": {
+                "effective_from": {
+                    "$ref": "#/definitions/dto.FlexibleTime"
+                },
+                "effective_until": {
+                    "$ref": "#/definitions/dto.FlexibleTime"
+                },
+                "game_id": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "game_type": {
+                    "type": "string",
+                    "enum": [
+                        "slot",
+                        "sports",
+                        "table",
+                        "live",
+                        "crash",
+                        "plinko",
+                        "wheel"
+                    ]
+                },
+                "game_variant": {
+                    "type": "string",
+                    "enum": [
+                        "classic",
+                        "v1",
+                        "v2",
+                        "demo",
+                        "real",
+                        "mobile",
+                        "desktop"
+                    ]
+                },
+                "house_edge": {
+                    "type": "number",
+                    "maximum": 1,
+                    "minimum": 0
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "max_bet": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "min_bet": {
+                    "type": "number",
+                    "minimum": 0
+                }
+            }
+        },
+        "dto.GameHouseEdgeResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "effective_from": {
+                    "type": "string"
+                },
+                "effective_until": {
+                    "type": "string"
+                },
+                "game_id": {
+                    "type": "string"
+                },
+                "game_name": {
+                    "type": "string"
+                },
+                "game_type": {
+                    "type": "string"
+                },
+                "game_variant": {
+                    "type": "string"
+                },
+                "house_edge": {
+                    "type": "number"
+                },
+                "house_edge_percent": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "max_bet": {
+                    "type": "number"
+                },
+                "min_bet": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GameListResponse": {
+            "type": "object",
+            "properties": {
+                "games": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GameResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         },
@@ -13984,6 +20197,105 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "win_percentage": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.GameResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "game_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "integration_partner": {
+                    "type": "string"
+                },
+                "internal_name": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "photo": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GameStats": {
+            "type": "object",
+            "properties": {
+                "avg_bet_amount": {
+                    "type": "number"
+                },
+                "game_id": {
+                    "type": "string"
+                },
+                "game_name": {
+                    "type": "string"
+                },
+                "net_revenue": {
+                    "type": "number"
+                },
+                "player_count": {
+                    "type": "integer"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "rtp": {
+                    "type": "number"
+                },
+                "session_count": {
+                    "type": "integer"
+                },
+                "total_bets": {
+                    "type": "number"
+                },
+                "total_wins": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.GameSummary": {
+            "type": "object",
+            "properties": {
+                "active_games": {
+                    "type": "integer"
+                },
+                "avg_rtp": {
+                    "type": "number"
+                },
+                "total_games": {
+                    "type": "integer"
+                },
+                "total_wagered": {
                     "type": "number"
                 }
             }
@@ -14093,6 +20405,35 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GetAllManualFundsRes": {
+            "type": "object",
+            "properties": {
+                "current_page": {
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ManualFundResData"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_funds_usd": {
+                    "type": "string"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GetBalanceLogRes": {
             "type": "object",
             "properties": {
@@ -14175,6 +20516,46 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.GetCampaignRecipientsResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "recipients": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RecipientResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GetCampaignsResponse": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CampaignResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -14326,6 +20707,17 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.GetGameSummaryResp": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.GameSummary"
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         },
@@ -14494,6 +20886,9 @@ const docTemplate = `{
         "dto.GetNotificationsResponse": {
             "type": "object",
             "properties": {
+                "delivered_count": {
+                    "type": "integer"
+                },
                 "message": {
                     "type": "string"
                 },
@@ -14502,6 +20897,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.UserNotification"
                     }
+                },
+                "read_count": {
+                    "type": "integer"
                 },
                 "total": {
                     "type": "integer"
@@ -14514,17 +20912,32 @@ const docTemplate = `{
         "dto.GetPlayersFilter": {
             "type": "object",
             "properties": {
-                "email": {
+                "is_test_account": {
+                    "type": "boolean"
+                },
+                "kyc_status": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "searchterm": {
                     "type": "string"
                 },
-                "phone": {
-                    "type": "string"
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "user_id": {
                     "type": "string"
                 },
-                "username": {
-                    "type": "string"
+                "vip_level": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -14932,6 +21345,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GetTransactionSummaryResp": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.TransactionSummary"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.GetUserFootballBetRes": {
             "type": "object",
             "properties": {
@@ -14963,6 +21387,87 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GlobalRakebackOverride": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "disabled_at": {
+                    "type": "string"
+                },
+                "disabled_by": {
+                    "type": "string"
+                },
+                "enabled_at": {
+                    "type": "string"
+                },
+                "enabled_by": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "override_percentage": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GlobalRakebackOverrideRequest": {
+            "type": "object",
+            "required": [
+                "is_enabled",
+                "override_percentage"
+            ],
+            "properties": {
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "override_percentage": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0
+                }
+            }
+        },
+        "dto.GlobalRakebackOverrideResponse": {
+            "type": "object",
+            "properties": {
+                "disabled_at": {
+                    "type": "string"
+                },
+                "disabled_by": {
+                    "type": "string"
+                },
+                "disabled_by_username": {
+                    "type": "string"
+                },
+                "enabled_at": {
+                    "type": "string"
+                },
+                "enabled_by": {
+                    "type": "string"
+                },
+                "enabled_by_username": {
+                    "type": "string"
+                },
+                "is_enabled": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "override_percentage": {
+                    "type": "number"
+                }
+            }
+        },
         "dto.HighestWin": {
             "type": "object",
             "properties": {
@@ -14983,6 +21488,26 @@ const docTemplate = `{
                 },
                 "win_amount": {
                     "type": "number"
+                }
+            }
+        },
+        "dto.HouseEdgeStats": {
+            "type": "object",
+            "properties": {
+                "active_house_edges": {
+                    "type": "integer"
+                },
+                "inactive_house_edges": {
+                    "type": "integer"
+                },
+                "total_house_edges": {
+                    "type": "integer"
+                },
+                "unique_game_types": {
+                    "type": "integer"
+                },
+                "unique_game_variants": {
+                    "type": "integer"
                 }
             }
         },
@@ -15110,6 +21635,58 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.LevelProgressionInfo": {
+            "type": "object",
+            "properties": {
+                "current_level": {
+                    "type": "integer"
+                },
+                "current_tier": {
+                    "$ref": "#/definitions/dto.CashbackTier"
+                },
+                "expected_ggr_to_next_level": {
+                    "type": "number"
+                },
+                "last_level_up": {
+                    "type": "string"
+                },
+                "level_progress": {
+                    "type": "number"
+                },
+                "next_tier": {
+                    "$ref": "#/definitions/dto.CashbackTier"
+                },
+                "progress_to_next": {
+                    "type": "number"
+                },
+                "total_expected_ggr": {
+                    "type": "number"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LevelProgressionResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "new_level": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.LevelRequirement": {
             "type": "object",
             "properties": {
@@ -15158,6 +21735,29 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "boolean"
+                }
+            }
+        },
+        "dto.ListRakebackSchedulesResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "schedules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RakebackScheduleResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
                 }
             }
         },
@@ -15359,6 +21959,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "currency": {
+                    "description": "Make currency optional",
                     "type": "string"
                 },
                 "note": {
@@ -15386,6 +21987,9 @@ const docTemplate = `{
         "dto.ManualFundResData": {
             "type": "object",
             "properties": {
+                "admin_name": {
+                    "type": "string"
+                },
                 "amount": {
                     "type": "number"
                 },
@@ -15404,7 +22008,10 @@ const docTemplate = `{
                 "reason": {
                     "type": "string"
                 },
-                "user_id": {
+                "type": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }
@@ -15493,6 +22100,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.Meta": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "pages": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.MyRefferedUsers": {
             "type": "object",
             "properties": {
@@ -15561,7 +22185,10 @@ const docTemplate = `{
                         "Bonus",
                         "Welcome",
                         "System",
-                        "Alert"
+                        "Alert",
+                        "payments",
+                        "security",
+                        "general"
                     ],
                     "allOf": [
                         {
@@ -15596,7 +22223,10 @@ const docTemplate = `{
                 "Bonus",
                 "Welcome",
                 "System",
-                "Alert"
+                "Alert",
+                "payments",
+                "security",
+                "general"
             ],
             "x-enum-varnames": [
                 "NOTIFICATION_TYPE_PROMOTIONAL",
@@ -15604,7 +22234,10 @@ const docTemplate = `{
                 "NOTIFICATION_TYPE_BONUS",
                 "NOTIFICATION_TYPE_WELCOME",
                 "NOTIFICATION_TYPE_SYSTEM",
-                "NOTIFICATION_TYPE_ALERT"
+                "NOTIFICATION_TYPE_ALERT",
+                "NOTIFICATION_TYPE_PAYMENTS",
+                "NOTIFICATION_TYPE_SECURITY",
+                "NOTIFICATION_TYPE_GENERAL"
             ]
         },
         "dto.OTPInfo": {
@@ -16188,6 +22821,218 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.PlayerTransaction": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "description": "Only for GrooveTech transactions",
+                    "type": "string"
+                },
+                "actual_win": {
+                    "type": "number"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "bet_mode": {
+                    "type": "string"
+                },
+                "bet_reference_num": {
+                    "description": "Sports betting specific fields",
+                    "type": "string"
+                },
+                "cash_out_multiplier": {
+                    "type": "number"
+                },
+                "category": {
+                    "description": "gaming, sports, general",
+                    "type": "string"
+                },
+                "client_transaction_id": {
+                    "description": "General betting fields",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "device": {
+                    "type": "string"
+                },
+                "game_id": {
+                    "description": "Game-specific information from metadata",
+                    "type": "string"
+                },
+                "game_name": {
+                    "type": "string"
+                },
+                "game_reference": {
+                    "type": "string"
+                },
+                "house_edge": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_loss": {
+                    "description": "true if amount \u003c 0 and type is wager",
+                    "type": "boolean"
+                },
+                "is_win": {
+                    "description": "Calculated fields",
+                    "type": "boolean"
+                },
+                "metadata": {
+                    "description": "JSON string of additional data",
+                    "type": "string"
+                },
+                "net_result": {
+                    "description": "calculated net result for this transaction",
+                    "type": "number"
+                },
+                "odds": {
+                    "type": "number"
+                },
+                "payout": {
+                    "type": "number"
+                },
+                "placed_at": {
+                    "type": "string"
+                },
+                "potential_win": {
+                    "type": "number"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "round_id": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "settled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                },
+                "transaction_type": {
+                    "description": "human-readable transaction type",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "wager, result, rollback, jackpot, bet, sport_bet",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.PlayerTransactionHistoryResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "transactions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PlayerTransaction"
+                    }
+                }
+            }
+        },
+        "dto.PlayerTransactionHistoryWithSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "summary": {
+                    "$ref": "#/definitions/dto.PlayerTransactionSummary"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "transactions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PlayerTransaction"
+                    }
+                }
+            }
+        },
+        "dto.PlayerTransactionSummary": {
+            "type": "object",
+            "properties": {
+                "average_bet": {
+                    "type": "number"
+                },
+                "first_transaction": {
+                    "type": "string"
+                },
+                "last_transaction": {
+                    "type": "string"
+                },
+                "loss_count": {
+                    "type": "integer"
+                },
+                "max_loss": {
+                    "type": "number"
+                },
+                "max_win": {
+                    "type": "number"
+                },
+                "net_result": {
+                    "type": "number"
+                },
+                "total_losses": {
+                    "type": "number"
+                },
+                "total_wagers": {
+                    "type": "number"
+                },
+                "total_wins": {
+                    "type": "number"
+                },
+                "transaction_count": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "win_count": {
+                    "type": "integer"
+                },
+                "win_rate": {
+                    "description": "percentage of winning transactions",
+                    "type": "number"
+                }
+            }
+        },
         "dto.PlinkoBetHistoryRes": {
             "type": "object",
             "properties": {
@@ -16304,6 +23149,117 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "dto.RakebackScheduleResponse": {
+            "type": "object",
+            "properties": {
+                "activated_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "deactivated_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "percentage": {
+                    "type": "number"
+                },
+                "scope_type": {
+                    "type": "string"
+                },
+                "scope_value": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "time_remaining": {
+                    "type": "string"
+                },
+                "time_until_start": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RecipientResponse": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivered_at": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "notification_id": {
+                    "type": "string"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/dto.RecipientStatus"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RecipientStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "sent",
+                "delivered",
+                "read",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "RECIPIENT_STATUS_PENDING",
+                "RECIPIENT_STATUS_SENT",
+                "RECIPIENT_STATUS_DELIVERED",
+                "RECIPIENT_STATUS_READ",
+                "RECIPIENT_STATUS_FAILED"
+            ]
         },
         "dto.ReferalUpdateResp": {
             "type": "object",
@@ -16443,6 +23399,21 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ReorderTiersRequest": {
+            "type": "object",
+            "required": [
+                "tier_order"
+            ],
+            "properties": {
+                "tier_order": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dto.ResendOTPRequest": {
             "type": "object",
             "required": [
@@ -16470,6 +23441,40 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "resend_after": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ResendRegistrationOTPRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ResendRegistrationOTPResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "otp_id": {
+                    "type": "string"
+                },
+                "resend_after": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
@@ -16722,6 +23727,19 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "dto.SegmentType": {
+            "type": "string",
+            "enum": [
+                "criteria",
+                "csv",
+                "all_users"
+            ],
+            "x-enum-varnames": [
+                "SEGMENT_TYPE_CRITERIA",
+                "SEGMENT_TYPE_CSV",
+                "SEGMENT_TYPE_ALL_USERS"
+            ]
         },
         "dto.SelectQuickHustlePossibilityReq": {
             "type": "object",
@@ -17167,6 +24185,96 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.TransactionSummary": {
+            "type": "object",
+            "properties": {
+                "avg_transaction_value": {
+                    "type": "number"
+                },
+                "bet_count": {
+                    "type": "integer"
+                },
+                "deposit_count": {
+                    "type": "integer"
+                },
+                "failed_transactions": {
+                    "type": "integer"
+                },
+                "success_rate": {
+                    "type": "number"
+                },
+                "successful_transactions": {
+                    "type": "integer"
+                },
+                "total_transactions": {
+                    "type": "integer"
+                },
+                "total_volume": {
+                    "type": "number"
+                },
+                "win_count": {
+                    "type": "integer"
+                },
+                "withdrawal_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TwoFactorDisableRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.TwoFactorResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dto.TwoFactorSetupRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.TwoFactorVerifyRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "backup_code": {
+                    "type": "string"
+                },
+                "method": {
+                    "description": "Method can be: totp, email_otp, sms_otp, backup_codes",
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.Type": {
             "type": "string",
             "enum": [
@@ -17179,6 +24287,49 @@ const docTemplate = `{
                 "OTG_AGENT",
                 "INFLUENCER"
             ]
+        },
+        "dto.UpdateAdminUserReq": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "is_admin": {
+                    "type": "boolean"
+                },
+                "last_name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 2
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ACTIVE",
+                        "INACTIVE"
+                    ]
+                },
+                "user_type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
+                }
+            }
         },
         "dto.UpdateAirtimeStatusReq": {
             "type": "object",
@@ -17243,6 +24394,26 @@ const docTemplate = `{
                 "tagline": {
                     "type": "string",
                     "maxLength": 500
+                }
+            }
+        },
+        "dto.UpdateCampaignRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/dto.CampaignStatus"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -17414,6 +24585,49 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.UpdateGameRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "game_id": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "integration_partner": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "internal_name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "photo": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "ACTIVE",
+                        "INACTIVE",
+                        "MAINTENANCE"
+                    ]
+                }
+            }
+        },
         "dto.UpdateLevelRequirementReq": {
             "type": "object",
             "properties": {
@@ -17493,11 +24707,20 @@ const docTemplate = `{
                 "date_of_birth": {
                     "type": "string"
                 },
+                "default_currency": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "first_name": {
                     "type": "string"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "is_test_account": {
+                    "type": "boolean"
                 },
                 "kyc_status": {
                     "type": "string"
@@ -17514,7 +24737,46 @@ const docTemplate = `{
                 "state": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "street_address": {
+                    "type": "string"
+                },
+                "wallet_verification_status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateRakebackScheduleRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "percentage": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "scope_type": {
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "provider",
+                        "game"
+                    ]
+                },
+                "scope_value": {
+                    "type": "string"
+                },
+                "start_time": {
                     "type": "string"
                 }
             }
@@ -17625,9 +24887,6 @@ const docTemplate = `{
         },
         "dto.User": {
             "type": "object",
-            "required": [
-                "phone_number"
-            ],
             "properties": {
                 "accounts": {
                     "type": "array",
@@ -17658,6 +24917,12 @@ const docTemplate = `{
                 },
                 "first_name": {
                     "type": "string"
+                },
+                "is_email_verified": {
+                    "type": "boolean"
+                },
+                "is_test_account": {
+                    "type": "boolean"
                 },
                 "kyc_status": {
                     "type": "string"
@@ -17698,6 +24963,63 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                },
+                "vip_level": {
+                    "type": "string"
+                },
+                "wallet_verification_status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UserCashbackSummary": {
+            "type": "object",
+            "properties": {
+                "available_cashback": {
+                    "type": "number"
+                },
+                "current_tier": {
+                    "$ref": "#/definitions/dto.CashbackTier"
+                },
+                "daily_limit": {
+                    "type": "number"
+                },
+                "effective_cashback_percent": {
+                    "type": "number"
+                },
+                "global_override_active": {
+                    "type": "boolean"
+                },
+                "happy_hour_message": {
+                    "type": "string"
+                },
+                "level_progress": {
+                    "type": "number"
+                },
+                "monthly_limit": {
+                    "type": "number"
+                },
+                "next_tier_ggr": {
+                    "type": "number"
+                },
+                "pending_cashback": {
+                    "type": "number"
+                },
+                "special_benefits": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "total_claimed": {
+                    "type": "number"
+                },
+                "total_ggr": {
+                    "type": "number"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "weekly_limit": {
+                    "type": "number"
                 }
             }
         },
@@ -17751,8 +25073,26 @@ const docTemplate = `{
                 "access_token": {
                     "type": "string"
                 },
+                "available_2fa_methods": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "message": {
                     "type": "string"
+                },
+                "requires_2fa": {
+                    "type": "boolean"
+                },
+                "requires_2fa_setup": {
+                    "type": "boolean"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_profile": {
+                    "$ref": "#/definitions/dto.UserProfile"
                 }
             }
         },
@@ -17841,6 +25181,9 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -17906,6 +25249,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "otp": {
+                    "type": "string"
+                },
+                "otp_id": {
                     "type": "string"
                 },
                 "phone_number": {
@@ -18036,6 +25382,9 @@ const docTemplate = `{
                 "wallet_type"
             ],
             "properties": {
+                "chain_type": {
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 },
@@ -18077,6 +25426,10 @@ const docTemplate = `{
                 "wallet_type"
             ],
             "properties": {
+                "chain_type": {
+                    "description": "\u003c-- THE FINAL FIX IS HERE",
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 },

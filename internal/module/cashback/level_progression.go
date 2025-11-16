@@ -99,10 +99,67 @@ func (s *LevelProgressionService) CheckAndProcessLevelProgression(ctx context.Co
 		return updatedUserLevel, nil
 	}
 
+	// User is already at appropriate level, but we still need to update progress
+	// Calculate level progress using the correct formula: Progress = (CurrentGGR - CurrentTierMin) / (NextTierMin - CurrentTierMin)
+	var levelProgress decimal.Decimal
+	if highestQualifyingTier.TierLevel < 5 { // Not the highest tier
+		// Find next tier for progress calculation
+		nextTier, err := s.storage.GetCashbackTierByLevel(ctx, highestQualifyingTier.TierLevel+1)
+		if err == nil && nextTier != nil {
+			// Calculate progress: (CurrentGGR - CurrentTierMin) / (NextTierMin - CurrentTierMin)
+			currentTierMin := highestQualifyingTier.MinExpectedGGRRequired
+			nextTierMin := nextTier.MinExpectedGGRRequired
+			currentGGR := userLevel.TotalExpectedGGR
+
+			progressNumerator := currentGGR.Sub(currentTierMin)
+			progressDenominator := nextTierMin.Sub(currentTierMin)
+
+			if progressDenominator.GreaterThan(decimal.Zero) {
+				levelProgress = progressNumerator.Div(progressDenominator)
+				if levelProgress.GreaterThan(decimal.NewFromInt(1)) {
+					levelProgress = decimal.NewFromInt(1) // Cap at 100%
+				}
+				if levelProgress.LessThan(decimal.Zero) {
+					levelProgress = decimal.Zero // Ensure non-negative
+				}
+			}
+		}
+	} else {
+		levelProgress = decimal.NewFromInt(1) // 100% for highest tier
+	}
+
+	// Update user level with correct progress even if not being promoted
+	if !levelProgress.Equal(userLevel.LevelProgress) {
+		now := time.Now()
+		updatedUserLevel := dto.UserLevel{
+			ID:               userLevel.ID,
+			UserID:           userLevel.UserID,
+			CurrentLevel:     userLevel.CurrentLevel,
+			TotalExpectedGGR: userLevel.TotalExpectedGGR,
+			TotalBets:        userLevel.TotalBets,
+			TotalWins:        userLevel.TotalWins,
+			LevelProgress:    levelProgress,
+			CurrentTierID:    userLevel.CurrentTierID,
+			LastLevelUp:      userLevel.LastLevelUp,
+			CreatedAt:        userLevel.CreatedAt,
+			UpdatedAt:        now,
+		}
+
+		// Save updated user level
+		savedUserLevel, err := s.storage.UpdateUserLevel(ctx, updatedUserLevel)
+		if err != nil {
+			s.logger.Error("Failed to update user level progress", zap.Error(err))
+			// Don't fail, just log the error
+		} else {
+			userLevel = &savedUserLevel
+		}
+	}
+
 	s.logger.Info("User already at appropriate level",
 		zap.String("user_id", userID.String()),
 		zap.Int("current_level", userLevel.CurrentLevel),
-		zap.String("current_tier", highestQualifyingTier.TierName))
+		zap.String("current_tier", highestQualifyingTier.TierName),
+		zap.String("level_progress", levelProgress.String()))
 
 	return userLevel, nil
 }
@@ -115,22 +172,32 @@ func (s *LevelProgressionService) processLevelProgression(ctx context.Context, u
 		zap.Int("to_level", newTier.TierLevel),
 		zap.String("new_tier", newTier.TierName))
 
-	// Calculate level progress percentage
+	// Calculate level progress percentage using the correct formula:
+	// Progress = (CurrentGGR - CurrentTierMin) / (NextTierMin - CurrentTierMin)
+	// Where:
+	// - CurrentGGR = userLevel.TotalExpectedGGR (user's total expected GGR)
+	// - CurrentTierMin = newTier.MinExpectedGGRRequired (minimum GGR required for current tier)
+	// - NextTierMin = next tier's MinExpectedGGRRequired (minimum GGR required for next tier)
 	var levelProgress decimal.Decimal
 	if newTier.TierLevel < 5 { // Not the highest tier
 		// Find next tier for progress calculation
 		nextTier, err := s.storage.GetCashbackTierByLevel(ctx, newTier.TierLevel+1)
 		if err == nil && nextTier != nil {
-			// Calculate progress: (current_expected_ggr - current_tier_min) / (next_tier_min - current_tier_min)
+			// Calculate progress: (CurrentGGR - CurrentTierMin) / (NextTierMin - CurrentTierMin)
+			currentGGR := userLevel.TotalExpectedGGR
 			currentTierMin := newTier.MinExpectedGGRRequired
 			nextTierMin := nextTier.MinExpectedGGRRequired
-			progressNumerator := userLevel.TotalExpectedGGR.Sub(currentTierMin)
+
+			progressNumerator := currentGGR.Sub(currentTierMin)
 			progressDenominator := nextTierMin.Sub(currentTierMin)
 
 			if progressDenominator.GreaterThan(decimal.Zero) {
 				levelProgress = progressNumerator.Div(progressDenominator)
 				if levelProgress.GreaterThan(decimal.NewFromInt(1)) {
 					levelProgress = decimal.NewFromInt(1) // Cap at 100%
+				}
+				if levelProgress.LessThan(decimal.Zero) {
+					levelProgress = decimal.Zero // Ensure non-negative
 				}
 			}
 		}

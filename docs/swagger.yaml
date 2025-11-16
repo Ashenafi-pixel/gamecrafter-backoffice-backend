@@ -1,4 +1,87 @@
 definitions:
+  analytics.SendConfiguredDailyReportEmailRequest:
+    properties:
+      date:
+        description: Date in YYYY-MM-DD format (optional, defaults to yesterday)
+        example: "2025-01-15"
+        type: string
+    type: object
+  analytics.SendDailyReportEmailRequest:
+    properties:
+      date:
+        description: Date in YYYY-MM-DD format
+        example: "2025-01-15"
+        type: string
+      recipients:
+        description: Email recipients
+        example:
+        - admin@example.com
+        - manager@example.com
+        items:
+          type: string
+        type: array
+    required:
+    - date
+    - recipients
+    type: object
+  analytics.SendDailyReportRequest:
+    properties:
+      auto_schedule:
+        description: Whether to schedule future automatic sending
+        type: boolean
+      date:
+        description: Date in YYYY-MM-DD format (optional, defaults to yesterday if
+          empty)
+        type: string
+      include_top_games:
+        description: Include top games section in report
+        type: boolean
+      include_top_players:
+        description: Include top players section in report
+        type: boolean
+      recipients:
+        description: Email recipients
+        items:
+          type: string
+        type: array
+      send_frequency:
+        description: Daily, Weekly, Monthly frequency
+        type: string
+      time_of_day:
+        description: Hour of day to send (0-23)
+        type: integer
+      timezone:
+        description: 'Timezone for sending time (default: UTC)'
+        type: string
+    required:
+    - recipients
+    type: object
+  analytics.SendLastWeekReportEmailRequest:
+    properties:
+      recipients:
+        description: Email recipients
+        example:
+        - admin@example.com
+        - manager@example.com
+        items:
+          type: string
+        type: array
+    required:
+    - recipients
+    type: object
+  analytics.SendYesterdayReportEmailRequest:
+    properties:
+      recipients:
+        description: Email recipients
+        example:
+        - admin@example.com
+        - manager@example.com
+        items:
+          type: string
+        type: array
+    required:
+    - recipients
+    type: object
   dto.AccountBlockReq:
     properties:
       blocked_from:
@@ -126,22 +209,73 @@ definitions:
     type: object
   dto.Admin:
     properties:
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      date_of_birth:
+        type: string
+      default_currency:
+        type: string
       email:
         type: string
       first_name:
         type: string
       id:
         type: string
+      is_admin:
+        type: boolean
+      is_email_verified:
+        type: boolean
+      kyc_status:
+        type: string
       last_name:
         type: string
       phone_number:
+        type: string
+      postal_code:
         type: string
       roles:
         items:
           $ref: '#/definitions/dto.AdminRoleRes'
         type: array
+      state:
+        type: string
       status:
         type: string
+      street_address:
+        type: string
+      user_type:
+        type: string
+      username:
+        type: string
+      wallet_verification_status:
+        type: string
+    type: object
+  dto.AdminCashbackStats:
+    properties:
+      average_cashback_rate:
+        type: number
+      daily_cashback_claims:
+        type: number
+      monthly_cashback_claims:
+        type: number
+      tier_distribution:
+        additionalProperties:
+          type: integer
+        type: object
+      total_cashback_claimed:
+        type: number
+      total_cashback_earned:
+        type: number
+      total_cashback_pending:
+        type: number
+      total_users_with_cashback:
+        type: integer
+      weekly_cashback_claims:
+        type: number
     type: object
   dto.AdminGetBalanceLogsReq:
     properties:
@@ -289,6 +423,16 @@ definitions:
       total_redemptions:
         type: number
     type: object
+  dto.AnalyticsResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      meta:
+        $ref: '#/definitions/dto.Meta'
+      success:
+        type: boolean
+    type: object
   dto.AssignDepartmentToUserReq:
     properties:
       department_id:
@@ -316,20 +460,28 @@ definitions:
     type: object
   dto.Balance:
     properties:
-      bonus_money:
+      amount_cents:
+        description: amount in cents
+        type: integer
+      amount_units:
+        description: amount in units
         type: number
-      currency:
+      currency_code:
         type: string
       id:
         type: string
-      real_money:
+      reserved_cents:
+        description: reserved amount in cents
+        type: integer
+      reserved_units:
+        description: reserved amount in units
         type: number
       updated_at:
         type: string
       user_id:
         type: string
     required:
-    - currency
+    - currency_code
     type: object
   dto.BalanceLogFilter:
     properties:
@@ -510,6 +662,158 @@ definitions:
       winnings:
         type: string
     type: object
+  dto.BulkUpdateGameStatusRequest:
+    properties:
+      game_ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      status:
+        enum:
+        - ACTIVE
+        - INACTIVE
+        - MAINTENANCE
+        type: string
+    required:
+    - game_ids
+    - status
+    type: object
+  dto.BulkUpdateHouseEdgeRequest:
+    properties:
+      house_edge_ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      is_active:
+        type: boolean
+    required:
+    - house_edge_ids
+    type: object
+  dto.CampaignNotificationDashboardItem:
+    properties:
+      campaign_id:
+        type: string
+      campaign_title:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      delivered:
+        type: boolean
+      email:
+        type: string
+      id:
+        type: string
+      read:
+        type: boolean
+      read_at:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.CampaignNotificationStats:
+    properties:
+      delivered_notifications:
+        type: integer
+      delivery_rate:
+        type: number
+      read_notifications:
+        type: integer
+      read_rate:
+        type: number
+      total_notifications:
+        type: integer
+      unread_notifications:
+        type: integer
+    type: object
+  dto.CampaignNotificationsDashboardResponse:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/dto.CampaignNotificationDashboardItem'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      stats:
+        $ref: '#/definitions/dto.CampaignNotificationStats'
+      total:
+        type: integer
+    type: object
+  dto.CampaignResponse:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      delivered_count:
+        type: integer
+      id:
+        type: string
+      message_type:
+        $ref: '#/definitions/dto.NotificationType'
+      read_count:
+        type: integer
+      scheduled_at:
+        type: string
+      sent_at:
+        type: string
+      status:
+        $ref: '#/definitions/dto.CampaignStatus'
+      subject:
+        type: string
+      title:
+        type: string
+      total_recipients:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  dto.CampaignStatsResponse:
+    properties:
+      campaign_id:
+        type: string
+      delivered_count:
+        type: integer
+      delivery_rate:
+        type: number
+      failed_count:
+        type: integer
+      read_count:
+        type: integer
+      read_rate:
+        type: number
+      sent_count:
+        type: integer
+      total_recipients:
+        type: integer
+    type: object
+  dto.CampaignStatus:
+    enum:
+    - draft
+    - scheduled
+    - sending
+    - sent
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - CAMPAIGN_STATUS_DRAFT
+    - CAMPAIGN_STATUS_SCHEDULED
+    - CAMPAIGN_STATUS_SENDING
+    - CAMPAIGN_STATUS_SENT
+    - CAMPAIGN_STATUS_CANCELLED
   dto.CancelBetReq:
     properties:
       round_id:
@@ -550,6 +854,234 @@ definitions:
         type: string
       payout:
         type: number
+    type: object
+  dto.CashbackClaim:
+    properties:
+      admin_notes:
+        type: string
+      claim_amount:
+        type: number
+      claimed_earnings:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      currency_code:
+        type: string
+      id:
+        type: string
+      net_amount:
+        type: number
+      processed_at:
+        type: string
+      processing_fee:
+        type: number
+      status:
+        type: string
+      transaction_id:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.CashbackClaimRequest:
+    properties:
+      amount:
+        type: number
+    required:
+    - amount
+    type: object
+  dto.CashbackClaimResponse:
+    properties:
+      amount:
+        type: number
+      claim_id:
+        type: string
+      message:
+        type: string
+      net_amount:
+        type: number
+      processing_fee:
+        type: number
+      status:
+        type: string
+    type: object
+  dto.CashbackEarning:
+    properties:
+      available_amount:
+        type: number
+      cashback_rate:
+        type: number
+      claimed_amount:
+        type: number
+      claimed_at:
+        type: string
+      created_at:
+        type: string
+      earned_amount:
+        type: number
+      earning_type:
+        type: string
+      expected_ggr_amount:
+        type: number
+      expires_at:
+        type: string
+      id:
+        type: string
+      source_bet_id:
+        type: string
+      status:
+        type: string
+      tier_id:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.CashbackPromotion:
+    properties:
+      bonus_amount:
+        type: number
+      boost_multiplier:
+        type: number
+      created_at:
+        type: string
+      description:
+        type: string
+      ends_at:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      max_bonus_amount:
+        type: number
+      min_bet_amount:
+        type: number
+      promotion_name:
+        type: string
+      promotion_type:
+        type: string
+      starts_at:
+        type: string
+      target_games:
+        items:
+          type: string
+        type: array
+      target_tiers:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+    type: object
+  dto.CashbackPromotionRequest:
+    properties:
+      bonus_amount:
+        minimum: 0
+        type: number
+      boost_multiplier:
+        minimum: 1
+        type: number
+      description:
+        type: string
+      ends_at:
+        type: string
+      is_active:
+        type: boolean
+      max_bonus_amount:
+        type: number
+      min_bet_amount:
+        minimum: 0
+        type: number
+      promotion_name:
+        type: string
+      promotion_type:
+        enum:
+        - boost
+        - bonus
+        - special
+        type: string
+      starts_at:
+        type: string
+      target_games:
+        items:
+          type: string
+        type: array
+      target_tiers:
+        items:
+          type: integer
+        type: array
+    required:
+    - boost_multiplier
+    - promotion_name
+    - promotion_type
+    - starts_at
+    type: object
+  dto.CashbackTier:
+    properties:
+      bonus_multiplier:
+        type: number
+      cashback_percentage:
+        type: number
+      created_at:
+        type: string
+      daily_cashback_limit:
+        type: number
+      id:
+        type: string
+      is_active:
+        type: boolean
+      min_expected_ggr_required:
+        type: number
+      monthly_cashback_limit:
+        type: number
+      player_count:
+        type: integer
+      special_benefits:
+        additionalProperties: true
+        type: object
+      tier_level:
+        type: integer
+      tier_name:
+        type: string
+      updated_at:
+        type: string
+      weekly_cashback_limit:
+        type: number
+    type: object
+  dto.CashbackTierUpdateRequest:
+    properties:
+      bonus_multiplier:
+        minimum: 1
+        type: number
+      cashback_percentage:
+        maximum: 100
+        minimum: 0
+        type: number
+      daily_cashback_limit:
+        type: number
+      is_active:
+        type: boolean
+      min_ggr_required:
+        minimum: 0
+        type: number
+      monthly_cashback_limit:
+        type: number
+      special_benefits:
+        additionalProperties: true
+        type: object
+      tier_name:
+        type: string
+      weekly_cashback_limit:
+        type: number
+    required:
+    - bonus_multiplier
+    - cashback_percentage
+    - min_ggr_required
+    - tier_name
     type: object
   dto.ChangePasswordReq:
     properties:
@@ -769,6 +1301,60 @@ definitions:
         example: Adds service created successfully
         type: string
     type: object
+  dto.CreateAdminUserReq:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      date_of_birth:
+        type: string
+      default_currency:
+        type: string
+      email:
+        type: string
+      first_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      is_admin:
+        type: boolean
+      is_email_verified:
+        type: boolean
+      kyc_status:
+        type: string
+      last_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      postal_code:
+        type: string
+      state:
+        type: string
+      status:
+        type: string
+      street_address:
+        type: string
+      user_type:
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+      wallet_verification_status:
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    - username
+    type: object
   dto.CreateAgentProviderReq:
     properties:
       callback_url:
@@ -830,6 +1416,47 @@ definitions:
     - image_url
     - page
     - page_url
+    type: object
+  dto.CreateCampaignRequest:
+    properties:
+      content:
+        maxLength: 5000
+        minLength: 1
+        type: string
+      message_type:
+        allOf:
+        - $ref: '#/definitions/dto.NotificationType'
+        enum:
+        - promotional
+        - kyc
+        - bonus
+        - welcome
+        - system
+        - alert
+        - payments
+        - security
+        - general
+      scheduled_at:
+        type: string
+      segments:
+        items:
+          $ref: '#/definitions/dto.CreateSegmentRequest'
+        minItems: 1
+        type: array
+      subject:
+        maxLength: 255
+        minLength: 1
+        type: string
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - content
+    - message_type
+    - segments
+    - subject
+    - title
     type: object
   dto.CreateCompanyReq:
     properties:
@@ -963,6 +1590,40 @@ definitions:
           type: string
         type: array
     type: object
+  dto.CreateGameRequest:
+    properties:
+      enabled:
+        type: boolean
+      game_id:
+        maxLength: 50
+        type: string
+      integration_partner:
+        maxLength: 100
+        type: string
+      internal_name:
+        maxLength: 255
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      photo:
+        type: string
+      price:
+        type: string
+      provider:
+        maxLength: 100
+        type: string
+      status:
+        enum:
+        - ACTIVE
+        - INACTIVE
+        - MAINTENANCE
+        type: string
+    required:
+    - name
+    - status
+    type: object
   dto.CreateLootBoxReq:
     properties:
       prize_type:
@@ -1032,6 +1693,35 @@ definitions:
       bet_amount:
         type: number
     type: object
+  dto.CreateRakebackScheduleRequest:
+    properties:
+      description:
+        type: string
+      end_time:
+        type: string
+      name:
+        type: string
+      percentage:
+        maximum: 100
+        minimum: 0
+        type: number
+      scope_type:
+        enum:
+        - all
+        - provider
+        - game
+        type: string
+      scope_value:
+        type: string
+      start_time:
+        type: string
+    required:
+    - end_time
+    - name
+    - percentage
+    - scope_type
+    - start_time
+    type: object
   dto.CreateRoleReq:
     properties:
       name:
@@ -1060,6 +1750,23 @@ definitions:
         $ref: '#/definitions/dto.RollDaDiceRespData'
       message:
         type: string
+    type: object
+  dto.CreateSegmentRequest:
+    properties:
+      criteria: {}
+      csv_data:
+        type: string
+      segment_name:
+        type: string
+      segment_type:
+        allOf:
+        - $ref: '#/definitions/dto.SegmentType'
+        enum:
+        - criteria
+        - csv
+        - all_users
+    required:
+    - segment_type
     type: object
   dto.CreateSpinningWheelConfigReq:
     properties:
@@ -1336,6 +2043,8 @@ definitions:
         type: string
       type:
         type: string
+      username:
+        type: string
     type: object
   dto.EditProfileAdminReq:
     properties:
@@ -1343,10 +2052,18 @@ definitions:
         type: string
       country:
         type: string
+      date_of_birth:
+        type: string
+      default_currency:
+        type: string
       email:
         type: string
       first_name:
         type: string
+      is_email_verified:
+        type: boolean
+      is_test_account:
+        type: boolean
       kyc_status:
         type: string
       last_name:
@@ -1357,11 +2074,15 @@ definitions:
         type: string
       state:
         type: string
+      status:
+        type: string
       street_address:
         type: string
       user_id:
         type: string
       username:
+        type: string
+      wallet_verification_status:
         type: string
     type: object
   dto.EditProfileAdminRes:
@@ -1604,6 +2325,29 @@ definitions:
       message:
         type: string
     type: object
+  dto.FalconMessageSummary:
+    properties:
+      acknowledged_messages:
+        type: integer
+      average_house_edge:
+        type: number
+      disputed_messages:
+        type: integer
+      failed_messages:
+        type: integer
+      last_message_at:
+        type: string
+      pending_messages:
+        type: integer
+      sent_messages:
+        type: integer
+      total_bet_amount:
+        type: number
+      total_messages:
+        type: integer
+      total_payout_amount:
+        type: number
+    type: object
   dto.FinancialMatrix:
     properties:
       average_transaction_values:
@@ -1618,6 +2362,11 @@ definitions:
         type: number
       total_withdrawal_amount:
         type: number
+    type: object
+  dto.FlexibleTime:
+    properties:
+      time.Time:
+        type: string
     type: object
   dto.FootballCardMultiplier:
     properties:
@@ -1723,21 +2472,173 @@ definitions:
     type: object
   dto.ForgetPasswordRes:
     properties:
+      email:
+        type: string
       message:
+        type: string
+      otp_id:
         type: string
     type: object
   dto.Game:
     properties:
       enabled:
         type: boolean
+      game_type:
+        type: string
       id:
         type: string
       name:
         type: string
       photo:
         type: string
+      popularity:
+        type: integer
+      provider:
+        type: string
+      rtp:
+        type: number
       status:
         type: string
+      total_players:
+        type: integer
+      total_rounds:
+        type: integer
+      total_wagered:
+        type: number
+      total_won:
+        type: number
+    type: object
+  dto.GameHouseEdge:
+    properties:
+      created_at:
+        type: string
+      effective_from:
+        type: string
+      effective_until:
+        type: string
+      game_type:
+        type: string
+      game_variant:
+        type: string
+      house_edge:
+        type: number
+      id:
+        type: string
+      is_active:
+        type: boolean
+      max_bet:
+        type: number
+      min_bet:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  dto.GameHouseEdgeListResponse:
+    properties:
+      house_edges:
+        items:
+          $ref: '#/definitions/dto.GameHouseEdgeResponse'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total_count:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  dto.GameHouseEdgeRequest:
+    properties:
+      effective_from:
+        $ref: '#/definitions/dto.FlexibleTime'
+      effective_until:
+        $ref: '#/definitions/dto.FlexibleTime'
+      game_id:
+        maxLength: 50
+        type: string
+      game_type:
+        enum:
+        - slot
+        - sports
+        - table
+        - live
+        - crash
+        - plinko
+        - wheel
+        type: string
+      game_variant:
+        enum:
+        - classic
+        - v1
+        - v2
+        - demo
+        - real
+        - mobile
+        - desktop
+        type: string
+      house_edge:
+        maximum: 1
+        minimum: 0
+        type: number
+      is_active:
+        type: boolean
+      max_bet:
+        minimum: 0
+        type: number
+      min_bet:
+        minimum: 0
+        type: number
+    required:
+    - game_type
+    - house_edge
+    - min_bet
+    type: object
+  dto.GameHouseEdgeResponse:
+    properties:
+      created_at:
+        type: string
+      effective_from:
+        type: string
+      effective_until:
+        type: string
+      game_id:
+        type: string
+      game_name:
+        type: string
+      game_type:
+        type: string
+      game_variant:
+        type: string
+      house_edge:
+        type: number
+      house_edge_percent:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      max_bet:
+        type: number
+      min_bet:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  dto.GameListResponse:
+    properties:
+      games:
+        items:
+          $ref: '#/definitions/dto.GameResponse'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total_count:
+        type: integer
+      total_pages:
+        type: integer
     type: object
   dto.GameMatricsRes:
     properties:
@@ -1773,6 +2674,71 @@ definitions:
       total_wins:
         type: integer
       win_percentage:
+        type: number
+    type: object
+  dto.GameResponse:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      game_id:
+        type: string
+      id:
+        type: string
+      integration_partner:
+        type: string
+      internal_name:
+        type: string
+      name:
+        type: string
+      photo:
+        type: string
+      price:
+        type: string
+      provider:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.GameStats:
+    properties:
+      avg_bet_amount:
+        type: number
+      game_id:
+        type: string
+      game_name:
+        type: string
+      net_revenue:
+        type: number
+      player_count:
+        type: integer
+      provider:
+        type: string
+      rank:
+        type: integer
+      rtp:
+        type: number
+      session_count:
+        type: integer
+      total_bets:
+        type: number
+      total_wins:
+        type: number
+    type: object
+  dto.GameSummary:
+    properties:
+      active_games:
+        type: integer
+      avg_rtp:
+        type: number
+      total_games:
+        type: integer
+      total_wagered:
         type: number
     type: object
   dto.GetAddsServicesRes:
@@ -1843,6 +2809,25 @@ definitions:
       message:
         type: string
     type: object
+  dto.GetAllManualFundsRes:
+    properties:
+      current_page:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/dto.ManualFundResData'
+        type: array
+      message:
+        type: string
+      per_page:
+        type: integer
+      total:
+        type: integer
+      total_funds_usd:
+        type: string
+      total_pages:
+        type: integer
+    type: object
   dto.GetBalanceLogRes:
     properties:
       data:
@@ -1897,6 +2882,32 @@ definitions:
         type: string
       user_id:
         type: string
+    type: object
+  dto.GetCampaignRecipientsResponse:
+    properties:
+      page:
+        type: integer
+      per_page:
+        type: integer
+      recipients:
+        items:
+          $ref: '#/definitions/dto.RecipientResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  dto.GetCampaignsResponse:
+    properties:
+      campaigns:
+        items:
+          $ref: '#/definitions/dto.CampaignResponse'
+        type: array
+      page:
+        type: integer
+      per_page:
+        type: integer
+      total:
+        type: integer
     type: object
   dto.GetClubRes:
     properties:
@@ -1994,6 +3005,13 @@ definitions:
         $ref: '#/definitions/dto.FootballMatchRound'
       total_pages:
         type: integer
+    type: object
+  dto.GetGameSummaryResp:
+    properties:
+      data:
+        $ref: '#/definitions/dto.GameSummary'
+      message:
+        type: string
     type: object
   dto.GetGamesData:
     properties:
@@ -2102,12 +3120,16 @@ definitions:
     type: object
   dto.GetNotificationsResponse:
     properties:
+      delivered_count:
+        type: integer
       message:
         type: string
       notifications:
         items:
           $ref: '#/definitions/dto.UserNotification'
         type: array
+      read_count:
+        type: integer
       total:
         type: integer
       unread_count:
@@ -2115,14 +3137,24 @@ definitions:
     type: object
   dto.GetPlayersFilter:
     properties:
-      email:
+      is_test_account:
+        type: boolean
+      kyc_status:
+        items:
+          type: string
+        type: array
+      searchterm:
         type: string
-      phone:
-        type: string
+      status:
+        items:
+          type: string
+        type: array
       user_id:
         type: string
-      username:
-        type: string
+      vip_level:
+        items:
+          type: string
+        type: array
     type: object
   dto.GetPlayersReq:
     properties:
@@ -2385,6 +3417,13 @@ definitions:
       total_pages:
         type: integer
     type: object
+  dto.GetTransactionSummaryResp:
+    properties:
+      data:
+        $ref: '#/definitions/dto.TransactionSummary'
+      message:
+        type: string
+    type: object
   dto.GetUserFootballBetRes:
     properties:
       matches:
@@ -2405,6 +3444,60 @@ definitions:
       level:
         type: integer
     type: object
+  dto.GlobalRakebackOverride:
+    properties:
+      created_at:
+        type: string
+      disabled_at:
+        type: string
+      disabled_by:
+        type: string
+      enabled_at:
+        type: string
+      enabled_by:
+        type: string
+      id:
+        type: string
+      is_enabled:
+        type: boolean
+      override_percentage:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  dto.GlobalRakebackOverrideRequest:
+    properties:
+      is_enabled:
+        type: boolean
+      override_percentage:
+        maximum: 100
+        minimum: 0
+        type: number
+    required:
+    - is_enabled
+    - override_percentage
+    type: object
+  dto.GlobalRakebackOverrideResponse:
+    properties:
+      disabled_at:
+        type: string
+      disabled_by:
+        type: string
+      disabled_by_username:
+        type: string
+      enabled_at:
+        type: string
+      enabled_by:
+        type: string
+      enabled_by_username:
+        type: string
+      is_enabled:
+        type: boolean
+      message:
+        type: string
+      override_percentage:
+        type: number
+    type: object
   dto.HighestWin:
     properties:
       bet_amount:
@@ -2419,6 +3512,19 @@ definitions:
         type: string
       win_amount:
         type: number
+    type: object
+  dto.HouseEdgeStats:
+    properties:
+      active_house_edges:
+        type: integer
+      inactive_house_edges:
+        type: integer
+      total_house_edges:
+        type: integer
+      unique_game_types:
+        type: integer
+      unique_game_variants:
+        type: integer
     type: object
   dto.IPFilter:
     properties:
@@ -2500,6 +3606,40 @@ definitions:
       status:
         type: boolean
     type: object
+  dto.LevelProgressionInfo:
+    properties:
+      current_level:
+        type: integer
+      current_tier:
+        $ref: '#/definitions/dto.CashbackTier'
+      expected_ggr_to_next_level:
+        type: number
+      last_level_up:
+        type: string
+      level_progress:
+        type: number
+      next_tier:
+        $ref: '#/definitions/dto.CashbackTier'
+      progress_to_next:
+        type: number
+      total_expected_ggr:
+        type: number
+      user_id:
+        type: string
+    type: object
+  dto.LevelProgressionResult:
+    properties:
+      error:
+        type: string
+      new_level:
+        type: integer
+      success:
+        type: boolean
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
   dto.LevelRequirement:
     properties:
       created_by:
@@ -2532,6 +3672,21 @@ definitions:
         type: array
       status:
         type: boolean
+    type: object
+  dto.ListRakebackSchedulesResponse:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      schedules:
+        items:
+          $ref: '#/definitions/dto.RakebackScheduleResponse'
+        type: array
+      total:
+        type: integer
+      total_pages:
+        type: integer
     type: object
   dto.LootBox:
     properties:
@@ -2665,6 +3820,7 @@ definitions:
       amount:
         type: number
       currency:
+        description: Make currency optional
         type: string
       note:
         type: string
@@ -2682,6 +3838,8 @@ definitions:
     type: object
   dto.ManualFundResData:
     properties:
+      admin_name:
+        type: string
       amount:
         type: number
       created_at:
@@ -2694,7 +3852,9 @@ definitions:
         type: string
       reason:
         type: string
-      user_id:
+      type:
+        type: string
+      username:
         type: string
     type: object
   dto.ManualRefundFailedRoundsData:
@@ -2751,6 +3911,17 @@ definitions:
       outcome:
         type: string
     type: object
+  dto.Meta:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      pages:
+        type: integer
+      total:
+        type: integer
+    type: object
   dto.MyRefferedUsers:
     properties:
       amount:
@@ -2798,6 +3969,9 @@ definitions:
         - Welcome
         - System
         - Alert
+        - payments
+        - security
+        - general
       user_id:
         type: string
     required:
@@ -2823,6 +3997,9 @@ definitions:
     - Welcome
     - System
     - Alert
+    - payments
+    - security
+    - general
     type: string
     x-enum-varnames:
     - NOTIFICATION_TYPE_PROMOTIONAL
@@ -2831,6 +4008,9 @@ definitions:
     - NOTIFICATION_TYPE_WELCOME
     - NOTIFICATION_TYPE_SYSTEM
     - NOTIFICATION_TYPE_ALERT
+    - NOTIFICATION_TYPE_PAYMENTS
+    - NOTIFICATION_TYPE_SECURITY
+    - NOTIFICATION_TYPE_GENERAL
   dto.OTPInfo:
     properties:
       created_at:
@@ -3216,6 +4396,150 @@ definitions:
       message:
         type: string
     type: object
+  dto.PlayerTransaction:
+    properties:
+      account_id:
+        description: Only for GrooveTech transactions
+        type: string
+      actual_win:
+        type: number
+      amount:
+        type: number
+      bet_mode:
+        type: string
+      bet_reference_num:
+        description: Sports betting specific fields
+        type: string
+      cash_out_multiplier:
+        type: number
+      category:
+        description: gaming, sports, general
+        type: string
+      client_transaction_id:
+        description: General betting fields
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      device:
+        type: string
+      game_id:
+        description: Game-specific information from metadata
+        type: string
+      game_name:
+        type: string
+      game_reference:
+        type: string
+      house_edge:
+        type: number
+      id:
+        type: string
+      is_loss:
+        description: true if amount < 0 and type is wager
+        type: boolean
+      is_win:
+        description: Calculated fields
+        type: boolean
+      metadata:
+        description: JSON string of additional data
+        type: string
+      net_result:
+        description: calculated net result for this transaction
+        type: number
+      odds:
+        type: number
+      payout:
+        type: number
+      placed_at:
+        type: string
+      potential_win:
+        type: number
+      provider:
+        type: string
+      round_id:
+        type: string
+      session_id:
+        type: string
+      settled_at:
+        type: string
+      status:
+        type: string
+      transaction_id:
+        type: string
+      transaction_type:
+        description: human-readable transaction type
+        type: string
+      type:
+        description: wager, result, rollback, jackpot, bet, sport_bet
+        type: string
+    type: object
+  dto.PlayerTransactionHistoryResponse:
+    properties:
+      has_more:
+        type: boolean
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+      transactions:
+        items:
+          $ref: '#/definitions/dto.PlayerTransaction'
+        type: array
+    type: object
+  dto.PlayerTransactionHistoryWithSummaryResponse:
+    properties:
+      has_more:
+        type: boolean
+      limit:
+        type: integer
+      offset:
+        type: integer
+      summary:
+        $ref: '#/definitions/dto.PlayerTransactionSummary'
+      total:
+        type: integer
+      transactions:
+        items:
+          $ref: '#/definitions/dto.PlayerTransaction'
+        type: array
+    type: object
+  dto.PlayerTransactionSummary:
+    properties:
+      average_bet:
+        type: number
+      first_transaction:
+        type: string
+      last_transaction:
+        type: string
+      loss_count:
+        type: integer
+      max_loss:
+        type: number
+      max_win:
+        type: number
+      net_result:
+        type: number
+      total_losses:
+        type: number
+      total_wagers:
+        type: number
+      total_wins:
+        type: number
+      transaction_count:
+        type: integer
+      user_id:
+        type: string
+      win_count:
+        type: integer
+      win_rate:
+        description: percentage of winning transactions
+        type: number
+    type: object
   dto.PlinkoBetHistoryRes:
     properties:
       games:
@@ -3292,6 +4616,82 @@ definitions:
       user_id:
         type: string
     type: object
+  dto.RakebackScheduleResponse:
+    properties:
+      activated_at:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_by_name:
+        type: string
+      deactivated_at:
+        type: string
+      description:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      percentage:
+        type: number
+      scope_type:
+        type: string
+      scope_value:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      time_remaining:
+        type: string
+      time_until_start:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.RecipientResponse:
+    properties:
+      campaign_id:
+        type: string
+      created_at:
+        type: string
+      delivered_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: string
+      notification_id:
+        type: string
+      read_at:
+        type: string
+      sent_at:
+        type: string
+      status:
+        $ref: '#/definitions/dto.RecipientStatus'
+      user_id:
+        type: string
+    type: object
+  dto.RecipientStatus:
+    enum:
+    - pending
+    - sent
+    - delivered
+    - read
+    - failed
+    type: string
+    x-enum-varnames:
+    - RECIPIENT_STATUS_PENDING
+    - RECIPIENT_STATUS_SENT
+    - RECIPIENT_STATUS_DELIVERED
+    - RECIPIENT_STATUS_READ
+    - RECIPIENT_STATUS_FAILED
   dto.ReferalUpdateResp:
     properties:
       message:
@@ -3381,6 +4781,16 @@ definitions:
       role_id:
         type: string
     type: object
+  dto.ReorderTiersRequest:
+    properties:
+      tier_order:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - tier_order
+    type: object
   dto.ResendOTPRequest:
     properties:
       email:
@@ -3399,6 +4809,28 @@ definitions:
       otp_id:
         type: string
       resend_after:
+        type: string
+    type: object
+  dto.ResendRegistrationOTPRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.ResendRegistrationOTPResponse:
+    properties:
+      email:
+        type: string
+      expires_at:
+        type: string
+      message:
+        type: string
+      otp_id:
+        type: string
+      resend_after:
+        type: string
+      user_id:
         type: string
     type: object
   dto.ResendVerificationEmailRequest:
@@ -3563,6 +4995,16 @@ definitions:
       user_id:
         type: string
     type: object
+  dto.SegmentType:
+    enum:
+    - criteria
+    - csv
+    - all_users
+    type: string
+    x-enum-varnames:
+    - SEGMENT_TYPE_CRITERIA
+    - SEGMENT_TYPE_CSV
+    - SEGMENT_TYPE_ALL_USERS
   dto.SelectQuickHustlePossibilityReq:
     properties:
       id:
@@ -3861,6 +5303,65 @@ definitions:
       updated_at:
         type: string
     type: object
+  dto.TransactionSummary:
+    properties:
+      avg_transaction_value:
+        type: number
+      bet_count:
+        type: integer
+      deposit_count:
+        type: integer
+      failed_transactions:
+        type: integer
+      success_rate:
+        type: number
+      successful_transactions:
+        type: integer
+      total_transactions:
+        type: integer
+      total_volume:
+        type: number
+      win_count:
+        type: integer
+      withdrawal_count:
+        type: integer
+    type: object
+  dto.TwoFactorDisableRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+  dto.TwoFactorResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  dto.TwoFactorSetupRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
+  dto.TwoFactorVerifyRequest:
+    properties:
+      backup_code:
+        type: string
+      method:
+        description: 'Method can be: totp, email_otp, sms_otp, backup_codes'
+        type: string
+      token:
+        type: string
+    required:
+    - token
+    type: object
   dto.Type:
     enum:
     - PLAYER
@@ -3871,6 +5372,37 @@ definitions:
     - PLAYER
     - OTG_AGENT
     - INFLUENCER
+  dto.UpdateAdminUserReq:
+    properties:
+      email:
+        type: string
+      first_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      is_admin:
+        type: boolean
+      last_name:
+        maxLength: 50
+        minLength: 2
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      status:
+        enum:
+        - ACTIVE
+        - INACTIVE
+        type: string
+      user_type:
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    type: object
   dto.UpdateAirtimeStatusReq:
     properties:
       local_id:
@@ -3912,6 +5444,19 @@ definitions:
         type: string
       tagline:
         maxLength: 500
+        type: string
+    type: object
+  dto.UpdateCampaignRequest:
+    properties:
+      content:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        $ref: '#/definitions/dto.CampaignStatus'
+      subject:
+        type: string
+      title:
         type: string
     type: object
   dto.UpdateCompanyReq:
@@ -4028,6 +5573,37 @@ definitions:
       price:
         type: string
     type: object
+  dto.UpdateGameRequest:
+    properties:
+      enabled:
+        type: boolean
+      game_id:
+        maxLength: 50
+        type: string
+      integration_partner:
+        maxLength: 100
+        type: string
+      internal_name:
+        maxLength: 255
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      photo:
+        type: string
+      price:
+        type: string
+      provider:
+        maxLength: 100
+        type: string
+      status:
+        enum:
+        - ACTIVE
+        - INACTIVE
+        - MAINTENANCE
+        type: string
+    type: object
   dto.UpdateLevelRequirementReq:
     properties:
       id:
@@ -4079,10 +5655,16 @@ definitions:
         type: string
       date_of_birth:
         type: string
+      default_currency:
+        type: string
       email:
         type: string
       first_name:
         type: string
+      is_email_verified:
+        type: boolean
+      is_test_account:
+        type: boolean
       kyc_status:
         type: string
       last_name:
@@ -4093,7 +5675,34 @@ definitions:
         type: string
       state:
         type: string
+      status:
+        type: string
       street_address:
+        type: string
+      wallet_verification_status:
+        type: string
+    type: object
+  dto.UpdateRakebackScheduleRequest:
+    properties:
+      description:
+        type: string
+      end_time:
+        type: string
+      name:
+        type: string
+      percentage:
+        maximum: 100
+        minimum: 0
+        type: number
+      scope_type:
+        enum:
+        - all
+        - provider
+        - game
+        type: string
+      scope_value:
+        type: string
+      start_time:
         type: string
     type: object
   dto.UpdateReferralPointReq:
@@ -4185,6 +5794,10 @@ definitions:
         type: string
       first_name:
         type: string
+      is_email_verified:
+        type: boolean
+      is_test_account:
+        type: boolean
       kyc_status:
         type: string
       last_name:
@@ -4212,8 +5825,44 @@ definitions:
         $ref: '#/definitions/dto.Type'
       username:
         type: string
-    required:
-    - phone_number
+      vip_level:
+        type: string
+      wallet_verification_status:
+        type: string
+    type: object
+  dto.UserCashbackSummary:
+    properties:
+      available_cashback:
+        type: number
+      current_tier:
+        $ref: '#/definitions/dto.CashbackTier'
+      daily_limit:
+        type: number
+      effective_cashback_percent:
+        type: number
+      global_override_active:
+        type: boolean
+      happy_hour_message:
+        type: string
+      level_progress:
+        type: number
+      monthly_limit:
+        type: number
+      next_tier_ggr:
+        type: number
+      pending_cashback:
+        type: number
+      special_benefits:
+        additionalProperties: true
+        type: object
+      total_claimed:
+        type: number
+      total_ggr:
+        type: number
+      user_id:
+        type: string
+      weekly_limit:
+        type: number
     type: object
   dto.UserFootballMatchBetReq:
     properties:
@@ -4248,8 +5897,20 @@ definitions:
     properties:
       access_token:
         type: string
+      available_2fa_methods:
+        items:
+          type: string
+        type: array
       message:
         type: string
+      requires_2fa:
+        type: boolean
+      requires_2fa_setup:
+        type: boolean
+      user_id:
+        type: string
+      user_profile:
+        $ref: '#/definitions/dto.UserProfile'
     type: object
   dto.UserNotification:
     properties:
@@ -4306,6 +5967,8 @@ definitions:
         $ref: '#/definitions/dto.Type'
       user_id:
         type: string
+      username:
+        type: string
     required:
     - phone_number
     type: object
@@ -4350,6 +6013,8 @@ definitions:
   dto.VerifyResetPasswordReq:
     properties:
       otp:
+        type: string
+      otp_id:
         type: string
       phone_number:
         type: string
@@ -4432,6 +6097,8 @@ definitions:
     type: object
   dto.WalletLoginRequest:
     properties:
+      chain_type:
+        type: string
       message:
         type: string
       nonce:
@@ -4461,6 +6128,9 @@ definitions:
     type: object
   dto.WalletVerificationRequest:
     properties:
+      chain_type:
+        description: <-- THE FINAL FIX IS HERE
+        type: string
       message:
         type: string
       nonce:
@@ -4523,6 +6193,609 @@ definitions:
 info:
   contact: {}
 paths:
+  /admin/cashback/bulk-level-progression:
+    post:
+      consumes:
+      - application/json
+      description: Processes level progression for multiple users
+      parameters:
+      - description: Array of user IDs
+        in: body
+        name: user_ids
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.LevelProgressionResult'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Process bulk level progression
+      tags:
+      - Cashback
+  /admin/cashback/global-override:
+    get:
+      consumes:
+      - application/json
+      description: Returns the current global rakeback override configuration (Happy
+        Hour mode)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GlobalRakebackOverride'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get global rakeback override
+      tags:
+      - Cashback
+    put:
+      consumes:
+      - application/json
+      description: Updates the global rakeback override configuration (Happy Hour
+        mode) - Admin only
+      parameters:
+      - description: Global rakeback override configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GlobalRakebackOverrideRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GlobalRakebackOverrideResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update global rakeback override
+      tags:
+      - Cashback
+  /admin/cashback/house-edge:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new game house edge configuration
+      parameters:
+      - description: House edge configuration
+        in: body
+        name: houseEdge
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameHouseEdge'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.GameHouseEdge'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create game house edge
+      tags:
+      - House Edge
+  /admin/cashback/promotions:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new cashback promotion (Admin only)
+      parameters:
+      - description: Cashback promotion data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CashbackPromotionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CashbackPromotion'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create cashback promotion
+      tags:
+      - Cashback
+  /admin/cashback/schedules:
+    get:
+      consumes:
+      - application/json
+      description: Lists all rakeback schedules with optional status filter and pagination
+        - Admin only
+      parameters:
+      - description: Filter by status (scheduled, active, completed, cancelled)
+        in: query
+        name: status
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListRakebackSchedulesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List rakeback schedules
+      tags:
+      - Cashback
+    post:
+      consumes:
+      - application/json
+      description: Creates a new scheduled rakeback event (Happy Hour, Weekend Boost,
+        etc.) - Admin only
+      parameters:
+      - description: Rakeback schedule configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateRakebackScheduleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.RakebackScheduleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create rakeback schedule
+      tags:
+      - Cashback
+  /admin/cashback/schedules/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Cancels a scheduled rakeback event (only if not yet active) - Admin
+        only
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete rakeback schedule
+      tags:
+      - Cashback
+    get:
+      consumes:
+      - application/json
+      description: Retrieves details of a specific rakeback schedule - Admin only
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RakebackScheduleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get rakeback schedule
+      tags:
+      - Cashback
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing scheduled rakeback event (only if not yet active)
+        - Admin only
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated schedule configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateRakebackScheduleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RakebackScheduleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update rakeback schedule
+      tags:
+      - Cashback
+  /admin/cashback/stats:
+    get:
+      consumes:
+      - application/json
+      description: Returns comprehensive statistics for the cashback system (Admin
+        only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminCashbackStats'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get cashback statistics
+      tags:
+      - Cashback
+  /admin/cashback/tiers:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new cashback tier (Admin only)
+      parameters:
+      - description: Cashback tier data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CashbackTierUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CashbackTier'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create cashback tier
+      tags:
+      - Cashback
+  /admin/cashback/tiers/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a cashback tier (Admin only)
+      parameters:
+      - description: Tier ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete cashback tier
+      tags:
+      - Cashback
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing cashback tier (Admin only)
+      parameters:
+      - description: Tier ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cashback tier data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CashbackTierUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CashbackTier'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update cashback tier
+      tags:
+      - Cashback
+  /admin/cashback/tiers/reorder:
+    post:
+      consumes:
+      - application/json
+      description: Reorders cashback tiers by updating their tier levels (Admin only)
+      parameters:
+      - description: Tier order data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ReorderTiersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reorder cashback tiers
+      tags:
+      - Cashback
   /admin/lottery/request:
     post:
       consumes:
@@ -4593,6 +6866,520 @@ paths:
       summary: Create Lottery Service
       tags:
       - Admin
+  /analytics/daily-report/cronjob-status:
+    get:
+      consumes:
+      - application/json
+      description: Get the current status of the daily report cronjob service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get cronjob status
+      tags:
+      - analytics
+  /analytics/daily-report/last-week:
+    post:
+      consumes:
+      - application/json
+      description: Send daily reports for the last 7 days to specified recipients
+      parameters:
+      - description: Last week's reports email request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/analytics.SendLastWeekReportEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Send last week's reports email
+      tags:
+      - analytics
+  /analytics/daily-report/schedule:
+    post:
+      consumes:
+      - application/json
+      description: Schedule automatic sending of daily reports at specified time
+      parameters:
+      - description: Daily report scheduling request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/analytics.SendDailyReportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Schedule daily report cronjob
+      tags:
+      - analytics
+  /analytics/daily-report/send:
+    post:
+      consumes:
+      - application/json
+      description: Send daily report email to specified recipients for a specific
+        date
+      parameters:
+      - description: Daily report email request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/analytics.SendDailyReportEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Send daily report email
+      tags:
+      - analytics
+  /analytics/daily-report/send-configured:
+    post:
+      consumes:
+      - application/json
+      description: Send daily report email to recipients configured in the system
+        (ashenafialemu27@gmail.com, johsjones612@gmail.com)
+      parameters:
+      - description: Configured daily report email request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/analytics.SendConfiguredDailyReportEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Send daily report email to configured recipients
+      tags:
+      - analytics
+  /analytics/daily-report/test:
+    post:
+      consumes:
+      - application/json
+      description: Send a test daily report to configured recipients for verification
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Send test daily report
+      tags:
+      - analytics
+  /analytics/daily-report/yesterday:
+    post:
+      consumes:
+      - application/json
+      description: Send yesterday's daily report email to specified recipients
+      parameters:
+      - description: Yesterday's report email request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/analytics.SendYesterdayReportEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Send yesterday's report email
+      tags:
+      - analytics
+  /analytics/games/top:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve top performing games
+      parameters:
+      - default: 10
+        description: Number of games to return
+        in: query
+        name: limit
+        type: integer
+      - description: Start date (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get top games
+      tags:
+      - analytics
+  /analytics/players/top:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve top players by various metrics
+      parameters:
+      - default: 10
+        description: Number of players to return
+        in: query
+        name: limit
+        type: integer
+      - description: Start date (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get top players
+      tags:
+      - analytics
+  /analytics/realtime:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve real-time statistics for the last hour
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get real-time statistics
+      tags:
+      - analytics
+  /analytics/reports/daily:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve daily analytics report for a specific date
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get daily report
+      tags:
+      - analytics
+  /analytics/reports/daily-enhanced:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve enhanced daily analytics report with comparison metrics
+        (previous day, MTD, SPLM)
+      parameters:
+      - description: Date (YYYY-MM-DD)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get enhanced daily report
+      tags:
+      - analytics
+  /analytics/reports/transactions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve transaction report with optional filters including player_id
+      parameters:
+      - description: Player ID to filter by
+        in: query
+        name: player_id
+        type: string
+      - description: Start date (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      - description: Transaction type
+        in: query
+        name: transaction_type
+        type: string
+      - description: Transaction status
+        in: query
+        name: status
+        type: string
+      - default: 100
+        description: Limit results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset results
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get transaction report
+      tags:
+      - analytics
+  /analytics/users/{user_id}/analytics:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve comprehensive analytics for a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Start date (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get user analytics
+      tags:
+      - analytics
+  /analytics/users/{user_id}/balance-history:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user balance history for the last N hours
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - default: 24
+        description: Number of hours to look back
+        in: query
+        name: hours
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get user balance history
+      tags:
+      - analytics
+  /analytics/users/{user_id}/transactions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user transactions with optional filters
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Start date (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: End date (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      - description: Transaction type
+        in: query
+        name: transaction_type
+        type: string
+      - description: Game ID
+        in: query
+        name: game_id
+        type: string
+      - description: Transaction status
+        in: query
+        name: status
+        type: string
+      - default: 100
+        description: Limit results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset results
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.AnalyticsResponse'
+      summary: Get user transactions
+      tags:
+      - analytics
   /api/adds/balance/update:
     post:
       consumes:
@@ -5052,6 +7839,21 @@ paths:
       summary: RefereshAirtimeUtilities
       tags:
       - Admin
+  /api/admin/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout a user and invalidate their session
+      produces:
+      - application/json
+      responses:
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Logout
+      tags:
+      - User
   /api/admin/balance/log/funds:
     get:
       consumes:
@@ -5829,6 +8631,140 @@ paths:
       summary: ManualRefundFailedRound
       tags:
       - Admin
+  /api/admin/falcon-liquidity/data:
+    get:
+      description: Retrieve all Falcon Liquidity messages and data without authentication
+      parameters:
+      - description: 'Limit number of results (default: 100, max: 1000)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Offset for pagination (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      - description: Filter by message type
+        in: query
+        name: message_type
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by transaction ID
+        in: query
+        name: transaction_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get All Falcon Liquidity Data
+      tags:
+      - Falcon Liquidity
+  /api/admin/falcon-liquidity/summary:
+    get:
+      description: Retrieve summary statistics for Falcon Liquidity data
+      parameters:
+      - description: Filter by message type
+        in: query
+        name: message_type
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by transaction ID
+        in: query
+        name: transaction_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.FalconMessageSummary'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Falcon Liquidity Summary
+      tags:
+      - Falcon Liquidity
+  /api/admin/falcon-liquidity/transaction/{transaction_id}:
+    get:
+      description: Retrieve Falcon Liquidity messages by specific transaction ID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Falcon Liquidity by Transaction ID
+      tags:
+      - Falcon Liquidity
+  /api/admin/falcon-liquidity/user/{user_id}:
+    get:
+      description: Retrieve Falcon Liquidity messages by specific user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: 'Limit number of results (default: 100, max: 1000)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Offset for pagination (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Falcon Liquidity by User ID
+      tags:
+      - Falcon Liquidity
   /api/admin/football/clubs:
     get:
       description: GetClubs allow admin  to get leagues
@@ -6252,22 +9188,44 @@ paths:
       tags:
       - Admin
     get:
-      description: GetGames allow user  to get games active games
+      description: Retrieve a paginated list of games with optional filtering
       parameters:
-      - description: 'Bearer <token> '
+      - description: Bearer <token>
         in: header
         name: Authorization
         required: true
         type: string
-      - description: page type (required)
+      - description: 'Page number (default: 1)'
         in: query
         name: page
-        required: true
-        type: string
-      - description: per_page type (required)
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
         in: query
         name: per_page
-        required: true
+        type: integer
+      - description: Search by name
+        in: query
+        name: search
+        type: string
+      - description: Filter by status (ACTIVE, INACTIVE, MAINTENANCE)
+        in: query
+        name: status
+        type: string
+      - description: Filter by provider
+        in: query
+        name: provider
+        type: string
+      - description: Filter by enabled status
+        in: query
+        name: enabled
+        type: boolean
+      - description: Sort by field (name, status, created_at, updated_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: sort_order
         type: string
       produces:
       - application/json
@@ -6275,44 +9233,60 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.GetGamesResp'
+            $ref: '#/definitions/dto.GameListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-      summary: GetGames
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Games
       tags:
-      - Admin
+      - Game Management
     post:
       consumes:
       - application/json
-      description: AddGame allow admin to add game
+      description: Create a new game with all necessary details
       parameters:
-      - description: 'Bearer <token> '
+      - description: Bearer <token>
         in: header
         name: Authorization
         required: true
         type: string
-      - description: add game  Request
+      - description: Game creation request
         in: body
-        name: req
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.Game'
+          $ref: '#/definitions/dto.CreateGameRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
-            $ref: '#/definitions/dto.Game'
+            $ref: '#/definitions/dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-      summary: AddGame
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create Game
       tags:
-      - Admin
+      - Game Management
     put:
       consumes:
       - application/json
@@ -6343,6 +9317,130 @@ paths:
       summary: UpdateGame
       tags:
       - Admin
+  /api/admin/games/{id}:
+    delete:
+      description: Delete a game by ID
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Game ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete Game
+      tags:
+      - Game Management
+    get:
+      description: Retrieve a specific game by its ID
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Game ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Game by ID
+      tags:
+      - Game Management
+    put:
+      consumes:
+      - application/json
+      description: Update an existing game's details
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Game ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Game update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateGameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update Game
+      tags:
+      - Game Management
   /api/admin/games/available:
     get:
       description: GetAvailableGames allow user to get available games which are not
@@ -6369,6 +9467,81 @@ paths:
       summary: GetAvailableGames
       tags:
       - Admin
+  /api/admin/games/bulk-status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of multiple games at once
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Bulk update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BulkUpdateGameStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Bulk Update Game Status
+      tags:
+      - Game Management
+  /api/admin/games/by-game-id/{game_id}:
+    get:
+      description: Retrieve a game by its game_id field (external game identifier)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: External Game ID
+        in: path
+        name: game_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Game by Game ID
+      tags:
+      - Game Management
   /api/admin/games/disable:
     post:
       consumes:
@@ -6394,6 +9567,33 @@ paths:
       summary: DisableAllGames
       tags:
       - Admin
+  /api/admin/games/stats:
+    get:
+      description: Retrieve statistics about games in the system
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameStats'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get Game Statistics
+      tags:
+      - Game Management
   /api/admin/games/status:
     put:
       consumes:
@@ -6425,6 +9625,398 @@ paths:
       summary: UpdateGameStatus
       tags:
       - Admin
+  /api/admin/games/summary:
+    get:
+      description: GetGameSummary allow admin to get game summary data for dashboard
+        cards
+      parameters:
+      - description: 'Bearer <token> '
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetGameSummaryResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: GetGameSummary
+      tags:
+      - Admin
+  /api/admin/house-edges:
+    get:
+      description: Retrieve a paginated list of house edge configurations with optional
+        filtering
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by game type
+        in: query
+        name: game_type
+        type: string
+      - description: Filter by game variant
+        in: query
+        name: game_variant
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      - description: Sort by field (game_type, game_variant, house_edge, created_at,
+          updated_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameHouseEdgeListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get House Edges
+      tags:
+      - House Edge Management
+    post:
+      consumes:
+      - application/json
+      description: Create a new house edge configuration for a game
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: House edge creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameHouseEdgeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.GameHouseEdgeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Create House Edge
+      tags:
+      - House Edge Management
+  /api/admin/house-edges/{id}:
+    delete:
+      description: Delete a house edge configuration by ID
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: House Edge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Delete House Edge
+      tags:
+      - House Edge Management
+    get:
+      description: Retrieve a specific house edge configuration by its ID
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: House Edge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameHouseEdgeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get House Edge by ID
+      tags:
+      - House Edge Management
+    put:
+      consumes:
+      - application/json
+      description: Update an existing house edge configuration
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: House Edge ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: House edge update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GameHouseEdgeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameHouseEdgeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Update House Edge
+      tags:
+      - House Edge Management
+  /api/admin/house-edges/bulk-status:
+    put:
+      consumes:
+      - application/json
+      description: Update the active status of multiple house edge configurations
+        at once
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Bulk update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BulkUpdateHouseEdgeRequest'
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Bulk Update House Edge Status
+      tags:
+      - House Edge Management
+  /api/admin/house-edges/by-game-type/{game_type}:
+    get:
+      description: Retrieve all house edge configurations for a specific game type
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Game Type
+        in: path
+        name: game_type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.GameHouseEdgeResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get House Edges by Game Type
+      tags:
+      - House Edge Management
+  /api/admin/house-edges/by-game-variant/{game_type}/{game_variant}:
+    get:
+      description: Retrieve all house edge configurations for a specific game type
+        and variant
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Game Type
+        in: path
+        name: game_type
+        required: true
+        type: string
+      - description: Game Variant
+        in: path
+        name: game_variant
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.GameHouseEdgeResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get House Edges by Game Variant
+      tags:
+      - House Edge Management
+  /api/admin/house-edges/stats:
+    get:
+      description: Retrieve statistics about house edge configurations in the system
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.HouseEdgeStats'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get House Edge Statistics
+      tags:
+      - House Edge Management
   /api/admin/ipfilters:
     delete:
       consumes:
@@ -6829,6 +10421,63 @@ paths:
       summary: DeleteLootBox
       tags:
       - bet
+  /api/admin/manual-funds:
+    get:
+      consumes:
+      - application/json
+      description: Get all manual funds for admin management with pagination and filtering
+      parameters:
+      - description: 'Bearer <token> '
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        name: per_page
+        type: integer
+      - description: Search by username, email, or transaction ID
+        in: query
+        name: search
+        type: string
+      - description: Filter by type (add_fund, remove_fund)
+        in: query
+        name: type
+        type: string
+      - description: Filter by currency
+        in: query
+        name: currency
+        type: string
+      - description: Filter from date (YYYY-MM-DD)
+        in: query
+        name: date_from
+        type: string
+      - description: Filter to date (YYYY-MM-DD)
+        in: query
+        name: date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetAllManualFundsRes'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: GetAllManualFunds
+      tags:
+      - Admin
   /api/admin/metrics/financial:
     get:
       consumes:
@@ -6889,6 +10538,49 @@ paths:
       summary: GameMatrics
       tags:
       - Admin
+  /api/admin/notifications:
+    get:
+      consumes:
+      - application/json
+      - application/json
+      description: |-
+        Mark a notification as read
+        Get paginated notifications for admin management (all users)
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetNotificationsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: GetAdminNotifications
+      tags:
+      - Notification
+      - Admin Notification
   /api/admin/operationalgroup:
     get:
       consumes:
@@ -7139,6 +10831,47 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: AdminRegisterPlayer
+      tags:
+      - Admin
+  /api/admin/rbac/users:
+    get:
+      consumes:
+      - application/json
+      description: SearchAdminUsers Retrieve list of admin users for RBAC role assignments
+      parameters:
+      - description: 'Bearer <token> '
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: page type (required)
+        in: query
+        name: page
+        required: true
+        type: string
+      - description: per-page type (required)
+        in: query
+        name: per-page
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.Admin'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: SearchAdminUsers
       tags:
       - Admin
   /api/admin/referral/bonus/config:
@@ -7770,6 +11503,31 @@ paths:
       summary: UpdateSpinningWheelMystery
       tags:
       - Admin
+  /api/admin/transactions/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get transaction summary statistics for dashboard
+      parameters:
+      - description: 'Bearer <token> '
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GetTransactionSummaryResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: GetTransactionSummary
+      tags:
+      - Admin
   /api/admin/user/block:
     post:
       consumes:
@@ -7843,6 +11601,39 @@ paths:
       tags:
       - Admin
   /api/admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Get all admin users with is_admin=true and user_type='ADMIN'
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.Admin'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: GetAdminUsers
+      tags:
+      - Admin
     patch:
       consumes:
       - application/json
@@ -7880,26 +11671,21 @@ paths:
     post:
       consumes:
       - application/json
-      description: Allows a admins to get players.
+      description: Create a new admin user with is_admin=true and user_type='ADMIN'
       parameters:
-      - description: get players req
+      - description: Create admin user request
         in: body
-        name: req
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.GetPlayersReq'
-      - description: 'Bearer <token> '
-        in: header
-        name: Authorization
-        required: true
-        type: string
+          $ref: '#/definitions/dto.CreateAdminUserReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.GetPlayersRes'
+            $ref: '#/definitions/dto.Admin'
         "400":
           description: Bad Request
           schema:
@@ -7908,7 +11694,7 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-      summary: GetUsers
+      summary: CreateAdminUser
       tags:
       - Admin
   /api/admin/users/:id/roles:
@@ -7938,6 +11724,65 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: GetRoleUsers
+      tags:
+      - Admin
+  /api/admin/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an admin user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: DeleteAdminUser
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: Update an existing admin user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update admin user request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateAdminUserReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Admin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: UpdateAdminUser
       tags:
       - Admin
   /api/admin/users/password:
@@ -8206,6 +12051,192 @@ paths:
       summary: RefereshAirtimeUtilities
       tags:
       - Airtime
+  /api/auth/2fa/disable:
+    post:
+      consumes:
+      - application/json
+      description: Disable 2FA for the user with token verification
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 2FA disable request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TwoFactorDisableRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+      summary: Disable 2FA
+      tags:
+      - Authentication
+  /api/auth/2fa/enable:
+    post:
+      consumes:
+      - application/json
+      description: Verify a TOTP token and enable 2FA for the user
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: 2FA setup request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TwoFactorSetupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+      summary: Enable 2FA
+      tags:
+      - Authentication
+  /api/auth/2fa/generate-secret:
+    post:
+      consumes:
+      - application/json
+      description: Generate a new TOTP secret and QR code for 2FA setup
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+      summary: Generate 2FA Secret
+      tags:
+      - Authentication
+  /api/auth/2fa/status:
+    get:
+      consumes:
+      - application/json
+      description: Get the current 2FA status and settings for the user
+      parameters:
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+      summary: Get 2FA Status
+      tags:
+      - Authentication
+  /api/auth/2fa/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verify a TOTP token or backup code during login
+      parameters:
+      - description: 2FA verification request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.TwoFactorVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.TwoFactorResponse'
+      summary: Verify 2FA Token
+      tags:
+      - Authentication
   /api/balance:
     get:
       consumes:
@@ -9083,7 +13114,10 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Mark a notification as read
+      - application/json
+      description: |-
+        Mark a notification as read
+        Get paginated notifications for admin management (all users)
       parameters:
       - description: Bearer <token>
         in: header
@@ -9095,20 +13129,35 @@ paths:
         name: id
         required: true
         type: string
+      - description: Bearer <token>
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
       produces:
+      - application/json
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.MarkNotificationReadResponse'
+            $ref: '#/definitions/dto.GetNotificationsResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-      summary: MarkNotificationRead
+      summary: GetAdminNotifications
       tags:
       - Notification
+      - Admin Notification
   /api/notifications/mark-all-read:
     patch:
       consumes:
@@ -9300,6 +13349,36 @@ paths:
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
       summary: Resend OTP
+      tags:
+      - OTP
+  /api/otp/resend-password-reset:
+    post:
+      consumes:
+      - application/json
+      description: Resend a password reset OTP to the specified email address
+      parameters:
+      - description: Resend password reset OTP request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ResendOTPResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Resend Password Reset OTP
       tags:
       - OTP
   /api/otp/verify:
@@ -11543,6 +15622,36 @@ paths:
       summary: Login with Wallet
       tags:
       - Wallet
+  /api/wallet/test-signature:
+    post:
+      consumes:
+      - application/json
+      description: Debug endpoint to test wallet signature verification
+      parameters:
+      - description: Wallet Verification Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.WalletVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Test Wallet Signature
+      tags:
+      - Wallet
   /api/wallet/verify:
     post:
       consumes:
@@ -11577,6 +15686,424 @@ paths:
       summary: Verify Wallet Challenge
       tags:
       - Wallet
+  /campaign-notifications-dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated campaign notifications for dashboard view
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Notification status filter
+        in: query
+        name: status
+        type: string
+      - description: Notification type filter
+        in: query
+        name: type
+        type: string
+      - description: User ID filter
+        in: query
+        name: user_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CampaignNotificationsDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get Campaign Notifications Dashboard
+      tags:
+      - campaigns
+  /campaigns:
+    get:
+      consumes:
+      - application/json
+      description: Get campaigns with pagination and optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Campaign status filter
+        in: query
+        name: status
+        type: string
+      - description: Message type filter
+        in: query
+        name: message_type
+        type: string
+      - description: Created by user ID filter
+        in: query
+        name: created_by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.GetCampaignsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get Campaigns
+      tags:
+      - campaigns
+    post:
+      consumes:
+      - application/json
+      description: Create a new message campaign with segments and recipients
+      parameters:
+      - description: Campaign creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CampaignResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Create Message Campaign
+      tags:
+      - campaigns
+  /campaigns/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a campaign and all its associated data
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Delete Campaign
+      tags:
+      - campaigns
+    get:
+      consumes:
+      - application/json
+      description: Get a specific campaign by its ID
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CampaignResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get Campaign by ID
+      tags:
+      - campaigns
+    put:
+      consumes:
+      - application/json
+      description: Update an existing campaign
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Campaign update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CampaignResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Update Campaign
+      tags:
+      - campaigns
+  /campaigns/{id}/recipients:
+    get:
+      consumes:
+      - application/json
+      description: Get recipients for a specific campaign
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Recipient status filter
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.GetCampaignRecipientsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get Campaign Recipients
+      tags:
+      - campaigns
+  /campaigns/{id}/send:
+    post:
+      consumes:
+      - application/json
+      description: Send a campaign to all its recipients
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Send Campaign
+      tags:
+      - campaigns
+  /campaigns/{id}/stats:
+    get:
+      consumes:
+      - application/json
+      description: Get delivery and read statistics for a campaign
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/dto.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.CampaignStatsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get Campaign Statistics
+      tags:
+      - campaigns
+  /cashback/house-edge:
+    get:
+      consumes:
+      - application/json
+      description: Returns the house edge configuration for a specific game type
+      parameters:
+      - description: Game type (e.g., groovetech, plinko, crash)
+        in: query
+        name: game_type
+        required: true
+        type: string
+      - description: Game variant (optional)
+        in: query
+        name: game_variant
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.GameHouseEdge'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get game house edge
+      tags:
+      - House Edge
+  /cashback/tiers:
+    get:
+      consumes:
+      - application/json
+      description: Returns all available cashback tiers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CashbackTier'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Get cashback tiers
+      tags:
+      - Cashback
   /login:
     post:
       consumes:
@@ -11642,6 +16169,125 @@ paths:
       summary: Verify and Deduct User Balance for Lottery
       tags:
       - Lottery
+  /player/transactions:
+    get:
+      consumes:
+      - application/json
+      description: Get comprehensive transaction history for a player including GrooveTech
+        gaming, sports betting, and general betting transactions
+      parameters:
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: string
+      - description: GrooveTech Account ID (optional)
+        in: query
+        name: account_id
+        type: string
+      - description: Transaction type (wager, result, rollback, bet, sport_bet)
+        in: query
+        name: type
+        type: string
+      - description: Transaction status
+        in: query
+        name: status
+        type: string
+      - description: Transaction category (gaming, sports, general)
+        in: query
+        name: category
+        type: string
+      - description: Limit results (default 50, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset for pagination (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: Include summary statistics (default false)
+        in: query
+        name: include_summary
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PlayerTransactionHistoryWithSummaryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get player transaction history
+      tags:
+      - Player Transactions
+  /player/transactions/account/{account_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get transaction history for a specific GrooveTech account
+      parameters:
+      - description: GrooveTech Account ID
+        in: path
+        name: account_id
+        required: true
+        type: string
+      - description: Transaction type (wager, result, rollback)
+        in: query
+        name: type
+        type: string
+      - description: Transaction status
+        in: query
+        name: status
+        type: string
+      - description: Limit results (default 50, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset for pagination (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PlayerTransactionHistoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Get player transaction history by GrooveTech account ID
+      tags:
+      - Player Transactions
   /refresh:
     post:
       consumes:
@@ -11734,16 +16380,20 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.ResendOTPRequest'
+          $ref: '#/definitions/dto.ResendRegistrationOTPRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.ResendOTPResponse'
+            $ref: '#/definitions/dto.ResendRegistrationOTPResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
         "500":
@@ -11753,6 +16403,247 @@ paths:
       summary: Resend verification email
       tags:
       - User
+  /user/balance/reconcile:
+    post:
+      consumes:
+      - application/json
+      description: Synchronizes GrooveTech account balance with main balance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reconcile user balances
+      tags:
+      - Balance
+  /user/balance/validate-sync:
+    get:
+      consumes:
+      - application/json
+      description: Validates if user balances are synchronized between main and GrooveTech
+        systems
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Validate balance synchronization
+      tags:
+      - Balance
+  /user/cashback:
+    get:
+      consumes:
+      - application/json
+      description: Returns comprehensive cashback information for the authenticated
+        user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserCashbackSummary'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user cashback summary
+      tags:
+      - Cashback
+  /user/cashback/claim:
+    post:
+      consumes:
+      - application/json
+      description: Allows users to claim their available cashback
+      parameters:
+      - description: Cashback claim request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CashbackClaimRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CashbackClaimResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Claim cashback
+      tags:
+      - Cashback
+  /user/cashback/claims:
+    get:
+      consumes:
+      - application/json
+      description: Returns the user's cashback claims history
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CashbackClaim'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user cashback claims
+      tags:
+      - Cashback
+  /user/cashback/earnings:
+    get:
+      consumes:
+      - application/json
+      description: Returns the user's cashback earnings history
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CashbackEarning'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user cashback earnings
+      tags:
+      - Cashback
+  /user/cashback/level-progression:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed level progression information including current
+        tier, next tier, and progress
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LevelProgressionInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user level progression info
+      tags:
+      - Cashback
   /user/oauth/facebook:
     get:
       description: allow user to signin using facebook's oauth

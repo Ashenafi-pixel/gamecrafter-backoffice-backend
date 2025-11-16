@@ -647,7 +647,7 @@ func (h *CashbackHandler) ProcessManualCashback(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} BalanceSyncStatus
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 401 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
@@ -1155,5 +1155,433 @@ func (h *CashbackHandler) ProcessBulkLevelProgression(c *gin.Context) {
 		"total_users": len(userUUIDs),
 		"successful":  successCount,
 		"failed":      len(userUUIDs) - successCount,
+	})
+}
+
+// ProcessSingleLevelProgression processes level progression for a single user (admin only)
+// @Summary Process single level progression
+// @Description Processes level progression for a single user
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user_id body string true "User ID"
+// @Success 200 {object} dto.LevelProgressionResult
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/level-progression [post]
+func (h *CashbackHandler) ProcessSingleLevelProgression(c *gin.Context) {
+	var request struct {
+		UserID string `json:"user_id" validate:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Invalid request body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request body",
+		})
+		return
+	}
+
+	// Parse user ID
+	userUUID, err := uuid.Parse(request.UserID)
+	if err != nil {
+		h.logger.Error("Invalid user ID format", zap.String("user_id", request.UserID), zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("Invalid user ID: %s", request.UserID),
+		})
+		return
+	}
+
+	h.logger.Info("Processing single level progression",
+		zap.String("user_id", userUUID.String()))
+
+	result, err := h.cashbackService.ProcessSingleLevelProgression(c.Request.Context(), userUUID)
+	if err != nil {
+		h.logger.Error("Failed to process single level progression", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to process single level progression",
+		})
+		return
+	}
+
+	h.logger.Info("Single level progression completed",
+		zap.String("user_id", userUUID.String()),
+		zap.Bool("success", result.Success),
+		zap.Int("new_level", result.NewLevel))
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetGlobalRakebackOverride returns the current global rakeback override configuration
+// @Summary Get global rakeback override
+// @Description Returns the current global rakeback override configuration (Happy Hour mode)
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} dto.GlobalRakebackOverride
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/global-override [get]
+func (h *CashbackHandler) GetGlobalRakebackOverride(c *gin.Context) {
+	h.logger.Info("Getting global rakeback override configuration")
+
+	override, err := h.cashbackService.GetGlobalRakebackOverride(c.Request.Context())
+	if err != nil {
+		h.logger.Error("Failed to get global rakeback override", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to get global rakeback override",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, override)
+}
+
+// UpdateGlobalRakebackOverride updates the global rakeback override configuration
+// @Summary Update global rakeback override
+// @Description Updates the global rakeback override configuration (Happy Hour mode) - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.GlobalRakebackOverrideRequest true "Global rakeback override configuration"
+// @Success 200 {object} dto.GlobalRakebackOverrideResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/global-override [put]
+func (h *CashbackHandler) UpdateGlobalRakebackOverride(c *gin.Context) {
+	// Get admin user ID from context
+	adminUserIDStr := c.GetString("user-id")
+	if adminUserIDStr == "" {
+		h.logger.Error("Admin user ID not found in context")
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Admin user not authenticated",
+		})
+		return
+	}
+
+	adminUserID, err := uuid.Parse(adminUserIDStr)
+	if err != nil {
+		h.logger.Error("Invalid admin user ID format", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid admin user ID",
+		})
+		return
+	}
+
+	var request dto.GlobalRakebackOverrideRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Failed to bind global rakeback override request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	h.logger.Info("Updating global rakeback override",
+		zap.String("admin_user_id", adminUserID.String()),
+		zap.Bool("is_enabled", request.IsEnabled),
+		zap.String("override_percentage", request.OverridePercentage.String()))
+
+	updated, err := h.cashbackService.UpdateGlobalRakebackOverride(c.Request.Context(), adminUserID, request)
+	if err != nil {
+		h.logger.Error("Failed to update global rakeback override", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to update global rakeback override",
+		})
+		return
+	}
+
+	// Prepare response
+	var message string
+	if updated.IsEnabled {
+		message = fmt.Sprintf("Global rakeback override enabled! All users now receive %s%% rakeback (Happy Hour activated)", updated.OverridePercentage.String())
+	} else {
+		message = "Global rakeback override disabled. Users will receive VIP tier-based rakeback."
+	}
+
+	response := dto.GlobalRakebackOverrideResponse{
+		IsEnabled:          updated.IsEnabled,
+		OverridePercentage: updated.OverridePercentage,
+		EnabledBy:          updated.EnabledBy,
+		EnabledAt:          updated.EnabledAt,
+		DisabledBy:         updated.DisabledBy,
+		DisabledAt:         updated.DisabledAt,
+		Message:            message,
+	}
+
+	h.logger.Info("Global rakeback override updated successfully",
+		zap.Bool("is_enabled", updated.IsEnabled),
+		zap.String("override_percentage", updated.OverridePercentage.String()),
+		zap.String("admin_user_id", adminUserID.String()))
+
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateRakebackSchedule creates a new scheduled rakeback event
+// @Summary Create rakeback schedule
+// @Description Creates a new scheduled rakeback event (Happy Hour, Weekend Boost, etc.) - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateRakebackScheduleRequest true "Rakeback schedule configuration"
+// @Success 201 {object} dto.RakebackScheduleResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/schedules [post]
+func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
+	adminUserIDStr := c.GetString("user-id")
+	if adminUserIDStr == "" {
+		h.logger.Error("Admin user ID not found in context")
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Code:    http.StatusUnauthorized,
+			Message: "Admin user not authenticated",
+		})
+		return
+	}
+
+	adminUserID, err := uuid.Parse(adminUserIDStr)
+	if err != nil {
+		h.logger.Error("Invalid admin user ID format", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid admin user ID",
+		})
+		return
+	}
+
+	var request dto.CreateRakebackScheduleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Failed to bind rakeback schedule request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	h.logger.Info("Creating rakeback schedule",
+		zap.String("admin_user_id", adminUserID.String()),
+		zap.String("name", request.Name))
+
+	schedule, err := h.cashbackService.CreateRakebackSchedule(c.Request.Context(), adminUserID, request)
+	if err != nil {
+		h.logger.Error("Failed to create rakeback schedule", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	h.logger.Info("Rakeback schedule created successfully",
+		zap.String("schedule_id", schedule.ID.String()),
+		zap.String("name", schedule.Name))
+
+	c.JSON(http.StatusCreated, schedule)
+}
+
+// ListRakebackSchedules lists all rakeback schedules
+// @Summary List rakeback schedules
+// @Description Lists all rakeback schedules with optional status filter and pagination - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Filter by status (scheduled, active, completed, cancelled)"
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
+// @Success 200 {object} dto.ListRakebackSchedulesResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/schedules [get]
+func (h *CashbackHandler) ListRakebackSchedules(c *gin.Context) {
+	status := c.DefaultQuery("status", "")
+	page := 1
+	pageSize := 20
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	h.logger.Info("Listing rakeback schedules",
+		zap.String("status", status),
+		zap.Int("page", page),
+		zap.Int("page_size", pageSize))
+
+	schedules, err := h.cashbackService.ListRakebackSchedules(c.Request.Context(), status, page, pageSize)
+	if err != nil {
+		h.logger.Error("Failed to list rakeback schedules", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to list rakeback schedules",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, schedules)
+}
+
+// GetRakebackSchedule retrieves a single rakeback schedule
+// @Summary Get rakeback schedule
+// @Description Retrieves details of a specific rakeback schedule - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Schedule ID"
+// @Success 200 {object} dto.RakebackScheduleResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/schedules/{id} [get]
+func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
+	scheduleIDStr := c.Param("id")
+	scheduleID, err := uuid.Parse(scheduleIDStr)
+	if err != nil {
+		h.logger.Error("Invalid schedule ID", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid schedule ID",
+		})
+		return
+	}
+
+	h.logger.Info("Getting rakeback schedule", zap.String("schedule_id", scheduleID.String()))
+
+	schedule, err := h.cashbackService.GetRakebackSchedule(c.Request.Context(), scheduleID)
+	if err != nil {
+		h.logger.Error("Failed to get rakeback schedule", zap.Error(err))
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Code:    http.StatusNotFound,
+			Message: "Rakeback schedule not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, schedule)
+}
+
+// UpdateRakebackSchedule updates an existing rakeback schedule
+// @Summary Update rakeback schedule
+// @Description Updates an existing scheduled rakeback event (only if not yet active) - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Schedule ID"
+// @Param request body dto.UpdateRakebackScheduleRequest true "Updated schedule configuration"
+// @Success 200 {object} dto.RakebackScheduleResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/schedules/{id} [put]
+func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
+	scheduleIDStr := c.Param("id")
+	scheduleID, err := uuid.Parse(scheduleIDStr)
+	if err != nil {
+		h.logger.Error("Invalid schedule ID", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid schedule ID",
+		})
+		return
+	}
+
+	var request dto.UpdateRakebackScheduleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Failed to bind update request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request format",
+		})
+		return
+	}
+
+	h.logger.Info("Updating rakeback schedule", zap.String("schedule_id", scheduleID.String()))
+
+	schedule, err := h.cashbackService.UpdateRakebackSchedule(c.Request.Context(), scheduleID, request)
+	if err != nil {
+		h.logger.Error("Failed to update rakeback schedule", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, schedule)
+}
+
+// DeleteRakebackSchedule cancels a rakeback schedule
+// @Summary Delete rakeback schedule
+// @Description Cancels a scheduled rakeback event (only if not yet active) - Admin only
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Schedule ID"
+// @Success 200 {object} dto.SuccessResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 403 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/schedules/{id} [delete]
+func (h *CashbackHandler) DeleteRakebackSchedule(c *gin.Context) {
+	scheduleIDStr := c.Param("id")
+	scheduleID, err := uuid.Parse(scheduleIDStr)
+	if err != nil {
+		h.logger.Error("Invalid schedule ID", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid schedule ID",
+		})
+		return
+	}
+
+	h.logger.Info("Deleting rakeback schedule", zap.String("schedule_id", scheduleID.String()))
+
+	err = h.cashbackService.DeleteRakebackSchedule(c.Request.Context(), scheduleID)
+	if err != nil {
+		h.logger.Error("Failed to delete rakeback schedule", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: "Rakeback schedule cancelled successfully",
 	})
 }

@@ -216,8 +216,44 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 	// Calculate expected GGR (Expected Gross Gaming Revenue) - kept for logging purposes
 	expectedGGR := bet.Amount.Mul(houseEdge)
 
-	// Use game house edge as cashback rate (per-wager cashback)
-	cashbackRate := houseEdge.Mul(decimal.NewFromInt(100)) // Convert house edge to percentage
+	// Priority order for rakeback: Global Override > Scheduled Rakeback > VIP Tier
+	var cashbackRate decimal.Decimal
+	var isGlobalOverrideActive bool
+	var isScheduledRakebackActive bool
+	var scheduleName string
+
+	// Check for global rakeback override first (Happy Hour Mode)
+	globalOverride, err := s.storage.GetGlobalRakebackOverride(ctx)
+	if err == nil && globalOverride != nil && globalOverride.IsEnabled {
+		// Global override is active - use override percentage for all users
+		cashbackRate = globalOverride.OverridePercentage
+		isGlobalOverrideActive = true
+		s.logger.Info("Applying global rakeback override (Happy Hour)",
+			zap.String("override_percentage", cashbackRate.String()),
+			zap.String("user_id", bet.UserID.String()),
+			zap.String("original_house_edge", houseEdge.String()))
+	} else {
+		// Check for scheduled rakeback (if no global override)
+		// Use gameVariant (which contains the game ID) for scheduled rakeback lookup
+		activeSchedule, err := s.storage.GetActiveScheduleForBet(ctx, gameType, gameVariant)
+		if err == nil && activeSchedule != nil {
+			// Scheduled rakeback is active and applies to this bet
+			cashbackRate = activeSchedule.Percentage
+			isScheduledRakebackActive = true
+			scheduleName = activeSchedule.Name
+			s.logger.Info("Applying scheduled rakeback",
+				zap.String("schedule_name", activeSchedule.Name),
+				zap.String("scope_type", activeSchedule.ScopeType),
+				zap.String("percentage", cashbackRate.String()),
+				zap.String("user_id", bet.UserID.String()),
+				zap.String("game_type", gameType))
+		} else {
+			// Use game house edge as cashback rate (per-wager cashback)
+			cashbackRate = houseEdge.Mul(decimal.NewFromInt(100)) // Convert house edge to percentage
+			isGlobalOverrideActive = false
+			isScheduledRakebackActive = false
+		}
+	}
 
 	// Check for active promotions (skip for now)
 	// promotion, err := s.storage.GetCashbackPromotionForUser(ctx, userLevel.CurrentLevel, "default")
@@ -229,8 +265,24 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 	// 		zap.String("boost", promotion.BoostMultiplier.String()))
 	// }
 
-	// Calculate earned cashback per wager (bet amount * house edge)
-	earnedCashback := bet.Amount.Mul(houseEdge)
+	// Calculate earned cashback per wager
+	var earnedCashback decimal.Decimal
+	if isGlobalOverrideActive || isScheduledRakebackActive {
+		// When override or scheduled rakeback is active, calculate based on percentage
+		// Percentage is already in % format (e.g., 100.00 = 100%)
+		earnedCashback = bet.Amount.Mul(cashbackRate).Div(decimal.NewFromInt(100))
+
+		if isScheduledRakebackActive {
+			s.logger.Info("Calculated scheduled rakeback cashback",
+				zap.String("schedule_name", scheduleName),
+				zap.String("bet_amount", bet.Amount.String()),
+				zap.String("cashback_rate", cashbackRate.String()),
+				zap.String("earned_cashback", earnedCashback.String()))
+		}
+	} else {
+		// Normal calculation: bet amount * house edge
+		earnedCashback = bet.Amount.Mul(houseEdge)
+	}
 
 	// Round to 2 decimal places
 	earnedCashback = earnedCashback.Round(2)
@@ -352,6 +404,24 @@ func (s *CashbackService) GetUserCashbackSummary(ctx context.Context, userID uui
 	if err != nil {
 		s.logger.Error("Failed to get user cashback summary", zap.Error(err))
 		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get user cashback summary")
+	}
+
+	// Check for global rakeback override (Happy Hour Mode)
+	globalOverride, err := s.storage.GetGlobalRakebackOverride(ctx)
+	if err == nil && globalOverride != nil && globalOverride.IsEnabled {
+		// Global override is active - update summary with override information
+		summary.GlobalOverrideActive = true
+		summary.EffectiveCashbackPercent = globalOverride.OverridePercentage
+		summary.HappyHourMessage = fmt.Sprintf("🎉 Happy Hour Active! All users receive %s%% rakeback!", globalOverride.OverridePercentage.String())
+
+		s.logger.Info("Global rakeback override active for user summary",
+			zap.String("user_id", userID.String()),
+			zap.String("override_percentage", globalOverride.OverridePercentage.String()))
+	} else {
+		// Normal VIP-based rakeback
+		summary.GlobalOverrideActive = false
+		summary.EffectiveCashbackPercent = summary.CurrentTier.CashbackPercentage
+		summary.HappyHourMessage = ""
 	}
 
 	return summary, nil
@@ -1050,6 +1120,72 @@ func (s *CashbackService) getGameDisplayName(gameID, gameType string) string {
 		return fmt.Sprintf("%s Game %s", strings.Title(gameType), gameID)
 	}
 	return fmt.Sprintf("%s Game", strings.Title(gameType))
+}
+
+// GetGlobalRakebackOverride retrieves the current global rakeback override configuration
+func (s *CashbackService) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error) {
+	s.logger.Info("Getting global rakeback override configuration")
+
+	override, err := s.storage.GetGlobalRakebackOverride(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get global rakeback override", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get global rakeback override")
+	}
+
+	return override, nil
+}
+
+// UpdateGlobalRakebackOverride updates the global rakeback override configuration
+func (s *CashbackService) UpdateGlobalRakebackOverride(ctx context.Context, adminUserID uuid.UUID, request dto.GlobalRakebackOverrideRequest) (*dto.GlobalRakebackOverride, error) {
+	s.logger.Info("Updating global rakeback override",
+		zap.String("admin_user_id", adminUserID.String()),
+		zap.Bool("is_enabled", request.IsEnabled),
+		zap.String("override_percentage", request.OverridePercentage.String()))
+
+	// Get current override configuration
+	currentOverride, err := s.storage.GetGlobalRakebackOverride(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get current override configuration", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get current override configuration")
+	}
+
+	// Prepare the update
+	now := time.Now()
+	updatedOverride := dto.GlobalRakebackOverride{
+		ID:                 currentOverride.ID,
+		IsEnabled:          request.IsEnabled,
+		OverridePercentage: request.OverridePercentage,
+		CreatedAt:          currentOverride.CreatedAt,
+		UpdatedAt:          now,
+	}
+
+	if request.IsEnabled {
+		// Enabling override
+		updatedOverride.EnabledBy = &adminUserID
+		updatedOverride.EnabledAt = &now
+		updatedOverride.DisabledBy = nil
+		updatedOverride.DisabledAt = nil
+	} else {
+		// Disabling override - preserve enabled info, add disabled info
+		updatedOverride.EnabledBy = currentOverride.EnabledBy
+		updatedOverride.EnabledAt = currentOverride.EnabledAt
+		updatedOverride.DisabledBy = &adminUserID
+		updatedOverride.DisabledAt = &now
+	}
+
+	// Update in database
+	updated, err := s.storage.UpdateGlobalRakebackOverride(ctx, updatedOverride)
+	if err != nil {
+		s.logger.Error("Failed to update global rakeback override", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to update global rakeback override")
+	}
+
+	s.logger.Info("Global rakeback override updated successfully",
+		zap.Bool("is_enabled", updated.IsEnabled),
+		zap.String("override_percentage", updated.OverridePercentage.String()),
+		zap.String("admin_user_id", adminUserID.String()))
+
+	return updated, nil
 }
 
 // ProcessBulkLevelProgression processes level progression for multiple users
