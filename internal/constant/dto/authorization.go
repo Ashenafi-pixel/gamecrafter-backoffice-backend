@@ -18,9 +18,14 @@ type Role struct {
 	Permissions []Permissions `json:"permissions,omitempty"`
 }
 
+type PermissionWithValue struct {
+	PermissionID uuid.UUID  `json:"permission_id"`
+	Value        *float64   `json:"value,omitempty"` // NULL = unlimited, value = funding limit
+}
+
 type CreateRoleReq struct {
-	Name        string      `json:"name"`
-	Permissions []uuid.UUID `json:"permissions"`
+	Name        string                `json:"name"`
+	Permissions []PermissionWithValue `json:"permissions"` // Updated to include values
 }
 
 type UserRole struct {
@@ -40,8 +45,8 @@ type PermissionsToRoute struct {
 	Description string    `json:"description"`
 }
 type UpdatePermissionToRoleReq struct {
-	RoleID      uuid.UUID   `json:"role_id"`
-	Permissions []uuid.UUID `json:"permissions"`
+	RoleID      uuid.UUID             `json:"role_id"`
+	Permissions []PermissionWithValue `json:"permissions"` // Updated to include values
 }
 type UpdatePermissionToRoleRes struct {
 	Message string `json:"message"`
@@ -67,9 +72,10 @@ type RolePermissions struct {
 }
 
 type AssignPermissionToRoleData struct {
-	ID           uuid.UUID `json:"id"`
-	RoleID       uuid.UUID `json:"role_id"`
-	PermissionID uuid.UUID `json:"permission_id"`
+	ID           uuid.UUID  `json:"id"`
+	RoleID       uuid.UUID  `json:"role_id"`
+	PermissionID uuid.UUID  `json:"permission_id"`
+	Value        *float64   `json:"value,omitempty"` // NULL = unlimited, value = funding limit
 }
 
 type AssignPermissionToRoleRes struct {

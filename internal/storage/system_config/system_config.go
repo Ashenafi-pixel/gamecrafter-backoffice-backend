@@ -2,10 +2,13 @@ package system_config
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"go.uber.org/zap"
@@ -300,12 +303,44 @@ func (s *SystemConfig) GetWithdrawalPauseReasons(ctx context.Context) ([]string,
 }
 
 // GetGeneralSettings retrieves general settings from system config
-func (s *SystemConfig) GetGeneralSettings(ctx context.Context) (GeneralSettings, error) {
-	s.log.Info("Getting general settings from system config")
+func (s *SystemConfig) GetGeneralSettings(ctx context.Context, brandID *uuid.UUID) (GeneralSettings, error) {
+	s.log.Info("Getting general settings from system config", zap.Any("brand_id", brandID))
 
 	var configValue json.RawMessage
-	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "general_settings").Scan(&configValue)
+	var err error
+	
+	if brandID != nil {
+		// Try to get brand-specific settings first, fallback to global if not found
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
+			ORDER BY brand_id NULLS LAST
+			LIMIT 1
+		`, "general_settings", brandID).Scan(&configValue)
+	} else {
+		// Get global settings (brand_id IS NULL)
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND brand_id IS NULL
+		`, "general_settings").Scan(&configValue)
+	}
+	
+	// Handle case where no configuration exists yet
 	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No general settings found, returning defaults", zap.Any("brand_id", brandID))
+			// Return default values when no configuration exists
+			return GeneralSettings{
+				SiteName:            "",
+				SiteDescription:     "",
+				SupportEmail:        "",
+				Timezone:            "UTC",
+				Language:            "en",
+				MaintenanceMode:     false,
+				RegistrationEnabled: true,
+				DemoMode:            false,
+			}, nil
+		}
 		s.log.Error("Failed to get general settings from database", zap.Error(err))
 		return GeneralSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get general settings")
 	}
@@ -321,8 +356,8 @@ func (s *SystemConfig) GetGeneralSettings(ctx context.Context) (GeneralSettings,
 }
 
 // UpdateGeneralSettings updates general settings in system config
-func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings GeneralSettings, adminID uuid.UUID) error {
-	s.log.Info("Updating general settings")
+func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings GeneralSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	s.log.Info("Updating general settings", zap.Any("brand_id", brandID))
 
 	configValue, err := json.Marshal(settings)
 	if err != nil {
@@ -330,15 +365,27 @@ func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings Gener
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal general settings")
 	}
 
-	_, err = s.db.GetPool().Exec(ctx, `
-		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
-		VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (config_key) 
-		DO UPDATE SET 
-			config_value = EXCLUDED.config_value,
-			updated_by = EXCLUDED.updated_by,
-			updated_at = EXCLUDED.updated_at
-	`, "general_settings", configValue, "General application settings", adminID)
+	// Check if config exists for this brand_id
+	var existingID uuid.UUID
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT id FROM system_config 
+		WHERE config_key = $1 AND (brand_id = $2 OR (brand_id IS NULL AND $2 IS NULL))
+	`, "general_settings", brandID).Scan(&existingID)
+
+	if err == nil {
+		// Update existing
+		_, err = s.db.GetPool().Exec(ctx, `
+			UPDATE system_config 
+			SET config_value = $1, updated_by = $2, updated_at = NOW()
+			WHERE id = $3
+		`, configValue, adminID, existingID)
+	} else {
+		// Insert new
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+		`, "general_settings", configValue, "General application settings", brandID, adminID)
+	}
 
 	if err != nil {
 		s.log.Error("Failed to update general settings in database", zap.Error(err))
@@ -350,12 +397,42 @@ func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings Gener
 }
 
 // GetPaymentSettings retrieves payment settings from system config
-func (s *SystemConfig) GetPaymentSettings(ctx context.Context) (PaymentSettings, error) {
-	s.log.Info("Getting payment settings from system config")
+func (s *SystemConfig) GetPaymentSettings(ctx context.Context, brandID *uuid.UUID) (PaymentSettings, error) {
+	s.log.Info("Getting payment settings from system config", zap.Any("brand_id", brandID))
 
 	var configValue json.RawMessage
-	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "payment_settings").Scan(&configValue)
+	var err error
+	
+	if brandID != nil {
+		// Try to get brand-specific settings first, fallback to global if not found
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
+			ORDER BY brand_id NULLS LAST
+			LIMIT 1
+		`, "payment_settings", brandID).Scan(&configValue)
+	} else {
+		// Get global settings (brand_id IS NULL)
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND brand_id IS NULL
+		`, "payment_settings").Scan(&configValue)
+	}
+	
+	// Handle case where no configuration exists yet
 	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No payment settings found, returning defaults", zap.Any("brand_id", brandID))
+			// Return default values when no configuration exists
+			return PaymentSettings{
+				MinDepositBTC:    0.001,
+				MaxDepositBTC:    10.0,
+				MinWithdrawalBTC: 0.001,
+				MaxWithdrawalBTC: 10.0,
+				KycRequired:      false,
+				KycThreshold:     1000,
+			}, nil
+		}
 		s.log.Error("Failed to get payment settings from database", zap.Error(err))
 		return PaymentSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get payment settings")
 	}
@@ -371,8 +448,8 @@ func (s *SystemConfig) GetPaymentSettings(ctx context.Context) (PaymentSettings,
 }
 
 // UpdatePaymentSettings updates payment settings in system config
-func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings PaymentSettings, adminID uuid.UUID) error {
-	s.log.Info("Updating payment settings")
+func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings PaymentSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	s.log.Info("Updating payment settings", zap.Any("brand_id", brandID))
 
 	configValue, err := json.Marshal(settings)
 	if err != nil {
@@ -380,15 +457,27 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal payment settings")
 	}
 
-	_, err = s.db.GetPool().Exec(ctx, `
-		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
-		VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (config_key) 
-		DO UPDATE SET 
-			config_value = EXCLUDED.config_value,
-			updated_by = EXCLUDED.updated_by,
-			updated_at = EXCLUDED.updated_at
-	`, "payment_settings", configValue, "Payment processing settings", adminID)
+	// Check if config exists for this brand_id
+	var existingID uuid.UUID
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT id FROM system_config 
+		WHERE config_key = $1 AND (brand_id = $2 OR (brand_id IS NULL AND $2 IS NULL))
+	`, "payment_settings", brandID).Scan(&existingID)
+
+	if err == nil {
+		// Update existing
+		_, err = s.db.GetPool().Exec(ctx, `
+			UPDATE system_config 
+			SET config_value = $1, updated_by = $2, updated_at = NOW()
+			WHERE id = $3
+		`, configValue, adminID, existingID)
+	} else {
+		// Insert new
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+		`, "payment_settings", configValue, "Payment processing settings", brandID, adminID)
+	}
 
 	if err != nil {
 		s.log.Error("Failed to update payment settings in database", zap.Error(err))
@@ -400,12 +489,38 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 }
 
 // GetTipSettings retrieves tip settings from system config
-func (s *SystemConfig) GetTipSettings(ctx context.Context) (TipSettings, error) {
-	s.log.Info("Getting tip settings from system config")
+func (s *SystemConfig) GetTipSettings(ctx context.Context, brandID *uuid.UUID) (TipSettings, error) {
+	s.log.Info("Getting tip settings from system config", zap.Any("brand_id", brandID))
 
 	var configValue json.RawMessage
-	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "tip_settings").Scan(&configValue)
+	var err error
+	
+	if brandID != nil {
+		// Try to get brand-specific settings first, fallback to global if not found
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
+			ORDER BY brand_id NULLS LAST
+			LIMIT 1
+		`, "tip_settings", brandID).Scan(&configValue)
+	} else {
+		// Get global settings (brand_id IS NULL)
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND brand_id IS NULL
+		`, "tip_settings").Scan(&configValue)
+	}
+	
+	// Handle case where no configuration exists yet
 	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No tip settings found, returning defaults", zap.Any("brand_id", brandID))
+			// Return default values when no configuration exists
+			return TipSettings{
+				TipTransactionFeeFromWho: "sender",
+				TransactionFee:           0.0,
+			}, nil
+		}
 		s.log.Error("Failed to get tip settings from database", zap.Error(err))
 		return TipSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get tip settings")
 	}
@@ -421,8 +536,8 @@ func (s *SystemConfig) GetTipSettings(ctx context.Context) (TipSettings, error) 
 }
 
 // UpdateTipSettings updates tip settings in system config
-func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettings, adminID uuid.UUID) error {
-	s.log.Info("Updating tip settings")
+func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	s.log.Info("Updating tip settings", zap.Any("brand_id", brandID))
 
 	configValue, err := json.Marshal(settings)
 	if err != nil {
@@ -430,15 +545,27 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal tip settings")
 	}
 
-	_, err = s.db.GetPool().Exec(ctx, `
-		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
-		VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (config_key) 
-		DO UPDATE SET 
-			config_value = EXCLUDED.config_value,
-			updated_by = EXCLUDED.updated_by,
-			updated_at = EXCLUDED.updated_at
-	`, "tip_settings", configValue, "Tip transaction fee settings", adminID)
+	// Check if config exists for this brand_id
+	var existingID uuid.UUID
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT id FROM system_config 
+		WHERE config_key = $1 AND (brand_id = $2 OR (brand_id IS NULL AND $2 IS NULL))
+	`, "tip_settings", brandID).Scan(&existingID)
+
+	if err == nil {
+		// Update existing
+		_, err = s.db.GetPool().Exec(ctx, `
+			UPDATE system_config 
+			SET config_value = $1, updated_by = $2, updated_at = NOW()
+			WHERE id = $3
+		`, configValue, adminID, existingID)
+	} else {
+		// Insert new
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+		`, "tip_settings", configValue, "Tip transaction fee settings", brandID, adminID)
+	}
 
 	if err != nil {
 		s.log.Error("Failed to update tip settings in database", zap.Error(err))
@@ -450,12 +577,45 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 }
 
 // GetSecuritySettings retrieves security settings from system config
-func (s *SystemConfig) GetSecuritySettings(ctx context.Context) (SecuritySettings, error) {
-	s.log.Info("Getting security settings from system config")
+func (s *SystemConfig) GetSecuritySettings(ctx context.Context, brandID *uuid.UUID) (SecuritySettings, error) {
+	s.log.Info("Getting security settings from system config", zap.Any("brand_id", brandID))
 
 	var configValue json.RawMessage
-	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "security_settings").Scan(&configValue)
+	var err error
+	
+	if brandID != nil {
+		// Try to get brand-specific settings first, fallback to global if not found
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
+			ORDER BY brand_id NULLS LAST
+			LIMIT 1
+		`, "security_settings", brandID).Scan(&configValue)
+	} else {
+		// Get global settings (brand_id IS NULL)
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND brand_id IS NULL
+		`, "security_settings").Scan(&configValue)
+	}
+	
+	// Handle case where no configuration exists yet
 	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No security settings found, returning defaults", zap.Any("brand_id", brandID))
+			// Return default values when no configuration exists
+			return SecuritySettings{
+				SessionTimeout:         30,
+				MaxLoginAttempts:       5,
+				LockoutDuration:        15,
+				TwoFactorRequired:      false,
+				PasswordMinLength:      8,
+				PasswordRequireSpecial: true,
+				IpWhitelistEnabled:     false,
+				RateLimitEnabled:       true,
+				RateLimitRequests:      100,
+			}, nil
+		}
 		s.log.Error("Failed to get security settings from database", zap.Error(err))
 		return SecuritySettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get security settings")
 	}
@@ -471,8 +631,8 @@ func (s *SystemConfig) GetSecuritySettings(ctx context.Context) (SecuritySetting
 }
 
 // UpdateSecuritySettings updates security settings in system config
-func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings SecuritySettings, adminID uuid.UUID) error {
-	s.log.Info("Updating security settings")
+func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings SecuritySettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	s.log.Info("Updating security settings", zap.Any("brand_id", brandID))
 
 	configValue, err := json.Marshal(settings)
 	if err != nil {
@@ -480,15 +640,27 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal security settings")
 	}
 
-	_, err = s.db.GetPool().Exec(ctx, `
-		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
-		VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (config_key) 
-		DO UPDATE SET 
-			config_value = EXCLUDED.config_value,
-			updated_by = EXCLUDED.updated_by,
-			updated_at = EXCLUDED.updated_at
-	`, "security_settings", configValue, "Security and authentication settings", adminID)
+	// Check if config exists for this brand_id
+	var existingID uuid.UUID
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT id FROM system_config 
+		WHERE config_key = $1 AND (brand_id = $2 OR (brand_id IS NULL AND $2 IS NULL))
+	`, "security_settings", brandID).Scan(&existingID)
+
+	if err == nil {
+		// Update existing
+		_, err = s.db.GetPool().Exec(ctx, `
+			UPDATE system_config 
+			SET config_value = $1, updated_by = $2, updated_at = NOW()
+			WHERE id = $3
+		`, configValue, adminID, existingID)
+	} else {
+		// Insert new
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+		`, "security_settings", configValue, "Security and authentication settings", brandID, adminID)
+	}
 
 	if err != nil {
 		s.log.Error("Failed to update security settings in database", zap.Error(err))
@@ -500,12 +672,45 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 }
 
 // GetGeoBlockingSettings retrieves geo blocking settings from system config
-func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context) (GeoBlockingSettings, error) {
-	s.log.Info("Getting geo blocking settings from system config")
+func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context, brandID *uuid.UUID) (GeoBlockingSettings, error) {
+	s.log.Info("Getting geo blocking settings from system config", zap.Any("brand_id", brandID))
 
 	var configValue json.RawMessage
-	err := s.db.GetPool().QueryRow(ctx, "SELECT config_value FROM system_config WHERE config_key = $1", "geo_blocking_settings").Scan(&configValue)
+	var err error
+	
+	if brandID != nil {
+		// Try to get brand-specific settings first, fallback to global if not found
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
+			ORDER BY brand_id NULLS LAST
+			LIMIT 1
+		`, "geo_blocking_settings", brandID).Scan(&configValue)
+	} else {
+		// Get global settings (brand_id IS NULL)
+		err = s.db.GetPool().QueryRow(ctx, `
+			SELECT config_value FROM system_config 
+			WHERE config_key = $1 AND brand_id IS NULL
+		`, "geo_blocking_settings").Scan(&configValue)
+	}
+	
+	// Handle case where no configuration exists yet
 	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No geo blocking settings found, returning defaults", zap.Any("brand_id", brandID))
+			// Return default values when no configuration exists
+			return GeoBlockingSettings{
+				EnableGeoBlocking: false,
+				DefaultAction:     "allow",
+				VpnDetection:      false,
+				ProxyDetection:    false,
+				TorBlocking:       false,
+				LogAttempts:        true,
+				BlockedCountries:  []string{},
+				AllowedCountries:  []string{},
+				BypassCountries:   []string{},
+			}, nil
+		}
 		s.log.Error("Failed to get geo blocking settings from database", zap.Error(err))
 		return GeoBlockingSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get geo blocking settings")
 	}
@@ -521,8 +726,8 @@ func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context) (GeoBlockingS
 }
 
 // UpdateGeoBlockingSettings updates geo blocking settings in system config
-func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings GeoBlockingSettings, adminID uuid.UUID) error {
-	s.log.Info("Updating geo blocking settings")
+func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings GeoBlockingSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	s.log.Info("Updating geo blocking settings", zap.Any("brand_id", brandID))
 
 	configValue, err := json.Marshal(settings)
 	if err != nil {
@@ -530,15 +735,27 @@ func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings G
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal geo blocking settings")
 	}
 
-	_, err = s.db.GetPool().Exec(ctx, `
-		INSERT INTO system_config (config_key, config_value, description, updated_by, updated_at)
-		VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (config_key) 
-		DO UPDATE SET 
-			config_value = EXCLUDED.config_value,
-			updated_by = EXCLUDED.updated_by,
-			updated_at = EXCLUDED.updated_at
-	`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", adminID)
+	// Check if config exists for this brand_id
+	var existingID uuid.UUID
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT id FROM system_config 
+		WHERE config_key = $1 AND (brand_id = $2 OR (brand_id IS NULL AND $2 IS NULL))
+	`, "geo_blocking_settings", brandID).Scan(&existingID)
+
+	if err == nil {
+		// Update existing
+		_, err = s.db.GetPool().Exec(ctx, `
+			UPDATE system_config 
+			SET config_value = $1, updated_by = $2, updated_at = NOW()
+			WHERE id = $3
+		`, configValue, adminID, existingID)
+	} else {
+		// Insert new
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+		`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", brandID, adminID)
+	}
 
 	if err != nil {
 		s.log.Error("Failed to update geo blocking settings in database", zap.Error(err))

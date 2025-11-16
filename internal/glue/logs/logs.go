@@ -3,7 +3,6 @@ package logs
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -18,7 +17,6 @@ func Init(
 	logsHandler handler.SystemLogs,
 	authModule module.Authz,
 	logsModule module.SystemLogs,
-	enforcer *casbin.Enforcer,
 ) {
 
 	logs := []routing.Route{
@@ -29,7 +27,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Get Audit Logs", http.MethodPost),
+				middleware.Authz(authModule, "Get Audit Logs", http.MethodPost),
 				middleware.SystemLogs("Get Audit Logs", &log, logsModule),
 			},
 		}, {
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Get Available Logs Module", http.MethodGet),
+				middleware.Authz(authModule, "Get Available Logs Module", http.MethodGet),
 				middleware.SystemLogs("Get Available Logs Module", &log, logsModule),
 			},
 		},

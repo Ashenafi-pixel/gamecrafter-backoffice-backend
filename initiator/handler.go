@@ -37,6 +37,7 @@ import (
 	"github.com/tucanbit/internal/handler/operationsdefinitions"
 	"github.com/tucanbit/internal/handler/otp"
 	"github.com/tucanbit/internal/handler/performance"
+	"github.com/tucanbit/internal/handler/rakeback_override"
 	"github.com/tucanbit/internal/handler/report"
 	"github.com/tucanbit/internal/handler/risksettings"
 	"github.com/tucanbit/internal/handler/sportsservice"
@@ -84,6 +85,7 @@ type Handler struct {
 	Groove                *groove.GrooveHandler
 	Game                  *game.GameHandler
 	HouseEdge             *game.HouseEdgeHandler
+	RakebackOverride      handler.RakebackOverride
 	RegistrationService   *user.RegistrationService
 	Campaign              handler.Campaign
 	TwoFactor             handler.TwoFactor
@@ -150,6 +152,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, persistence.Database, log),
 		Game:                  game.NewGameHandler(module.Game),
 		HouseEdge:             game.NewHouseEdgeHandler(module.HouseEdge),
+		RakebackOverride:     rakeback_override.NewRakebackOverrideHandler(module.RakebackOverride, log),
 		RegistrationService:   registrationService,
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),

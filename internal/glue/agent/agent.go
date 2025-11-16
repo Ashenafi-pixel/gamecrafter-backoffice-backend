@@ -3,7 +3,6 @@ package agent
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -18,7 +17,6 @@ func Init(
 	agentHandler handler.Agent,
 	authModule module.Authz,
 	logsModule module.SystemLogs,
-	enforcer *casbin.Enforcer,
 ) {
 	agentRoutes := []routing.Route{
 		{
@@ -35,7 +33,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Get Agent Referrals", http.MethodGet),
+				middleware.Authz(authModule, "Get Agent Referrals", http.MethodGet),
 				middleware.SystemLogs("Get Agent Referrals", &log, logsModule),
 			},
 		}, {
@@ -45,7 +43,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Get Agent Referral Stats", http.MethodGet),
+				middleware.Authz(authModule, "Get Agent Referral Stats", http.MethodGet),
 				middleware.SystemLogs("Get Agent Referral Stats", &log, logsModule),
 			},
 		}, {
@@ -55,7 +53,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Create Agent Provider", http.MethodPost),
+				middleware.Authz(authModule, "Create Agent Provider", http.MethodPost),
 				middleware.SystemLogs("Create Agent Provider", &log, logsModule),
 			},
 		},

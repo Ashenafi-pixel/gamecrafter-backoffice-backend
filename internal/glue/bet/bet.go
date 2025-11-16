@@ -3,7 +3,6 @@ package bet
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -18,7 +17,6 @@ func Init(
 	bet handler.Bet,
 	userModule module.User,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 
@@ -56,7 +54,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.IpFilter(userModule),
-				middleware.Authz(authModule, enforcer, "get game history", http.MethodGet),
+				middleware.Authz(authModule, "get game history", http.MethodGet),
 				middleware.SystemLogs("Get Game History", &log, systemLogs),
 			},
 		}, {
@@ -94,7 +92,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get failed rounds", http.MethodGet),
+				middleware.Authz(authModule, "get failed rounds", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -103,7 +101,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "manual refund failed rounds", http.MethodPost),
+				middleware.Authz(authModule, "manual refund failed rounds", http.MethodPost),
 				middleware.SystemLogs("Manual Refund Failed Round", &log, systemLogs),
 			},
 		}, {
@@ -144,7 +142,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create league", http.MethodPost),
+				middleware.Authz(authModule, "create league", http.MethodPost),
 				middleware.SystemLogs("Create League", &log, systemLogs),
 			},
 		}, {
@@ -154,7 +152,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get leagues", http.MethodGet),
+				middleware.Authz(authModule, "get leagues", http.MethodGet),
 				middleware.SystemLogs("Get Leagues", &log, systemLogs),
 			},
 		}, {
@@ -164,7 +162,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create clubs", http.MethodPost),
+				middleware.Authz(authModule, "create clubs", http.MethodPost),
 				middleware.SystemLogs("Create Club", &log, systemLogs),
 			},
 		}, {
@@ -174,7 +172,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get clubs", http.MethodGet),
+				middleware.Authz(authModule, "get clubs", http.MethodGet),
 				middleware.SystemLogs("Get Clubs", &log, systemLogs),
 			},
 		}, {
@@ -184,7 +182,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update football match multiplier", http.MethodPut),
+				middleware.Authz(authModule, "update football match multiplier", http.MethodPut),
 				middleware.SystemLogs("Update Football Match Multiplier", &log, systemLogs),
 			},
 		}, {
@@ -194,7 +192,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get football match multiplier", http.MethodGet),
+				middleware.Authz(authModule, "get football match multiplier", http.MethodGet),
 				middleware.SystemLogs("Get Football Match Multiplier", &log, systemLogs),
 			},
 		}, {
@@ -204,7 +202,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create football match round", http.MethodPost),
+				middleware.Authz(authModule, "create football match round", http.MethodPost),
 				middleware.SystemLogs("Create Football Match Round", &log, systemLogs),
 			},
 		}, {
@@ -214,7 +212,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get football match round", http.MethodGet),
+				middleware.Authz(authModule, "get football match round", http.MethodGet),
 				middleware.SystemLogs("Get Football Match Round", &log, systemLogs),
 			},
 		}, {
@@ -224,7 +222,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create football matches", http.MethodPost),
+				middleware.Authz(authModule, "create football matches", http.MethodPost),
 				middleware.SystemLogs("Create Football Match", &log, systemLogs),
 			},
 		}, {
@@ -234,7 +232,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get football match round matches", http.MethodPost),
+				middleware.Authz(authModule, "get football match round matches", http.MethodPost),
 				middleware.SystemLogs("Get Football Match Round Matches", &log, systemLogs),
 			},
 		}, {
@@ -251,7 +249,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "close football matche", http.MethodPatch),
+				middleware.Authz(authModule, "close football matche", http.MethodPatch),
 				middleware.SystemLogs("Close Football Match", &log, systemLogs),
 			},
 		}, {
@@ -261,7 +259,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "udpate football round price", http.MethodPost),
+				middleware.Authz(authModule, "udpate football round price", http.MethodPost),
 				middleware.SystemLogs("Update Football Round Price", &log, systemLogs),
 			},
 		}, {
@@ -315,7 +313,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update cryptokings config", http.MethodPost),
+				middleware.Authz(authModule, "update cryptokings config", http.MethodPost),
 				middleware.SystemLogs("Update CryptoKings Config", &log, systemLogs),
 			},
 		}, {
@@ -437,7 +435,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get games", http.MethodGet),
+				middleware.Authz(authModule, "get games", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -446,7 +444,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get game summary", http.MethodGet),
+				middleware.Authz(authModule, "get game summary", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -455,7 +453,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get transaction summary", http.MethodGet),
+				middleware.Authz(authModule, "get transaction summary", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -464,7 +462,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update games", http.MethodPut),
+				middleware.Authz(authModule, "update games", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -473,7 +471,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "disable games", http.MethodPost),
+				middleware.Authz(authModule, "disable games", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -482,7 +480,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get available games", http.MethodGet),
+				middleware.Authz(authModule, "get available games", http.MethodGet),
 			},
 		},
 		{
@@ -492,7 +490,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete games", http.MethodDelete),
+				middleware.Authz(authModule, "delete games", http.MethodDelete),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -501,7 +499,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "add games", http.MethodDelete),
+				middleware.Authz(authModule, "add games", http.MethodDelete),
 			},
 		},
 		{
@@ -511,7 +509,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update game status", http.MethodPost),
+				middleware.Authz(authModule, "update game status", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -520,7 +518,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create mysteries", http.MethodPost),
+				middleware.Authz(authModule, "create mysteries", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -529,7 +527,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get mysteries", http.MethodGet),
+				middleware.Authz(authModule, "get mysteries", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodDelete,
@@ -538,7 +536,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete mysteries", http.MethodDelete),
+				middleware.Authz(authModule, "delete mysteries", http.MethodDelete),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -547,7 +545,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update mysteries", http.MethodPut),
+				middleware.Authz(authModule, "update mysteries", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -556,7 +554,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create spinning wheel config", http.MethodPost),
+				middleware.Authz(authModule, "create spinning wheel config", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -573,7 +571,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete spinning wheel config", http.MethodDelete),
+				middleware.Authz(authModule, "delete spinning wheel config", http.MethodDelete),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -582,7 +580,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update spinning wheel config", http.MethodPut),
+				middleware.Authz(authModule, "update spinning wheel config", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -591,7 +589,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update bet icon", http.MethodPost),
+				middleware.Authz(authModule, "update bet icon", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -600,7 +598,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get scratch card configs", http.MethodGet),
+				middleware.Authz(authModule, "get scratch card configs", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -609,7 +607,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update scratch card configs", http.MethodPut),
+				middleware.Authz(authModule, "update scratch card configs", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -618,7 +616,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create bet level", http.MethodPost),
+				middleware.Authz(authModule, "create bet level", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -627,7 +625,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get bet levels", http.MethodGet),
+				middleware.Authz(authModule, "get bet levels", http.MethodGet),
 			},
 		},
 		{
@@ -637,7 +635,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create level requirements", http.MethodPost),
+				middleware.Authz(authModule, "create level requirements", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -646,7 +644,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update level requirements", http.MethodPut),
+				middleware.Authz(authModule, "update level requirements", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -671,7 +669,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Create Loot Box", http.MethodPost),
+				middleware.Authz(authModule, "Create Loot Box", http.MethodPost),
 				middleware.SystemLogs("Create Loot Box", &log, systemLogs),
 			},
 		}, {
@@ -681,7 +679,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Update Loot Box", http.MethodPut),
+				middleware.Authz(authModule, "Update Loot Box", http.MethodPut),
 				middleware.SystemLogs("Update Loot Box", &log, systemLogs),
 			},
 		}, {
@@ -691,7 +689,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Delete Loot Box", http.MethodDelete),
+				middleware.Authz(authModule, "Delete Loot Box", http.MethodDelete),
 				middleware.SystemLogs("Delete Loot Box", &log, systemLogs),
 			},
 		}, {
@@ -701,7 +699,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Get Loot Box", http.MethodGet),
+				middleware.Authz(authModule, "Get Loot Box", http.MethodGet),
 				middleware.SystemLogs("Get Loot Boxes", &log, systemLogs),
 			},
 		}, {

@@ -129,14 +129,25 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 	}
 
 	// Check for deposit alerts after successful deposit
-	if fund.Type == constant.ADD_FUND && b.alertStorage != nil {
-		// Check alerts for all active configurations (using the longest time window from active configs)
-		// Use a reasonable default time window (60 minutes) if no configs exist
-		timeWindow := 60 * time.Minute
+	// Use the alert service which handles both trigger creation and email sending
+	if fund.Type == constant.ADD_FUND && b.alertService != nil {
 		go func() {
+			// Small delay to ensure database transaction is committed
+			time.Sleep(500 * time.Millisecond)
+			
 			// Run in background to not block the response
-			if err := b.alertStorage.CheckDepositAlerts(context.Background(), timeWindow); err != nil {
-				b.log.Error("Failed to check deposit alerts", zap.Error(err))
+			// Use the alert service's CheckDepositAlerts which handles both trigger creation and email sending
+			b.log.Info("Checking deposit alerts after manual fund addition",
+				zap.String("user_id", fund.UserID.String()),
+				zap.String("amount", fund.Amount.String()))
+			
+			// Skip duplicate check when manually adding funds - we want to create a trigger and send email
+			if err := b.alertService.CheckDepositAlerts(context.Background(), true); err != nil {
+				b.log.Error("Failed to check deposit alerts after manual fund", zap.Error(err))
+			} else {
+				b.log.Info("Deposit alerts checked and emails sent after manual fund addition",
+					zap.String("user_id", fund.UserID.String()),
+					zap.String("amount", fund.Amount.String()))
 			}
 		}()
 	}
@@ -365,6 +376,26 @@ func (b *balance) ValidateFundReq(ctx context.Context, fund dto.ManualFundReq) e
 		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		return err
 	}
+
+	// Check admin's funding limit from role_permissions
+	maxLimit, err := b.balanceStorage.GetAdminFundingLimit(ctx, fund.AdminID)
+	if err != nil {
+		b.log.Error("Failed to get admin funding limit", zap.Error(err), zap.String("adminID", fund.AdminID.String()))
+		// Don't fail validation if we can't get the limit, just log it and allow
+	} else if maxLimit != nil {
+		// Admin has a funding limit set
+		if fund.Amount.GreaterThan(*maxLimit) {
+			err = fmt.Errorf("funding amount %s exceeds admin's limit of %s", fund.Amount.String(), maxLimit.String())
+			b.log.Warn("Funding limit exceeded", 
+				zap.String("adminID", fund.AdminID.String()),
+				zap.String("requestedAmount", fund.Amount.String()),
+				zap.String("limit", maxLimit.String()))
+			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+			return err
+		}
+	}
+	// If maxLimit is nil, admin has unlimited funding (no limit)
+
 	return nil
 }
 

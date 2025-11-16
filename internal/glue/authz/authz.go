@@ -3,7 +3,6 @@ package authz
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	authzModule handler.Authz,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLog module.SystemLogs,
 ) {
 
@@ -29,7 +27,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get permissions", http.MethodGet),
+				middleware.Authz(authModule, "get permissions", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -38,7 +36,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create role", http.MethodPost),
+				middleware.Authz(authModule, "create role", http.MethodPost),
 				middleware.SystemLogs("create role", &log, systemLog),
 			},
 		}, {
@@ -48,7 +46,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get roles", http.MethodGet),
+				middleware.Authz(authModule, "get roles", http.MethodGet),
 				middleware.SystemLogs("get roles", &log, systemLog),
 			},
 		}, {
@@ -58,7 +56,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update role permissions", http.MethodPatch),
+				middleware.Authz(authModule, "update role permissions", http.MethodPatch),
 				middleware.SystemLogs("update role permissions", &log, systemLog),
 			},
 		}, {
@@ -68,7 +66,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "remove role", http.MethodDelete),
+				middleware.Authz(authModule, "remove role", http.MethodDelete),
 				middleware.SystemLogs("remove role", &log, systemLog),
 			},
 		}, {
@@ -78,7 +76,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "assign role", http.MethodPost),
+				middleware.Authz(authModule, "assign role", http.MethodPost),
 				middleware.SystemLogs("assign role", &log, systemLog),
 			},
 		}, {
@@ -88,7 +86,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "revoke role", http.MethodDelete),
+				middleware.Authz(authModule, "revoke role", http.MethodDelete),
 				middleware.SystemLogs("revoke role", &log, systemLog),
 			},
 		}, {
@@ -98,7 +96,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get role users", http.MethodGet),
+				middleware.Authz(authModule, "get role users", http.MethodGet),
 				middleware.SystemLogs("get role users", &log, systemLog),
 			},
 		}, {
@@ -108,7 +106,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get user roles", http.MethodGet),
+				middleware.Authz(authModule, "get user roles", http.MethodGet),
 				middleware.SystemLogs("get user roles", &log, systemLog),
 			},
 		}, {
@@ -118,7 +116,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get permissions", http.MethodGet),
+				middleware.Authz(authModule, "get permissions", http.MethodGet),
 				middleware.SystemLogs("search admin users", &log, systemLog),
 			},
 		},

@@ -3,7 +3,6 @@ package banner
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -16,7 +15,6 @@ func Init(
 	group *gin.RouterGroup,
 	log zap.Logger,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	banner handler.Banner,
 	systemLogs module.SystemLogs,
 ) {
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "banner read", http.MethodGet),
+				middleware.Authz(authModule, "banner read", http.MethodGet),
 				middleware.SystemLogs("Get All Banners", &log, systemLogs),
 			},
 		},
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "banner create", http.MethodPost),
+				middleware.Authz(authModule, "banner create", http.MethodPost),
 				middleware.SystemLogs("Create Banner", &log, systemLogs),
 			},
 		},
@@ -50,7 +48,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "banner display", http.MethodGet),
+				middleware.Authz(authModule, "banner display", http.MethodGet),
 				middleware.SystemLogs("Get banner by page", &log, systemLogs),
 			},
 		},
@@ -61,7 +59,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "banner image upload", http.MethodPost),
+				middleware.Authz(authModule, "banner image upload", http.MethodPost),
 				middleware.SystemLogs("Upload Banner Image", &log, systemLogs),
 			},
 		},
@@ -72,7 +70,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "banner update", http.MethodPatch),
+				middleware.Authz(authModule, "banner update", http.MethodPatch),
 				middleware.SystemLogs("Update Banner", &log, systemLogs),
 			},
 		},
@@ -83,7 +81,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "banner delete", http.MethodDelete),
+				middleware.Authz(authModule, "banner delete", http.MethodDelete),
 				middleware.SystemLogs("Delete Banner", &log, systemLogs),
 			},
 		},

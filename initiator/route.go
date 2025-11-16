@@ -1,7 +1,6 @@
 package initiator
 
 import (
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/adds"
 	"github.com/tucanbit/internal/glue/admin_activity_logs"
@@ -37,6 +36,7 @@ import (
 	"github.com/tucanbit/internal/glue/operationsdefinitions"
 	"github.com/tucanbit/internal/glue/otp"
 	"github.com/tucanbit/internal/glue/performance"
+	"github.com/tucanbit/internal/glue/rakeback_override"
 	"github.com/tucanbit/internal/glue/report"
 	"github.com/tucanbit/internal/glue/risksettings"
 	"github.com/tucanbit/internal/glue/sportsservice"
@@ -54,39 +54,40 @@ import (
 	"go.uber.org/zap"
 )
 
-func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.Logger, enforcer *casbin.Enforcer, persistence *Persistence) {
-	user.Init(grp, *log, handler.User, module.User, module.Authz, enforcer, module.SystemLogs)
-	operationalgroup.Init(grp, *log, handler.OperationalGroup, module.Authz, enforcer, module.SystemLogs)
-	operationalgrouptype.Init(grp, *log, handler.OperationalGroupType, module.Authz, enforcer, module.SystemLogs)
-	operationsdefinitions.Init(grp, *log, handler.OperationsDefinitions, module.Authz, enforcer)
-	balance.Init(grp, *log, handler.Balance, module.User, module.Authz, enforcer, module.SystemLogs)
-	balancelogs.Init(grp, *log, handler.BalanceLogs, module.Authz, enforcer, module.SystemLogs)
+func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.Logger, persistence *Persistence) {
+	user.Init(grp, *log, handler.User, module.User, module.Authz, module.SystemLogs)
+	operationalgroup.Init(grp, *log, handler.OperationalGroup, module.Authz, module.SystemLogs)
+	operationalgrouptype.Init(grp, *log, handler.OperationalGroupType, module.Authz, module.SystemLogs)
+	operationsdefinitions.Init(grp, *log, handler.OperationsDefinitions, module.Authz)
+	balance.Init(grp, *log, handler.Balance, module.User, module.Authz, module.SystemLogs)
+	balancelogs.Init(grp, *log, handler.BalanceLogs, module.Authz, module.SystemLogs)
 	exchange.Init(grp, *log, handler.Exchange)
 	ws.Init(grp, *log, handler.WS)
-	bet.Init(grp, *log, handler.Bet, module.User, module.Authz, enforcer, module.SystemLogs)
-	department.Init(grp, *log, handler.Departments, module.Authz, enforcer, module.SystemLogs)
-	performance.Init(grp, *log, handler.Performance, module.Authz, enforcer, module.SystemLogs)
-	authz.Init(grp, *log, handler.Authz, module.Authz, enforcer, module.SystemLogs)
-	logs.Init(grp, *log, handler.SystemLogs, module.Authz, module.SystemLogs, enforcer)
-	company.Init(grp, *log, handler.Company, module.Authz, enforcer, module.SystemLogs)
-	brand.Init(grp, *log, handler.Brand, module.Authz, enforcer, module.SystemLogs)
-	report.Init(grp, *log, handler.Report, module.Authz, enforcer, module.SystemLogs)
-	squads.Init(grp, *log, handler.Squads, module.Authz, enforcer, module.SystemLogs)
+	bet.Init(grp, *log, handler.Bet, module.User, module.Authz, module.SystemLogs)
+	department.Init(grp, *log, handler.Departments, module.Authz, module.SystemLogs)
+	performance.Init(grp, *log, handler.Performance, module.Authz, module.SystemLogs)
+	authz.Init(grp, *log, handler.Authz, module.Authz, module.SystemLogs)
+	logs.Init(grp, *log, handler.SystemLogs, module.Authz, module.SystemLogs)
+	company.Init(grp, *log, handler.Company, module.Authz, module.SystemLogs)
+	brand.Init(grp, *log, handler.Brand, module.Authz, module.SystemLogs)
+	report.Init(grp, *log, handler.Report, module.Authz, module.SystemLogs)
+	squads.Init(grp, *log, handler.Squads, module.Authz, module.SystemLogs)
 	notification.Init(grp, *log, handler.Notification)
 	admin_notification.Init(grp, *log, handler.Notification)
-	campaign.InitRoutes(grp, handler.Campaign, log, module.Authz, enforcer)
-	adds.Init(grp, *log, module.Authz, enforcer, handler.Adds, module.SystemLogs)
-	banner.Init(grp, *log, module.Authz, enforcer, handler.Banner, module.SystemLogs)
-	lottery.Init(grp, *log, handler.Lottery, module.Authz, module.SystemLogs, enforcer)
+	campaign.InitRoutes(grp, handler.Campaign, log, module.Authz)
+	adds.Init(grp, *log, module.Authz, handler.Adds, module.SystemLogs)
+	banner.Init(grp, *log, module.Authz, handler.Banner, module.SystemLogs)
+	lottery.Init(grp, *log, handler.Lottery, module.Authz, module.SystemLogs)
 	sportsservice.Init(grp, *log, handler.SportsService)
-	risksettings.Init(grp, *log, module.Authz, enforcer, handler.RiskSettings, module.SystemLogs)
-	agent.Init(grp, *log, handler.Agent, module.Authz, module.SystemLogs, enforcer)
+	risksettings.Init(grp, *log, module.Authz, handler.RiskSettings, module.SystemLogs)
+	agent.Init(grp, *log, handler.Agent, module.Authz, module.SystemLogs)
 	otp.Init(grp, *log, handler.OTP, module.OTP)
-	cashback.Init(grp, *log, handler.Cashback, module.Authz, enforcer, module.SystemLogs)
-	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, enforcer, module.SystemLogs)
-	game.Init(grp, *log, handler.Game, handler.HouseEdge, module.Authz, module.SystemLogs, enforcer)
+	cashback.Init(grp, *log, handler.Cashback, module.Authz, module.SystemLogs)
+	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, module.SystemLogs)
+	game.Init(grp, *log, handler.Game, handler.HouseEdge, module.Authz, module.SystemLogs)
 	analytics.Init(grp, log, handler.Analytics)
 	twofactor.Init(grp, log, handler.TwoFactor)
+	rakeback_override.Init(grp, *log, handler.RakebackOverride, module.Authz, module.SystemLogs)
 
 	// Withdrawal system routes
 	system_config.Init(grp, log, handler.SystemConfig)
@@ -106,13 +107,13 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	system_configs.Init(grp, log, persistence.Database.Queries)
 
 	// Admin activity logs routes
-	admin_activity_logs.Init(grp, *log, handler.AdminActivityLogs, module.Authz, module.AdminActivityLogs, enforcer)
+	admin_activity_logs.Init(grp, *log, handler.AdminActivityLogs, module.Authz, module.AdminActivityLogs)
 
 	// Airtime routes
-	airtime.Init(grp, *log, handler.AirtimeProvider, module.Authz, enforcer, module.SystemLogs)
+	airtime.Init(grp, *log, handler.AirtimeProvider, module.Authz, module.SystemLogs)
 
 	// KYC routes
-	kyc.Init(grp, *log, handler.KYC, module.Authz, enforcer, module.SystemLogs)
+	kyc.Init(grp, *log, handler.KYC, module.Authz, module.SystemLogs)
 
 	// Alert routes
 	alert.Init(grp.Group("/api/admin"), handler.Alert, handler.AlertEmailGroup)

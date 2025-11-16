@@ -227,6 +227,7 @@ type Performance interface {
 }
 
 type Authz interface {
+	CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error)
 	GetPermissions(ctx context.Context, req dto.GetPermissionReq) ([]dto.Permissions, error)
 	CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role, error)
 	GetRoles(ctx context.Context, req dto.GetRoleReq) ([]dto.Role, error)
@@ -389,4 +390,11 @@ type AdminActivityLogs interface {
 	DeleteAdminActivityLog(ctx context.Context, id uuid.UUID) error
 	DeleteAdminActivityLogsByAdmin(ctx context.Context, adminUserID uuid.UUID) error
 	DeleteOldAdminActivityLogs(ctx context.Context, before time.Time) error
+}
+
+type RakebackOverride interface {
+	GetActiveOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error)
+	GetOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error)
+	CreateOrUpdateOverride(ctx context.Context, req dto.CreateOrUpdateRakebackOverrideReq, adminID uuid.UUID) (*dto.GlobalRakebackOverride, error)
+	ToggleOverride(ctx context.Context, isActive bool, adminID uuid.UUID) error
 }

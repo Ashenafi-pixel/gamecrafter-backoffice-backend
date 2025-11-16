@@ -85,7 +85,7 @@ func (u *User) getSecuritySettings(ctx context.Context) (system_config.SecurityS
 			RateLimitRequests: 100,
 		}, nil
 	}
-	return u.systemConfigStorage.GetSecuritySettings(ctx)
+	return u.systemConfigStorage.GetSecuritySettings(ctx, nil) // nil = global settings
 }
 
 func Init(userStorage storage.User,

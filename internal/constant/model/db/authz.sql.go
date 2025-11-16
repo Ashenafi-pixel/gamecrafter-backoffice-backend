@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 const addRoleToUser = `-- name: AddRoleToUser :one
@@ -49,18 +50,27 @@ func (q *Queries) AddSupperAdminCasbinRule(ctx context.Context, v0 sql.NullStrin
 }
 
 const assignPermissionToRole = `-- name: AssignPermissionToRole :one
-INSERT INTO role_permissions (role_id,permission_id) values ($1,$2) RETURNING id, role_id, permission_id
+INSERT INTO role_permissions (role_id,permission_id,value) values ($1,$2,$3) RETURNING id, role_id, permission_id, value
 `
 
 type AssignPermissionToRoleParams struct {
 	RoleID       uuid.UUID
 	PermissionID uuid.UUID
+	Value        *decimal.Decimal
 }
 
 func (q *Queries) AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) (RolePermission, error) {
-	row := q.db.QueryRow(ctx, assignPermissionToRole, arg.RoleID, arg.PermissionID)
+	// Convert *decimal.Decimal to sql.NullString for scanning
+	var valueParam interface{}
+	if arg.Value != nil {
+		valueParam = *arg.Value
+	} else {
+		valueParam = nil
+	}
+	
+	row := q.db.QueryRow(ctx, assignPermissionToRole, arg.RoleID, arg.PermissionID, valueParam)
 	var i RolePermission
-	err := row.Scan(&i.ID, &i.RoleID, &i.PermissionID)
+	err := row.Scan(&i.ID, &i.RoleID, &i.PermissionID, &i.Value)
 	return i, err
 }
 
@@ -374,4 +384,23 @@ type RevokeUserRoleParams struct {
 func (q *Queries) RevokeUserRole(ctx context.Context, arg RevokeUserRoleParams) error {
 	_, err := q.db.Exec(ctx, revokeUserRole, arg.UserID, arg.RoleID)
 	return err
+}
+
+const getAdminFundingLimit = `-- name: GetAdminFundingLimit :one
+SELECT COALESCE(MAX(rp.value), NULL) as max_funding_limit
+FROM user_roles ur
+JOIN role_permissions rp ON ur.role_id = rp.role_id
+JOIN permissions p ON rp.permission_id = p.id
+WHERE ur.user_id = $1 AND p.name = 'manual funding'
+`
+
+type GetAdminFundingLimitRow struct {
+	MaxFundingLimit decimal.NullDecimal
+}
+
+func (q *Queries) GetAdminFundingLimit(ctx context.Context, userID uuid.UUID) (GetAdminFundingLimitRow, error) {
+	row := q.db.QueryRow(ctx, getAdminFundingLimit, userID)
+	var i GetAdminFundingLimitRow
+	err := row.Scan(&i.MaxFundingLimit)
+	return i, err
 }

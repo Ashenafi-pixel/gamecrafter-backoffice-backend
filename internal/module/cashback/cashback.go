@@ -12,6 +12,7 @@ import (
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/groove"
+	rakeback_override "github.com/tucanbit/internal/storage/rakeback_override"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
@@ -65,16 +66,18 @@ type CashbackService struct {
 	retryService            *RetryService
 	levelProgressionService *LevelProgressionService
 	userWS                  utils.UserWS
+	rakebackOverrideStorage rakeback_override.RakebackOverrideStorage
 	logger                  *zap.Logger
 }
 
-func NewCashbackService(storage cashback.CashbackStorage, grooveStorage groove.GrooveStorage, userWS utils.UserWS, logger *zap.Logger) *CashbackService {
+func NewCashbackService(storage cashback.CashbackStorage, grooveStorage groove.GrooveStorage, userWS utils.UserWS, logger *zap.Logger, rakebackOverrideStorage rakeback_override.RakebackOverrideStorage) *CashbackService {
 	// Create the service first
 	service := &CashbackService{
-		storage:       storage,
-		grooveStorage: grooveStorage,
-		userWS:        userWS,
-		logger:        logger,
+		storage:                 storage,
+		grooveStorage:           grooveStorage,
+		userWS:                  userWS,
+		logger:                  logger,
+		rakebackOverrideStorage: rakebackOverrideStorage,
 	}
 
 	// Create retry service with all dependencies
@@ -171,16 +174,43 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		gameVariant = s.extractGameVariantFromTransaction(ctx, bet.ClientTransactionID)
 	}
 
-	gameHouseEdge, err := s.storage.GetGameHouseEdge(ctx, gameType, gameVariant)
-	if err != nil {
-		s.logger.Error("Failed to get game house edge, using default", zap.Error(err))
-		houseEdge = decimal.NewFromFloat(0.0) // Default 0% house edge (no default cashback)
+	// Check for active global rakeback override (Happy Hour)
+	if s.rakebackOverrideStorage != nil {
+		override, err := s.rakebackOverrideStorage.GetActiveOverride(ctx)
+		if err == nil && override != nil && override.GetIsActive() {
+			// Convert percentage to decimal (e.g., 100% = 1.0)
+			houseEdge = override.GetRakebackPercentage().Div(decimal.NewFromInt(100))
+			s.logger.Info("Using global rakeback override",
+				zap.String("override_id", override.GetID().String()),
+				zap.String("rakeback_percentage", override.GetRakebackPercentage().String()),
+				zap.String("house_edge", houseEdge.String()))
+		} else {
+			// Use normal game house edge
+			gameHouseEdge, err := s.storage.GetGameHouseEdge(ctx, gameType, gameVariant)
+			if err != nil {
+				s.logger.Error("Failed to get game house edge, using default", zap.Error(err))
+				houseEdge = decimal.NewFromFloat(0.0) // Default 0% house edge (no default cashback)
+			} else {
+				houseEdge = gameHouseEdge.HouseEdge
+				s.logger.Info("Using configurable house edge",
+					zap.String("game_type", gameType),
+					zap.String("game_variant", gameVariant),
+					zap.String("house_edge", houseEdge.String()))
+			}
+		}
 	} else {
-		houseEdge = gameHouseEdge.HouseEdge
-		s.logger.Info("Using configurable house edge",
-			zap.String("game_type", gameType),
-			zap.String("game_variant", gameVariant),
-			zap.String("house_edge", houseEdge.String()))
+		// Use normal game house edge
+		gameHouseEdge, err := s.storage.GetGameHouseEdge(ctx, gameType, gameVariant)
+		if err != nil {
+			s.logger.Error("Failed to get game house edge, using default", zap.Error(err))
+			houseEdge = decimal.NewFromFloat(0.0) // Default 0% house edge (no default cashback)
+		} else {
+			houseEdge = gameHouseEdge.HouseEdge
+			s.logger.Info("Using configurable house edge",
+				zap.String("game_type", gameType),
+				zap.String("game_variant", gameVariant),
+				zap.String("house_edge", houseEdge.String()))
+		}
 	}
 
 	// Calculate expected GGR (Expected Gross Gaming Revenue) - kept for logging purposes
@@ -1027,4 +1057,11 @@ func (s *CashbackService) ProcessBulkLevelProgression(ctx context.Context, userI
 	s.logger.Info("Processing bulk level progression", zap.Int("user_count", len(userIDs)))
 
 	return s.levelProgressionService.ProcessBulkLevelProgression(ctx, userIDs)
+}
+
+// CreateLevelProgressionResult creates a detailed result for level progression
+func (s *CashbackService) CreateLevelProgressionResult(ctx context.Context, userID uuid.UUID) dto.LevelProgressionResult {
+	s.logger.Info("Creating level progression result", zap.String("user_id", userID.String()))
+
+	return s.levelProgressionService.CreateLevelProgressionResult(ctx, userID)
 }

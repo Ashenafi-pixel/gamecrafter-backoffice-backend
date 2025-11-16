@@ -283,23 +283,10 @@ func (s *LevelProgressionService) ProcessBulkLevelProgression(ctx context.Contex
 	var errors []error
 
 	for _, userID := range userIDs {
-		result := dto.LevelProgressionResult{
-			UserID: userID,
+		result := s.CreateLevelProgressionResult(ctx, userID)
+		if result.Error != "" {
+			errors = append(errors, fmt.Errorf("user %s: %s", userID.String(), result.Error))
 		}
-
-		userLevel, err := s.CheckAndProcessLevelProgression(ctx, userID)
-		if err != nil {
-			s.logger.Error("Failed to process level progression for user",
-				zap.String("user_id", userID.String()),
-				zap.Error(err))
-			result.Error = err.Error()
-			errors = append(errors, err)
-		} else {
-			result.Success = true
-			result.NewLevel = userLevel.CurrentLevel
-			result.UpdatedAt = userLevel.UpdatedAt
-		}
-
 		results = append(results, result)
 	}
 
@@ -309,4 +296,127 @@ func (s *LevelProgressionService) ProcessBulkLevelProgression(ctx context.Contex
 		zap.Int("failed", len(errors)))
 
 	return results, nil
+}
+
+// CreateLevelProgressionResult creates a detailed result for level progression
+func (s *LevelProgressionService) CreateLevelProgressionResult(ctx context.Context, userID uuid.UUID) dto.LevelProgressionResult {
+	result := dto.LevelProgressionResult{
+		UserID: userID,
+	}
+
+	// Get current user level - GetUserLevel already handles "no rows" by creating default
+	userLevel, err := s.storage.GetUserLevel(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to get user level", zap.String("user_id", userID.String()), zap.Error(err))
+		result.Error = fmt.Sprintf("Failed to get user level: %s", err.Error())
+		result.Message = result.Error
+		return result
+	}
+
+	if userLevel == nil {
+		s.logger.Warn("User level is nil after retrieval, initializing", zap.String("user_id", userID.String()))
+		// Initialize user level if not found
+		userLevel, err = s.storage.InitializeUserLevel(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to initialize user level", zap.String("user_id", userID.String()), zap.Error(err))
+			result.Error = fmt.Sprintf("Failed to initialize user level: %s", err.Error())
+			result.Message = result.Error
+			return result
+		}
+		s.logger.Info("User level initialized successfully", 
+			zap.String("user_id", userID.String()),
+			zap.Int("level", userLevel.CurrentLevel))
+	}
+
+	result.CurrentLevel = userLevel.CurrentLevel
+	result.TotalExpectedGGR = userLevel.TotalExpectedGGR.String()
+
+	// Get current tier
+	currentTier, err := s.storage.GetCashbackTierByID(ctx, userLevel.CurrentTierID)
+	if err == nil && currentTier != nil {
+		result.CurrentTierName = currentTier.TierName
+	}
+
+	// Get all tiers to find next tier
+	tiers, err := s.storage.GetAllCashbackTiers(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get cashback tiers", zap.Error(err))
+		result.Error = fmt.Sprintf("Failed to get cashback tiers: %s", err.Error())
+		result.Message = result.Error
+		return result
+	}
+
+	// Find the highest tier the user qualifies for
+	var highestQualifyingTier *dto.CashbackTier
+	for _, tier := range tiers {
+		if userLevel.TotalExpectedGGR.GreaterThanOrEqual(tier.MinExpectedGGRRequired) {
+			if highestQualifyingTier == nil || tier.TierLevel > highestQualifyingTier.TierLevel {
+				highestQualifyingTier = &tier
+			}
+		}
+	}
+
+	if highestQualifyingTier == nil {
+		// Find the first tier to show what's required
+		if len(tiers) > 0 {
+			firstTier := tiers[0]
+			result.RequiredGGR = firstTier.MinExpectedGGRRequired.String()
+			result.NextTierName = firstTier.TierName
+		}
+		result.Success = false
+		result.Message = fmt.Sprintf("User does not qualify for any tier. Current GGR: %s. Minimum required: %s", 
+			userLevel.TotalExpectedGGR.String(), result.RequiredGGR)
+		return result
+	}
+
+	// Check if user needs to be upgraded
+	if highestQualifyingTier.TierLevel > userLevel.CurrentLevel {
+		// Process the level progression
+		updatedUserLevel, err := s.CheckAndProcessLevelProgression(ctx, userID)
+		if err != nil {
+			s.logger.Error("Failed to process level progression", zap.Error(err))
+			result.Error = fmt.Sprintf("Failed to process level progression: %s", err.Error())
+			result.Message = result.Error
+			return result
+		}
+
+		result.Success = true
+		result.NewLevel = updatedUserLevel.CurrentLevel
+		result.CurrentLevel = updatedUserLevel.CurrentLevel
+		result.UpdatedAt = updatedUserLevel.UpdatedAt
+		result.Message = fmt.Sprintf("Successfully progressed from Level %d (%s) to Level %d (%s). GGR: %s", 
+			userLevel.CurrentLevel, result.CurrentTierName, updatedUserLevel.CurrentLevel, highestQualifyingTier.TierName, 
+			userLevel.TotalExpectedGGR.String())
+		return result
+	}
+
+	// User is already at the appropriate level, find next tier
+	var nextTier *dto.CashbackTier
+	if userLevel.CurrentLevel < 5 {
+		nextTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel+1)
+		if err == nil && nextTier != nil {
+			result.NextTierName = nextTier.TierName
+			result.RequiredGGR = nextTier.MinExpectedGGRRequired.String()
+			
+			ggrNeeded := nextTier.MinExpectedGGRRequired.Sub(userLevel.TotalExpectedGGR)
+			if ggrNeeded.GreaterThan(decimal.Zero) {
+				result.Message = fmt.Sprintf("User already at Level %d (%s). Needs %s more GGR to reach Level %d (%s). Current GGR: %s", 
+					userLevel.CurrentLevel, result.CurrentTierName, ggrNeeded.String(), nextTier.TierLevel, nextTier.TierName, 
+					userLevel.TotalExpectedGGR.String())
+			} else {
+				result.Message = fmt.Sprintf("User already at Level %d (%s) and qualifies for next tier. Current GGR: %s", 
+					userLevel.CurrentLevel, result.CurrentTierName, userLevel.TotalExpectedGGR.String())
+			}
+		} else {
+			result.Message = fmt.Sprintf("User already at maximum level %d (%s). Current GGR: %s", 
+				userLevel.CurrentLevel, result.CurrentTierName, userLevel.TotalExpectedGGR.String())
+		}
+	} else {
+		result.Message = fmt.Sprintf("User already at maximum level %d (%s). Current GGR: %s", 
+			userLevel.CurrentLevel, result.CurrentTierName, userLevel.TotalExpectedGGR.String())
+	}
+
+	result.Success = true
+	result.NewLevel = userLevel.CurrentLevel
+	return result
 }

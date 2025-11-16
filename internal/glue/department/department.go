@@ -3,7 +3,6 @@ package department
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	dep handler.Departements,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 
@@ -29,7 +27,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create departments", http.MethodPost),
+				middleware.Authz(authModule, "create departments", http.MethodPost),
 				middleware.SystemLogs("Create Departments", &log, systemLogs),
 			},
 		}, {
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get departments", http.MethodGet),
+				middleware.Authz(authModule, "get departments", http.MethodGet),
 				middleware.SystemLogs("Get Department", &log, systemLogs),
 			},
 		}, {
@@ -49,7 +47,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update department", http.MethodPatch),
+				middleware.Authz(authModule, "update department", http.MethodPatch),
 				middleware.SystemLogs("Update Department", &log, systemLogs),
 			},
 		}, {
@@ -59,7 +57,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "assign userto depertment", http.MethodPost),
+				middleware.Authz(authModule, "assign userto depertment", http.MethodPost),
 				middleware.SystemLogs("Assign User To Department", &log, systemLogs),
 			},
 		},

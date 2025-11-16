@@ -94,7 +94,7 @@ type AlertStorage interface {
 	// Alert checking methods (to be implemented)
 	CheckBetCountAlerts(ctx context.Context, timeWindow time.Duration) error
 	CheckBetAmountAlerts(ctx context.Context, timeWindow time.Duration) error
-	CheckDepositAlerts(ctx context.Context, timeWindow time.Duration) error
+	CheckDepositAlerts(ctx context.Context, timeWindow time.Duration, skipDuplicateCheck bool) error
 	CheckWithdrawalAlerts(ctx context.Context, timeWindow time.Duration) error
 	CheckGGRAlerts(ctx context.Context, timeWindow time.Duration) error
 }
@@ -599,7 +599,7 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
             t.acknowledged, t.acknowledged_by::text, t.acknowledged_at, t.created_at,
             ac.id, ac.name, ac.description, ac.alert_type, ac.status, ac.threshold_amount,
             ac.time_window_minutes, ac.currency_code, ac.email_notifications, ac.webhook_url,
-            ac.created_by, ac.created_at, ac.updated_at, ac.updated_by,
+            ac.email_group_ids, ac.created_by, ac.created_at, ac.updated_at, ac.updated_by,
             u.username, u.email
         FROM alert_triggers t
         LEFT JOIN alert_configurations ac ON ac.id = t.alert_configuration_id
@@ -631,6 +631,7 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 		var currencyCode sql.NullString
 		var contextData sql.NullString
 		var acknowledgedAt sql.NullTime
+		var emailGroupIDs UUIDArray
 		
 		if err := rows.Scan(
 			&t.ID, &t.AlertConfigurationID, &t.TriggeredAt, &t.TriggerValue, &t.ThresholdValue,
@@ -638,7 +639,7 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 			&t.Acknowledged, &acknowledgedByStr, &acknowledgedAt, &t.CreatedAt,
 			&ac.ID, &ac.Name, &ac.Description, &ac.AlertType, &ac.Status, &ac.ThresholdAmount,
 			&ac.TimeWindowMinutes, &ac.CurrencyCode, &ac.EmailNotifications, &ac.WebhookURL,
-			&ac.CreatedBy, &ac.CreatedAt, &ac.UpdatedAt, &ac.UpdatedBy,
+			&emailGroupIDs, &ac.CreatedBy, &ac.CreatedAt, &ac.UpdatedAt, &ac.UpdatedBy,
 			&username, &email,
 		); err != nil {
 			s.log.Error("Failed to scan alert trigger", zap.Error(err))
@@ -687,6 +688,9 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 		if acknowledgedAt.Valid {
 			t.AcknowledgedAt = &acknowledgedAt.Time
 		}
+		
+		// Populate email group IDs
+		ac.EmailGroupIDs = []uuid.UUID(emailGroupIDs)
 		
 		// attach joined fields
 		t.AlertConfiguration = &ac
@@ -846,7 +850,10 @@ func (s *alertStorage) CheckBetCountAlerts(ctx context.Context, timeWindow time.
 						zap.String("alert_id", config.ID.String()),
 						zap.String("alert_type", string(config.AlertType)),
 						zap.Float64("bet_count", betCount),
-						zap.Float64("threshold", config.ThresholdAmount))
+						zap.Float64("threshold", config.ThresholdAmount),
+						zap.String("trigger_id", trigger.ID.String()))
+					// Note: user_id is null for aggregate alerts (total bet count across all users)
+					// Email sending will be handled by the module layer's sendEmailsForNewTriggers
 				}
 			} else {
 				s.log.Debug("Skipping duplicate trigger",
@@ -963,7 +970,10 @@ func (s *alertStorage) CheckBetAmountAlerts(ctx context.Context, timeWindow time
 						zap.String("alert_id", config.ID.String()),
 						zap.String("alert_type", string(config.AlertType)),
 						zap.Float64("total_amount", totalBetAmount),
-						zap.Float64("threshold", config.ThresholdAmount))
+						zap.Float64("threshold", config.ThresholdAmount),
+						zap.String("trigger_id", trigger.ID.String()))
+					// Note: user_id is null for aggregate alerts (total bet amount across all users)
+					// Email sending will be handled by the module layer's sendEmailsForNewTriggers
 				}
 			}
 		}
@@ -972,7 +982,7 @@ func (s *alertStorage) CheckBetAmountAlerts(ctx context.Context, timeWindow time
 	return nil
 }
 
-func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.Duration) error {
+func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.Duration, skipDuplicateCheck bool) error {
 	// Get all active deposit alert configurations
 	req := &dto.GetAlertConfigurationsRequest{
 		Page:    1,
@@ -997,7 +1007,7 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 	depositConfigs := make([]dto.AlertConfiguration, 0)
 	for _, config := range configs {
 		for _, alertType := range depositAlertTypes {
-			if config.AlertType == alertType && config.EmailNotifications {
+			if config.AlertType == alertType {
 				depositConfigs = append(depositConfigs, config)
 				break
 			}
@@ -1008,18 +1018,21 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 		return nil // No deposit alerts configured
 	}
 
-	// Calculate time window start
-	timeWindowStart := time.Now().Add(-timeWindow)
-
 	// Check each deposit alert configuration
 	for _, config := range depositConfigs {
+		// Use the config's time window instead of the passed parameter
+		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
+		
 		var totalAmount float64
 		var query string
 		var args []interface{}
 
-		// Build query based on alert type
+		// Build query based on alert type - also get the most recent deposit's user_id and amount
+		var mostRecentUserID *uuid.UUID
+		var mostRecentAmount float64
+		var userIDQuery string
 		if config.AlertType == dto.AlertTypeDepositsTotalMore || config.AlertType == dto.AlertTypeDepositsTotalLess {
-			// Total deposits (all currencies, convert to USD)
+			// Total deposits (all currencies, convert to USD) - also get most recent user_id and amount
 			query = `
 				SELECT COALESCE(SUM(amount_cents), 0) / 100.0
 				FROM manual_funds
@@ -1027,9 +1040,17 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 					AND created_at >= $1
 					AND created_at <= $2
 			`
-			args = []interface{}{timeWindowStart, time.Now()}
+			userIDQuery = `
+				SELECT user_id, amount_cents / 100.0 as amount
+				FROM manual_funds 
+				WHERE type = 'add_fund' 
+				  AND created_at >= $1 
+				  AND created_at <= $2 
+				ORDER BY created_at DESC LIMIT 1
+			`
+			args = []interface{}{configTimeWindowStart, time.Now()}
 		} else if config.AlertType == dto.AlertTypeDepositsTypeMore || config.AlertType == dto.AlertTypeDepositsTypeLess {
-			// Type-specific deposits
+			// Type-specific deposits - also get most recent user_id and amount
 			if config.CurrencyCode == nil {
 				continue // Skip if no currency specified
 			}
@@ -1041,7 +1062,16 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 					AND created_at >= $2
 					AND created_at <= $3
 			`
-			args = []interface{}{string(*config.CurrencyCode), timeWindowStart, time.Now()}
+			userIDQuery = `
+				SELECT user_id, amount_cents / 100.0 as amount
+				FROM manual_funds 
+				WHERE type = 'add_fund' 
+				  AND currency_code = $1
+				  AND created_at >= $2 
+				  AND created_at <= $3 
+				ORDER BY created_at DESC LIMIT 1
+			`
+			args = []interface{}{string(*config.CurrencyCode), configTimeWindowStart, time.Now()}
 		} else {
 			continue
 		}
@@ -1051,6 +1081,34 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 			s.log.Error("Failed to calculate deposit total", zap.Error(err), zap.String("alert_id", config.ID.String()))
 			continue
 		}
+		
+		// Get the most recent deposit's user_id and amount
+		var recentUserIDStr sql.NullString
+		var recentAmount sql.NullFloat64
+		err = s.db.GetPool().QueryRow(ctx, userIDQuery, args...).Scan(&recentUserIDStr, &recentAmount)
+		if err == nil {
+			if recentUserIDStr.Valid && recentUserIDStr.String != "" {
+				if uid, parseErr := uuid.Parse(recentUserIDStr.String); parseErr == nil {
+					mostRecentUserID = &uid
+					s.log.Debug("Found most recent deposit user_id", 
+						zap.String("user_id", mostRecentUserID.String()),
+						zap.String("alert_id", config.ID.String()))
+				}
+			}
+			if recentAmount.Valid {
+				mostRecentAmount = recentAmount.Float64
+				s.log.Debug("Found most recent deposit amount", 
+					zap.Float64("amount", mostRecentAmount),
+					zap.String("alert_id", config.ID.String()))
+			}
+		}
+
+		s.log.Debug("Checking deposit alert",
+			zap.String("alert_id", config.ID.String()),
+			zap.String("alert_type", string(config.AlertType)),
+			zap.Float64("total_amount", totalAmount),
+			zap.Float64("threshold", config.ThresholdAmount),
+			zap.Int("time_window_minutes", config.TimeWindowMinutes))
 
 		// Check if threshold is exceeded
 		shouldTrigger := false
@@ -1061,22 +1119,55 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 		}
 
 		if shouldTrigger {
-			// Check if we already triggered this alert recently (avoid duplicates)
-			recentTriggerQuery := `
-				SELECT COUNT(*) FROM alert_triggers
-				WHERE alert_configuration_id = $1
-					AND triggered_at >= $2
-			`
-			var recentCount int64
-			err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, timeWindowStart).Scan(&recentCount)
-			if err == nil && recentCount == 0 {
-				// Create trigger
+			shouldCreateTrigger := true
+			
+			// Check for duplicates only if skipDuplicateCheck is false
+			if !skipDuplicateCheck {
+				// Check if we already triggered this alert recently (avoid duplicates within last 5 minutes)
+				// Use a shorter window (5 minutes) to prevent spam while still allowing new triggers
+				// when conditions are met again after the cooldown period
+				recentWindowStart := time.Now().Add(-5 * time.Minute)
+				recentTriggerQuery := `
+					SELECT COUNT(*) FROM alert_triggers
+					WHERE alert_configuration_id = $1
+						AND triggered_at >= $2
+				`
+				var recentCount int64
+				err := s.db.GetPool().QueryRow(ctx, recentTriggerQuery, config.ID, recentWindowStart).Scan(&recentCount)
+				if err != nil {
+					s.log.Error("Failed to check for recent deposit triggers", zap.Error(err), zap.String("alert_id", config.ID.String()))
+					// Continue anyway - don't block trigger creation due to check failure
+				} else if recentCount > 0 {
+					shouldCreateTrigger = false
+					s.log.Debug("Skipping duplicate deposit trigger", 
+						zap.String("alert_id", config.ID.String()),
+						zap.Int64("recent_count", recentCount),
+						zap.Float64("total_amount", totalAmount),
+						zap.Float64("threshold", config.ThresholdAmount))
+				}
+			} else {
+				s.log.Debug("Skipping duplicate check for deposit alert (manual fund addition)", 
+					zap.String("alert_id", config.ID.String()))
+			}
+			
+			if shouldCreateTrigger {
+				// Create trigger - use the most recent deposit amount as trigger value (not the total)
+				// This shows the specific deposit that triggered the alert
+				triggerValue := totalAmount
+				amountUSD := &totalAmount
+				if mostRecentAmount > 0 {
+					// Use the most recent deposit amount as the trigger value
+					triggerValue = mostRecentAmount
+					amountUSD = &mostRecentAmount
+				}
+				
 				trigger := &dto.AlertTrigger{
 					AlertConfigurationID: config.ID,
 					TriggeredAt:          time.Now(),
-					TriggerValue:         totalAmount,
+					TriggerValue:         triggerValue, // Use the individual deposit amount, not total
 					ThresholdValue:       config.ThresholdAmount,
-					AmountUSD:            &totalAmount,
+					AmountUSD:            amountUSD, // Use the individual deposit amount
+					UserID:               mostRecentUserID, // Include user_id from most recent deposit
 				}
 				if config.CurrencyCode != nil {
 					trigger.CurrencyCode = config.CurrencyCode
@@ -1086,15 +1177,26 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 				if err != nil {
 					s.log.Error("Failed to create deposit alert trigger", zap.Error(err), zap.String("alert_id", config.ID.String()))
 				} else {
-					s.log.Info("Deposit alert triggered",
+					logFields := []zap.Field{
 						zap.String("alert_id", config.ID.String()),
 						zap.String("alert_type", string(config.AlertType)),
 						zap.Float64("total_amount", totalAmount),
-						zap.Float64("threshold", config.ThresholdAmount))
-					// Note: Email sending will be handled by a background job or webhook
-					// For now, triggers are created and can be checked via the API
+						zap.Float64("threshold", config.ThresholdAmount),
+						zap.String("trigger_id", trigger.ID.String()),
+					}
+					if mostRecentUserID != nil {
+						logFields = append(logFields, zap.String("user_id", mostRecentUserID.String()))
+					}
+					s.log.Info("Deposit alert triggered", logFields...)
+					// Email sending will be handled by the module layer's sendEmailsForNewTriggers
 				}
 			}
+		} else {
+			s.log.Debug("Deposit alert condition not met",
+				zap.String("alert_id", config.ID.String()),
+				zap.String("alert_type", string(config.AlertType)),
+				zap.Float64("total_amount", totalAmount),
+				zap.Float64("threshold", config.ThresholdAmount))
 		}
 	}
 
@@ -1217,7 +1319,10 @@ func (s *alertStorage) CheckWithdrawalAlerts(ctx context.Context, timeWindow tim
 						zap.String("alert_id", config.ID.String()),
 						zap.String("alert_type", string(config.AlertType)),
 						zap.Float64("total_amount", totalAmount),
-						zap.Float64("threshold", config.ThresholdAmount))
+						zap.Float64("threshold", config.ThresholdAmount),
+						zap.String("trigger_id", trigger.ID.String()))
+					// Note: user_id is null for aggregate alerts (total withdrawals across all users)
+					// Email sending will be handled by the module layer's sendEmailsForNewTriggers
 				}
 			}
 		}
@@ -1324,7 +1429,10 @@ func (s *alertStorage) CheckGGRAlerts(ctx context.Context, timeWindow time.Durat
 						s.log.Info("GGR single alert triggered",
 							zap.String("alert_id", config.ID.String()),
 							zap.Float64("ggr", ggr),
-							zap.Float64("threshold", config.ThresholdAmount))
+							zap.Float64("threshold", config.ThresholdAmount),
+							zap.String("trigger_id", trigger.ID.String()))
+						// Note: user_id may be set for single-user GGR alerts, null for aggregate
+						// Email sending will be handled by the module layer's sendEmailsForNewTriggers
 					}
 				}
 			}
@@ -1416,7 +1524,10 @@ func (s *alertStorage) CheckGGRAlerts(ctx context.Context, timeWindow time.Durat
 							zap.String("alert_id", config.ID.String()),
 							zap.String("alert_type", string(config.AlertType)),
 							zap.Float64("total_ggr", totalGGR),
-							zap.Float64("threshold", config.ThresholdAmount))
+							zap.Float64("threshold", config.ThresholdAmount),
+							zap.String("trigger_id", trigger.ID.String()))
+						// Note: user_id is null for aggregate GGR alerts (total GGR across all users)
+						// Email sending will be handled by the module layer's sendEmailsForNewTriggers
 					}
 				}
 			}

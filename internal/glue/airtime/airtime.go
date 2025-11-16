@@ -3,7 +3,6 @@ package airtime
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	airtimeHandler handler.AirtimeProvider,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 	airtimeRoutes := []routing.Route{
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "refresh airtime utilities", http.MethodGet),
+				middleware.Authz(authModule, "refresh airtime utilities", http.MethodGet),
 				middleware.SystemLogs("Refresh Airtime Utilities", &log, systemLogs),
 			},
 		}, {
@@ -38,7 +36,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get airtime utilities", http.MethodGet),
+				middleware.Authz(authModule, "get airtime utilities", http.MethodGet),
 				middleware.SystemLogs("Get Airtime Utilities", &log, systemLogs),
 			},
 		}, {
@@ -48,7 +46,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update airtime utility status", http.MethodPut),
+				middleware.Authz(authModule, "update airtime utility status", http.MethodPut),
 				middleware.SystemLogs("Update Airtime Utility Status", &log, systemLogs),
 			},
 		}, {
@@ -58,7 +56,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update airtime price", http.MethodPut),
+				middleware.Authz(authModule, "update airtime price", http.MethodPut),
 				middleware.SystemLogs("Update Airtime Utility Price", &log, systemLogs),
 			},
 		}, {
@@ -92,7 +90,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get airtime transactions", http.MethodGet),
+				middleware.Authz(authModule, "get airtime transactions", http.MethodGet),
 				middleware.SystemLogs("Get Airtime Transactions", &log, systemLogs),
 			},
 		}, {
@@ -102,7 +100,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update airtime amount", http.MethodPut),
+				middleware.Authz(authModule, "update airtime amount", http.MethodPut),
 				middleware.SystemLogs("Update Airtime Amount", &log, systemLogs),
 			},
 		},
@@ -113,7 +111,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get airtime utilities stats", http.MethodGet),
+				middleware.Authz(authModule, "get airtime utilities stats", http.MethodGet),
 				middleware.SystemLogs("Get Airtime Utilities Stats", &log, systemLogs),
 			},
 		},

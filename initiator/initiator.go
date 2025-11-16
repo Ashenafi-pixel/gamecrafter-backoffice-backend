@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/casbin/casbin/v2"
-	gormadapter "github.com/casbin/gorm-adapter/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -73,15 +71,8 @@ func Initiate() {
 
 	locker := make(map[uuid.UUID]*sync.Mutex)
 	logger.Info("initializing module layer")
-	adapter, err := gormadapter.NewAdapterByDB(gormDB)
-	if err != nil {
-		log.Fatalf("Failed to initialize Casbin adapter: %v", err)
-	}
-	enforcer, err := casbin.NewEnforcer("./config/RBAC.conf", adapter)
-	if err != nil {
-		log.Fatal(err)
-	}
-	enforcer.LoadPolicy()
+	// Casbin enforcer is no longer used - permissions are checked directly from database tables
+	// (users, roles, permissions, role_permissions, user_roles)
 	lgr := InitEnhancedLogger()
 	defer lgr.Close()
 	// initializing platform
@@ -251,6 +242,7 @@ func Initiate() {
 	}
 
 	// Initialize alert service and cronjob
+	var alertService alertModule.AlertService
 	if emailService != nil {
 		// Create email service adapter for alert service
 		// The alert service needs an AlertEmailSender interface
@@ -258,7 +250,7 @@ func Initiate() {
 			emailService: emailService,
 		}
 
-		alertService := alertModule.NewAlertService(
+		alertService = alertModule.NewAlertService(
 			persistence.Alert,
 			persistence.AlertEmailGroups,
 			alertEmailSender,
@@ -270,7 +262,7 @@ func Initiate() {
 	}
 	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
-	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi)
+	module := initModule(persistence, logger, locker, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi, alertService)
 
 	// Start cashback Kafka consumer for real-time bet processing
 	if module.CashbackKafkaConsumer != nil {
@@ -329,7 +321,7 @@ func Initiate() {
 
 	// initializing route which handle route endpoints
 	logger.Info("initializing route")
-	initRoute(ginsrv, handler, module, logger, enforcer, persistence)
+	initRoute(ginsrv, handler, module, logger, persistence)
 	logger.Info("done initializing route")
 
 	logger.Info("Server configuration",

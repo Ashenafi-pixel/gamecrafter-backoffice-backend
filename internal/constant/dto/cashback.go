@@ -7,6 +7,27 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// GlobalRakebackOverride represents the global rakeback override configuration
+type GlobalRakebackOverride struct {
+	ID                uuid.UUID       `json:"id"`
+	IsActive          bool            `json:"is_active"`
+	RakebackPercentage decimal.Decimal `json:"rakeback_percentage"`
+	StartTime         *time.Time      `json:"start_time,omitempty"`
+	EndTime           *time.Time      `json:"end_time,omitempty"`
+	CreatedBy         *uuid.UUID      `json:"created_by,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedBy         *uuid.UUID      `json:"updated_by,omitempty"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+}
+
+// CreateOrUpdateRakebackOverrideReq represents the request to create or update a global rakeback override
+type CreateOrUpdateRakebackOverrideReq struct {
+	IsActive          bool            `json:"is_active"`
+	RakebackPercentage decimal.Decimal `json:"rakeback_percentage" binding:"required"`
+	StartTime         *time.Time      `json:"start_time,omitempty"`
+	EndTime           *time.Time      `json:"end_time,omitempty"`
+}
+
 // UserLevel represents a user's current level and progress
 type UserLevel struct {
 	ID               uuid.UUID       `json:"id" db:"id"`
@@ -253,11 +274,17 @@ type LevelProgressionInfo struct {
 
 // LevelProgressionResult represents the result of level progression processing
 type LevelProgressionResult struct {
-	UserID    uuid.UUID `json:"user_id"`
-	Success   bool      `json:"success"`
-	NewLevel  int       `json:"new_level,omitempty"`
-	Error     string    `json:"error,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UserID            uuid.UUID `json:"user_id"`
+	Success           bool      `json:"success"`
+	NewLevel          int       `json:"new_level,omitempty"`
+	CurrentLevel      int       `json:"current_level,omitempty"`
+	Error             string    `json:"error,omitempty"`
+	Message           string    `json:"message,omitempty"`
+	TotalExpectedGGR  string    `json:"total_expected_ggr,omitempty"`
+	RequiredGGR       string    `json:"required_ggr,omitempty"`
+	NextTierName      string    `json:"next_tier_name,omitempty"`
+	CurrentTierName   string    `json:"current_tier_name,omitempty"`
+	UpdatedAt         time.Time `json:"updated_at,omitempty"`
 }
 
 // ReorderTiersRequest represents a request to reorder cashback tiers

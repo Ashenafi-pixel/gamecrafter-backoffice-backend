@@ -3,7 +3,6 @@ package company
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	company handler.Company,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 	companyRoutes := []routing.Route{
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create company", http.MethodPost),
+				middleware.Authz(authModule, "create company", http.MethodPost),
 				middleware.SystemLogs("Create Company", &log, systemLogs),
 			},
 		},
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get companies", http.MethodGet),
+				middleware.Authz(authModule, "get companies", http.MethodGet),
 				middleware.SystemLogs("Get All Companies", &log, systemLogs),
 			},
 		},
@@ -50,7 +48,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get company", http.MethodGet),
+				middleware.Authz(authModule, "get company", http.MethodGet),
 				middleware.SystemLogs("Get Company", &log, systemLogs),
 			},
 		},
@@ -61,7 +59,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update company", http.MethodPatch),
+				middleware.Authz(authModule, "update company", http.MethodPatch),
 				middleware.SystemLogs("Update Company", &log, systemLogs),
 			},
 		},
@@ -72,7 +70,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete company", http.MethodDelete),
+				middleware.Authz(authModule, "delete company", http.MethodDelete),
 				middleware.SystemLogs("Delete Company", &log, systemLogs),
 			},
 		},
@@ -83,7 +81,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "add ip to company", http.MethodPatch),
+				middleware.Authz(authModule, "add ip to company", http.MethodPatch),
 				middleware.SystemLogs("Add IP To Company", &log, systemLogs),
 			},
 		},
