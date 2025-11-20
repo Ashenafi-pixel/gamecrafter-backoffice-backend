@@ -486,3 +486,15 @@ type Campaign interface {
 	GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, error)
 	GetCampaignNotificationStats(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) (dto.CampaignNotificationStats, error)
 }
+
+type Page interface {
+	CreatePage(ctx context.Context, page dto.CreatePageReq) (dto.Page, error)
+	GetPageByPath(ctx context.Context, path string) (dto.Page, bool, error)
+	GetAllPages(ctx context.Context) ([]dto.Page, error)
+	GetPagesByParentID(ctx context.Context, parentID uuid.UUID) ([]dto.Page, error)
+	GetUserAllowedPages(ctx context.Context, userID uuid.UUID) ([]dto.Page, error)
+	AssignPagesToUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	RemovePagesFromUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	ReplaceUserPages(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	GetAllPagesForUser(ctx context.Context, userID uuid.UUID) ([]dto.Page, error)
+}

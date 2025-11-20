@@ -35,6 +35,7 @@ import (
 	"github.com/tucanbit/internal/glue/operationalgrouptype"
 	"github.com/tucanbit/internal/glue/operationsdefinitions"
 	"github.com/tucanbit/internal/glue/otp"
+	"github.com/tucanbit/internal/glue/page"
 	"github.com/tucanbit/internal/glue/performance"
 	"github.com/tucanbit/internal/glue/rakeback_override"
 	"github.com/tucanbit/internal/glue/report"
@@ -88,6 +89,7 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	analytics.Init(grp, log, handler.Analytics)
 	twofactor.Init(grp, log, handler.TwoFactor)
 	rakeback_override.Init(grp, *log, handler.RakebackOverride, module.Authz, module.SystemLogs)
+	page.Init(grp, log, handler.Page, module.Page)
 
 	// Withdrawal system routes
 	system_config.Init(grp, log, handler.SystemConfig)

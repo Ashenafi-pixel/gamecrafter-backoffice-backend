@@ -21,6 +21,8 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/internal/storage"
+	modulePackage "github.com/tucanbit/internal/module"
 	alertModule "github.com/tucanbit/internal/module/alert"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	emailModule "github.com/tucanbit/internal/module/email"
@@ -263,6 +265,13 @@ func Initiate() {
 	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
 	module := initModule(persistence, logger, locker, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi, alertService)
+	
+	// Seed pages and assign to admin users
+	logger.Info("seeding pages and assigning to admin users")
+	if err := seedPagesAndAssignToAdmins(context.Background(), module.Page, persistence.User, logger); err != nil {
+		logger.Error("failed to seed pages or assign to admin users", zap.Error(err))
+		// Continue even if seeding fails - pages can be assigned manually later
+	}
 
 	// Start cashback Kafka consumer for real-time bet processing
 	if module.CashbackKafkaConsumer != nil {
@@ -367,4 +376,38 @@ type alertEmailServiceAdapter struct {
 
 func (a *alertEmailServiceAdapter) SendAlertEmail(ctx context.Context, to []string, alertConfig *dto.AlertConfiguration, trigger *dto.AlertTrigger) error {
 	return a.emailService.SendAlertEmail(ctx, to, alertConfig, trigger)
+}
+
+// seedPagesAndAssignToAdmins seeds all pages and assigns them to all existing admin users
+func seedPagesAndAssignToAdmins(ctx context.Context, pageService modulePackage.Page, userStorage storage.User, log *zap.Logger) error {
+	// Seed pages first
+	if err := pageService.SeedPages(ctx); err != nil {
+		log.Error("failed to seed pages", zap.Error(err))
+		return fmt.Errorf("failed to seed pages: %w", err)
+	}
+	log.Info("pages seeded successfully")
+
+	// Get all admin users
+	adminUsers, err := userStorage.GetAdmins(ctx, dto.GetAdminsReq{
+		Page:    1,
+		PerPage: 1000, // Get all admins
+		Status:  "ACTIVE",
+	})
+	if err != nil {
+		log.Error("failed to get admin users", zap.Error(err))
+		return fmt.Errorf("failed to get admin users: %w", err)
+	}
+
+	// Assign all pages to each admin user
+	for _, admin := range adminUsers {
+		if err := pageService.AssignAllPagesToUser(ctx, admin.ID); err != nil {
+			log.Warn("failed to assign pages to admin user", zap.Error(err), zap.String("user_id", admin.ID.String()), zap.String("username", admin.Username))
+			// Continue with other users even if one fails
+			continue
+		}
+		log.Info("assigned all pages to admin user", zap.String("user_id", admin.ID.String()), zap.String("username", admin.Username))
+	}
+
+	log.Info("completed seeding pages and assigning to admin users", zap.Int("admin_count", len(adminUsers)))
+	return nil
 }

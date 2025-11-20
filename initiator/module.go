@@ -36,7 +36,8 @@ import (
 	operationdefinition "github.com/tucanbit/internal/module/operationDefinition"
 	"github.com/tucanbit/internal/module/operationalgroup"
 	"github.com/tucanbit/internal/module/operationalgrouptype"
-	otpModule "github.com/tucanbit/internal/module/otp"
+	otpModule 	"github.com/tucanbit/internal/module/otp"
+	pageModule "github.com/tucanbit/internal/module/page"
 	"github.com/tucanbit/internal/module/performance"
 	"github.com/tucanbit/internal/module/rakeback_override"
 	"github.com/tucanbit/internal/module/report"
@@ -96,6 +97,7 @@ type Module struct {
 	TwoFactor             twofactor.TwoFactorService
 	UserBalanceWS         utils.UserWS
 	AdminActivityLogs     module.AdminActivityLogs
+	Page                  module.Page
 }
 
 func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient, alertService alertModule.AlertService) *Module {
@@ -211,6 +213,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 				OTPExpiryMinutes: 5,
 			}, emailService),
 			persistence.SystemConfig,
+			pageModule.Init(persistence.Page, log),
 		),
 		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
@@ -329,5 +332,6 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		}, emailService),
 		Redis:             redis,
 		AdminActivityLogs: admin_activity_logs.NewAdminActivityLogsModule(persistence.AdminActivityLogs, log),
+		Page:              pageModule.Init(persistence.Page, log),
 	}
 }

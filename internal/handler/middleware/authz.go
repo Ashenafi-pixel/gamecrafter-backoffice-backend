@@ -42,9 +42,9 @@ func Authz(authzModule module.Authz, name, method string) gin.HandlerFunc {
 
 		// Check permission directly from database (user_roles -> role_permissions -> permissions)
 		hasPermission, err := authzModule.CheckUserHasPermission(context.Background(), userIDParsed, name)
-		if err != nil {
-			_ = c.Error(err)
-			c.Abort()
+			if err != nil {
+				_ = c.Error(err)
+				c.Abort()
 			return
 		}
 

@@ -46,6 +46,7 @@ import (
 	"github.com/tucanbit/internal/handler/twofactor"
 	"github.com/tucanbit/internal/handler/user"
 	"github.com/tucanbit/internal/handler/withdrawal_management"
+	"github.com/tucanbit/internal/handler/page"
 	"github.com/tucanbit/internal/handler/withdrawals"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
@@ -98,6 +99,7 @@ type Handler struct {
 	AdminActivityLogs     handler.AdminActivityLogs
 	AirtimeProvider       handler.AirtimeProvider
 	KYC                   handler.KYC
+	Page                  page.PageHandler
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
@@ -165,6 +167,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
 		AirtimeProvider:       airtime.Init(log, persistence.AirtimeProvider),
 		KYC:                   kyc.NewKYCHandler(persistence.KYC, persistence.AdminActivityLogs, log),
+		Page:                  page.Init(module.Page, log),
 	}
 }
 

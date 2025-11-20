@@ -71,6 +71,7 @@ type User struct {
 	twoFactorService              twofactor.TwoFactorService
 	email                         email.EmailService
 	systemConfigStorage           *system_config.SystemConfig
+	pageService                   module.Page
 }
 
 // getSecuritySettings retrieves security settings, returns default values if unavailable
@@ -86,6 +87,21 @@ func (u *User) getSecuritySettings(ctx context.Context) (system_config.SecurityS
 		}, nil
 	}
 	return u.systemConfigStorage.GetSecuritySettings(ctx, nil) // nil = global settings
+}
+
+// getAllowedPagesForUser retrieves allowed pages for a user (admin users only)
+func (u *User) getAllowedPagesForUser(ctx context.Context, userID uuid.UUID, isAdmin bool) []dto.Page {
+	if !isAdmin || u.pageService == nil {
+		return []dto.Page{}
+	}
+
+	pages, err := u.pageService.GetUserAllowedPages(ctx, userID)
+	if err != nil {
+		u.log.Warn("failed to get allowed pages for user", zap.Error(err), zap.String("user_id", userID.String()))
+		return []dto.Page{}
+	}
+
+	return pages
 }
 
 func Init(userStorage storage.User,
@@ -111,6 +127,7 @@ func Init(userStorage storage.User,
 	emailService email.EmailService,
 	twoFactorService twofactor.TwoFactorService,
 	systemConfigStorage *system_config.SystemConfig,
+	pageService module.Page,
 ) module.User {
 	gOauth := &oauth.Config{
 		ClientID:     gclientID,
@@ -154,6 +171,7 @@ func Init(userStorage storage.User,
 		otpModule:                   otp.NewOTPService(otpStorage, userStorage, emailService, log),
 		twoFactorService:            twoFactorService,
 		email:                       emailService,
+		pageService:                 pageService,
 	}
 	// Initialize enterprise registration service
 	usr.EnterpriseRegistrationService = NewEnterpriseRegistrationService(
@@ -811,6 +829,7 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 				ReferralCode: usr.ReferralCode,
 			}
 
+			allowedPages := u.getAllowedPagesForUser(ctx, usr.ID, true)
 			return dto.UserLoginRes{
 				Message:             "Admin login successful - 2FA recommended for security",
 				AccessToken:         token,
@@ -818,6 +837,7 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 				Requires2FA:         true, // Still indicate 2FA is recommended
 				UserID:              usr.ID.String(),
 				Available2FAMethods: availableMethods,
+				AllowedPages:        allowedPages,
 			}, refreshToken, nil
 		} else {
 			// Regular users must complete 2FA before getting token
@@ -893,12 +913,14 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 				ReferralCode: usr.ReferralCode,
 			}
 
+			allowedPages := u.getAllowedPagesForUser(ctx, usr.ID, true)
 			return dto.UserLoginRes{
 				Message:          "Admin login successful - 2FA setup recommended for security",
 				AccessToken:      token,
 				UserProfile:      &userProfile,
 				Requires2FASetup: true, // Still indicate 2FA setup is recommended
 				UserID:           usr.ID.String(),
+				AllowedPages:     allowedPages,
 			}, refreshToken, nil
 		} else {
 			// Regular users must set up 2FA before getting token
@@ -989,10 +1011,16 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 		ReferralCode: usr.ReferralCode,
 	}
 
+	allowedPages := []dto.Page{}
+	if adminLogin && usr.IsAdmin {
+		allowedPages = u.getAllowedPagesForUser(ctx, usr.ID, true)
+	}
+
 	return dto.UserLoginRes{
-		Message:     constant.LOGIN_SUCCESS,
-		AccessToken: token,
-		UserProfile: &userProfile,
+		Message:      constant.LOGIN_SUCCESS,
+		AccessToken:  token,
+		UserProfile:  &userProfile,
+		AllowedPages: allowedPages,
 	}, refreshToken, nil
 }
 

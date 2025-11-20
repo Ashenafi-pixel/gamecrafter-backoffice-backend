@@ -398,3 +398,12 @@ type RakebackOverride interface {
 	CreateOrUpdateOverride(ctx context.Context, req dto.CreateOrUpdateRakebackOverrideReq, adminID uuid.UUID) (*dto.GlobalRakebackOverride, error)
 	ToggleOverride(ctx context.Context, isActive bool, adminID uuid.UUID) error
 }
+
+type Page interface {
+	SeedPages(ctx context.Context) error
+	GetUserAllowedPages(ctx context.Context, userID uuid.UUID) ([]dto.Page, error)
+	AssignAllPagesToUser(ctx context.Context, userID uuid.UUID) error
+	AssignPagesToUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	ReplaceUserPages(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	GetAllPages(ctx context.Context) ([]dto.Page, error)
+}
