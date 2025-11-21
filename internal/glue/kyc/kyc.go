@@ -3,7 +3,6 @@ package kyc
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	kyc handler.KYC,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 	kycRoutes := []routing.Route{
@@ -29,7 +27,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create kyc documents", http.MethodPost),
+				middleware.Authz(authModule, "create kyc documents", http.MethodPost),
 				middleware.SystemLogs("Create KYC Document", &log, systemLogs),
 			},
 		},
@@ -41,7 +39,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get kyc documents", http.MethodGet),
+				middleware.Authz(authModule, "get kyc documents", http.MethodGet),
 				middleware.SystemLogs("Get KYC Documents", &log, systemLogs),
 			},
 		},
@@ -53,7 +51,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update kyc document status", http.MethodPut),
+				middleware.Authz(authModule, "update kyc document status", http.MethodPut),
 				middleware.SystemLogs("Update KYC Document Status", &log, systemLogs),
 			},
 		},
@@ -65,7 +63,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update user kyc status", http.MethodPut),
+				middleware.Authz(authModule, "update user kyc status", http.MethodPut),
 				middleware.SystemLogs("Update User KYC Status", &log, systemLogs),
 			},
 		},
@@ -77,7 +75,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get user kyc status", http.MethodGet),
+				middleware.Authz(authModule, "get user kyc status", http.MethodGet),
 				middleware.SystemLogs("Get User KYC Status", &log, systemLogs),
 			},
 		},
@@ -89,7 +87,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "block user withdrawals", http.MethodPost),
+				middleware.Authz(authModule, "block user withdrawals", http.MethodPost),
 				middleware.SystemLogs("Block User Withdrawals", &log, systemLogs),
 			},
 		},
@@ -101,7 +99,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "unblock user withdrawals", http.MethodPost),
+				middleware.Authz(authModule, "unblock user withdrawals", http.MethodPost),
 				middleware.SystemLogs("Unblock User Withdrawals", &log, systemLogs),
 			},
 		},
@@ -113,7 +111,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get kyc submissions", http.MethodGet),
+				middleware.Authz(authModule, "get kyc submissions", http.MethodGet),
 				middleware.SystemLogs("Get KYC Submissions", &log, systemLogs),
 			},
 		},
@@ -125,7 +123,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get kyc status changes", http.MethodGet),
+				middleware.Authz(authModule, "get kyc status changes", http.MethodGet),
 				middleware.SystemLogs("Get KYC Status Changes", &log, systemLogs),
 			},
 		},
@@ -137,7 +135,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get user withdrawal block status", http.MethodGet),
+				middleware.Authz(authModule, "get user withdrawal block status", http.MethodGet),
 				middleware.SystemLogs("Get Withdrawal Block Status", &log, systemLogs),
 			},
 		},
@@ -149,7 +147,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get kyc submissions", http.MethodGet),
+				middleware.Authz(authModule, "get kyc submissions", http.MethodGet),
 				middleware.SystemLogs("List KYC Submissions", &log, systemLogs),
 			},
 		},
@@ -161,7 +159,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get kyc settings", http.MethodGet),
+				middleware.Authz(authModule, "get kyc settings", http.MethodGet),
 				middleware.SystemLogs("Get KYC Settings", &log, systemLogs),
 			},
 		},
@@ -173,7 +171,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update kyc settings", http.MethodPut),
+				middleware.Authz(authModule, "update kyc settings", http.MethodPut),
 				middleware.SystemLogs("Update KYC Settings", &log, systemLogs),
 			},
 		},

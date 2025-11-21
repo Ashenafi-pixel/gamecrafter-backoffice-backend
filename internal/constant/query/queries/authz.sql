@@ -5,7 +5,7 @@ INSERT INTO roles (name) values ($1) RETURNING *;
 SELECT * from permissions where id = $1;
 
 -- name: AssignPermissionToRole :one 
-INSERT INTO role_permissions (role_id,permission_id) values ($1,$2) RETURNING *;
+INSERT INTO role_permissions (role_id,permission_id,value) values ($1,$2,$3) RETURNING *;
 
 -- name: GetRoleByName :one 
 SELECT * FROM roles where name = $1;
@@ -33,6 +33,13 @@ SELECT * FROM roles where id = $1;
 
 -- name: GetRolePermissionsForRole :many
 SELECT * FROM role_permissions where role_id = $1;
+
+-- name: GetAdminFundingLimit :one
+SELECT COALESCE(MAX(rp.value), NULL) as max_funding_limit
+FROM user_roles ur
+JOIN role_permissions rp ON ur.role_id = rp.role_id
+JOIN permissions p ON rp.permission_id = p.id
+WHERE ur.user_id = $1 AND p.name = 'manual funding';
 
 -- name: AddRoleToUser :one
 INSERT INTO user_roles (user_id,role_id) VALUES ( $1,$2) RETURNING *;

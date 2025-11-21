@@ -102,6 +102,7 @@ type UserLoginRes struct {
 	Requires2FASetup    bool         `json:"requires_2fa_setup,omitempty"`
 	UserID              string       `json:"user_id,omitempty"`
 	Available2FAMethods []string     `json:"available_2fa_methods,omitempty"`
+	AllowedPages        []Page       `json:"allowed_pages,omitempty"`
 }
 
 func IsValidCurrency(currency string) bool {

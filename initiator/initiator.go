@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/casbin/casbin/v2"
-	gormadapter "github.com/casbin/gorm-adapter/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -23,6 +21,8 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
+	"github.com/tucanbit/internal/storage"
+	modulePackage "github.com/tucanbit/internal/module"
 	alertModule "github.com/tucanbit/internal/module/alert"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	emailModule "github.com/tucanbit/internal/module/email"
@@ -73,15 +73,8 @@ func Initiate() {
 
 	locker := make(map[uuid.UUID]*sync.Mutex)
 	logger.Info("initializing module layer")
-	adapter, err := gormadapter.NewAdapterByDB(gormDB)
-	if err != nil {
-		log.Fatalf("Failed to initialize Casbin adapter: %v", err)
-	}
-	enforcer, err := casbin.NewEnforcer("./config/RBAC.conf", adapter)
-	if err != nil {
-		log.Fatal(err)
-	}
-	enforcer.LoadPolicy()
+	// Casbin enforcer is no longer used - permissions are checked directly from database tables
+	// (users, roles, permissions, role_permissions, user_roles)
 	lgr := InitEnhancedLogger()
 	defer lgr.Close()
 	// initializing platform
@@ -251,6 +244,7 @@ func Initiate() {
 	}
 
 	// Initialize alert service and cronjob
+	var alertService alertModule.AlertService
 	if emailService != nil {
 		// Create email service adapter for alert service
 		// The alert service needs an AlertEmailSender interface
@@ -258,7 +252,7 @@ func Initiate() {
 			emailService: emailService,
 		}
 
-		alertService := alertModule.NewAlertService(
+		alertService = alertModule.NewAlertService(
 			persistence.Alert,
 			persistence.AlertEmailGroups,
 			alertEmailSender,
@@ -270,7 +264,14 @@ func Initiate() {
 	}
 	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
-	module := initModule(persistence, logger, locker, enforcer, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi)
+	module := initModule(persistence, logger, locker, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi, alertService)
+	
+	// Seed pages and assign to admin users
+	logger.Info("seeding pages and assigning to admin users")
+	if err := seedPagesAndAssignToAdmins(context.Background(), module.Page, persistence.User, logger); err != nil {
+		logger.Error("failed to seed pages or assign to admin users", zap.Error(err))
+		// Continue even if seeding fails - pages can be assigned manually later
+	}
 
 	// Start cashback Kafka consumer for real-time bet processing
 	if module.CashbackKafkaConsumer != nil {
@@ -337,7 +338,7 @@ func Initiate() {
 
 	// initializing route which handle route endpoints
 	logger.Info("initializing route")
-	initRoute(ginsrv, handler, module, logger, enforcer, persistence)
+	initRoute(ginsrv, handler, module, logger, persistence)
 	logger.Info("done initializing route")
 
 	logger.Info("Server configuration",
@@ -375,4 +376,38 @@ type alertEmailServiceAdapter struct {
 
 func (a *alertEmailServiceAdapter) SendAlertEmail(ctx context.Context, to []string, alertConfig *dto.AlertConfiguration, trigger *dto.AlertTrigger) error {
 	return a.emailService.SendAlertEmail(ctx, to, alertConfig, trigger)
+}
+
+// seedPagesAndAssignToAdmins seeds all pages and assigns them to all existing admin users
+func seedPagesAndAssignToAdmins(ctx context.Context, pageService modulePackage.Page, userStorage storage.User, log *zap.Logger) error {
+	// Seed pages first
+	if err := pageService.SeedPages(ctx); err != nil {
+		log.Error("failed to seed pages", zap.Error(err))
+		return fmt.Errorf("failed to seed pages: %w", err)
+	}
+	log.Info("pages seeded successfully")
+
+	// Get all admin users
+	adminUsers, err := userStorage.GetAdmins(ctx, dto.GetAdminsReq{
+		Page:    1,
+		PerPage: 1000, // Get all admins
+		Status:  "ACTIVE",
+	})
+	if err != nil {
+		log.Error("failed to get admin users", zap.Error(err))
+		return fmt.Errorf("failed to get admin users: %w", err)
+	}
+
+	// Assign all pages to each admin user
+	for _, admin := range adminUsers {
+		if err := pageService.AssignAllPagesToUser(ctx, admin.ID); err != nil {
+			log.Warn("failed to assign pages to admin user", zap.Error(err), zap.String("user_id", admin.ID.String()), zap.String("username", admin.Username))
+			// Continue with other users even if one fails
+			continue
+		}
+		log.Info("assigned all pages to admin user", zap.String("user_id", admin.ID.String()), zap.String("username", admin.Username))
+	}
+
+	log.Info("completed seeding pages and assigning to admin users", zap.Int("admin_count", len(adminUsers)))
+	return nil
 }

@@ -695,6 +695,7 @@ type RolePermission struct {
 	ID           uuid.UUID
 	RoleID       uuid.UUID
 	PermissionID uuid.UUID
+	Value        decimal.NullDecimal
 }
 
 type RollDaDice struct {

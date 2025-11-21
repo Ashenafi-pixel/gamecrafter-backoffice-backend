@@ -3,7 +3,6 @@ package user
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler/middleware"
@@ -81,7 +80,6 @@ func Init(
 	user UserHandler,
 	userModule module.User,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLog module.SystemLogs,
 
 ) {
@@ -235,7 +233,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "block user account", http.MethodPost),
+				middleware.Authz(authModule, "block user account", http.MethodPost),
 				middleware.SystemLogs("block user account", &log, systemLog),
 			},
 		}, {
@@ -245,7 +243,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get blocked account", http.MethodPost),
+				middleware.Authz(authModule, "get blocked account", http.MethodPost),
 				middleware.SystemLogs("get blocked account", &log, systemLog),
 			},
 		}, {
@@ -255,7 +253,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "add ip filter", http.MethodPost),
+				middleware.Authz(authModule, "add ip filter", http.MethodPost),
 				middleware.SystemLogs("add ip filter", &log, systemLog),
 			},
 		}, {
@@ -265,7 +263,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get ip filters", http.MethodGet),
+				middleware.Authz(authModule, "get ip filters", http.MethodGet),
 				middleware.SystemLogs("get ip filters", &log, systemLog),
 			},
 		}, {
@@ -275,7 +273,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update user profile", http.MethodPatch),
+				middleware.Authz(authModule, "update user profile", http.MethodPatch),
 				middleware.SystemLogs("update user profile", &log, systemLog),
 			},
 		}, {
@@ -285,7 +283,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get users", http.MethodPost),
+				middleware.Authz(authModule, "get users", http.MethodPost),
 				middleware.SystemLogs("get users", &log, systemLog),
 			},
 		}, {
@@ -295,7 +293,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get users", http.MethodPost),
+				middleware.Authz(authModule, "get users", http.MethodPost),
 				middleware.SystemLogs("get users", &log, systemLog),
 			},
 		}, {
@@ -305,7 +303,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "reset user account password", http.MethodPost),
+				middleware.Authz(authModule, "reset user account password", http.MethodPost),
 				middleware.SystemLogs("reset user account password", &log, systemLog),
 			},
 		}, {
@@ -315,7 +313,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "reset user account password", http.MethodPost),
+				middleware.Authz(authModule, "reset user account password", http.MethodPost),
 				middleware.SystemLogs("auto reset user account password", &log, systemLog),
 			},
 		}, {
@@ -325,7 +323,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get player details", http.MethodGet),
+				middleware.Authz(authModule, "get player details", http.MethodGet),
 				middleware.SystemLogs("get player details", &log, systemLog),
 			},
 		}, {
@@ -335,7 +333,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get player manual funds", http.MethodGet),
+				middleware.Authz(authModule, "get player manual funds", http.MethodGet),
 				middleware.SystemLogs("get player manual funds", &log, systemLog),
 			},
 		}, {
@@ -345,7 +343,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "remove ip filter", http.MethodDelete),
+				middleware.Authz(authModule, "remove ip filter", http.MethodDelete),
 				middleware.SystemLogs("remove ip filter", &log, systemLog),
 			},
 		}, {
@@ -371,7 +369,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get referral multiplier", http.MethodGet),
+				middleware.Authz(authModule, "get referral multiplier", http.MethodGet),
 				middleware.SystemLogs("get referral multiplier", &log, systemLog),
 			},
 		}, {
@@ -381,7 +379,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update referral multiplier", http.MethodPost),
+				middleware.Authz(authModule, "update referral multiplier", http.MethodPost),
 				middleware.SystemLogs("update referral multiplier", &log, systemLog),
 			},
 		}, {
@@ -391,7 +389,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "add point to users", http.MethodPost),
+				middleware.Authz(authModule, "add point to users", http.MethodPost),
 				middleware.SystemLogs("add point to users", &log, systemLog),
 			},
 		}, {
@@ -401,7 +399,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get point to users", http.MethodGet),
+				middleware.Authz(authModule, "get point to users", http.MethodGet),
 				middleware.SystemLogs("get point to users", &log, systemLog),
 			},
 		}, {
@@ -419,7 +417,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "register players", http.MethodPost),
+				middleware.Authz(authModule, "register players", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -436,7 +434,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get admins", http.MethodGet),
+				middleware.Authz(authModule, "get admins", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -445,7 +443,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get admin users", http.MethodGet),
+				middleware.Authz(authModule, "get admin users", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -454,7 +452,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create admin user", http.MethodPost),
+				middleware.Authz(authModule, "create admin user", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -463,7 +461,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update admin user", http.MethodPut),
+				middleware.Authz(authModule, "update admin user", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodDelete,
@@ -472,7 +470,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete admin user", http.MethodDelete),
+				middleware.Authz(authModule, "delete admin user", http.MethodDelete),
 			},
 		},
 		{
@@ -482,7 +480,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update signup bonus", http.MethodPut),
+				middleware.Authz(authModule, "update signup bonus", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -491,7 +489,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get signup bonus", http.MethodGet),
+				middleware.Authz(authModule, "get signup bonus", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -500,7 +498,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update referral bonus", http.MethodPut),
+				middleware.Authz(authModule, "update referral bonus", http.MethodPut),
 				middleware.SystemLogs("update referral bonus", &log, systemLog),
 			},
 		}, {
@@ -510,7 +508,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get referral bonus", http.MethodGet),
+				middleware.Authz(authModule, "get referral bonus", http.MethodGet),
 				middleware.SystemLogs("get referral bonus", &log, systemLog),
 			},
 		},

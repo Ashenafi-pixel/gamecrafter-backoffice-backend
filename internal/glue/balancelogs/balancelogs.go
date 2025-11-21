@@ -3,7 +3,6 @@ package balancelogs
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	op handler.BalanceLogs,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 
@@ -45,7 +43,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get balance logs", http.MethodGet),
+				middleware.Authz(authModule, "get balance logs", http.MethodGet),
 				middleware.SystemLogs("Get Balance Logs", &log, systemLogs),
 			},
 		},

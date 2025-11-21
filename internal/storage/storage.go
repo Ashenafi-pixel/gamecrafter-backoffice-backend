@@ -123,6 +123,7 @@ type Balance interface {
 	GetManualFundsByUserID(ctx context.Context, userID uuid.UUID) ([]dto.ManualFundResData, error)
 	GetManualFundsByUserIDPaginated(ctx context.Context, userID uuid.UUID, page, perPage int) ([]dto.ManualFundResData, int64, error)
 	GetAllManualFunds(ctx context.Context, filter dto.GetAllManualFundsFilter) (dto.GetAllManualFundsRes, error)
+	GetAdminFundingLimit(ctx context.Context, adminID uuid.UUID) (*decimal.Decimal, error)
 }
 
 type OperationalGroup interface {
@@ -304,7 +305,7 @@ type Performance interface {
 type Authz interface {
 	CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role, error)
 	GetPermissionByID(ctx context.Context, permissionID uuid.UUID) (dto.Permissions, bool, error)
-	AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID) (dto.AssignPermissionToRoleRes, error)
+	AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID, value *float64) (dto.AssignPermissionToRoleRes, error)
 	GetRoleByName(ctx context.Context, name string) (dto.Role, bool, error)
 	RemoveRoleByID(ctx context.Context, roleID uuid.UUID) error
 	RemoveRolePermissions(ctx context.Context, id uuid.UUID) error
@@ -320,6 +321,7 @@ type Authz interface {
 	RemoveRoleFromUserRoles(ctx context.Context, roleID uuid.UUID) error
 	RevokeUserRole(ctx context.Context, userID, roleID uuid.UUID) error
 	GetRoleUsers(ctx context.Context, roleID uuid.UUID) ([]dto.User, error)
+	CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error)
 }
 
 type Config interface {
@@ -485,4 +487,16 @@ type Campaign interface {
 	MarkCampaignAsSent(ctx context.Context, campaignID uuid.UUID) error
 	GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, error)
 	GetCampaignNotificationStats(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) (dto.CampaignNotificationStats, error)
+}
+
+type Page interface {
+	CreatePage(ctx context.Context, page dto.CreatePageReq) (dto.Page, error)
+	GetPageByPath(ctx context.Context, path string) (dto.Page, bool, error)
+	GetAllPages(ctx context.Context) ([]dto.Page, error)
+	GetPagesByParentID(ctx context.Context, parentID uuid.UUID) ([]dto.Page, error)
+	GetUserAllowedPages(ctx context.Context, userID uuid.UUID) ([]dto.Page, error)
+	AssignPagesToUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	RemovePagesFromUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	ReplaceUserPages(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
+	GetAllPagesForUser(ctx context.Context, userID uuid.UUID) ([]dto.Page, error)
 }

@@ -1,7 +1,6 @@
 package campaign
 
 import (
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/handler"
 	"github.com/tucanbit/internal/handler/middleware"
@@ -9,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func InitRoutes(router *gin.RouterGroup, campaignHandler handler.Campaign, log *zap.Logger, authModule module.Authz, enforcer *casbin.Enforcer) {
+func InitRoutes(router *gin.RouterGroup, campaignHandler handler.Campaign, log *zap.Logger, authModule module.Authz) {
 	campaigns := router.Group("/api/admin/campaigns")
 	campaigns.Use(middleware.Auth())
 	{

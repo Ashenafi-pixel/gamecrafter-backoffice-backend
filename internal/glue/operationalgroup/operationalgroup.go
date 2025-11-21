@@ -3,7 +3,6 @@ package operationalgroup
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -18,7 +17,6 @@ func Init(
 	log zap.Logger,
 	op handler.OpeartionalGroup,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 
@@ -30,7 +28,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "add operational group", http.MethodPost),
+				middleware.Authz(authModule, "add operational group", http.MethodPost),
 				middleware.SystemLogs("Create Operational Group", &log, systemLogs),
 			},
 		}, {
@@ -40,7 +38,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get operational group", http.MethodGet),
+				middleware.Authz(authModule, "get operational group", http.MethodGet),
 				middleware.SystemLogs("Get Operational Groups", &log, systemLogs),
 			},
 		},

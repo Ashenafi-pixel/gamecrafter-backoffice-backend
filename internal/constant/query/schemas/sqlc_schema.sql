@@ -461,6 +461,7 @@ CREATE TABLE role_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    value DECIMAL(20,8),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -730,6 +731,7 @@ CREATE TABLE user_roles (
 CREATE TABLE role_permissions (
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    value DECIMAL(20,8),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (role_id, permission_id)
 );
@@ -810,4 +812,31 @@ CREATE TABLE game_sessions (
     is_active BOOLEAN DEFAULT true,
     last_activity TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
-CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id); 
+
+-- System config table
+CREATE TABLE system_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    config_key VARCHAR(100) NOT NULL,
+    config_value JSONB NOT NULL,
+    description TEXT,
+    brand_id UUID REFERENCES brands(id) ON DELETE CASCADE,
+    updated_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT system_config_config_key_check CHECK ((config_key)::text <> ''::text)
+);
+
+CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
+
+-- Global rakeback override table
+CREATE TABLE global_rakeback_override (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    is_active BOOLEAN DEFAULT false,
+    rakeback_percentage DECIMAL(5,2) DEFAULT 0.00,
+    start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_by UUID REFERENCES users(id),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+); 

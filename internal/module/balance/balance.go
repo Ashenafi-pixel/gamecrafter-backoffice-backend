@@ -11,6 +11,7 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	customerrors "github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/module"
+	alertModule "github.com/tucanbit/internal/module/alert"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/alert"
 	"go.uber.org/zap"
@@ -24,6 +25,7 @@ type balance struct {
 	operationalGroupStorage     storage.OperationalGroup
 	operationalGroupTypeStorage storage.OperationalGroupType
 	alertStorage                alert.AlertStorage
+	alertService                alertModule.AlertService
 	log                         *zap.Logger
 	locker                      map[uuid.UUID]*sync.Mutex
 	lockerMux                   sync.Mutex
@@ -36,6 +38,7 @@ func Init(balanceStorage storage.Balance,
 	opgStorage storage.OperationalGroup,
 	opgtStorage storage.OperationalGroupType,
 	alertStorage alert.AlertStorage,
+	alertService alertModule.AlertService,
 	log *zap.Logger,
 	locker map[uuid.UUID]*sync.Mutex) module.Balance {
 	return &balance{
@@ -48,6 +51,7 @@ func Init(balanceStorage storage.Balance,
 		exchangeStorage:             exchangeRateStorage,
 		userStorage:                 userStorage,
 		alertStorage:                alertStorage,
+		alertService:                alertService,
 	}
 }
 

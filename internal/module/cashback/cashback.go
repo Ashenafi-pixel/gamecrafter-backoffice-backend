@@ -12,6 +12,7 @@ import (
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/groove"
+	rakeback_override "github.com/tucanbit/internal/storage/rakeback_override"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
 )
@@ -65,16 +66,18 @@ type CashbackService struct {
 	retryService            *RetryService
 	levelProgressionService *LevelProgressionService
 	userWS                  utils.UserWS
+	rakebackOverrideStorage rakeback_override.RakebackOverrideStorage
 	logger                  *zap.Logger
 }
 
-func NewCashbackService(storage cashback.CashbackStorage, grooveStorage groove.GrooveStorage, userWS utils.UserWS, logger *zap.Logger) *CashbackService {
+func NewCashbackService(storage cashback.CashbackStorage, grooveStorage groove.GrooveStorage, userWS utils.UserWS, logger *zap.Logger, rakebackOverrideStorage rakeback_override.RakebackOverrideStorage) *CashbackService {
 	// Create the service first
 	service := &CashbackService{
-		storage:       storage,
-		grooveStorage: grooveStorage,
-		userWS:        userWS,
-		logger:        logger,
+		storage:                 storage,
+		grooveStorage:           grooveStorage,
+		userWS:                  userWS,
+		logger:                  logger,
+		rakebackOverrideStorage: rakebackOverrideStorage,
 	}
 
 	// Create retry service with all dependencies
@@ -193,16 +196,43 @@ func (s *CashbackService) ProcessBetCashback(ctx context.Context, bet dto.Bet) e
 		gameVariant = s.extractGameVariantFromTransaction(ctx, bet.ClientTransactionID)
 	}
 
-	gameHouseEdge, err := s.storage.GetGameHouseEdge(ctx, gameType, gameVariant)
-	if err != nil {
-		s.logger.Error("Failed to get game house edge, using default", zap.Error(err))
-		houseEdge = decimal.NewFromFloat(0.0) // Default 0% house edge (no default cashback)
+	// Check for active global rakeback override (Happy Hour)
+	if s.rakebackOverrideStorage != nil {
+		override, err := s.rakebackOverrideStorage.GetActiveOverride(ctx)
+		if err == nil && override != nil && override.GetIsActive() {
+			// Convert percentage to decimal (e.g., 100% = 1.0)
+			houseEdge = override.GetRakebackPercentage().Div(decimal.NewFromInt(100))
+			s.logger.Info("Using global rakeback override",
+				zap.String("override_id", override.GetID().String()),
+				zap.String("rakeback_percentage", override.GetRakebackPercentage().String()),
+				zap.String("house_edge", houseEdge.String()))
+		} else {
+			// Use normal game house edge
+			gameHouseEdge, err := s.storage.GetGameHouseEdge(ctx, gameType, gameVariant)
+			if err != nil {
+				s.logger.Error("Failed to get game house edge, using default", zap.Error(err))
+				houseEdge = decimal.NewFromFloat(0.0) // Default 0% house edge (no default cashback)
+			} else {
+				houseEdge = gameHouseEdge.HouseEdge
+				s.logger.Info("Using configurable house edge",
+					zap.String("game_type", gameType),
+					zap.String("game_variant", gameVariant),
+					zap.String("house_edge", houseEdge.String()))
+			}
+		}
 	} else {
-		houseEdge = gameHouseEdge.HouseEdge
-		s.logger.Info("Using configurable house edge",
-			zap.String("game_type", gameType),
-			zap.String("game_variant", gameVariant),
-			zap.String("house_edge", houseEdge.String()))
+		// Use normal game house edge
+		gameHouseEdge, err := s.storage.GetGameHouseEdge(ctx, gameType, gameVariant)
+		if err != nil {
+			s.logger.Error("Failed to get game house edge, using default", zap.Error(err))
+			houseEdge = decimal.NewFromFloat(0.0) // Default 0% house edge (no default cashback)
+		} else {
+			houseEdge = gameHouseEdge.HouseEdge
+			s.logger.Info("Using configurable house edge",
+				zap.String("game_type", gameType),
+				zap.String("game_variant", gameVariant),
+				zap.String("house_edge", houseEdge.String()))
+		}
 	}
 
 	// Calculate expected GGR (Expected Gross Gaming Revenue) - kept for logging purposes
@@ -1195,224 +1225,9 @@ func (s *CashbackService) ProcessBulkLevelProgression(ctx context.Context, userI
 	return s.levelProgressionService.ProcessBulkLevelProgression(ctx, userIDs)
 }
 
-// ProcessSingleLevelProgression processes level progression for a single user
-func (s *CashbackService) ProcessSingleLevelProgression(ctx context.Context, userID uuid.UUID) (*dto.LevelProgressionResult, error) {
-	s.logger.Info("Processing single level progression", zap.String("user_id", userID.String()))
+// CreateLevelProgressionResult creates a detailed result for level progression
+func (s *CashbackService) CreateLevelProgressionResult(ctx context.Context, userID uuid.UUID) dto.LevelProgressionResult {
+	s.logger.Info("Creating level progression result", zap.String("user_id", userID.String()))
 
-	return s.levelProgressionService.ProcessSingleLevelProgression(ctx, userID)
-}
-
-// CreateRakebackSchedule creates a new scheduled rakeback event
-func (s *CashbackService) CreateRakebackSchedule(ctx context.Context, adminUserID uuid.UUID, req dto.CreateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
-	s.logger.Info("Creating rakeback schedule",
-		zap.String("name", req.Name),
-		zap.String("admin_id", adminUserID.String()))
-
-	// Validate time range
-	if req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime) {
-		return nil, fmt.Errorf("end time must be after start time")
-	}
-
-	// Validate scope value
-	if (req.ScopeType == "provider" || req.ScopeType == "game") && req.ScopeValue == "" {
-		return nil, fmt.Errorf("scope_value is required when scope_type is provider or game")
-	}
-
-	// Create schedule
-	var description *string
-	if req.Description != "" {
-		description = &req.Description
-	}
-
-	var scopeValue *string
-	if req.ScopeValue != "" {
-		scopeValue = &req.ScopeValue
-	}
-
-	schedule := dto.RakebackSchedule{
-		Name:        req.Name,
-		Description: description,
-		StartTime:   req.StartTime,
-		EndTime:     req.EndTime,
-		Percentage:  req.Percentage,
-		ScopeType:   req.ScopeType,
-		ScopeValue:  scopeValue,
-		Status:      "scheduled",
-		CreatedBy:   &adminUserID,
-	}
-
-	created, err := s.storage.CreateRakebackSchedule(ctx, schedule)
-	if err != nil {
-		s.logger.Error("Failed to create rakeback schedule", zap.Error(err))
-		return nil, err
-	}
-
-	// Convert to response
-	response := s.scheduleToResponse(created)
-	return &response, nil
-}
-
-// ListRakebackSchedules lists rakeback schedules with pagination
-func (s *CashbackService) ListRakebackSchedules(ctx context.Context, status string, page, pageSize int) (*dto.ListRakebackSchedulesResponse, error) {
-	s.logger.Info("Listing rakeback schedules",
-		zap.String("status", status),
-		zap.Int("page", page),
-		zap.Int("page_size", pageSize))
-
-	schedules, total, err := s.storage.ListRakebackSchedules(ctx, status, page, pageSize)
-	if err != nil {
-		s.logger.Error("Failed to list rakeback schedules", zap.Error(err))
-		return nil, err
-	}
-
-	// Convert to responses
-	responses := make([]dto.RakebackScheduleResponse, 0, len(schedules))
-	for _, schedule := range schedules {
-		responses = append(responses, s.scheduleToResponse(&schedule))
-	}
-
-	totalPages := (total + pageSize - 1) / pageSize
-
-	return &dto.ListRakebackSchedulesResponse{
-		Schedules:  responses,
-		Total:      total,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}, nil
-}
-
-// GetRakebackSchedule retrieves a single rakeback schedule by ID
-func (s *CashbackService) GetRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) (*dto.RakebackScheduleResponse, error) {
-	s.logger.Info("Getting rakeback schedule", zap.String("id", scheduleID.String()))
-
-	schedule, err := s.storage.GetRakebackSchedule(ctx, scheduleID)
-	if err != nil {
-		s.logger.Error("Failed to get rakeback schedule", zap.Error(err))
-		return nil, err
-	}
-
-	response := s.scheduleToResponse(schedule)
-	return &response, nil
-}
-
-// UpdateRakebackSchedule updates an existing rakeback schedule
-func (s *CashbackService) UpdateRakebackSchedule(ctx context.Context, scheduleID uuid.UUID, req dto.UpdateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
-	s.logger.Info("Updating rakeback schedule", zap.String("id", scheduleID.String()))
-
-	// Get existing schedule
-	existing, err := s.storage.GetRakebackSchedule(ctx, scheduleID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Only allow updating scheduled (not yet active) schedules
-	if existing.Status != "scheduled" {
-		return nil, fmt.Errorf("can only update schedules with status 'scheduled'")
-	}
-
-	// Update fields
-	if req.Name != "" {
-		existing.Name = req.Name
-	}
-	if req.Description != "" {
-		desc := req.Description
-		existing.Description = &desc
-	}
-	if !req.StartTime.IsZero() {
-		existing.StartTime = req.StartTime
-	}
-	if !req.EndTime.IsZero() {
-		existing.EndTime = req.EndTime
-	}
-	if !req.Percentage.IsZero() {
-		existing.Percentage = req.Percentage
-	}
-	if req.ScopeType != "" {
-		existing.ScopeType = req.ScopeType
-	}
-	if req.ScopeValue != "" {
-		val := req.ScopeValue
-		existing.ScopeValue = &val
-	}
-
-	// Update in storage
-	updated, err := s.storage.UpdateRakebackSchedule(ctx, scheduleID, *existing)
-	if err != nil {
-		s.logger.Error("Failed to update rakeback schedule", zap.Error(err))
-		return nil, err
-	}
-
-	response := s.scheduleToResponse(updated)
-	return &response, nil
-}
-
-// DeleteRakebackSchedule cancels a rakeback schedule
-func (s *CashbackService) DeleteRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) error {
-	s.logger.Info("Deleting rakeback schedule", zap.String("id", scheduleID.String()))
-
-	err := s.storage.DeleteRakebackSchedule(ctx, scheduleID)
-	if err != nil {
-		s.logger.Error("Failed to delete rakeback schedule", zap.Error(err))
-		return err
-	}
-
-	return nil
-}
-
-// scheduleToResponse converts a RakebackSchedule to RakebackScheduleResponse with metadata
-func (s *CashbackService) scheduleToResponse(schedule *dto.RakebackSchedule) dto.RakebackScheduleResponse {
-	now := time.Now()
-
-	response := dto.RakebackScheduleResponse{
-		ID:            schedule.ID,
-		Name:          schedule.Name,
-		Description:   schedule.Description,
-		StartTime:     schedule.StartTime,
-		EndTime:       schedule.EndTime,
-		Percentage:    schedule.Percentage,
-		ScopeType:     schedule.ScopeType,
-		ScopeValue:    schedule.ScopeValue,
-		Status:        schedule.Status,
-		CreatedBy:     schedule.CreatedBy,
-		ActivatedAt:   schedule.ActivatedAt,
-		DeactivatedAt: schedule.DeactivatedAt,
-		CreatedAt:     schedule.CreatedAt,
-		UpdatedAt:     schedule.UpdatedAt,
-		IsActive:      schedule.Status == "active",
-	}
-
-	// Calculate time remaining/until start
-	if schedule.Status == "scheduled" && schedule.StartTime.After(now) {
-		duration := schedule.StartTime.Sub(now)
-		timeStr := formatDuration(duration)
-		response.TimeUntilStart = &timeStr
-	}
-
-	if schedule.Status == "active" && schedule.EndTime.After(now) {
-		duration := schedule.EndTime.Sub(now)
-		timeStr := formatDuration(duration)
-		response.TimeRemaining = &timeStr
-	}
-
-	return response
-}
-
-// formatDuration formats a duration as a human-readable string
-func formatDuration(d time.Duration) string {
-	days := int(d.Hours() / 24)
-	hours := int(d.Hours()) % 24
-	minutes := int(d.Minutes()) % 60
-
-	if days > 0 {
-		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
-	} else if hours > 0 {
-		return fmt.Sprintf("%dh %dm", hours, minutes)
-	}
-	return fmt.Sprintf("%dm", minutes)
-}
-
-// GetRakebackScheduler creates and returns a rakeback scheduler instance
-func (s *CashbackService) GetRakebackScheduler(storage cashback.CashbackStorage, logger *zap.Logger) *RakebackScheduler {
-	return NewRakebackScheduler(storage, logger)
+	return s.levelProgressionService.CreateLevelProgressionResult(ctx, userID)
 }

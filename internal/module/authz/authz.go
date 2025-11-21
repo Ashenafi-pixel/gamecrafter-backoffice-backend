@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
@@ -18,15 +17,13 @@ type authz struct {
 	Log          *zap.Logger
 	authzStorage storage.Authz
 	userStorage  storage.User
-	enforcer     *casbin.Enforcer
 }
 
-func Init(log *zap.Logger, authzStorage storage.Authz, userStorage storage.User, enforcer *casbin.Enforcer) module.Authz {
+func Init(log *zap.Logger, authzStorage storage.Authz, userStorage storage.User) module.Authz {
 	a := &authz{
 		authzStorage: authzStorage,
 		userStorage:  userStorage,
 		Log:          log,
-		enforcer:     enforcer,
 	}
 
 	return a
@@ -56,36 +53,32 @@ func (a *authz) CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role
 	if len(req.Permissions) > 0 {
 		//check if the permissions are exist or not
 		for _, p := range req.Permissions {
-			rpm, exist, err := a.authzStorage.GetPermissionByID(ctx, p)
+			rpm, exist, err := a.authzStorage.GetPermissionByID(ctx, p.PermissionID)
 			if err != nil {
 				a.authzStorage.RemoveRolePermissionsByRoleID(ctx, r.ID)
 				return dto.Role{}, err
 			}
 			if !exist {
-				err := fmt.Errorf("permission not found with id %s", p.String())
+				err := fmt.Errorf("permission not found with id %s", p.PermissionID.String())
 				a.Log.Error(err.Error(), zap.Any("role_req", req))
 				err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 				continue
 			}
 			if rpm.Name == "super" {
-				err := fmt.Errorf("try to assign super admin %s", p.String())
+				err := fmt.Errorf("try to assign super admin %s", p.PermissionID.String())
 				a.Log.Error(err.Error(), zap.Any("role_req", req))
 				continue
 			}
-			//assign permssion to the role
-			_, err = a.authzStorage.AssignPermissionToRole(ctx, p, r.ID)
+			//assign permssion to the role with value
+			_, err = a.authzStorage.AssignPermissionToRole(ctx, p.PermissionID, r.ID, p.Value)
 			permissions = append(permissions, rpm)
 			if err != nil {
 				a.authzStorage.RemoveRolePermissionsByRoleID(ctx, r.ID)
 				return dto.Role{}, err
 			}
 
-			//addPolicy to casbin rules
-			//
-			if ok, _ := a.enforcer.HasPolicy(r.ID.String(), rpm.Name, dto.PermissionsList[rpm.Name].Method); !ok {
-				a.enforcer.AddPolicy(r.ID.String(), rpm.Name, dto.PermissionsList[rpm.Name].Method)
-				a.enforcer.SavePolicy()
-			}
+			// Permissions are now managed directly in role_permissions table
+			// No need to sync to casbin_rule table
 		}
 	}
 
@@ -153,12 +146,11 @@ func (a *authz) UpdatePermissionsOfRole(ctx context.Context, req dto.UpdatePermi
 
 	//remove previous permissions for role
 	a.authzStorage.RemoveRolePermissionsByRoleID(ctx, req.RoleID)
-	a.authzStorage.RemoveRolePermissionFromCasbinRule(ctx, req.RoleID)
 
 	for _, pr := range req.Permissions {
 
 		//check if the permissions exist or not
-		rpm, exist, err := a.authzStorage.GetPermissionByID(ctx, pr)
+		rpm, exist, err := a.authzStorage.GetPermissionByID(ctx, pr.PermissionID)
 		if err != nil {
 			return dto.UpdatePermissionToRoleRes{}, err
 		}
@@ -173,18 +165,15 @@ func (a *authz) UpdatePermissionsOfRole(ctx context.Context, req dto.UpdatePermi
 		}
 		// check if the permissions already exist or not
 
-		_, err = a.authzStorage.AssignPermissionToRole(ctx, pr, req.RoleID)
+		_, err = a.authzStorage.AssignPermissionToRole(ctx, pr.PermissionID, req.RoleID, pr.Value)
 		permissions = append(permissions, rpm)
 		if err != nil {
 			a.authzStorage.RemoveRolePermissionsByRoleID(ctx, req.RoleID)
 			return dto.UpdatePermissionToRoleRes{}, err
 		}
 
-		//add role
-		if ok, _ := a.enforcer.HasPolicy(req.RoleID.String(), rpm.Name, dto.PermissionsList[rpm.Name].Method); !ok {
-			a.enforcer.AddPolicy(req.RoleID.String(), rpm.Name, dto.PermissionsList[rpm.Name].Method)
-			a.enforcer.SavePolicy()
-		}
+		// Permissions are now managed directly in role_permissions table
+		// No need to sync to casbin_rule table
 
 	}
 	return dto.UpdatePermissionToRoleRes{
@@ -215,7 +204,6 @@ func (a *authz) RemoveRole(ctx context.Context, roleID uuid.UUID) error {
 	}
 	a.authzStorage.RemoveRoleFromUserRoles(ctx, roleID)
 	a.authzStorage.RemoveRolePermissionsByRoleID(ctx, roleID)
-	a.authzStorage.RemoveRolePermissionFromCasbinRule(ctx, roleID)
 	a.authzStorage.RemoveRoleByID(ctx, rl.ID)
 	return nil
 }
@@ -356,4 +344,8 @@ func (a *authz) GetUserRoles(ctx context.Context, userID uuid.UUID) (dto.UserRol
 
 func (a *authz) GetAdmins(ctx context.Context, req dto.GetAdminsReq) ([]dto.Admin, error) {
 	return a.userStorage.GetAllAdminUsers(ctx, req)
+}
+
+func (a *authz) CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error) {
+	return a.authzStorage.CheckUserHasPermission(ctx, userID, permissionName)
 }

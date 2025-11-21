@@ -1616,6 +1616,16 @@ func (u *user) GetUsersByEmailAndPhone(ctx context.Context, req dto.GetPlayersRe
 func (u *user) getVipLevelFromDatabase(ctx context.Context, userID uuid.UUID) (string, error) {
 	levelInfo, err := u.GetUserLevelDetails(ctx, userID)
 	if err != nil {
+		// Check for "no rows" error - could be sql.ErrNoRows, pgx.ErrNoRows, or error message
+		errMsg := err.Error()
+		if err == sql.ErrNoRows || 
+		   errMsg == "no rows in result set" ||
+		   errMsg == "sql: no rows in result set" ||
+		   errMsg == "pgx: no rows in result set" {
+			// User doesn't have a level record yet, return default
+			u.log.Debug("No user level found, returning default Bronze", zap.String("userID", userID.String()))
+			return "Bronze", nil
+		}
 		u.log.Error("Failed to get VIP level from database", zap.Error(err), zap.String("userID", userID.String()))
 		return "Bronze", nil
 	}

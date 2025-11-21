@@ -3,7 +3,6 @@ package brand
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	brand handler.Brand,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 	brandRoutes := []routing.Route{
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create brand", http.MethodPost),
+				middleware.Authz(authModule, "create brand", http.MethodPost),
 				middleware.SystemLogs("Create Brand", &log, systemLogs),
 			},
 		},
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get brands", http.MethodGet),
+				middleware.Authz(authModule, "get brands", http.MethodGet),
 				middleware.SystemLogs("Get All Brands", &log, systemLogs),
 			},
 		},
@@ -50,7 +48,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get brand", http.MethodGet),
+				middleware.Authz(authModule, "get brand", http.MethodGet),
 				middleware.SystemLogs("Get Brand", &log, systemLogs),
 			},
 		},
@@ -61,7 +59,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update brand", http.MethodPatch),
+				middleware.Authz(authModule, "update brand", http.MethodPatch),
 				middleware.SystemLogs("Update Brand", &log, systemLogs),
 			},
 		},
@@ -72,7 +70,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete brand", http.MethodDelete),
+				middleware.Authz(authModule, "delete brand", http.MethodDelete),
 				middleware.SystemLogs("Delete Brand", &log, systemLogs),
 			},
 		},

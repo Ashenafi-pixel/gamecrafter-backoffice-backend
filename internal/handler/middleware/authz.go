@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/module"
 )
 
-func Authz(authzModule module.Authz, enforcer *casbin.Enforcer, name, method string) gin.HandlerFunc {
+func Authz(authzModule module.Authz, name, method string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		userID := c.GetString("user-id")
@@ -22,34 +21,37 @@ func Authz(authzModule module.Authz, enforcer *casbin.Enforcer, name, method str
 			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 			_ = c.Error(err)
 			c.Abort()
+			return
 		}
 
+		// Check if user has "super" role first
 		roles, err := authzModule.GetUserRoles(context.Background(), userIDParsed)
 		if err != nil {
 			_ = c.Error(err)
 			c.Abort()
+			return
 		}
 
-		hasPermission := false
+		// Check for super admin role
 		for _, role := range roles.Roles {
 			if role.Name == "super" {
-				hasPermission = true
-				break
+				c.Next()
+				return
 			}
-			ok, err := enforcer.Enforce(role.ID.String(), name, method)
+		}
+
+		// Check permission directly from database (user_roles -> role_permissions -> permissions)
+		hasPermission, err := authzModule.CheckUserHasPermission(context.Background(), userIDParsed, name)
 			if err != nil {
 				_ = c.Error(err)
 				c.Abort()
-			}
-			if ok {
-				hasPermission = true
-				break
-			}
+			return
 		}
 
 		if !hasPermission {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden", "message": fmt.Sprintf("User does not have permission: %s", name)})
 			c.Abort()
+			return
 		}
 
 		c.Next()

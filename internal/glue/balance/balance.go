@@ -3,7 +3,6 @@ package balance
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -18,7 +17,6 @@ func Init(
 	op handler.Balance,
 	userModule module.User,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 
@@ -48,7 +46,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "manual funding", http.MethodPost),
+				middleware.Authz(authModule, "manual funding", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -57,7 +55,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get fund logs", http.MethodGet),
+				middleware.Authz(authModule, "get fund logs", http.MethodGet),
 				middleware.SystemLogs("Get Manual Funds Logs", &log, systemLogs),
 			},
 		}, {
@@ -67,7 +65,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get all manual funds", http.MethodGet),
+				middleware.Authz(authModule, "get all manual funds", http.MethodGet),
 				middleware.SystemLogs("Get All Manual Funds", &log, systemLogs),
 			},
 		}, {

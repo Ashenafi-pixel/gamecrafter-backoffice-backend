@@ -37,6 +37,7 @@ import (
 	"github.com/tucanbit/internal/handler/operationsdefinitions"
 	"github.com/tucanbit/internal/handler/otp"
 	"github.com/tucanbit/internal/handler/performance"
+	"github.com/tucanbit/internal/handler/rakeback_override"
 	"github.com/tucanbit/internal/handler/report"
 	"github.com/tucanbit/internal/handler/risksettings"
 	"github.com/tucanbit/internal/handler/sportsservice"
@@ -45,6 +46,7 @@ import (
 	"github.com/tucanbit/internal/handler/twofactor"
 	"github.com/tucanbit/internal/handler/user"
 	"github.com/tucanbit/internal/handler/withdrawal_management"
+	"github.com/tucanbit/internal/handler/page"
 	"github.com/tucanbit/internal/handler/withdrawals"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
@@ -84,6 +86,7 @@ type Handler struct {
 	Groove                *groove.GrooveHandler
 	Game                  *game.GameHandler
 	HouseEdge             *game.HouseEdgeHandler
+	RakebackOverride      handler.RakebackOverride
 	RegistrationService   *user.RegistrationService
 	Campaign              handler.Campaign
 	TwoFactor             handler.TwoFactor
@@ -96,6 +99,7 @@ type Handler struct {
 	AdminActivityLogs     handler.AdminActivityLogs
 	AirtimeProvider       handler.AirtimeProvider
 	KYC                   handler.KYC
+	Page                  page.PageHandler
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
@@ -150,6 +154,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, persistence.Database, log),
 		Game:                  game.NewGameHandler(module.Game),
 		HouseEdge:             game.NewHouseEdgeHandler(module.HouseEdge),
+		RakebackOverride:     rakeback_override.NewRakebackOverrideHandler(module.RakebackOverride, log),
 		RegistrationService:   registrationService,
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
@@ -162,6 +167,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
 		AirtimeProvider:       airtime.Init(log, persistence.AirtimeProvider),
 		KYC:                   kyc.NewKYCHandler(persistence.KYC, persistence.AdminActivityLogs, log),
+		Page:                  page.Init(module.Page, log),
 	}
 }
 

@@ -226,7 +226,11 @@ func (s *CashbackStorageImpl) GetUserLevel(ctx context.Context, userID uuid.UUID
 	)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
+		// Check for both sql.ErrNoRows and pgx.ErrNoRows, and also check error message
+		if err == sql.ErrNoRows || 
+		   err.Error() == "no rows in result set" ||
+		   err.Error() == "sql: no rows in result set" ||
+		   err.Error() == "pgx: no rows in result set" {
 			s.logger.Info("User level not found, creating default", zap.String("user_id", userID.String()))
 			return s.createDefaultUserLevel(ctx, userID)
 		}
