@@ -1,29 +1,30 @@
 -- name: GetSystemConfigValue :one
-SELECT config_value FROM system_config WHERE config_key = $1;
+SELECT config_value FROM system_config WHERE config_key = $1 AND ($2::uuid IS NULL OR brand_id = $2 OR brand_id IS NULL);
 
 -- name: UpdateSystemConfigValue :exec
 UPDATE system_config 
 SET config_value = $2, updated_by = $3, updated_at = NOW()
-WHERE config_key = $1;
+WHERE config_key = $1 AND ($4::uuid IS NULL OR brand_id = $4 OR brand_id IS NULL);
 
 -- name: CreateSystemConfig :one
-INSERT INTO system_config (config_key, config_value, description, updated_by)
-VALUES ($1, $2, $3, $4)
-RETURNING id, config_key, config_value, description, updated_by, created_at, updated_at;
+INSERT INTO system_config (config_key, config_value, description, updated_by, brand_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, config_key, config_value, description, updated_by, brand_id, created_at, updated_at;
 
 -- name: GetSystemConfig :one
-SELECT id, config_key, config_value, description, updated_by, created_at, updated_at
+SELECT id, config_key, config_value, description, updated_by, brand_id, created_at, updated_at
 FROM system_config 
-WHERE config_key = $1;
+WHERE config_key = $1 AND ($2::uuid IS NULL OR brand_id = $2 OR brand_id IS NULL);
 
 -- name: ListSystemConfigs :many
-SELECT id, config_key, config_value, description, updated_by, created_at, updated_at
+SELECT id, config_key, config_value, description, updated_by, brand_id, created_at, updated_at
 FROM system_config
+WHERE ($3::uuid IS NULL OR brand_id = $3 OR brand_id IS NULL)
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: DeleteSystemConfig :exec
-DELETE FROM system_config WHERE config_key = $1;
+DELETE FROM system_config WHERE config_key = $1 AND ($2::uuid IS NULL OR brand_id = $2 OR brand_id IS NULL);
 
 -- name: GetWithdrawalsByIDs :many
 SELECT 

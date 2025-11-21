@@ -3,7 +3,6 @@ package adds
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -16,7 +15,6 @@ func Init(
 	group *gin.RouterGroup,
 	log zap.Logger,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	adds handler.Adds,
 	systemLog module.SystemLogs,
 ) {
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get adds services", http.MethodGet),
+				middleware.Authz(authModule, "get adds services", http.MethodGet),
 				middleware.SystemLogs("Get Adds Services", &log, systemLog),
 			},
 		},
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create adds service", http.MethodPost),
+				middleware.Authz(authModule, "create adds service", http.MethodPost),
 				middleware.SystemLogs("Create Adds Service", &log, systemLog),
 			},
 		},

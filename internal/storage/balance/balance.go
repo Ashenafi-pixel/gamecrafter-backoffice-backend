@@ -1279,3 +1279,24 @@ func (b *balance) GetManualFundsByUserIDPaginated(ctx context.Context, userID uu
 
 	return funds, totalCount, nil
 }
+
+// GetAdminFundingLimit retrieves the maximum funding limit for an admin from their roles
+func (b *balance) GetAdminFundingLimit(ctx context.Context, adminID uuid.UUID) (*decimal.Decimal, error) {
+	result, err := b.db.Queries.GetAdminFundingLimit(ctx, adminID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No funding limit set (unlimited)
+			return nil, nil
+		}
+		b.log.Error("Failed to get admin funding limit", zap.Error(err), zap.String("adminID", adminID.String()))
+		return nil, err
+	}
+	
+	if !result.MaxFundingLimit.Valid {
+		// No funding limit set (unlimited)
+		return nil, nil
+	}
+	
+	limit := result.MaxFundingLimit.Decimal
+	return &limit, nil
+}

@@ -3,7 +3,6 @@ package performance
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	p handler.Performance,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLog module.SystemLogs,
 ) {
 
@@ -29,7 +27,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get financial metrics", http.MethodGet),
+				middleware.Authz(authModule, "get financial metrics", http.MethodGet),
 				middleware.SystemLogs("Get Financial Matrics", &log, systemLog),
 			},
 		}, {
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get game metrics", http.MethodGet),
+				middleware.Authz(authModule, "get game metrics", http.MethodGet),
 				middleware.SystemLogs("Get Game Matrics", &log, systemLog),
 			},
 		},

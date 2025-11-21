@@ -1,15 +1,18 @@
 package cashback
 
 import (
-	"github.com/casbin/casbin/v2"
+	"context"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/tucanbit/internal/handler/cashback"
 	"github.com/tucanbit/internal/handler/middleware"
 	"github.com/tucanbit/internal/module"
 	"go.uber.org/zap"
 )
 
-func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler, authz module.Authz, enforcer *casbin.Enforcer, systemLogs module.SystemLogs) {
+func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler, authz module.Authz, systemLogs module.SystemLogs) {
 	log.Info("Initializing cashback routes")
 
 	// Public routes (no authentication required)
@@ -47,7 +50,48 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	// Admin routes (admin authentication required)
 	admin := r.Group("/api/admin/cashback")
 	admin.Use(middleware.Auth())
-	admin.Use(middleware.Authz(authz, enforcer, "cashback", "admin"))
+	// Check cashback permission for all admin routes
+	admin.Use(func(c *gin.Context) {
+		userID := c.GetString("user-id")
+		userIDParsed, err := uuid.Parse(userID)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+			c.Abort()
+			return
+		}
+
+		// Check if user has "super" role first
+		roles, err := authz.GetUserRoles(context.Background(), userIDParsed)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user roles"})
+			c.Abort()
+			return
+		}
+
+		// Check for super admin role
+		for _, role := range roles.Roles {
+			if role.Name == "super" {
+				c.Next()
+				return
+			}
+		}
+
+		// Check permission directly from database
+		hasPermission, err := authz.CheckUserHasPermission(context.Background(), userIDParsed, "cashback")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
+			c.Abort()
+			return
+		}
+
+		if !hasPermission {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden", "message": "User does not have permission: cashback"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	})
 	{
 		admin.GET("/stats", handler.GetCashbackStats)
 		admin.GET("/tiers", handler.GetCashbackTiers)
@@ -69,6 +113,8 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		admin.POST("/retry-failed-operations", handler.RetryFailedOperations)
 
 		// Admin Level Progression routes
+		admin.GET("/level-progression-info", handler.GetLevelProgressionInfoForUser)
+		admin.POST("/level-progression", handler.ProcessSingleLevelProgression)
 		admin.POST("/bulk-level-progression", handler.ProcessBulkLevelProgression)
 		admin.POST("/level-progression", handler.ProcessSingleLevelProgression)
 

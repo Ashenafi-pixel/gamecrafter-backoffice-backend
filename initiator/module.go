@@ -13,6 +13,7 @@ import (
 	"github.com/tucanbit/internal/module/adds"
 	"github.com/tucanbit/internal/module/admin_activity_logs"
 	"github.com/tucanbit/internal/module/agent"
+	alertModule "github.com/tucanbit/internal/module/alert"
 	"github.com/tucanbit/internal/module/authz"
 	"github.com/tucanbit/internal/module/balance"
 	"github.com/tucanbit/internal/module/balancelogs"
@@ -35,8 +36,10 @@ import (
 	operationdefinition "github.com/tucanbit/internal/module/operationDefinition"
 	"github.com/tucanbit/internal/module/operationalgroup"
 	"github.com/tucanbit/internal/module/operationalgrouptype"
-	otpModule "github.com/tucanbit/internal/module/otp"
+	otpModule 	"github.com/tucanbit/internal/module/otp"
+	pageModule "github.com/tucanbit/internal/module/page"
 	"github.com/tucanbit/internal/module/performance"
+	"github.com/tucanbit/internal/module/rakeback_override"
 	"github.com/tucanbit/internal/module/report"
 	"github.com/tucanbit/internal/module/risksettings"
 	"github.com/tucanbit/internal/module/sportsservice"
@@ -48,7 +51,6 @@ import (
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
@@ -90,13 +92,15 @@ type Module struct {
 	Game                  *game.GameService
 	HouseEdge             *game.HouseEdgeService
 	Email                 email.EmailService
+	RakebackOverride      module.RakebackOverride
 	Redis                 *redis.RedisOTP
 	TwoFactor             twofactor.TwoFactorService
 	UserBalanceWS         utils.UserWS
 	AdminActivityLogs     module.AdminActivityLogs
+	Page                  module.Page
 }
 
-func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, enforcer *casbin.Enforcer, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient) *Module {
+func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient, alertService alertModule.AlertService) *Module {
 
 	spApiKey := viper.GetString("sportsservice.api_key")
 	apiSecret := viper.GetString("sportsservice.api_secret")
@@ -209,6 +213,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 				OTPExpiryMinutes: 5,
 			}, emailService),
 			persistence.SystemConfig,
+			pageModule.Init(persistence.Page, log),
 		),
 		OperationalGroup:      operationalgroup.Init(persistence.OperationalGroup, log),
 		OperationalGroupType:  operationalgrouptype.Init(persistence.OperationalGroupType, log),
@@ -220,6 +225,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			persistence.OperationalGroup,
 			persistence.OperationalGroupType,
 			persistence.Alert,
+			alertService,
 			log,
 			locker),
 		BalanceLogs: balancelogs.Init(persistence.BalanageLogs, log),
@@ -244,7 +250,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		),
 		Departments:   department.Init(persistence.Departments, persistence.User, log),
 		Performance:   performance.Init(persistence.Performance, log),
-		Authz:         authz.Init(log, persistence.Authz, persistence.User, enforcer),
+		Authz:         authz.Init(log, persistence.Authz, persistence.User),
 		UserBalanceWS: userBalanceWs,
 		SystemLogs:    logs.Init(log, persistence.Logs),
 		Company:       company.Init(persistence.Company, log),
@@ -285,9 +291,9 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		RiskSettings:          risksettings.Init(persistence.RiskSettings, log),
 		Agent:                 agentModule,
 		OTP:                   otpModule.NewOTPService(persistence.OTP, otpModule.NewUserStorageAdapter(persistence.User), emailService, log),
-		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log),
-		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), kafka, log),
-		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log), persistence.User, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
+		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride),
+		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), kafka, log),
+		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), persistence.User, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
 			Enabled:        viper.GetBool("falcon_liquidity.enabled"),
 			Host:           viper.GetString("falcon_liquidity.host"),
 			Port:           viper.GetInt("falcon_liquidity.port"),
@@ -300,10 +306,11 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			ClientName:     viper.GetString("falcon_liquidity.client_name"),
 			ManagementPort: viper.GetInt("falcon_liquidity.management_port"),
 		}, persistence.FalconMessage), log),
-		Game:      game.NewGameService(persistence.Game, log),
-		HouseEdge: game.NewHouseEdgeService(persistence.HouseEdge, log),
-		Email:     emailService,
-		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
+		Game:             game.NewGameService(persistence.Game, log),
+		HouseEdge:        game.NewHouseEdgeService(persistence.HouseEdge, log),
+		Email:            emailService,
+		RakebackOverride: rakeback_override.Init(persistence.RakebackOverride, log),
+		TwoFactor:        twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
 			Issuer:           "TucanBIT",
 			Algorithm:        otp.AlgorithmSHA1,
 			Digits:           otp.DigitsSix,
@@ -325,5 +332,6 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		}, emailService),
 		Redis:             redis,
 		AdminActivityLogs: admin_activity_logs.NewAdminActivityLogsModule(persistence.AdminActivityLogs, log),
+		Page:              pageModule.Init(persistence.Page, log),
 	}
 }

@@ -759,7 +759,15 @@ func (h *SystemConfigHandler) AcknowledgeAlert(ctx *gin.Context) {
 func (h *SystemConfigHandler) GetGeneralSettings(ctx *gin.Context) {
 	h.log.Info("Getting general settings")
 
-	settings, err := h.systemConfigStorage.GetGeneralSettings(ctx)
+	// Get brand_id from query params (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	settings, err := h.systemConfigStorage.GetGeneralSettings(ctx.Request.Context(), brandID)
 	if err != nil {
 		h.log.Error("Failed to get general settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -796,7 +804,19 @@ func (h *SystemConfigHandler) UpdateGeneralSettings(ctx *gin.Context) {
 		return
 	}
 
-	err := h.systemConfigStorage.UpdateGeneralSettings(ctx, req, adminUUID)
+	// Get brand_id from query params or request body (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	err := h.systemConfigStorage.UpdateGeneralSettings(ctx.Request.Context(), req, adminUUID, brandID)
 	if err != nil {
 		h.log.Error("Failed to update general settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -822,7 +842,15 @@ func (h *SystemConfigHandler) UpdateGeneralSettings(ctx *gin.Context) {
 func (h *SystemConfigHandler) GetPaymentSettings(ctx *gin.Context) {
 	h.log.Info("Getting payment settings")
 
-	settings, err := h.systemConfigStorage.GetPaymentSettings(ctx)
+	// Get brand_id from query params (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	settings, err := h.systemConfigStorage.GetPaymentSettings(ctx.Request.Context(), brandID)
 	if err != nil {
 		h.log.Error("Failed to get payment settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -859,7 +887,19 @@ func (h *SystemConfigHandler) UpdatePaymentSettings(ctx *gin.Context) {
 		return
 	}
 
-	err := h.systemConfigStorage.UpdatePaymentSettings(ctx, req, adminUUID)
+	// Get brand_id from query params or request body (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	err := h.systemConfigStorage.UpdatePaymentSettings(ctx.Request.Context(), req, adminUUID, brandID)
 	if err != nil {
 		h.log.Error("Failed to update payment settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -887,7 +927,15 @@ func (h *SystemConfigHandler) UpdatePaymentSettings(ctx *gin.Context) {
 func (h *SystemConfigHandler) GetTipSettings(ctx *gin.Context) {
 	h.log.Info("Getting tip settings")
 
-	settings, err := h.systemConfigStorage.GetTipSettings(ctx)
+	// Get brand_id from query params (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	settings, err := h.systemConfigStorage.GetTipSettings(ctx.Request.Context(), brandID)
 	if err != nil {
 		h.log.Error("Failed to get tip settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -924,7 +972,19 @@ func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
 		return
 	}
 
-	err := h.systemConfigStorage.UpdateTipSettings(ctx, req, adminUUID)
+	// Get brand_id from query params or request body (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	err := h.systemConfigStorage.UpdateTipSettings(ctx.Request.Context(), req, adminUUID, brandID)
 	if err != nil {
 		h.log.Error("Failed to update tip settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -948,7 +1008,15 @@ func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
 func (h *SystemConfigHandler) GetSecuritySettings(ctx *gin.Context) {
 	h.log.Info("Getting security settings")
 
-	settings, err := h.systemConfigStorage.GetSecuritySettings(ctx)
+	// Get brand_id from query params (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	settings, err := h.systemConfigStorage.GetSecuritySettings(ctx.Request.Context(), brandID)
 	if err != nil {
 		h.log.Error("Failed to get security settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -985,7 +1053,19 @@ func (h *SystemConfigHandler) UpdateSecuritySettings(ctx *gin.Context) {
 		return
 	}
 
-	err := h.systemConfigStorage.UpdateSecuritySettings(ctx, req, adminUUID)
+	// Get brand_id from query params or request body (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	err := h.systemConfigStorage.UpdateSecuritySettings(ctx.Request.Context(), req, adminUUID, brandID)
 	if err != nil {
 		h.log.Error("Failed to update security settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -1014,7 +1094,15 @@ func (h *SystemConfigHandler) UpdateSecuritySettings(ctx *gin.Context) {
 func (h *SystemConfigHandler) GetGeoBlockingSettings(ctx *gin.Context) {
 	h.log.Info("Getting geo blocking settings")
 
-	settings, err := h.systemConfigStorage.GetGeoBlockingSettings(ctx)
+	// Get brand_id from query params (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	settings, err := h.systemConfigStorage.GetGeoBlockingSettings(ctx.Request.Context(), brandID)
 	if err != nil {
 		h.log.Error("Failed to get geo blocking settings", zap.Error(err))
 		_ = ctx.Error(err)
@@ -1051,7 +1139,19 @@ func (h *SystemConfigHandler) UpdateGeoBlockingSettings(ctx *gin.Context) {
 		return
 	}
 
-	err := h.systemConfigStorage.UpdateGeoBlockingSettings(ctx, req, adminUUID)
+	// Get brand_id from query params or request body (optional)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	err := h.systemConfigStorage.UpdateGeoBlockingSettings(ctx.Request.Context(), req, adminUUID, brandID)
 	if err != nil {
 		h.log.Error("Failed to update geo blocking settings", zap.Error(err))
 		_ = ctx.Error(err)

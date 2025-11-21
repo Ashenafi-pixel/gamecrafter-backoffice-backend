@@ -15,7 +15,7 @@ type AlertService interface {
 	CheckAllAlerts(ctx context.Context) error
 	CheckBetCountAlerts(ctx context.Context) error
 	CheckBetAmountAlerts(ctx context.Context) error
-	CheckDepositAlerts(ctx context.Context) error
+	CheckDepositAlerts(ctx context.Context, skipDuplicateCheck bool) error
 	CheckWithdrawalAlerts(ctx context.Context) error
 	CheckGGRAlerts(ctx context.Context) error
 }
@@ -82,7 +82,7 @@ func (s *alertService) CheckAllAlerts(ctx context.Context) error {
 		s.log.Error("Failed to check bet amount alerts", zap.Error(err))
 	}
 
-	if err := s.CheckDepositAlerts(ctx); err != nil {
+	if err := s.CheckDepositAlerts(ctx, false); err != nil {
 		s.log.Error("Failed to check deposit alerts", zap.Error(err))
 	}
 
@@ -176,13 +176,15 @@ func (s *alertService) checkAndTriggerAlert(
 	return nil
 }
 
-// sendEmailsForNewTriggers checks for triggers created in the last minute and sends emails
+// sendEmailsForNewTriggers checks for triggers created since checkStartTime and sends emails
+// This ensures emails are sent immediately after triggers are created
 func (s *alertService) sendEmailsForNewTriggers(ctx context.Context, checkStartTime time.Time) error {
-	// Get triggers created since check started
+	// Get triggers created since check started (subtract 2 seconds to account for timing and ensure we catch all new triggers)
+	adjustedStartTime := checkStartTime.Add(-2 * time.Second)
 	req := &dto.GetAlertTriggersRequest{
 		Page:  1,
 		PerPage: 100,
-		DateFrom: &checkStartTime,
+		DateFrom: &adjustedStartTime,
 	}
 
 	triggers, _, err := s.alertStorage.GetAlertTriggers(ctx, req)
@@ -190,6 +192,11 @@ func (s *alertService) sendEmailsForNewTriggers(ctx context.Context, checkStartT
 		s.log.Error("Failed to get new triggers for email sending", zap.Error(err))
 		return err
 	}
+
+	s.log.Info("Checking for new triggers to send emails",
+		zap.Int("trigger_count", len(triggers)),
+		zap.Time("check_start_time", checkStartTime),
+		zap.Time("adjusted_start_time", adjustedStartTime))
 
 	// Send emails for each trigger
 	for _, trigger := range triggers {
@@ -204,8 +211,14 @@ func (s *alertService) sendEmailsForNewTriggers(ctx context.Context, checkStartT
 		}
 
 		config := trigger.AlertConfiguration
+		s.log.Debug("Processing trigger for email sending",
+			zap.String("trigger_id", trigger.ID.String()),
+			zap.String("alert_id", config.ID.String()),
+			zap.Bool("email_notifications", config.EmailNotifications),
+			zap.Int("email_group_count", len(config.EmailGroupIDs)))
+		
 		if config.EmailNotifications && len(config.EmailGroupIDs) > 0 {
-			err = alertStorage.SendAlertEmailsToGroups(
+			err := alertStorage.SendAlertEmailsToGroups(
 				ctx,
 				s.emailGroupStorage,
 				s.emailService,
@@ -217,8 +230,15 @@ func (s *alertService) sendEmailsForNewTriggers(ctx context.Context, checkStartT
 				s.log.Error("Failed to send alert emails", zap.Error(err), zap.String("trigger_id", trigger.ID.String()))
 				// Continue with other triggers
 			} else {
-				s.log.Info("Alert emails sent for trigger", zap.String("trigger_id", trigger.ID.String()))
+				s.log.Info("Alert emails sent for trigger", 
+					zap.String("trigger_id", trigger.ID.String()),
+					zap.String("alert_id", config.ID.String()))
 			}
+		} else {
+			s.log.Debug("Skipping email send for trigger",
+				zap.String("trigger_id", trigger.ID.String()),
+				zap.Bool("email_notifications", config.EmailNotifications),
+				zap.Int("email_group_count", len(config.EmailGroupIDs)))
 		}
 	}
 
@@ -284,7 +304,8 @@ func (s *alertService) CheckBetAmountAlerts(ctx context.Context) error {
 }
 
 // CheckDepositAlerts checks deposit alerts and sends emails
-func (s *alertService) CheckDepositAlerts(ctx context.Context) error {
+// skipDuplicateCheck: if true, will create triggers even if one was created recently (useful for manual fund additions)
+func (s *alertService) CheckDepositAlerts(ctx context.Context, skipDuplicateCheck bool) error {
 	checkStartTime := time.Now()
 	maxTimeWindow := time.Hour * 24
 	
@@ -304,7 +325,7 @@ func (s *alertService) CheckDepositAlerts(ctx context.Context) error {
 		}
 	}
 
-	err := s.alertStorage.CheckDepositAlerts(ctx, maxTimeWindow)
+	err := s.alertStorage.CheckDepositAlerts(ctx, maxTimeWindow, skipDuplicateCheck)
 	if err != nil {
 		return err
 	}

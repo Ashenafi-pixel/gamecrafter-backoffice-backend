@@ -1,6 +1,8 @@
 package handler
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+)
 
 // RegistrationServiceInterface defines the interface for registration service
 type RegistrationServiceInterface interface {
@@ -433,4 +435,11 @@ type KYC interface {
 	GetWithdrawalBlockStatus(c *gin.Context) // GET /api/admin/kyc/user/:user_id/withdrawal-block
 	GetKYCSettings(c *gin.Context)           // GET /api/admin/kyc/settings
 	UpdateKYCSettings(c *gin.Context)        // PUT /api/admin/kyc/settings
+}
+
+type RakebackOverride interface {
+	GetActiveOverride(c *gin.Context)
+	GetOverride(c *gin.Context)
+	CreateOrUpdateOverride(c *gin.Context)
+	ToggleOverride(c *gin.Context)
 }

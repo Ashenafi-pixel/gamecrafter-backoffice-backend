@@ -3,7 +3,6 @@ package lottery
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -18,7 +17,6 @@ func Init(
 	lotteryHanlder handler.Lottery,
 	authModule module.Authz,
 	logsModule module.SystemLogs,
-	enforcer *casbin.Enforcer,
 ) {
 
 	logs := []routing.Route{
@@ -29,7 +27,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Create Lottery Service", http.MethodPost),
+				middleware.Authz(authModule, "Create Lottery Service", http.MethodPost),
 				middleware.SystemLogs("Create Lottery Service", &log, logsModule),
 			},
 		}, {
@@ -39,7 +37,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "Create Lottery", http.MethodPost),
+				middleware.Authz(authModule, "Create Lottery", http.MethodPost),
 				middleware.SystemLogs("Create Lottery", &log, logsModule),
 			},
 		}, {

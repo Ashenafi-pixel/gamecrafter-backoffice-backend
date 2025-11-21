@@ -959,6 +959,130 @@ func (h *CashbackHandler) GetLevelProgressionInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, progressionInfo)
 }
 
+// GetLevelProgressionInfoForUser returns level progression info for a specific user (admin only)
+// @Summary Get level progression info for user (admin)
+// @Description Returns detailed level progression information for a specific user (admin access)
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user_id query string true "User ID"
+// @Success 200 {object} dto.LevelProgressionInfo
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/level-progression-info [get]
+func (h *CashbackHandler) GetLevelProgressionInfoForUser(c *gin.Context) {
+	userIDStr := c.Query("user_id")
+	if userIDStr == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "user_id query parameter is required",
+		})
+		return
+	}
+
+	userUUID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		h.logger.Error("Invalid user ID format", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid user ID format",
+		})
+		return
+	}
+
+	h.logger.Info("Getting level progression info for user (admin)",
+		zap.String("user_id", userUUID.String()))
+
+	progressionInfo, err := h.cashbackService.GetLevelProgressionInfo(c.Request.Context(), userUUID)
+	if err != nil {
+		h.logger.Error("Failed to get level progression info", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to get level progression info",
+		})
+		return
+	}
+
+	h.logger.Info("Retrieved level progression info",
+		zap.String("user_id", userUUID.String()),
+		zap.Int("current_level", progressionInfo.CurrentLevel),
+		zap.String("current_tier", progressionInfo.CurrentTier.TierName))
+
+	c.JSON(http.StatusOK, progressionInfo)
+}
+
+// ProcessSingleLevelProgression processes level progression for a single user (admin only)
+// @Summary Process single user level progression
+// @Description Processes level progression for a single user based on their Total Expected GGR
+// @Tags Cashback
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param user_id body string true "User ID"
+// @Success 200 {object} dto.LevelProgressionResult
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /admin/cashback/level-progression [post]
+func (h *CashbackHandler) ProcessSingleLevelProgression(c *gin.Context) {
+	var request struct {
+		UserID string `json:"user_id" validate:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.logger.Error("Invalid request body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request body",
+		})
+		return
+	}
+
+	// Parse user ID
+	userUUID, err := uuid.Parse(request.UserID)
+	if err != nil {
+		h.logger.Error("Invalid user ID format", zap.String("user_id", request.UserID), zap.Error(err))
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("Invalid user ID: %s", request.UserID),
+		})
+		return
+	}
+
+	h.logger.Info("Processing single level progression",
+		zap.String("user_id", userUUID.String()))
+
+	// Process level progression and get detailed result
+	result := h.cashbackService.CreateLevelProgressionResult(c.Request.Context(), userUUID)
+
+	if result.Error != "" && !result.Success {
+		h.logger.Error("Failed to process level progression", 
+			zap.String("user_id", userUUID.String()),
+			zap.String("error", result.Error))
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": result.Message,
+			"data":    result,
+		})
+		return
+	}
+
+	h.logger.Info("Level progression processed",
+		zap.String("user_id", userUUID.String()),
+		zap.Bool("success", result.Success),
+		zap.Int("current_level", result.CurrentLevel),
+		zap.Int("new_level", result.NewLevel),
+		zap.String("message", result.Message))
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": result.Success,
+		"message": result.Message,
+		"data":    result,
+	})
+}
+
 // ProcessBulkLevelProgression processes level progression for multiple users (admin only)
 // @Summary Process bulk level progression
 // @Description Processes level progression for multiple users

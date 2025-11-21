@@ -3,7 +3,6 @@ package risksettings
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -16,7 +15,6 @@ func Init(
 	group *gin.RouterGroup,
 	log zap.Logger,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	riskSettings handler.RiskSettings,
 	systemLogs module.SystemLogs,
 ) {
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "risksettings get", http.MethodGet),
+				middleware.Authz(authModule, "risksettings get", http.MethodGet),
 				middleware.SystemLogs("Get Risk Settings", &log, systemLogs),
 			},
 		},
@@ -40,7 +38,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "risksettings update", http.MethodPut),
+				middleware.Authz(authModule, "risksettings update", http.MethodPut),
 				middleware.SystemLogs("Update Risk Settings", &log, systemLogs),
 			},
 		},

@@ -472,33 +472,54 @@ func (e *EmailServiceImpl) SendAlertEmail(ctx context.Context, to []string, aler
 		triggerData = &dto.AlertTrigger{}
 	}
 
-	subject := fmt.Sprintf("🚨 Alert Triggered: %s", config.Name)
+	subject := fmt.Sprintf("Security Alert: %s", config.Name)
 
-	// Build alert details
+	// Build detailed alert information
+	var username string
+	var userEmail string
+	if triggerData.Username != nil {
+		username = *triggerData.Username
+	}
+	if triggerData.UserEmail != nil {
+		userEmail = *triggerData.UserEmail
+	}
+
+	// Build alert details with all relevant information
 	alertDetails := fmt.Sprintf(`
 Alert Name: %s
 Alert Type: %s
-Threshold: %.2f
-Triggered Value: %.2f
+Threshold: $%.2f
+Triggered Value: $%.2f
 Time Window: %d minutes
 `, config.Name, config.AlertType, config.ThresholdAmount, triggerData.TriggerValue, config.TimeWindowMinutes)
 
+	if username != "" {
+		alertDetails += fmt.Sprintf("Username: %s\n", username)
+	}
+	if userEmail != "" {
+		alertDetails += fmt.Sprintf("User Email: %s\n", userEmail)
+	}
 	if triggerData.UserID != nil {
 		alertDetails += fmt.Sprintf("User ID: %s\n", triggerData.UserID.String())
 	}
+	if triggerData.AmountUSD != nil {
+		alertDetails += fmt.Sprintf("Amount: $%.2f\n", *triggerData.AmountUSD)
+	}
+	if triggerData.CurrencyCode != nil {
+		alertDetails += fmt.Sprintf("Currency: %s\n", string(*triggerData.CurrencyCode))
+	}
 	if triggerData.TransactionID != nil {
 		alertDetails += fmt.Sprintf("Transaction ID: %s\n", *triggerData.TransactionID)
-	}
-	if triggerData.AmountUSD != nil {
-		alertDetails += fmt.Sprintf("Amount USD: %.2f\n", *triggerData.AmountUSD)
 	}
 
 	// Create template data
 	data := map[string]interface{}{
 		"AlertType":    config.Name,
-		"AlertDetails": alertDetails,
-		"BrandName":    "TucanBIT",
-		"Timestamp":    time.Now().UTC().Format("2006-01-02 15:04:05 UTC"),
+		"Details":      alertDetails,
+		"Email":         userEmail, // User's email (not recipient email)
+		"Username":      username,
+		"BrandName":     "TucanBIT",
+		"Timestamp":       triggerData.TriggeredAt.UTC().Format("2006-01-02 15:04:05 UTC"),
 		"SupportEmail": "support@tucanbit.com",
 	}
 
@@ -1354,11 +1375,16 @@ const securityAlertTemplate = `
             
             <div class="alert-box">
                 <strong>Alert Details:</strong><br>
-                {{.Details}}
+                <pre style="white-space: pre-wrap; margin: 10px 0; color: white;">{{.Details}}</pre>
             </div>
             
             <p><strong>Time:</strong> {{.Timestamp}}</p>
+            {{if .Username}}
+            <p><strong>Username:</strong> {{.Username}}</p>
+            {{end}}
+            {{if .Email}}
             <p><strong>Account:</strong> {{.Email}}</p>
+            {{end}}
             
             <p>If this activity was not authorized by you, please:</p>
             <ol>

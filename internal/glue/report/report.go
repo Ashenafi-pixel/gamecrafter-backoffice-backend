@@ -3,7 +3,6 @@ package report
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler"
@@ -17,7 +16,6 @@ func Init(
 	log zap.Logger,
 	report handler.Report,
 	authModule module.Authz,
-	enforcer *casbin.Enforcer,
 	systemLogs module.SystemLogs,
 ) {
 	reportRoutes := []routing.Route{
@@ -28,7 +26,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get daily report", http.MethodGet),
+				middleware.Authz(authModule, "get daily report", http.MethodGet),
 				middleware.SystemLogs("Get daily Report", &log, systemLogs),
 			},
 		},

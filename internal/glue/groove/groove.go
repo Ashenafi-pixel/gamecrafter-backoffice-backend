@@ -1,7 +1,6 @@
 package groove
 
 import (
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/handler/groove"
 	"github.com/tucanbit/internal/handler/middleware"
@@ -12,7 +11,7 @@ import (
 
 // Init initializes GrooveTech API routes
 // Based on official documentation: https://groove-docs.pages.dev/transaction-api/
-func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, grooveService grooveModule.GrooveService, authz module.Authz, enforcer *casbin.Enforcer, systemLogs module.SystemLogs) {
+func Init(grp *gin.RouterGroup, log *zap.Logger, handler *groove.GrooveHandler, grooveService grooveModule.GrooveService, authz module.Authz, systemLogs module.SystemLogs) {
 	log.Info("Initializing GrooveTech Transaction API routes")
 
 	// Official GrooveTech Transaction API routes

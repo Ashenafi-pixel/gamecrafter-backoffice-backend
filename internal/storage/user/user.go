@@ -1383,7 +1383,12 @@ func (u *user) getVipLevelFromDatabase(ctx context.Context, userID uuid.UUID) (s
 	var tierName string
 	err := u.db.GetPool().QueryRow(ctx, query, userID).Scan(&tierName)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		// Check for "no rows" error - could be sql.ErrNoRows, pgx.ErrNoRows, or error message
+		errMsg := err.Error()
+		if err == sql.ErrNoRows || 
+		   errMsg == "no rows in result set" ||
+		   errMsg == "sql: no rows in result set" ||
+		   errMsg == "pgx: no rows in result set" {
 			// User doesn't have a level record yet, return default
 			u.log.Debug("No user level found, returning default Bronze", zap.String("userID", userID.String()))
 			return "Bronze", nil

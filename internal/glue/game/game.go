@@ -3,7 +3,6 @@ package game
 import (
 	"net/http"
 
-	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/glue/routing"
 	"github.com/tucanbit/internal/handler/game"
@@ -19,7 +18,6 @@ func Init(
 	houseEdgeHandler *game.HouseEdgeHandler,
 	authModule module.Authz,
 	logsModule module.SystemLogs,
-	enforcer *casbin.Enforcer,
 ) {
 	log.Info("Initializing game management routes")
 
@@ -32,7 +30,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create game", http.MethodPost),
+				middleware.Authz(authModule, "create game", http.MethodPost),
 				middleware.SystemLogs("create game", &log, logsModule),
 			},
 		}, {
@@ -42,7 +40,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get games", http.MethodGet),
+				middleware.Authz(authModule, "get games", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -51,7 +49,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get game stats", http.MethodGet),
+				middleware.Authz(authModule, "get game stats", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -60,7 +58,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get game by id", http.MethodGet),
+				middleware.Authz(authModule, "get game by id", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -69,7 +67,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update game", http.MethodPut),
+				middleware.Authz(authModule, "update game", http.MethodPut),
 				middleware.SystemLogs("update game", &log, logsModule),
 			},
 		}, {
@@ -79,7 +77,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete game", http.MethodDelete),
+				middleware.Authz(authModule, "delete game", http.MethodDelete),
 				middleware.SystemLogs("delete game", &log, logsModule),
 			},
 		}, {
@@ -89,7 +87,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "bulk update game status", http.MethodPut),
+				middleware.Authz(authModule, "bulk update game status", http.MethodPut),
 				middleware.SystemLogs("bulk update game status", &log, logsModule),
 			},
 		},
@@ -102,7 +100,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "create house edge", http.MethodPost),
+				middleware.Authz(authModule, "create house edge", http.MethodPost),
 				middleware.SystemLogs("create house edge", &log, logsModule),
 			},
 		}, {
@@ -112,7 +110,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get house edges", http.MethodGet),
+				middleware.Authz(authModule, "get house edges", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -121,7 +119,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get house edge stats", http.MethodGet),
+				middleware.Authz(authModule, "get house edge stats", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -130,7 +128,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get house edge by id", http.MethodGet),
+				middleware.Authz(authModule, "get house edge by id", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -139,7 +137,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get house edges by game type", http.MethodGet),
+				middleware.Authz(authModule, "get house edges by game type", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -148,7 +146,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "get house edges by game variant", http.MethodGet),
+				middleware.Authz(authModule, "get house edges by game variant", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -157,7 +155,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "update house edge", http.MethodPut),
+				middleware.Authz(authModule, "update house edge", http.MethodPut),
 				middleware.SystemLogs("update house edge", &log, logsModule),
 			},
 		}, {
@@ -167,7 +165,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "delete house edge", http.MethodDelete),
+				middleware.Authz(authModule, "delete house edge", http.MethodDelete),
 				middleware.SystemLogs("delete house edge", &log, logsModule),
 			},
 		}, {
@@ -177,7 +175,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, enforcer, "bulk update house edge status", http.MethodPut),
+				middleware.Authz(authModule, "bulk update house edge status", http.MethodPut),
 				middleware.SystemLogs("bulk update house edge status", &log, logsModule),
 			},
 		},

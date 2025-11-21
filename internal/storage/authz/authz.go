@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
@@ -85,10 +86,11 @@ func (a *authz) InitPermissions() {
 			a.log.Error("Continuing without super admin permission - this is expected for new installations")
 			return
 		}
-		// add permissions role
+		// add permissions role (super admin has unlimited, so value is nil)
 		_, err = a.pdb.Queries.AssignPermissionToRole(context.Background(), db.AssignPermissionToRoleParams{
 			RoleID:       supA.ID,
 			PermissionID: p.ID,
+			Value:        nil, // Super admin has unlimited funding
 		})
 		if err != nil {
 			a.log.Error("Error assigning permission to role", zap.Error(err))
@@ -138,11 +140,18 @@ func (a *authz) GetPermissionByID(ctx context.Context, permissionID uuid.UUID) (
 	}, true, nil
 }
 
-func (a *authz) AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID) (dto.AssignPermissionToRoleRes, error) {
+func (a *authz) AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID, value *float64) (dto.AssignPermissionToRoleRes, error) {
+	// Convert *float64 to *decimal.Decimal for SQLC
+	var valueDecimal *decimal.Decimal
+	if value != nil {
+		dec := decimal.NewFromFloat(*value)
+		valueDecimal = &dec
+	}
 
 	resp, err := a.pdb.Queries.AssignPermissionToRole(ctx, db.AssignPermissionToRoleParams{
 		RoleID:       roleID,
 		PermissionID: permissionID,
+		Value:        valueDecimal,
 	})
 
 	if err != nil {
@@ -151,12 +160,20 @@ func (a *authz) AssignPermissionToRole(ctx context.Context, permissionID, roleID
 		return dto.AssignPermissionToRoleRes{}, err
 	}
 
+	// Convert decimal back to float64 for response
+	var valueFloat *float64
+	if resp.Value.Valid {
+		f, _ := resp.Value.Decimal.Float64()
+		valueFloat = &f
+	}
+
 	return dto.AssignPermissionToRoleRes{
 		Message: constant.SUCCESS,
 		Data: dto.AssignPermissionToRoleData{
 			ID:           resp.ID,
 			RoleID:       resp.RoleID,
 			PermissionID: resp.PermissionID,
+			Value:        valueFloat,
 		},
 	}, nil
 }
@@ -414,6 +431,25 @@ func (a *authz) RevokeUserRole(ctx context.Context, userID, roleID uuid.UUID) er
 	}
 	return nil
 
+}
+
+func (a *authz) CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 
+			FROM user_roles ur
+			JOIN role_permissions rp ON ur.role_id = rp.role_id
+			JOIN permissions p ON rp.permission_id = p.id
+			WHERE ur.user_id = $1 AND p.name = $2
+		) as has_permission`
+
+	var hasPermission bool
+	err := a.pdb.GetPool().QueryRow(ctx, query, userID, permissionName).Scan(&hasPermission)
+	if err != nil {
+		a.log.Error("Error checking user permission", zap.Error(err), zap.String("user_id", userID.String()), zap.String("permission", permissionName))
+		return false, errors.ErrUnableToGet.Wrap(err, "failed to check user permission")
+	}
+	return hasPermission, nil
 }
 
 func (a *authz) GetRoleUsers(ctx context.Context, roleID uuid.UUID) ([]dto.User, error) {
