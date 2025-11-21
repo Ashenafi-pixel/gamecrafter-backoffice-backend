@@ -168,6 +168,8 @@ func (s *CashbackStorageImpl) CreateUserLevel(ctx context.Context, userLevel dto
 	userLevel.ID = id
 	userLevel.CreatedAt = createdAt
 	userLevel.UpdatedAt = updatedAt
+	userLevel.EffectiveLevel = userLevel.CurrentLevel
+	userLevel.EffectiveTierID = userLevel.CurrentTierID
 
 	s.logger.Info("User level created successfully", zap.String("user_id", userLevel.UserID.String()))
 	return userLevel, nil
@@ -177,12 +179,32 @@ func (s *CashbackStorageImpl) GetUserLevel(ctx context.Context, userID uuid.UUID
 	s.logger.Info("Getting user level", zap.String("user_id", userID.String()))
 
 	query := `
-		SELECT id, user_id, current_level, total_ggr, total_bets, total_wins, level_progress, current_tier_id, last_level_up, created_at, updated_at
+		SELECT 
+			id,
+			user_id,
+			current_level,
+			total_ggr,
+			total_bets,
+			total_wins,
+			level_progress,
+			current_tier_id,
+			last_level_up,
+			created_at,
+			updated_at,
+			is_manual_override,
+			manual_override_level,
+			manual_override_tier_id,
+			manual_override_set_by,
+			manual_override_set_at
 		FROM user_levels
 		WHERE user_id = $1`
 
 	var userLevel dto.UserLevel
 	var lastLevelUp sql.NullTime
+	var manualOverrideLevel sql.NullInt64
+	var manualOverrideTierID uuid.NullUUID
+	var manualOverrideSetBy uuid.NullUUID
+	var manualOverrideSetAt sql.NullTime
 
 	err := s.db.GetPool().QueryRow(ctx, query, userID).Scan(
 		&userLevel.ID,
@@ -196,6 +218,11 @@ func (s *CashbackStorageImpl) GetUserLevel(ctx context.Context, userID uuid.UUID
 		&lastLevelUp,
 		&userLevel.CreatedAt,
 		&userLevel.UpdatedAt,
+		&userLevel.IsManualOverride,
+		&manualOverrideLevel,
+		&manualOverrideTierID,
+		&manualOverrideSetBy,
+		&manualOverrideSetAt,
 	)
 
 	if err != nil {
@@ -213,6 +240,48 @@ func (s *CashbackStorageImpl) GetUserLevel(ctx context.Context, userID uuid.UUID
 
 	if lastLevelUp.Valid {
 		userLevel.LastLevelUp = &lastLevelUp.Time
+	}
+
+	if manualOverrideLevel.Valid {
+		level := int(manualOverrideLevel.Int64)
+		userLevel.ManualOverrideLevel = &level
+	}
+	if manualOverrideTierID.Valid {
+		tierID := manualOverrideTierID.UUID
+		userLevel.ManualOverrideTierID = &tierID
+	}
+	if manualOverrideSetBy.Valid {
+		setBy := manualOverrideSetBy.UUID
+		userLevel.ManualOverrideSetBy = &setBy
+	}
+	if manualOverrideSetAt.Valid {
+		setAt := manualOverrideSetAt.Time
+		userLevel.ManualOverrideSetAt = &setAt
+	}
+
+	userLevel.EffectiveLevel = userLevel.CurrentLevel
+	userLevel.EffectiveTierID = userLevel.CurrentTierID
+
+	if userLevel.IsManualOverride && userLevel.ManualOverrideLevel != nil {
+		userLevel.EffectiveLevel = *userLevel.ManualOverrideLevel
+
+		if userLevel.ManualOverrideTierID != nil {
+			userLevel.EffectiveTierID = *userLevel.ManualOverrideTierID
+		} else {
+			overrideTier, tierErr := s.GetCashbackTierByLevel(ctx, *userLevel.ManualOverrideLevel)
+			if tierErr == nil && overrideTier != nil {
+				userLevel.EffectiveTierID = overrideTier.ID
+				tierID := overrideTier.ID
+				userLevel.ManualOverrideTierID = &tierID
+				userLevel.ManualOverrideTierName = overrideTier.TierName
+			} else if tierErr != nil {
+				s.logger.Warn("Failed to resolve manual override tier by level",
+					zap.Error(tierErr),
+					zap.Int("level", *userLevel.ManualOverrideLevel),
+					zap.String("user_id", userID.String()),
+				)
+			}
+		}
 	}
 
 	s.logger.Info("User level retrieved successfully", zap.String("user_id", userID.String()))
@@ -274,6 +343,9 @@ func (s *CashbackStorageImpl) createDefaultUserLevel(ctx context.Context, userID
 	if err != nil {
 		return nil, err
 	}
+
+	createdLevel.EffectiveLevel = createdLevel.CurrentLevel
+	createdLevel.EffectiveTierID = createdLevel.CurrentTierID
 
 	return &createdLevel, nil
 }
@@ -514,10 +586,18 @@ func (s *CashbackStorageImpl) GetUserCashbackSummary(ctx context.Context, userID
 		return nil, err
 	}
 
-	// Get current tier
-	tier, err := s.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel)
+	// Get effective tier for summary
+	tier, err := s.GetCashbackTierByID(ctx, userLevel.EffectiveTierID)
 	if err != nil {
-		return nil, err
+		s.logger.Warn("Failed to get effective tier by ID for summary, falling back to level",
+			zap.Error(err),
+			zap.String("user_id", userID.String()),
+			zap.String("tier_id", userLevel.EffectiveTierID.String()))
+
+		tier, err = s.GetCashbackTierByLevel(ctx, userLevel.EffectiveLevel)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Get available earnings for available cashback calculation

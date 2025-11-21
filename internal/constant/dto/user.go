@@ -53,6 +53,12 @@ type User struct {
 	WalletVerificationStatus string           `json:"wallet_verification_status,omitempty"`
 	IsTestAccount            bool             `json:"is_test_account,omitempty"`
 	VipLevel                 string           `json:"vip_level,omitempty"`
+	CurrentLevel             int              `json:"current_level,omitempty"`
+	EffectiveLevel           int              `json:"effective_level,omitempty"`
+	LevelManualOverride      *bool            `json:"level_manual_override,omitempty"`
+	ManualOverrideLevel      *int             `json:"manual_override_level,omitempty"`
+	ManualOverrideSetBy      *uuid.UUID       `json:"manual_override_set_by,omitempty"`
+	ManualOverrideSetAt      *time.Time       `json:"manual_override_set_at,omitempty"`
 	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
 	WithdrawalLimitEnabled   bool             `json:"withdrawal_limit_enabled,omitempty"`
 	WithdrawalAllTimeLimit   *decimal.Decimal `json:"withdrawal_all_time_limit,omitempty"`
@@ -309,6 +315,8 @@ type EditProfileAdminReq struct {
 	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
 	WithdrawalLimitEnabled   *bool            `json:"withdrawal_limit_enabled,omitempty"`
 	WithdrawalAllTimeLimit   *decimal.Decimal `json:"withdrawal_all_time_limit,omitempty"`
+	LevelManualOverride      *bool            `json:"level_manual_override,omitempty"`
+	ManualOverrideLevel      *int             `json:"manual_override_level,omitempty"`
 }
 
 type AdminResetPasswordReq struct {

@@ -30,17 +30,35 @@ type CreateOrUpdateRakebackOverrideReq struct {
 
 // UserLevel represents a user's current level and progress
 type UserLevel struct {
-	ID               uuid.UUID       `json:"id" db:"id"`
-	UserID           uuid.UUID       `json:"user_id" db:"user_id"`
-	CurrentLevel     int             `json:"current_level" db:"current_level"`
-	TotalExpectedGGR decimal.Decimal `json:"total_expected_ggr" db:"total_expected_ggr"`
-	TotalBets        decimal.Decimal `json:"total_bets" db:"total_bets"`
-	TotalWins        decimal.Decimal `json:"total_wins" db:"total_wins"`
-	LevelProgress    decimal.Decimal `json:"level_progress" db:"level_progress"`
-	CurrentTierID    uuid.UUID       `json:"current_tier_id" db:"current_tier_id"`
-	LastLevelUp      *time.Time      `json:"last_level_up" db:"last_level_up"`
-	CreatedAt        time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at" db:"updated_at"`
+	ID                     uuid.UUID       `json:"id" db:"id"`
+	UserID                 uuid.UUID       `json:"user_id" db:"user_id"`
+	CurrentLevel           int             `json:"current_level" db:"current_level"`
+	TotalExpectedGGR       decimal.Decimal `json:"total_expected_ggr" db:"total_expected_ggr"`
+	TotalBets              decimal.Decimal `json:"total_bets" db:"total_bets"`
+	TotalWins              decimal.Decimal `json:"total_wins" db:"total_wins"`
+	LevelProgress          decimal.Decimal `json:"level_progress" db:"level_progress"`
+	CurrentTierID          uuid.UUID       `json:"current_tier_id" db:"current_tier_id"`
+	LastLevelUp            *time.Time      `json:"last_level_up" db:"last_level_up"`
+	IsManualOverride       bool            `json:"is_manual_override" db:"is_manual_override"`
+	ManualOverrideLevel    *int            `json:"manual_override_level" db:"manual_override_level"`
+	ManualOverrideTierID   *uuid.UUID      `json:"manual_override_tier_id" db:"manual_override_tier_id"`
+	ManualOverrideSetBy    *uuid.UUID      `json:"manual_override_set_by" db:"manual_override_set_by"`
+	ManualOverrideSetAt    *time.Time      `json:"manual_override_set_at" db:"manual_override_set_at"`
+	EffectiveLevel         int             `json:"effective_level"`
+	EffectiveTierID        uuid.UUID       `json:"effective_tier_id"`
+	CurrentTierName        string          `json:"current_tier_name,omitempty"`
+	ManualOverrideTierName string          `json:"manual_override_tier_name,omitempty"`
+	EffectiveTierName      string          `json:"effective_tier_name,omitempty"`
+	CreatedAt              time.Time       `json:"created_at" db:"created_at"`
+	UpdatedAt              time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// UserLevelManualOverride represents a manual override request for a user's level
+type UserLevelManualOverride struct {
+	UserID           uuid.UUID `json:"user_id"`
+	AdminID          uuid.UUID `json:"admin_id"`
+	IsManualOverride bool      `json:"is_manual_override"`
+	ManualLevel      *int      `json:"manual_level"`
 }
 
 // CashbackTier represents a cashback tier configuration
@@ -369,24 +387,24 @@ type UpdateRakebackScheduleRequest struct {
 
 // RakebackScheduleResponse represents the response with schedule details
 type RakebackScheduleResponse struct {
-	ID              uuid.UUID       `json:"id"`
-	Name            string          `json:"name"`
-	Description     *string         `json:"description,omitempty"`
-	StartTime       time.Time       `json:"start_time"`
-	EndTime         time.Time       `json:"end_time"`
-	Percentage      decimal.Decimal `json:"percentage"`
-	ScopeType       string          `json:"scope_type"`
-	ScopeValue      *string         `json:"scope_value,omitempty"`
-	Status          string          `json:"status"`
-	CreatedBy       *uuid.UUID      `json:"created_by,omitempty"`
-	CreatedByName   *string         `json:"created_by_name,omitempty"`
-	ActivatedAt     *time.Time      `json:"activated_at,omitempty"`
-	DeactivatedAt   *time.Time      `json:"deactivated_at,omitempty"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	IsActive        bool            `json:"is_active"`
-	TimeRemaining   *string         `json:"time_remaining,omitempty"`
-	TimeUntilStart  *string         `json:"time_until_start,omitempty"`
+	ID             uuid.UUID       `json:"id"`
+	Name           string          `json:"name"`
+	Description    *string         `json:"description,omitempty"`
+	StartTime      time.Time       `json:"start_time"`
+	EndTime        time.Time       `json:"end_time"`
+	Percentage     decimal.Decimal `json:"percentage"`
+	ScopeType      string          `json:"scope_type"`
+	ScopeValue     *string         `json:"scope_value,omitempty"`
+	Status         string          `json:"status"`
+	CreatedBy      *uuid.UUID      `json:"created_by,omitempty"`
+	CreatedByName  *string         `json:"created_by_name,omitempty"`
+	ActivatedAt    *time.Time      `json:"activated_at,omitempty"`
+	DeactivatedAt  *time.Time      `json:"deactivated_at,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	IsActive       bool            `json:"is_active"`
+	TimeRemaining  *string         `json:"time_remaining,omitempty"`
+	TimeUntilStart *string         `json:"time_until_start,omitempty"`
 }
 
 // ListRakebackSchedulesResponse represents a paginated list of schedules

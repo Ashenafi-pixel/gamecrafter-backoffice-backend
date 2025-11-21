@@ -455,6 +455,29 @@ func (u *User) RegisterUser(ctx context.Context, userRequest dto.User) (dto.User
 
 	}
 
+	if userRequest.LevelManualOverride != nil {
+		overrideReq := dto.UserLevelManualOverride{
+			UserID:           usrRes.ID,
+			AdminID:          userRequest.CreatedBy,
+			IsManualOverride: *userRequest.LevelManualOverride,
+			ManualLevel:      userRequest.ManualOverrideLevel,
+		}
+
+		if overrideReq.IsManualOverride {
+			if overrideReq.ManualLevel == nil {
+				err = errors.ErrInvalidUserInput.Wrap(fmt.Errorf("manual override level is required"), "manual override level is required")
+				return dto.UserRegisterResponse{}, "", err
+			}
+		}
+
+		if overrideReq.IsManualOverride || overrideReq.ManualLevel != nil {
+			if _, err := u.userStorage.UpdateUserLevelManualOverride(ctx, overrideReq); err != nil {
+				u.log.Error("Failed to apply manual level override during registration", zap.Error(err), zap.String("user_id", usrRes.ID.String()))
+				return dto.UserRegisterResponse{}, "", err
+			}
+		}
+	}
+
 	// save to temp data
 
 	data := dto.ReferralData{
@@ -1816,6 +1839,69 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 		return dto.EditProfileAdminRes{}, err
 	}
 
+	var levelInfo *dto.UserLevel
+	if userReq.LevelManualOverride != nil || userReq.ManualOverrideLevel != nil {
+		overrideReq := dto.UserLevelManualOverride{
+			UserID:           userReq.UserID,
+			AdminID:          userReq.AdminID,
+			IsManualOverride: userReq.LevelManualOverride != nil && *userReq.LevelManualOverride,
+			ManualLevel:      userReq.ManualOverrideLevel,
+		}
+
+		if overrideReq.IsManualOverride && overrideReq.ManualLevel == nil {
+			err = errors.ErrInvalidUserInput.Wrap(fmt.Errorf("manual override level is required"), "manual override level is required")
+			return dto.EditProfileAdminRes{}, err
+		}
+
+		levelInfo, err = u.userStorage.UpdateUserLevelManualOverride(ctx, overrideReq)
+		if err != nil {
+			u.log.Error("Failed to update manual level override",
+				zap.String("admin_id", userReq.AdminID.String()),
+				zap.String("target_user_id", userReq.UserID.String()),
+				zap.Error(err),
+			)
+			return dto.EditProfileAdminRes{}, err
+		}
+	} else {
+		levelInfo, err = u.userStorage.GetUserLevelDetails(ctx, userReq.UserID)
+		if err != nil {
+			u.log.Warn("Failed to retrieve user level details",
+				zap.String("user_id", userReq.UserID.String()),
+				zap.Error(err),
+			)
+			levelInfo = nil
+		}
+	}
+
+	if levelInfo != nil {
+		// Update response user with latest level info
+		res.CurrentLevel = levelInfo.CurrentLevel
+		res.EffectiveLevel = levelInfo.EffectiveLevel
+		res.ManualOverrideLevel = levelInfo.ManualOverrideLevel
+		res.ManualOverrideSetBy = levelInfo.ManualOverrideSetBy
+		res.ManualOverrideSetAt = levelInfo.ManualOverrideSetAt
+		overrideEnabled := levelInfo.IsManualOverride
+		res.LevelManualOverride = &overrideEnabled
+
+		if levelInfo.EffectiveTierName != "" {
+			res.VipLevel = levelInfo.EffectiveTierName
+		} else if levelInfo.CurrentTierName != "" {
+			res.VipLevel = levelInfo.CurrentTierName
+		} else {
+			res.VipLevel = "Bronze"
+		}
+	} else {
+		// Default values when level info unavailable
+		overrideEnabled := false
+		res.LevelManualOverride = &overrideEnabled
+		res.VipLevel = "Bronze"
+		res.CurrentLevel = 1
+		res.EffectiveLevel = 1
+		res.ManualOverrideLevel = nil
+		res.ManualOverrideSetAt = nil
+		res.ManualOverrideSetBy = nil
+	}
+
 	// Log successful update
 	u.log.Info("Successfully updated player profile",
 		zap.String("admin_id", userReq.AdminID.String()),
@@ -1861,22 +1947,29 @@ func (u *User) AdminUpdateProfile(ctx context.Context, userReq dto.EditProfileAd
 	return dto.EditProfileAdminRes{
 		Message: constant.SUCCESS,
 		User: dto.User{
-			ID:              res.ID,
-			PhoneNumber:     res.PhoneNumber,
-			FirstName:       res.FirstName,
-			LastName:        res.LastName,
-			Email:           res.Email,
-			DefaultCurrency: res.DefaultCurrency,
-			ProfilePicture:  res.ProfilePicture,
-			DateOfBirth:     res.DateOfBirth,
-			ReferralCode:    res.ReferralCode,
-			StreetAddress:   res.StreetAddress,
-			Country:         res.Country,
-			State:           res.State,
-			City:            res.City,
-			CreatedBy:       res.CreatedBy,
-			PostalCode:      res.PostalCode,
-			KYCStatus:       res.KYCStatus,
+			ID:                  res.ID,
+			PhoneNumber:         res.PhoneNumber,
+			FirstName:           res.FirstName,
+			LastName:            res.LastName,
+			Email:               res.Email,
+			DefaultCurrency:     res.DefaultCurrency,
+			ProfilePicture:      res.ProfilePicture,
+			DateOfBirth:         res.DateOfBirth,
+			ReferralCode:        res.ReferralCode,
+			StreetAddress:       res.StreetAddress,
+			Country:             res.Country,
+			State:               res.State,
+			City:                res.City,
+			CreatedBy:           res.CreatedBy,
+			PostalCode:          res.PostalCode,
+			KYCStatus:           res.KYCStatus,
+			VipLevel:            res.VipLevel,
+			CurrentLevel:        res.CurrentLevel,
+			EffectiveLevel:      res.EffectiveLevel,
+			LevelManualOverride: res.LevelManualOverride,
+			ManualOverrideLevel: res.ManualOverrideLevel,
+			ManualOverrideSetBy: res.ManualOverrideSetBy,
+			ManualOverrideSetAt: res.ManualOverrideSetAt,
 		},
 	}, nil
 }

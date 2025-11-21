@@ -15,6 +15,8 @@ type User interface {
 	GetUserByUserName(ctx context.Context, username string) (dto.User, bool, error)
 	GetUserByPhoneNumber(ctx context.Context, phone string) (dto.User, bool, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (dto.User, bool, error)
+	GetUserLevelDetails(ctx context.Context, userID uuid.UUID) (*dto.UserLevel, error)
+	UpdateUserLevelManualOverride(ctx context.Context, req dto.UserLevelManualOverride) (*dto.UserLevel, error)
 	UpdateProfilePicuter(ctx context.Context, userID uuid.UUID, filename string) (string, error)
 	UpdatePassword(ctx context.Context, UserID uuid.UUID, newPassword string) (dto.User, error)
 	GetUserByEmail(ctx context.Context, email string) (dto.User, bool, error)
