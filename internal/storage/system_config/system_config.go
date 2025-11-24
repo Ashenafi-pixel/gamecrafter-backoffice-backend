@@ -356,6 +356,7 @@ func (s *SystemConfig) GetGeneralSettings(ctx context.Context, brandID *uuid.UUI
 }
 
 // UpdateGeneralSettings updates general settings in system config
+// If brandID is nil, updates ALL brands. If brandID is set, updates only that brand.
 func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings GeneralSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
 	s.log.Info("Updating general settings", zap.Any("brand_id", brandID))
 
@@ -365,41 +366,52 @@ func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings Gener
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal general settings")
 	}
 
-	// Use INSERT ... ON CONFLICT to update if exists, insert if not
-	// First try to update existing record with matching config_key and brand_id
-	result, err := s.db.GetPool().Exec(ctx, `
-		UPDATE system_config 
-		SET config_value = $1, updated_by = $2, updated_at = NOW()
-		WHERE config_key = $3 AND (brand_id = $4 OR (brand_id IS NULL AND $4 IS NULL))
-	`, configValue, adminID, "general_settings", brandID)
-
-	if err != nil {
-		s.log.Error("Failed to update general settings in database", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to update general settings")
-	}
-
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		// No existing record found, try to insert
-		// If conflict occurs (same config_key with different brand_id), update that record
+	if brandID == nil {
+		// Update ALL brands when brandID is nil (global update)
+		_, err = s.db.GetPool().Exec(ctx, `
+			WITH brand_ids AS (
+				SELECT id FROM brands
+			)
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			SELECT 
+				$1,
+				$2,
+				$3,
+				bi.id,
+				$4,
+				NOW()
+			FROM brand_ids bi
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "general_settings", configValue, "General application settings", adminID)
+		
+		if err != nil {
+			s.log.Error("Failed to update general settings for all brands", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to update general settings for all brands")
+		}
+		s.log.Info("General settings updated for all brands")
+	} else {
+		// Update specific brand
 		_, err = s.db.GetPool().Exec(ctx, `
 			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
 			VALUES ($1, $2, $3, $4, $5, NOW())
-			ON CONFLICT (config_key) 
+			ON CONFLICT (brand_id, config_key) 
 			DO UPDATE SET 
 				config_value = EXCLUDED.config_value,
-				brand_id = EXCLUDED.brand_id,
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "general_settings", configValue, "General application settings", brandID, adminID)
 		
 		if err != nil {
-			s.log.Error("Failed to insert/update general settings in database", zap.Error(err))
+			s.log.Error("Failed to update general settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update general settings")
 		}
+		s.log.Info("General settings updated for specific brand", zap.Any("brand_id", brandID))
 	}
 
-	s.log.Info("General settings updated successfully")
 	return nil
 }
 
@@ -407,24 +419,17 @@ func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings Gener
 func (s *SystemConfig) GetPaymentSettings(ctx context.Context, brandID *uuid.UUID) (PaymentSettings, error) {
 	s.log.Info("Getting payment settings from system config", zap.Any("brand_id", brandID))
 
-	var configValue json.RawMessage
-	var err error
-	
-	if brandID != nil {
-		// Try to get brand-specific settings first, fallback to global if not found
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
-			ORDER BY brand_id NULLS LAST
-			LIMIT 1
-		`, "payment_settings", brandID).Scan(&configValue)
-	} else {
-		// Get global settings (brand_id IS NULL)
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND brand_id IS NULL
-		`, "payment_settings").Scan(&configValue)
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting settings")
+		return PaymentSettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
 	}
+
+	// Get brand-specific settings (brand_id is required, no fallback)
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "payment_settings", brandID).Scan(&configValue)
 	
 	// Handle case where no configuration exists yet
 	if err != nil {
@@ -455,6 +460,7 @@ func (s *SystemConfig) GetPaymentSettings(ctx context.Context, brandID *uuid.UUI
 }
 
 // UpdatePaymentSettings updates payment settings in system config
+// If brandID is nil, updates ALL brands. If brandID is set, updates only that brand.
 func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings PaymentSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
 	s.log.Info("Updating payment settings", zap.Any("brand_id", brandID))
 
@@ -464,41 +470,52 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal payment settings")
 	}
 
-	// Use INSERT ... ON CONFLICT to update if exists, insert if not
-	// First try to update existing record with matching config_key and brand_id
-	result, err := s.db.GetPool().Exec(ctx, `
-		UPDATE system_config 
-		SET config_value = $1, updated_by = $2, updated_at = NOW()
-		WHERE config_key = $3 AND (brand_id = $4 OR (brand_id IS NULL AND $4 IS NULL))
-	`, configValue, adminID, "payment_settings", brandID)
-
-	if err != nil {
-		s.log.Error("Failed to update payment settings in database", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to update payment settings")
-	}
-
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		// No existing record found, try to insert
-		// If conflict occurs (same config_key with different brand_id), update that record
+	if brandID == nil {
+		// Update ALL brands when brandID is nil (global update)
+		_, err = s.db.GetPool().Exec(ctx, `
+			WITH brand_ids AS (
+				SELECT id FROM brands
+			)
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			SELECT 
+				$1,
+				$2,
+				$3,
+				bi.id,
+				$4,
+				NOW()
+			FROM brand_ids bi
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "payment_settings", configValue, "Payment processing settings", adminID)
+		
+		if err != nil {
+			s.log.Error("Failed to update payment settings for all brands", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to update payment settings for all brands")
+		}
+		s.log.Info("Payment settings updated for all brands")
+	} else {
+		// Update specific brand
 		_, err = s.db.GetPool().Exec(ctx, `
 			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
 			VALUES ($1, $2, $3, $4, $5, NOW())
-			ON CONFLICT (config_key) 
+			ON CONFLICT (brand_id, config_key) 
 			DO UPDATE SET 
 				config_value = EXCLUDED.config_value,
-				brand_id = EXCLUDED.brand_id,
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "payment_settings", configValue, "Payment processing settings", brandID, adminID)
 		
 		if err != nil {
-			s.log.Error("Failed to insert/update payment settings in database", zap.Error(err))
+			s.log.Error("Failed to update payment settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update payment settings")
 		}
+		s.log.Info("Payment settings updated for specific brand", zap.Any("brand_id", brandID))
 	}
 
-	s.log.Info("Payment settings updated successfully")
 	return nil
 }
 
@@ -506,24 +523,17 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 func (s *SystemConfig) GetTipSettings(ctx context.Context, brandID *uuid.UUID) (TipSettings, error) {
 	s.log.Info("Getting tip settings from system config", zap.Any("brand_id", brandID))
 
-	var configValue json.RawMessage
-	var err error
-	
-	if brandID != nil {
-		// Try to get brand-specific settings first, fallback to global if not found
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
-			ORDER BY brand_id NULLS LAST
-			LIMIT 1
-		`, "tip_settings", brandID).Scan(&configValue)
-	} else {
-		// Get global settings (brand_id IS NULL)
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND brand_id IS NULL
-		`, "tip_settings").Scan(&configValue)
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting settings")
+		return TipSettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
 	}
+
+	// Get brand-specific settings (brand_id is required, no fallback)
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "tip_settings", brandID).Scan(&configValue)
 	
 	// Handle case where no configuration exists yet
 	if err != nil {
@@ -550,6 +560,7 @@ func (s *SystemConfig) GetTipSettings(ctx context.Context, brandID *uuid.UUID) (
 }
 
 // UpdateTipSettings updates tip settings in system config
+// If brandID is nil, updates ALL brands. If brandID is set, updates only that brand.
 func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
 	s.log.Info("Updating tip settings", zap.Any("brand_id", brandID))
 
@@ -559,41 +570,52 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal tip settings")
 	}
 
-	// Use INSERT ... ON CONFLICT to update if exists, insert if not
-	// First try to update existing record with matching config_key and brand_id
-	result, err := s.db.GetPool().Exec(ctx, `
-		UPDATE system_config 
-		SET config_value = $1, updated_by = $2, updated_at = NOW()
-		WHERE config_key = $3 AND (brand_id = $4 OR (brand_id IS NULL AND $4 IS NULL))
-	`, configValue, adminID, "tip_settings", brandID)
-
-	if err != nil {
-		s.log.Error("Failed to update tip settings in database", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings")
-	}
-
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		// No existing record found, try to insert
-		// If conflict occurs (same config_key with different brand_id), update that record
+	if brandID == nil {
+		// Update ALL brands when brandID is nil (global update)
+		_, err = s.db.GetPool().Exec(ctx, `
+			WITH brand_ids AS (
+				SELECT id FROM brands
+			)
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			SELECT 
+				$1,
+				$2,
+				$3,
+				bi.id,
+				$4,
+				NOW()
+			FROM brand_ids bi
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "tip_settings", configValue, "Tip transaction fee settings", adminID)
+		
+		if err != nil {
+			s.log.Error("Failed to update tip settings for all brands", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings for all brands")
+		}
+		s.log.Info("Tip settings updated for all brands")
+	} else {
+		// Update specific brand
 		_, err = s.db.GetPool().Exec(ctx, `
 			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
 			VALUES ($1, $2, $3, $4, $5, NOW())
-			ON CONFLICT (config_key) 
+			ON CONFLICT (brand_id, config_key) 
 			DO UPDATE SET 
 				config_value = EXCLUDED.config_value,
-				brand_id = EXCLUDED.brand_id,
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "tip_settings", configValue, "Tip transaction fee settings", brandID, adminID)
 		
 		if err != nil {
-			s.log.Error("Failed to insert/update tip settings in database", zap.Error(err))
+			s.log.Error("Failed to update tip settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings")
 		}
+		s.log.Info("Tip settings updated for specific brand", zap.Any("brand_id", brandID))
 	}
 
-	s.log.Info("Tip settings updated successfully")
 	return nil
 }
 
@@ -601,24 +623,17 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 func (s *SystemConfig) GetSecuritySettings(ctx context.Context, brandID *uuid.UUID) (SecuritySettings, error) {
 	s.log.Info("Getting security settings from system config", zap.Any("brand_id", brandID))
 
-	var configValue json.RawMessage
-	var err error
-	
-	if brandID != nil {
-		// Try to get brand-specific settings first, fallback to global if not found
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
-			ORDER BY brand_id NULLS LAST
-			LIMIT 1
-		`, "security_settings", brandID).Scan(&configValue)
-	} else {
-		// Get global settings (brand_id IS NULL)
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND brand_id IS NULL
-		`, "security_settings").Scan(&configValue)
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting settings")
+		return SecuritySettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
 	}
+
+	// Get brand-specific settings (brand_id is required, no fallback)
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "security_settings", brandID).Scan(&configValue)
 	
 	// Handle case where no configuration exists yet
 	if err != nil {
@@ -652,6 +667,7 @@ func (s *SystemConfig) GetSecuritySettings(ctx context.Context, brandID *uuid.UU
 }
 
 // UpdateSecuritySettings updates security settings in system config
+// If brandID is nil, updates ALL brands. If brandID is set, updates only that brand.
 func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings SecuritySettings, adminID uuid.UUID, brandID *uuid.UUID) error {
 	s.log.Info("Updating security settings", zap.Any("brand_id", brandID))
 
@@ -661,41 +677,52 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal security settings")
 	}
 
-	// Use INSERT ... ON CONFLICT to update if exists, insert if not
-	// First try to update existing record with matching config_key and brand_id
-	result, err := s.db.GetPool().Exec(ctx, `
-		UPDATE system_config 
-		SET config_value = $1, updated_by = $2, updated_at = NOW()
-		WHERE config_key = $3 AND (brand_id = $4 OR (brand_id IS NULL AND $4 IS NULL))
-	`, configValue, adminID, "security_settings", brandID)
-
-	if err != nil {
-		s.log.Error("Failed to update security settings in database", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to update security settings")
-	}
-
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		// No existing record found, try to insert
-		// If conflict occurs (same config_key with different brand_id), update that record
+	if brandID == nil {
+		// Update ALL brands when brandID is nil (global update)
+		_, err = s.db.GetPool().Exec(ctx, `
+			WITH brand_ids AS (
+				SELECT id FROM brands
+			)
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			SELECT 
+				$1,
+				$2,
+				$3,
+				bi.id,
+				$4,
+				NOW()
+			FROM brand_ids bi
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "security_settings", configValue, "Security and authentication settings", adminID)
+		
+		if err != nil {
+			s.log.Error("Failed to update security settings for all brands", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to update security settings for all brands")
+		}
+		s.log.Info("Security settings updated for all brands")
+	} else {
+		// Update specific brand
 		_, err = s.db.GetPool().Exec(ctx, `
 			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
 			VALUES ($1, $2, $3, $4, $5, NOW())
-			ON CONFLICT (config_key) 
+			ON CONFLICT (brand_id, config_key) 
 			DO UPDATE SET 
 				config_value = EXCLUDED.config_value,
-				brand_id = EXCLUDED.brand_id,
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "security_settings", configValue, "Security and authentication settings", brandID, adminID)
 		
 		if err != nil {
-			s.log.Error("Failed to insert/update security settings in database", zap.Error(err))
+			s.log.Error("Failed to update security settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update security settings")
 		}
+		s.log.Info("Security settings updated for specific brand", zap.Any("brand_id", brandID))
 	}
 
-	s.log.Info("Security settings updated successfully")
 	return nil
 }
 
@@ -703,24 +730,17 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context, brandID *uuid.UUID) (GeoBlockingSettings, error) {
 	s.log.Info("Getting geo blocking settings from system config", zap.Any("brand_id", brandID))
 
-	var configValue json.RawMessage
-	var err error
-	
-	if brandID != nil {
-		// Try to get brand-specific settings first, fallback to global if not found
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
-			ORDER BY brand_id NULLS LAST
-			LIMIT 1
-		`, "geo_blocking_settings", brandID).Scan(&configValue)
-	} else {
-		// Get global settings (brand_id IS NULL)
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND brand_id IS NULL
-		`, "geo_blocking_settings").Scan(&configValue)
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting settings")
+		return GeoBlockingSettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
 	}
+
+	// Get brand-specific settings (brand_id is required, no fallback)
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "geo_blocking_settings", brandID).Scan(&configValue)
 	
 	// Handle case where no configuration exists yet
 	if err != nil {
@@ -754,6 +774,7 @@ func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context, brandID *uuid
 }
 
 // UpdateGeoBlockingSettings updates geo blocking settings in system config
+// If brandID is nil, updates ALL brands. If brandID is set, updates only that brand.
 func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings GeoBlockingSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
 	s.log.Info("Updating geo blocking settings", zap.Any("brand_id", brandID))
 
@@ -763,40 +784,51 @@ func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings G
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal geo blocking settings")
 	}
 
-	// Use INSERT ... ON CONFLICT to update if exists, insert if not
-	// First try to update existing record with matching config_key and brand_id
-	result, err := s.db.GetPool().Exec(ctx, `
-		UPDATE system_config 
-		SET config_value = $1, updated_by = $2, updated_at = NOW()
-		WHERE config_key = $3 AND (brand_id = $4 OR (brand_id IS NULL AND $4 IS NULL))
-	`, configValue, adminID, "geo_blocking_settings", brandID)
-
-	if err != nil {
-		s.log.Error("Failed to update geo blocking settings in database", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to update geo blocking settings")
-	}
-
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		// No existing record found, try to insert
-		// If conflict occurs (same config_key with different brand_id), update that record
+	if brandID == nil {
+		// Update ALL brands when brandID is nil (global update)
+		_, err = s.db.GetPool().Exec(ctx, `
+			WITH brand_ids AS (
+				SELECT id FROM brands
+			)
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			SELECT 
+				$1,
+				$2,
+				$3,
+				bi.id,
+				$4,
+				NOW()
+			FROM brand_ids bi
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", adminID)
+		
+		if err != nil {
+			s.log.Error("Failed to update geo blocking settings for all brands", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to update geo blocking settings for all brands")
+		}
+		s.log.Info("Geo blocking settings updated for all brands")
+	} else {
+		// Update specific brand
 		_, err = s.db.GetPool().Exec(ctx, `
 			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
 			VALUES ($1, $2, $3, $4, $5, NOW())
-			ON CONFLICT (config_key) 
+			ON CONFLICT (brand_id, config_key) 
 			DO UPDATE SET 
 				config_value = EXCLUDED.config_value,
-				brand_id = EXCLUDED.brand_id,
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", brandID, adminID)
 		
 		if err != nil {
-			s.log.Error("Failed to insert/update geo blocking settings in database", zap.Error(err))
+			s.log.Error("Failed to update geo blocking settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update geo blocking settings")
 		}
+		s.log.Info("Geo blocking settings updated for specific brand", zap.Any("brand_id", brandID))
 	}
 
-	s.log.Info("Geo blocking settings updated successfully")
 	return nil
 }
