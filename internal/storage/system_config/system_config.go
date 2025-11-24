@@ -306,24 +306,17 @@ func (s *SystemConfig) GetWithdrawalPauseReasons(ctx context.Context) ([]string,
 func (s *SystemConfig) GetGeneralSettings(ctx context.Context, brandID *uuid.UUID) (GeneralSettings, error) {
 	s.log.Info("Getting general settings from system config", zap.Any("brand_id", brandID))
 
-	var configValue json.RawMessage
-	var err error
-	
-	if brandID != nil {
-		// Try to get brand-specific settings first, fallback to global if not found
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND (brand_id = $2 OR brand_id IS NULL)
-			ORDER BY brand_id NULLS LAST
-			LIMIT 1
-		`, "general_settings", brandID).Scan(&configValue)
-	} else {
-		// Get global settings (brand_id IS NULL)
-		err = s.db.GetPool().QueryRow(ctx, `
-			SELECT config_value FROM system_config 
-			WHERE config_key = $1 AND brand_id IS NULL
-		`, "general_settings").Scan(&configValue)
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting settings")
+		return GeneralSettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
 	}
+
+	// Get brand-specific settings (brand_id is required, no fallback)
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "general_settings", brandID).Scan(&configValue)
 	
 	// Handle case where no configuration exists yet
 	if err != nil {
