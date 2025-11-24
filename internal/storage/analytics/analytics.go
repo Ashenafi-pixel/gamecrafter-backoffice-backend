@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -1430,6 +1431,16 @@ func (s *AnalyticsStorageImpl) GetTopGames(ctx context.Context, limit int, dateR
 			query += " AND created_at <= ?"
 			args = append(args, *dateRange.To)
 		}
+		// Filter by user IDs if provided
+		if len(dateRange.UserIDs) > 0 {
+			// Build IN clause with placeholders
+			placeholders := make([]string, len(dateRange.UserIDs))
+			for i := range dateRange.UserIDs {
+				placeholders[i] = "?"
+				args = append(args, dateRange.UserIDs[i].String())
+			}
+			query += " AND user_id IN (" + strings.Join(placeholders, ",") + ")"
+		}
 	}
 
 	query += `
@@ -1507,6 +1518,16 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 			query += " AND created_at <= ?"
 			args = append(args, *dateRange.To)
 		}
+		// Filter by user IDs if provided
+		if len(dateRange.UserIDs) > 0 {
+			// Build IN clause with placeholders
+			placeholders := make([]string, len(dateRange.UserIDs))
+			for i := range dateRange.UserIDs {
+				placeholders[i] = "?"
+				args = append(args, dateRange.UserIDs[i].String())
+			}
+			query += " AND user_id IN (" + strings.Join(placeholders, ",") + ")"
+		}
 	}
 
 	query += `
@@ -1518,6 +1539,10 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 
 	rows, err := s.clickhouse.Query(ctx, query, args...)
 	if err != nil {
+		s.logger.Error("ClickHouse query failed for GetTopPlayers",
+			zap.Error(err),
+			zap.String("query", query),
+			zap.Any("args", args))
 		return nil, fmt.Errorf("failed to query top players: %w", err)
 	}
 	defer rows.Close()

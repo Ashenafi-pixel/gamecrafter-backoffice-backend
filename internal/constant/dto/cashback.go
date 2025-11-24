@@ -295,8 +295,8 @@ type ReorderTiersRequest struct {
 	TierOrder []uuid.UUID `json:"tier_order" validate:"required,min=1"`
 }
 
-// GlobalRakebackOverride represents the global rakeback override configuration (Happy Hour Mode)
-type GlobalRakebackOverride struct {
+// GlobalCashbackOverride represents the global cashback override configuration (Happy Hour Mode)
+type GlobalCashbackOverride struct {
 	ID                 uuid.UUID       `json:"id" db:"id"`
 	IsEnabled          bool            `json:"is_enabled" db:"is_enabled"`
 	OverridePercentage decimal.Decimal `json:"override_percentage" db:"override_percentage"`
@@ -308,14 +308,14 @@ type GlobalRakebackOverride struct {
 	UpdatedAt          time.Time       `json:"updated_at" db:"updated_at"`
 }
 
-// GlobalRakebackOverrideRequest represents a request to update global rakeback override
-type GlobalRakebackOverrideRequest struct {
+// GlobalCashbackOverrideRequest represents a request to update global cashback override
+type GlobalCashbackOverrideRequest struct {
 	IsEnabled          bool            `json:"is_enabled" validate:"required"`
 	OverridePercentage decimal.Decimal `json:"override_percentage" validate:"required,gte=0,lte=100"`
 }
 
-// GlobalRakebackOverrideResponse represents the response for global rakeback override
-type GlobalRakebackOverrideResponse struct {
+// GlobalCashbackOverrideResponse represents the response for global cashback override
+type GlobalCashbackOverrideResponse struct {
 	IsEnabled          bool            `json:"is_enabled"`
 	OverridePercentage decimal.Decimal `json:"override_percentage"`
 	EnabledBy          *uuid.UUID      `json:"enabled_by,omitempty"`

@@ -46,8 +46,10 @@ type TransactionFilters struct {
 
 // DateRange for analytics queries
 type DateRange struct {
-	From *time.Time `json:"from,omitempty"`
-	To   *time.Time `json:"to,omitempty"`
+	From          *time.Time  `json:"from,omitempty"`
+	To            *time.Time  `json:"to,omitempty"`
+	IsTestAccount *bool       `json:"is_test_account,omitempty"` // nil = all, true = test accounts only, false = real accounts only
+	UserIDs       []uuid.UUID `json:"user_ids,omitempty"`        // Filtered user IDs based on is_test_account
 }
 
 // UserAnalytics represents user analytics data

@@ -98,8 +98,8 @@ type CashbackStorage interface {
 	DeleteRetryableOperation(ctx context.Context, operationID uuid.UUID) error
 
 	// Global Rakeback Override operations (Happy Hour Mode)
-	GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error)
-	UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalRakebackOverride) (*dto.GlobalRakebackOverride, error)
+	GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalCashbackOverride, error)
+	UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalCashbackOverride) (*dto.GlobalCashbackOverride, error)
 
 	// Rakeback Schedule operations
 	CreateRakebackSchedule(ctx context.Context, schedule dto.RakebackSchedule) (*dto.RakebackSchedule, error)
@@ -1930,7 +1930,7 @@ func (s *CashbackStorageImpl) InitializeUserLevel(ctx context.Context, userID uu
 }
 
 // GetGlobalRakebackOverride retrieves the global rakeback override configuration
-func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error) {
+func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalCashbackOverride, error) {
 	s.logger.Info("Getting global rakeback override configuration")
 
 	query := `
@@ -1941,7 +1941,7 @@ func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*d
 		LIMIT 1
 	`
 
-	var override dto.GlobalRakebackOverride
+	var override dto.GlobalCashbackOverride
 	var enabledBy, disabledBy sql.NullString
 	var enabledAt, disabledAt sql.NullTime
 
@@ -1960,7 +1960,7 @@ func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*d
 		if err == sql.ErrNoRows {
 			s.logger.Warn("Global rakeback override not found, returning default disabled state")
 			// Return default disabled state if not found
-			return &dto.GlobalRakebackOverride{
+			return &dto.GlobalCashbackOverride{
 				ID:                 uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 				IsEnabled:          false,
 				OverridePercentage: decimal.Zero,
@@ -1996,7 +1996,7 @@ func (s *CashbackStorageImpl) GetGlobalRakebackOverride(ctx context.Context) (*d
 }
 
 // UpdateGlobalRakebackOverride updates the global rakeback override configuration
-func (s *CashbackStorageImpl) UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalRakebackOverride) (*dto.GlobalRakebackOverride, error) {
+func (s *CashbackStorageImpl) UpdateGlobalRakebackOverride(ctx context.Context, override dto.GlobalCashbackOverride) (*dto.GlobalCashbackOverride, error) {
 	s.logger.Info("Updating global rakeback override",
 		zap.Bool("is_enabled", override.IsEnabled),
 		zap.String("override_percentage", override.OverridePercentage.String()))
@@ -2015,7 +2015,7 @@ func (s *CashbackStorageImpl) UpdateGlobalRakebackOverride(ctx context.Context, 
 		          disabled_by, disabled_at, created_at, updated_at
 	`
 
-	var updated dto.GlobalRakebackOverride
+	var updated dto.GlobalCashbackOverride
 	var enabledBy, disabledBy sql.NullString
 	var enabledAt, disabledAt sql.NullTime
 

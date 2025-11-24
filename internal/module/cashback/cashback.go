@@ -1123,7 +1123,7 @@ func (s *CashbackService) getGameDisplayName(gameID, gameType string) string {
 }
 
 // GetGlobalRakebackOverride retrieves the current global rakeback override configuration
-func (s *CashbackService) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalRakebackOverride, error) {
+func (s *CashbackService) GetGlobalRakebackOverride(ctx context.Context) (*dto.GlobalCashbackOverride, error) {
 	s.logger.Info("Getting global rakeback override configuration")
 
 	override, err := s.storage.GetGlobalRakebackOverride(ctx)
@@ -1136,7 +1136,7 @@ func (s *CashbackService) GetGlobalRakebackOverride(ctx context.Context) (*dto.G
 }
 
 // UpdateGlobalRakebackOverride updates the global rakeback override configuration
-func (s *CashbackService) UpdateGlobalRakebackOverride(ctx context.Context, adminUserID uuid.UUID, request dto.GlobalRakebackOverrideRequest) (*dto.GlobalRakebackOverride, error) {
+func (s *CashbackService) UpdateGlobalRakebackOverride(ctx context.Context, adminUserID uuid.UUID, request dto.GlobalCashbackOverrideRequest) (*dto.GlobalCashbackOverride, error) {
 	s.logger.Info("Updating global rakeback override",
 		zap.String("admin_user_id", adminUserID.String()),
 		zap.Bool("is_enabled", request.IsEnabled),
@@ -1151,7 +1151,7 @@ func (s *CashbackService) UpdateGlobalRakebackOverride(ctx context.Context, admi
 
 	// Prepare the update
 	now := time.Now()
-	updatedOverride := dto.GlobalRakebackOverride{
+	updatedOverride := dto.GlobalCashbackOverride{
 		ID:                 currentOverride.ID,
 		IsEnabled:          request.IsEnabled,
 		OverridePercentage: request.OverridePercentage,
