@@ -953,7 +953,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			} else {
 				for _, level := range req.Filter.VipLevel {
 					// Use contains (case-insensitive) instead of exact match
-					if strings.Contains(strings.ToLower(vipLevel), strings.ToLower(level)) {
+					if strings.Contains(strings.ToLower(user.VipLevel), strings.ToLower(level)) {
 						vipMatch = true
 						break
 					}
