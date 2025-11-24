@@ -1,6 +1,9 @@
 package system_config
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -755,6 +758,35 @@ func (h *SystemConfigHandler) AcknowledgeAlert(ctx *gin.Context) {
 
 // Settings Management Methods
 
+// extractBrandIDFromJSONBody extracts brand_id from JSON body and returns the body bytes for re-binding
+func (h *SystemConfigHandler) extractBrandIDFromJSONBody(ctx *gin.Context) (*uuid.UUID, []byte, error) {
+	// Read the raw body
+	bodyBytes, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Restore the request body so it can be read again if needed
+	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Parse JSON to extract brand_id
+	var jsonBody map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &jsonBody); err != nil {
+		return nil, bodyBytes, err
+	}
+
+	var brandID *uuid.UUID
+	if brandIDVal, exists := jsonBody["brand_id"]; exists && brandIDVal != nil {
+		if brandIDStr, ok := brandIDVal.(string); ok && brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	return brandID, bodyBytes, nil
+}
+
 // GetGeneralSettings retrieves general settings
 func (h *SystemConfigHandler) GetGeneralSettings(ctx *gin.Context) {
 	h.log.Info("Getting general settings")
@@ -783,11 +815,51 @@ func (h *SystemConfigHandler) GetGeneralSettings(ctx *gin.Context) {
 
 // UpdateGeneralSettings updates general settings
 func (h *SystemConfigHandler) UpdateGeneralSettings(ctx *gin.Context) {
-	var req system_config.GeneralSettings
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	// Extract brand_id from JSON body if present
+	brandID, bodyBytes, err := h.extractBrandIDFromJSONBody(ctx)
+	if err != nil {
 		h.log.Error("Invalid request body", zap.Error(err))
-		_ = ctx.Error(err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
+	}
+
+	// Parse JSON to remove brand_id and bind to GeneralSettings
+	var jsonBody map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &jsonBody); err != nil {
+		h.log.Error("Failed to parse JSON", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Remove brand_id from jsonBody before binding to GeneralSettings
+	delete(jsonBody, "brand_id")
+
+	// Convert back to JSON and bind to GeneralSettings struct
+	jsonBytes, err := json.Marshal(jsonBody)
+	if err != nil {
+		h.log.Error("Failed to marshal JSON", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	var req system_config.GeneralSettings
+	if err := json.Unmarshal(jsonBytes, &req); err != nil {
+		h.log.Error("Failed to unmarshal JSON", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// If brand_id not in JSON body, check query params or form data
+	if brandID == nil {
+		if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
 	}
 
 	adminUserID, exists := ctx.Get("user_id")
@@ -804,19 +876,7 @@ func (h *SystemConfigHandler) UpdateGeneralSettings(ctx *gin.Context) {
 		return
 	}
 
-	// Get brand_id from query params or request body (optional)
-	var brandID *uuid.UUID
-	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
-		if parsed, err := uuid.Parse(brandIDStr); err == nil {
-			brandID = &parsed
-		}
-	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
-		if parsed, err := uuid.Parse(brandIDStr); err == nil {
-			brandID = &parsed
-		}
-	}
-
-	err := h.systemConfigStorage.UpdateGeneralSettings(ctx.Request.Context(), req, adminUUID, brandID)
+	err = h.systemConfigStorage.UpdateGeneralSettings(ctx.Request.Context(), req, adminUUID, brandID)
 	if err != nil {
 		h.log.Error("Failed to update general settings", zap.Error(err))
 		_ = ctx.Error(err)

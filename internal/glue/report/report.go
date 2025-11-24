@@ -30,6 +30,17 @@ func Init(
 				middleware.SystemLogs("Get daily Report", &log, systemLogs),
 			},
 		},
+		{
+			Method:  "GET",
+			Path:    "/api/admin/report/duplicate-ip-accounts",
+			Handler: report.GetDuplicateIPAccounts,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "get duplicate ip accounts report", http.MethodGet),
+				middleware.SystemLogs("Get Duplicate IP Accounts Report", &log, systemLogs),
+			},
+		},
 	}
 
 	routing.RegisterRoute(group, reportRoutes, log)

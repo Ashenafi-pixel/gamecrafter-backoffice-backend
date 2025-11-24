@@ -52,3 +52,23 @@ func (r *report) GetDailyReport(ctx *gin.Context) {
 
 	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
 }
+
+// GetDuplicateIPAccounts Get Duplicate IP Accounts Report.
+//
+//	@Summary		GetDuplicateIPAccounts
+//	@Description	Returns a report of accounts created from the same IP address (potential bot/spam accounts)
+//	@Tags			Report
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{array}	dto.DuplicateIPAccountsReport
+//	@Failure		400		{object}	response.ErrorResponse
+//	@Router			/api/admin/report/duplicate-ip-accounts [get]
+func (r *report) GetDuplicateIPAccounts(ctx *gin.Context) {
+	reportRes, err := r.reportModule.GetDuplicateIPAccounts(ctx.Request.Context())
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
+}

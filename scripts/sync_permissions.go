@@ -265,6 +265,7 @@ func main() {
 
 		// Daily Report permissions
 		{"get daily report", "Get daily report", "analytics", "read"},
+		{"get duplicate ip accounts report", "Get duplicate IP accounts report", "analytics", "read"},
 
 		// Audit Logs permissions
 		{"Get Audit Logs", "Get audit logs", "logs", "read"},

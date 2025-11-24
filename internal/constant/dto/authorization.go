@@ -170,6 +170,7 @@ var PermissionsList = map[string]PermissionsToRoute{
 	"add games":                        {EndPoint: "/api/admin/games", Method: http.MethodPost, Name: "add games", Description: "allow user to add games"},
 	"update game status":               {EndPoint: "/api/admin/games/status", Method: http.MethodPut, Name: "update game status", Description: "allow admin to update game status"},
 	"get daily report":                 {EndPoint: "/api/admin/report/daily", Method: http.MethodGet, Name: "get daily report", Description: "allow user to get daily report"},
+	"get duplicate ip accounts report": {EndPoint: "/api/admin/report/duplicate-ip-accounts", Method: http.MethodGet, Name: "get duplicate ip accounts report", Description: "allow user to get duplicate IP accounts report"},
 	"create mysteries":                 {EndPoint: "/api/admin/spinningwheels/mysteries", Method: http.MethodPost, Name: "create mysteries", Description: "allow user to create spinning wheel mysteries"},
 	"get mysteries":                    {EndPoint: "/api/admin/spinningwheels/mysteries", Method: http.MethodGet, Name: "get mysteries", Description: "allow user to get spinning wheel mysteries"},
 	"delete mysteries":                 {EndPoint: "/api/admin/spinningwheels/mysteries", Method: http.MethodDelete, Name: "delete mysteries", Description: "allow user to delete spinning wheel mysteries"},

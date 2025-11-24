@@ -281,6 +281,7 @@ type Brand interface {
 
 type Report interface {
 	GetDailyReport(c *gin.Context)
+	GetDuplicateIPAccounts(c *gin.Context)
 }
 
 type Squads interface {

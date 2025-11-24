@@ -279,6 +279,7 @@ type Brand interface {
 
 type Report interface {
 	DailyReport(ctx context.Context, req dto.DailyReportReq) (dto.DailyReportRes, error)
+	GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPAccountsReport, error)
 }
 
 type Squads interface {

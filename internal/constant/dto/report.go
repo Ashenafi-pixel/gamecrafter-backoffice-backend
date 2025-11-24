@@ -41,3 +41,20 @@ func ValidateDailyReportReq(req DailyReportReq) error {
 	validate := validator.New()
 	return validate.Struct(req)
 }
+
+// DuplicateIPAccount represents an account created from a duplicate IP
+type DuplicateIPAccount struct {
+	UserID      string `json:"user_id" db:"user_id"`
+	Username    string `json:"username" db:"username"`
+	Email       string `json:"email" db:"email"`
+	UserAgent   string `json:"user_agent" db:"user_agent"`
+	CreatedAt   string `json:"created_at" db:"created_at"`
+	SessionDate string `json:"session_date" db:"session_date"`
+}
+
+// DuplicateIPAccountsReport represents the report of accounts created from duplicate IPs
+type DuplicateIPAccountsReport struct {
+	IPAddress string                `json:"ip_address"`
+	Count     int                   `json:"count"`
+	Accounts  []DuplicateIPAccount `json:"accounts"`
+}

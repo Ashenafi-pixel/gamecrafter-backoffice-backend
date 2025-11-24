@@ -36,29 +36,74 @@ ON CONFLICT (brand_id, config_key) DO NOTHING;
 DELETE FROM system_config WHERE brand_id IS NULL;
 */
 
--- 1. Drop the existing unique constraint on config_key only
+-- 1. Drop the existing unique constraint on config_key only (if it exists)
 ALTER TABLE system_config 
 DROP CONSTRAINT IF EXISTS system_config_config_key_key;
 
 -- 2. Drop the partial unique index if it exists (we don't need it anymore)
 DROP INDEX IF EXISTS idx_system_config_global_unique;
 
--- 3. Add unique constraint on (brand_id, config_key)
+-- 2a. Check for NULL brand_id values (these need to be migrated to all brands or deleted)
+SELECT config_key, COUNT(*) as count 
+FROM system_config 
+WHERE brand_id IS NULL 
+GROUP BY config_key;
+
+-- 2b. IMPORTANT: Handle NULL brand_id values BEFORE creating the constraint
+--     If you have NULL brand_id values, you MUST either:
+--     Option A: Delete them (if they're not needed)
+--     DELETE FROM system_config WHERE brand_id IS NULL;
+--     Option B: Migrate them to all brands (uncomment and run Step 0b above first)
+--     You cannot create the constraint if there are NULL values and brand_id is set to NOT NULL
+
+-- 3. Drop the existing (brand_id, config_key) constraint if it exists (to avoid errors on re-run)
+ALTER TABLE system_config 
+DROP CONSTRAINT IF EXISTS system_config_brand_id_config_key_unique;
+
+-- 3a. Ensure brand_id is NOT NULL (only run this AFTER handling NULL values in step 2b)
+--     This will fail if there are any NULL brand_id values remaining
+--     Comment this out if brand_id column already allows NULLs and you want to keep it that way
+-- ALTER TABLE system_config 
+-- ALTER COLUMN brand_id SET NOT NULL;
+
+-- 4. Add unique constraint on (brand_id, config_key)
 -- This ensures each brand has only one config per config_key
--- brand_id can be NULL (for potential future use), but each config_key + brand_id combination must be unique
--- Note: PostgreSQL treats NULL values as distinct in unique constraints, so multiple NULL brand_ids are allowed
--- But we want to ensure (brand_id, config_key) is unique when brand_id is NOT NULL
+-- brand_id must NOT be NULL (all settings are brand-specific)
+-- Note: The constraint ensures (brand_id, config_key) is unique
 ALTER TABLE system_config 
 ADD CONSTRAINT system_config_brand_id_config_key_unique 
 UNIQUE (brand_id, config_key);
 
--- 4. Example SQL for updating settings with brand_id (for specific brand):
+-- 4a. Verify the constraint was created successfully:
+SELECT 
+    conname as constraint_name,
+    contype as constraint_type,
+    pg_get_constraintdef(oid) as constraint_definition
+FROM pg_constraint
+WHERE conrelid = 'system_config'::regclass
+AND conname = 'system_config_brand_id_config_key_unique';
+
+-- ============================================================================
+-- IMPORTANT: The constraint must be created successfully before running any
+-- queries that use ON CONFLICT (brand_id, config_key)
+-- ============================================================================
+-- Verify the constraint exists by running the query in step 4a above
+-- Only proceed with the example queries below AFTER confirming the constraint exists
+-- ============================================================================
+
+-- ============================================================================
+-- EXAMPLE QUERIES (DO NOT RUN UNTIL CONSTRAINT IS VERIFIED)
+-- ============================================================================
+
+-- 5. Example SQL for updating settings with brand_id (for specific brand):
 -- This uses ON CONFLICT to update if exists, insert if not
 -- Replace 'general_settings' with the actual config_key
 -- Replace the JSON value with actual settings
 -- Replace brand_id and updated_by with actual UUIDs
 
 -- For specific brand (brand_id is NOT NULL):
+-- NOTE: This query requires the constraint from step 4 to exist
+/*
 INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
 VALUES (
     'general_settings',
@@ -73,31 +118,13 @@ DO UPDATE SET
     config_value = EXCLUDED.config_value,
     updated_by = EXCLUDED.updated_by,
     updated_at = NOW();
-
--- 5. Example SQL for updating settings globally (brand_id IS NULL):
--- This updates the global config that applies to all brands
--- Note: For NULL brand_id, we use the partial unique index constraint
-
-INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
-VALUES (
-    'general_settings',
-    '{"site_name": "Global Site", "site_description": "Global Description"}',
-    'General application settings',
-    NULL,  -- NULL = global config
-    '5a8328c7-d51b-4187-b45c-b1beea7b41ff'::uuid,
-    NOW()
-)
-ON CONFLICT (config_key) 
-WHERE brand_id IS NULL
-DO UPDATE SET 
-    config_value = EXCLUDED.config_value,
-    updated_by = EXCLUDED.updated_by,
-    updated_at = NOW();
+*/
 
 -- 6. SQL to update ALL brands with the same settings (when "global" is selected):
 -- This is the MAIN query to use when updating settings for all brands
 -- It updates/creates the config for EVERY brand in the database
-
+-- NOTE: This query requires the constraint from step 4 to exist
+/*
 WITH brand_ids AS (
     SELECT id FROM brands
 ),
@@ -123,10 +150,16 @@ DO UPDATE SET
     config_value = EXCLUDED.config_value,
     updated_by = EXCLUDED.updated_by,
     updated_at = NOW();
+*/
 
--- 7. Initialize all settings for all brands (run this once to create all configs for all brands):
+-- 7. Example SQL for updating settings globally (when no brand_id is selected):
+-- This updates ALL brands with the same settings
+-- Use the query from section 6 above (update ALL brands)
+
+-- 8. Initialize all settings for all brands (run this once to create all configs for all brands):
 -- This ensures every brand has every config type, even if with default values
-
+-- NOTE: This query requires the constraint from step 4 to exist
+/*
 WITH all_brands AS (
     SELECT id FROM brands
 ),
@@ -180,18 +213,19 @@ SELECT
 FROM all_brands ab
 CROSS JOIN default_configs dc
 ON CONFLICT (brand_id, config_key) DO NOTHING;  -- Don't overwrite existing configs
+*/
 
--- 8. Query to get config for a SPECIFIC brand (always use brand_id):
+-- 9. Query to get config for a SPECIFIC brand (always use brand_id):
 SELECT * FROM system_config 
 WHERE config_key = 'general_settings' 
 AND brand_id = '00000000-0000-0000-0000-000000000004'::uuid;
 
--- 9. Query to get all configs for a specific brand:
+-- 10. Query to get all configs for a specific brand:
 SELECT * FROM system_config 
 WHERE brand_id = '00000000-0000-0000-0000-000000000004'::uuid
 ORDER BY config_key;
 
--- 10. Query to check if a brand has all required configs:
+-- 11. Query to check if a brand has all required configs:
 SELECT 
     b.id as brand_id,
     b.name as brand_name,
@@ -205,7 +239,7 @@ LEFT JOIN system_config sc ON sc.brand_id = b.id
 GROUP BY b.id, b.name
 ORDER BY b.name;
 
--- 11. Query to list all brands and their config status:
+-- 12. Query to list all brands and their config status:
 SELECT 
     b.id,
     b.name,

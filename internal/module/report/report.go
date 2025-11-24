@@ -30,3 +30,7 @@ func (r *report) DailyReport(ctx context.Context, req dto.DailyReportReq) (dto.D
 
 	return r.reportStorage.DailyReport(ctx, req)
 }
+
+func (r *report) GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPAccountsReport, error) {
+	return r.reportStorage.GetDuplicateIPAccounts(ctx)
+}
