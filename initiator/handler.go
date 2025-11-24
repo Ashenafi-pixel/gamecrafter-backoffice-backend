@@ -158,7 +158,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		RegistrationService:   registrationService,
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
-		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService),
+		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService, persistence.Database.GetPool()),
 		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, persistence.Alert, log),
 		Alert:                 alert.NewAlertHandler(persistence.Alert, persistence.AlertEmailGroups, module.Email, log),
 		AlertEmailGroup:       alert.NewAlertEmailGroupHandler(persistence.AlertEmailGroups, log),

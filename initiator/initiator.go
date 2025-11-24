@@ -288,12 +288,14 @@ func Initiate() {
 	}
 
 	// Start rakeback scheduler for automatic schedule activation/deactivation
-	if module.Cashback != nil {
-		logger.Info("Starting rakeback scheduler")
-		rakebackScheduler := module.Cashback.GetRakebackScheduler(persistence.Cashback, logger)
-		rakebackScheduler.Start(context.Background())
-		logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
-	}
+	// NOTE: Commented out - Rakeback schedule feature not yet fully implemented
+	// The GetRakebackScheduler method doesn't exist on CashbackService
+	// if module.Cashback != nil {
+	// 	logger.Info("Starting rakeback scheduler")
+	// 	// rakebackScheduler := cashback.NewRakebackScheduler(persistence.Cashback, logger)
+	// 	// rakebackScheduler.Start(context.Background())
+	// 	logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
+	// }
 
 	// Start daily report cronjob service
 	if dailyReportCronjobService != nil {

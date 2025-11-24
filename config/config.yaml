@@ -1,36 +1,87 @@
 # TucanBIT Configuration - Unified Config File
 # This file combines configurations from all previous config files
+# 
+# IMPORTANT: Replace all placeholder values with actual production credentials
+# before deploying to production environments.
 
+# ============================================================================
 # Database Configuration
+# ============================================================================
+# PostgreSQL database connection settings
+# url: Full connection string including host, port, database name, and credentials
+#      Format: postgres://username:password@host:port/database?options
+# idle_conn_timeout: Maximum time a database connection can remain idle before being closed
 db:
   url: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable&connect_timeout=10"
   idle_conn_timeout: "4m"
 
+# ============================================================================
 # Application Configuration
+# ============================================================================
+# Server host, port, and timeout settings
+# host: IP address to bind the server (0.0.0.0 = all interfaces)
+# port: Port number the application will listen on
+# timeout: Maximum time for request handling before timeout
 app:
   host: "0.0.0.0"
   port: 8094
   timeout: "30m"
 
+# ============================================================================
 # Debug Configuration
+# ============================================================================
+# Enable/disable debug mode for detailed logging and error messages
+# Set to true for development, false for production
 debug: false
 
-# Auth Configuration
+# ============================================================================
+# Authentication Configuration
+# ============================================================================
+# JWT and OTP (One-Time Password) settings for user authentication
+# jwt_secret: Secret key used to sign and verify JWT tokens (MUST be strong and secret)
+# otp_jwt_secret: Separate secret for OTP-related JWT tokens
+# otp_attempt_limit: Maximum number of failed OTP attempts before account lockout
 auth:
   jwt_secret: "tokensecrethere"
   otp_jwt_secret: "otpkwtsecretgoinghere"
   otp_attempt_limit: 4
 
+# ============================================================================
 # Payment Microservice Configuration
+# ============================================================================
+# Secret key for authenticating requests to/from the payment microservice
+# This should match the secret configured in the payment service
 paymentMs:
   secret: "<your_payment_ms_secret_here>"
 
+# ============================================================================
 # Bet Configuration
+# ============================================================================
+# Betting system settings
+# max: Maximum number of concurrent bets allowed per user
+# open_duration: Time window during which bets can be placed (e.g., "10s" = 10 seconds)
 bet:
   max: 15
   open_duration: "10s"
 
+# ============================================================================
 # AWS Configuration
+# ============================================================================
+# Amazon Web Services settings for S3 storage and CloudWatch logging
+# bucket: S3 bucket configuration for file storage (images, documents, etc.)
+#   name: S3 bucket name
+#   accessKey: AWS access key ID
+#   secretAccessKey: AWS secret access key
+#   region: AWS region where the bucket is located (e.g., "us-east-1")
+# logging: CloudWatch logging configuration
+#   enabled: Enable/disable CloudWatch log streaming
+#   region: AWS region for CloudWatch
+#   access_key_id: AWS access key for CloudWatch
+#   secret_access_key: AWS secret key for CloudWatch
+#   log_group_name: CloudWatch log group name
+#   log_stream_name: CloudWatch log stream name
+#   retention_days: Number of days to retain logs in CloudWatch
+#   local_path: Local directory path for log file storage
 aws:
   bucket:
     name: "bucketname"
@@ -47,7 +98,17 @@ aws:
     retention_days: 30
     local_path: "./logs"
 
+# ============================================================================
 # Google Configuration
+# ============================================================================
+# Google services integration (SMTP email and OAuth)
+# smtp: Gmail SMTP settings for sending emails
+#   password: Gmail app-specific password (not regular password)
+#   from: Default sender email address
+# oauth: Google OAuth 2.0 settings for "Sign in with Google"
+#   client_id: Google OAuth client ID from Google Cloud Console
+#   client_secret: Google OAuth client secret
+#   redirect_url: Callback URL after Google authentication (must match Google Console settings)
 google:
   smtp:
     password: "bkov izye bawj yioj"
@@ -57,27 +118,57 @@ google:
     client_secret: "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"
     redirect_url: "http://localhost:8080/user/oauth/google/res"
 
+# ============================================================================
 # OAuth Configuration
+# ============================================================================
+# General OAuth settings
+# frontend_oauth_handler_url: Frontend URL that handles OAuth callback redirects
+#                             This is where users are redirected after OAuth authentication
 oauth:
   frontend_oauth_handler_url: "http://localhost:3000/oauth"
 
+# ============================================================================
 # Facebook OAuth Configuration
+# ============================================================================
+# Facebook OAuth 2.0 settings for "Sign in with Facebook"
+# client_id: Facebook App ID from Facebook Developers Console
+# client_secret: Facebook App Secret
+# redirect_url: Callback URL after Facebook authentication (must match Facebook App settings)
 facebook:
   oauth:
     client_id: "837667311758955"
     client_secret: "9136275f085069e22f2ca55ce033e3c0"
     redirect_url: "http://localhost:8080/user/oauth/facebook/res"
 
+# ============================================================================
 # Sports Service Configuration
+# ============================================================================
+# External sports data/odds API integration
+# api_key: API key for authenticating with the sports service
+# api_secret: Secret key for signing requests to the sports service
 sportsservice:
   api_key: "0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u"
   api_secret: "0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u"
 
+# ============================================================================
 # Rise and Hustle Configuration
+# ============================================================================
+# Integration with Rise and Hustle service
+# auth_url: Authentication endpoint URL for Rise and Hustle service
 rise_and_hustle:
   auth_url: "https://rise-and-hustle-tau.vercel.app/auth"
 
+# ============================================================================
 # Pisi Configuration
+# ============================================================================
+# Pisi Mobile SMS gateway configuration for sending SMS messages
+# base_url: Base API URL for Pisi Mobile bulk SMS service
+# password: API password for Pisi Mobile authentication
+# vaspid: VASP ID (Virtual Asset Service Provider ID) for Pisi Mobile
+# sender_id: Default sender ID displayed in SMS messages
+# timeout: Request timeout duration
+# retry_count: Number of retry attempts for failed SMS sends
+# retry_delay: Delay between retry attempts
 pisi:
   base_url: "https://api.pisimobile.com/bulksms/v1/"
   password: ""
@@ -87,7 +178,22 @@ pisi:
   retry_count: 3
   retry_delay: "1000ms"
 
+# ============================================================================
 # Kafka Configuration
+# ============================================================================
+# Apache Kafka message broker settings for event streaming
+# enabled: Enable/disable Kafka integration
+# bootstrap_servers: Comma-separated list of Kafka broker addresses
+# topic: Default Kafka topic name for publishing events
+# cluster_api_key: API key for Kafka cluster authentication (if using Confluent Cloud)
+# cluster_api_secret: API secret for Kafka cluster authentication
+# security_protocol: Security protocol (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)
+# acks: Producer acknowledgment setting ("all" = wait for all replicas)
+# mechanisms: SASL mechanism for authentication (PLAIN, SCRAM-SHA-256, etc.)
+# group_id: Consumer group ID for Kafka consumers
+# auto_offset_reset: Where to start reading if no offset is stored ("earliest" or "latest")
+# enable_auto_commit: Automatically commit consumer offsets
+# session_timeout_ms: Maximum time before a consumer is considered dead
 kafka:
   enabled: false
   bootstrap_servers: "localhost:9093"
@@ -102,7 +208,19 @@ kafka:
   enable_auto_commit: true
   session_timeout_ms: 60000
 
+# ============================================================================
 # Redis Configuration
+# ============================================================================
+# Redis in-memory data store for caching and session management
+# enabled: Enable/disable Redis integration
+# addr: Redis server address (host:port)
+# password: Redis authentication password
+# db: Redis database number (0-15, default is 0)
+# key_prefix: Prefix added to all Redis keys (e.g., "tucanbit:user:123")
+# ttl: Default time-to-live for cached data
+# attempts: Number of retry attempts for failed operations
+# pool_size: Maximum number of connections in the connection pool
+# min_idle_conns: Minimum number of idle connections to maintain
 redis:
   enabled: true
   addr: "172.31.36.46:63790"
@@ -114,7 +232,16 @@ redis:
   pool_size: 10
   min_idle_conns: 2
 
+# ============================================================================
 # ClickHouse Configuration
+# ============================================================================
+# ClickHouse database settings for analytics and time-series data
+# host: ClickHouse server hostname or IP address
+# port: ClickHouse HTTP interface port (default: 8123)
+# database: ClickHouse database name
+# username: ClickHouse username for authentication
+# password: ClickHouse password
+# timeout: Connection and query timeout duration
 clickhouse:
   host: "172.31.36.46"
   port: 8123
@@ -123,14 +250,34 @@ clickhouse:
   password: "tucanbit_clickhouse_password"
   timeout: "10s"
 
+# ============================================================================
 # WMS (Wallet Management System) Configuration
+# ============================================================================
+# External wallet management service API settings
+# base_url: Base URL for WMS admin API endpoints
+# timeout: Request timeout duration for WMS API calls
+# retry_attempts: Number of retry attempts for failed WMS requests
+# retry_delay: Delay between retry attempts
 wms:
   base_url: "https://wms.tucanbit.tv/wms/api/v1/admin"
   timeout: "30s"
   retry_attempts: 3
   retry_delay: "1s"
 
+# ============================================================================
 # Logger Configuration
+# ============================================================================
+# Application logging settings
+# level: Logging level (0=Debug, 1=Info, 2=Warn, 3=Error, 4=Fatal)
+# console: Enable/disable console output for logs
+# max_size_mb: Maximum size of a log file before rotation (in megabytes)
+# max_backups: Maximum number of backup log files to keep
+# max_age_days: Maximum age of log files before deletion
+# compress: Compress rotated log files (saves disk space)
+# rotation_enabled: Enable/disable automatic log file rotation
+# retention_enabled: Enable/disable log retention policies
+# local_retention_days: Days to retain logs locally before deletion
+# aws_retention_days: Days to retain logs in AWS CloudWatch before deletion
 logger:
   level: 0  # 0=Debug, 1=Info, 2=Warn, 3=Error, 4=Fatal
   console: true
@@ -143,7 +290,18 @@ logger:
   local_retention_days: 90
   aws_retention_days: 30
 
+# ============================================================================
 # Daily Report Configuration
+# ============================================================================
+# Automated daily analytics report settings
+# enabled: Enable/disable daily report generation and email sending
+# recipients: List of email addresses to receive daily reports
+# schedule: Cron-like schedule for report generation
+#   time: Time of day to generate report (24-hour format: "HH:MM")
+#   timezone: Timezone for schedule (e.g., "UTC", "America/New_York")
+# email: Email template settings for reports
+#   subject: Email subject line (supports template variables like {{.Date}})
+#   template: Email template name to use for formatting
 daily_reports:
   enabled: true
   recipients:
@@ -156,16 +314,22 @@ daily_reports:
     subject: "TucanBIT Daily Analytics Report - {{.Date}}"
     template: "daily_report"
 
+# ============================================================================
 # SMTP Configuration
-# smtp:
-#   host: "smtp.gmail.com"
-#   port: 465
-#   username: "kirub.hel@gmail.com"
-#   password: "dqys bnjk hhny khbk"
-#   from: "kirub.hel@gmail.com"
-#   from_name: "TucanBIT Security"
-#   use_tls: true
- # SMTP Configuration
+# ============================================================================
+# Email server settings for sending transactional and notification emails
+# host: SMTP server hostname (e.g., "smtp.gmail.com", "smtp.sendgrid.net")
+# port: SMTP server port (465 for SSL, 587 for TLS, 25 for plain)
+# username: SMTP authentication username (usually the sender email)
+# password: SMTP authentication password (use app-specific password for Gmail)
+# from: Default sender email address
+# from_name: Display name for the sender
+# use_tls: Enable TLS encryption for SMTP connection
+# from_addresses: Email type-specific sender addresses for different purposes
+#   - Supports language-based routing (English and Spanish)
+#   - Different addresses for notifications, support, and reports
+#   - Helps organize and filter emails by type
+# Note: Commented section above shows previous configuration (kept for reference)
 smtp:
   host: "smtp.gmail.com"
   port: 465
@@ -188,7 +352,19 @@ smtp:
     notifications_es: "notificaciones@tucanbit.io"
     support_es: "soporte@tucanbit.io"
 
+# ============================================================================
 # Groove Gaming Configuration
+# ============================================================================
+# Groove Gaming platform integration for casino games
+# operator_id: Unique operator identifier assigned by Groove Gaming
+# api_domain: Base URL for Groove Gaming API router
+# api_key: API key for authenticating with Groove Gaming services
+# home_url: URL where users are redirected after game session ends (home page)
+# exit_url: URL where users are redirected when exiting games
+# history_url: URL for displaying game history to users
+# license_type: Gaming license type (e.g., "Curacao", "Malta", "UK")
+# signature_validation: Enable/disable request signature validation for security
+# signature_secret: Secret key used for signing/validating requests
 groove:
   operator_id: "3818"
   api_domain: "https://gprouter.groovegaming.com"
@@ -200,7 +376,21 @@ groove:
   signature_validation: false
   signature_secret: "test_key"
 
+# ============================================================================
 # Falcon Liquidity Configuration
+# ============================================================================
+# Falcon Liquidity provider integration via RabbitMQ message broker
+# enabled: Enable/disable Falcon Liquidity integration
+# host: RabbitMQ broker hostname (AWS MQ endpoint)
+# port: RabbitMQ AMQP port (5671 for SSL, 5672 for plain)
+# virtual_host: RabbitMQ virtual host name
+# username: RabbitMQ username for authentication
+# password: RabbitMQ password
+# exchange_name: RabbitMQ exchange name for routing messages
+# queue_name: Queue name for receiving messages from Falcon
+# routing_key: Routing key pattern for message routing
+# client_name: Client identifier for this integration
+# management_port: RabbitMQ management UI port (for monitoring)
 falcon_liquidity:
   enabled: true
   host: "b-72b0d5f8-fd98-47f3-97f9-c4dff10c8040.mq.eu-west-2.on.aws"
@@ -214,7 +404,14 @@ falcon_liquidity:
   client_name: "tucanbit"
   management_port: 15672
 
+# ============================================================================
 # Airtime Configuration
+# ============================================================================
+# Airtime service integration for mobile airtime top-ups
+# base_url: Base URL for the airtime service API
+# password: API password for airtime service authentication
+# timeout: Request timeout duration for airtime API calls
+# vaspid: VASP ID (Virtual Asset Service Provider ID) for airtime service
 airtime:
   base_url: "http://localhost:8080"
   password: "airtime_password"

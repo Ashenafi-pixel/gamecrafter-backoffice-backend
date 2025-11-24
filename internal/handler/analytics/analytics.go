@@ -1,12 +1,15 @@
 package analytics
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/handler"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
@@ -19,6 +22,7 @@ type analytics struct {
 	analyticsStorage          storage.Analytics
 	dailyReportService        analyticsModule.DailyReportService
 	dailyReportCronjobService analyticsModule.DailyReportCronjobService
+	pgPool                    *pgxpool.Pool
 }
 
 // checkAnalyticsStorage checks if analytics storage is available
@@ -34,12 +38,43 @@ func (a *analytics) checkAnalyticsStorage(c *gin.Context) bool {
 	return true
 }
 
-func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) handler.Analytics {
+// getUserIDsByTestAccount gets user IDs filtered by is_test_account from PostgreSQL
+func (a *analytics) getUserIDsByTestAccount(ctx context.Context, isTestAccount *bool) ([]uuid.UUID, error) {
+	if isTestAccount == nil {
+		// Return nil to indicate no filtering (all users)
+		return nil, nil
+	}
+
+	query := "SELECT id FROM users WHERE is_test_account = $1"
+	rows, err := a.pgPool.Query(ctx, query, *isTestAccount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users: %w", err)
+	}
+	defer rows.Close()
+
+	var userIDs []uuid.UUID
+	for rows.Next() {
+		var userID uuid.UUID
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("failed to scan user ID: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating user rows: %w", err)
+	}
+
+	return userIDs, nil
+}
+
+func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService, pgPool *pgxpool.Pool) handler.Analytics {
 	return &analytics{
 		logger:                    log,
 		analyticsStorage:          analyticsStorage,
 		dailyReportService:        dailyReportService,
 		dailyReportCronjobService: dailyReportCronjobService,
+		pgPool:                    pgPool,
 	}
 }
 
@@ -352,11 +387,12 @@ func (a *analytics) GetEnhancedDailyReport(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param limit query int false "Number of games to return" default(10)
-// @Param date_from query string false "Start date (RFC3339)"
-// @Param date_to query string false "End date (RFC3339)"
+// @Param date_from query string false "Start date (YYYY-MM-DD format, e.g., 2025-11-16)"
+// @Param date_to query string false "End date (YYYY-MM-DD format, e.g., 2025-11-23)"
+// @Param is_test_account query bool false "Filter by test account (true/false), omit for all"
 // @Success 200 {object} dto.AnalyticsResponse
 // @Failure 500 {object} dto.AnalyticsResponse
-// @Router /analytics/games/top [get]
+// @Router /api/admin/analytics/reports/top-games [get]
 func (a *analytics) GetTopGames(c *gin.Context) {
 	// Check if analytics storage is available
 	if !a.checkAnalyticsStorage(c) {
@@ -372,16 +408,34 @@ func (a *analytics) GetTopGames(c *gin.Context) {
 
 	dateRange := &dto.DateRange{}
 
-	// Parse date range
+	// Parse date range (using "2006-01-02" format)
 	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
-		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+		if dateFrom, err := time.Parse("2006-01-02", dateFromStr); err == nil {
 			dateRange.From = &dateFrom
 		}
 	}
 
 	if dateToStr := c.Query("date_to"); dateToStr != "" {
-		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+		if dateTo, err := time.Parse("2006-01-02", dateToStr); err == nil {
 			dateRange.To = &dateTo
+		}
+	}
+
+	// Parse is_test_account filter
+	if isTestAccountStr := c.Query("is_test_account"); isTestAccountStr != "" {
+		if isTestAccount, err := strconv.ParseBool(isTestAccountStr); err == nil {
+			dateRange.IsTestAccount = &isTestAccount
+			// Get filtered user IDs
+			userIDs, err := a.getUserIDsByTestAccount(c.Request.Context(), &isTestAccount)
+			if err != nil {
+				a.logger.Error("Failed to get filtered user IDs", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+					Success: false,
+					Error:   "Failed to filter users",
+				})
+				return
+			}
+			dateRange.UserIDs = userIDs
 		}
 	}
 
@@ -408,11 +462,12 @@ func (a *analytics) GetTopGames(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param limit query int false "Number of players to return" default(10)
-// @Param date_from query string false "Start date (RFC3339)"
-// @Param date_to query string false "End date (RFC3339)"
+// @Param date_from query string false "Start date (YYYY-MM-DD format, e.g., 2025-11-16)"
+// @Param date_to query string false "End date (YYYY-MM-DD format, e.g., 2025-11-23)"
+// @Param is_test_account query bool false "Filter by test account (true/false), omit for all"
 // @Success 200 {object} dto.AnalyticsResponse
 // @Failure 500 {object} dto.AnalyticsResponse
-// @Router /analytics/players/top [get]
+// @Router /api/admin/analytics/reports/top-players [get]
 func (a *analytics) GetTopPlayers(c *gin.Context) {
 	// Check if analytics storage is available
 	if !a.checkAnalyticsStorage(c) {
@@ -428,25 +483,47 @@ func (a *analytics) GetTopPlayers(c *gin.Context) {
 
 	dateRange := &dto.DateRange{}
 
-	// Parse date range
+	// Parse date range (using "2006-01-02" format)
 	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
-		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+		if dateFrom, err := time.Parse("2006-01-02", dateFromStr); err == nil {
 			dateRange.From = &dateFrom
 		}
 	}
 
 	if dateToStr := c.Query("date_to"); dateToStr != "" {
-		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+		if dateTo, err := time.Parse("2006-01-02", dateToStr); err == nil {
 			dateRange.To = &dateTo
+		}
+	}
+
+	// Parse is_test_account filter
+	if isTestAccountStr := c.Query("is_test_account"); isTestAccountStr != "" {
+		if isTestAccount, err := strconv.ParseBool(isTestAccountStr); err == nil {
+			dateRange.IsTestAccount = &isTestAccount
+			// Get filtered user IDs
+			userIDs, err := a.getUserIDsByTestAccount(c.Request.Context(), &isTestAccount)
+			if err != nil {
+				a.logger.Error("Failed to get filtered user IDs", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+					Success: false,
+					Error:   "Failed to filter users",
+				})
+				return
+			}
+			dateRange.UserIDs = userIDs
 		}
 	}
 
 	players, err := a.analyticsStorage.GetTopPlayers(c.Request.Context(), limit, dateRange)
 	if err != nil {
-		a.logger.Error("Failed to get top players", zap.Error(err))
+		a.logger.Error("Failed to get top players",
+			zap.Error(err),
+			zap.Int("limit", limit),
+			zap.Any("dateRange", dateRange),
+			zap.Int("userIDs_count", len(dateRange.UserIDs)))
 		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
 			Success: false,
-			Error:   "Failed to retrieve top players",
+			Error:   fmt.Sprintf("Failed to retrieve top players: %v", err),
 		})
 		return
 	}
