@@ -43,15 +43,11 @@ DROP CONSTRAINT IF EXISTS system_config_config_key_key;
 -- 2. Drop the partial unique index if it exists (we don't need it anymore)
 DROP INDEX IF EXISTS idx_system_config_global_unique;
 
--- 3. Make brand_id NOT NULL (required for all configs)
--- First, migrate any NULL brand_id configs to all brands (see Step 0b above)
--- Then run this:
-ALTER TABLE system_config 
-ALTER COLUMN brand_id SET NOT NULL;
-
--- 4. Add unique constraint on (brand_id, config_key)
+-- 3. Add unique constraint on (brand_id, config_key)
 -- This ensures each brand has only one config per config_key
--- brand_id is now required (NOT NULL)
+-- brand_id can be NULL (for potential future use), but each config_key + brand_id combination must be unique
+-- Note: PostgreSQL treats NULL values as distinct in unique constraints, so multiple NULL brand_ids are allowed
+-- But we want to ensure (brand_id, config_key) is unique when brand_id is NOT NULL
 ALTER TABLE system_config 
 ADD CONSTRAINT system_config_brand_id_config_key_unique 
 UNIQUE (brand_id, config_key);
