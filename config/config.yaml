@@ -259,7 +259,7 @@ clickhouse:
 # retry_attempts: Number of retry attempts for failed WMS requests
 # retry_delay: Delay between retry attempts
 wms:
-  base_url: "https://wms.tucanbit.tv/wms/api/v1/admin"
+  base_url: "https://wms.tucanbit.tv/api/v1/admin"
   timeout: "30s"
   retry_attempts: 3
   retry_delay: "1s"
