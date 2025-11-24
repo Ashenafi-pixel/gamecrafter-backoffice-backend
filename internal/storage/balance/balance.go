@@ -405,17 +405,19 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		// Update balance based on component
 		switch updateReq.Component {
 		case constant.REAL_MONEY:
-			amountCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+			b.log.Info("UpdateMoney - Starting update", zap.String("amount", updateReq.Amount.String()), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency))
 
-			b.log.Info("UpdateMoney - Starting update", zap.Int64("amountCentsToAdd", amountCentsToAdd), zap.String("amount", updateReq.Amount.String()), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency))
-
-			// Use a simple, direct approach with proper decimal handling
+			// First update amount_units, then recalculate amount_cents from the final amount_units value
+			// This ensures accuracy and prevents drift between cents and units
+			// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
 			err = b.db.GetPool().QueryRow(ctx, `
 				UPDATE balances 
-				SET amount_cents = amount_cents + $1, amount_units = amount_units + $2, updated_at = $3 
-				WHERE user_id = $4 AND currency_code = $5
+				SET amount_units = amount_units + $1, 
+				    amount_cents = FLOOR((amount_units + $1) * 100)::BIGINT,
+				    updated_at = $2 
+				WHERE user_id = $3 AND currency_code = $4
 				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-			`, amountCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+			`, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 			)
 
@@ -426,13 +428,17 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 
 			b.log.Info("UpdateMoney - Successfully updated balance", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("newAmountUnits", amountUnits.String()), zap.Int64("newAmountCents", amountCents))
 		case constant.BONUS_MONEY:
-			reservedCents := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+			// First update reserved_units, then recalculate reserved_cents from the final reserved_units value
+			// This ensures accuracy and prevents drift between cents and units
+			// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
 			err = b.db.GetPool().QueryRow(ctx, `
 				UPDATE balances 
-				SET reserved_cents = reserved_cents + $1, reserved_units = reserved_units + $2, updated_at = $3 
-				WHERE user_id = $4 AND currency_code = $5
+				SET reserved_units = reserved_units + $1, 
+				    reserved_cents = FLOOR((reserved_units + $1) * 100)::BIGINT,
+				    updated_at = $2 
+				WHERE user_id = $3 AND currency_code = $4
 				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-			`, reservedCents, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+			`, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 			)
 		}
@@ -495,15 +501,17 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 
 	switch updateReq.Component {
 	case constant.REAL_MONEY:
-		amountCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+		// First update amount_units, then recalculate amount_cents from the final amount_units value
+		// This ensures accuracy and prevents drift between cents and units
+		// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
 		err = b.db.GetPool().QueryRow(ctx, `
             UPDATE balances
-            SET amount_cents = amount_cents + $1,
-                amount_units = amount_units + $2,
-                updated_at   = $3
-            WHERE user_id = $4 AND currency_code = $5
+            SET amount_units = amount_units + $1,
+                amount_cents = FLOOR((amount_units + $1) * 100)::BIGINT,
+                updated_at   = $2
+            WHERE user_id = $3 AND currency_code = $4
             RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-        `, amountCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+        `, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 		)
 		if err != nil {
@@ -512,15 +520,17 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 			return dto.Balance{}, err
 		}
 	case constant.BONUS_MONEY:
-		reservedCentsToAdd := updateReq.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+		// First update reserved_units, then recalculate reserved_cents from the final reserved_units value
+		// This ensures accuracy and prevents drift between cents and units
+		// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
 		err = b.db.GetPool().QueryRow(ctx, `
             UPDATE balances
-            SET reserved_cents = reserved_cents + $1,
-                reserved_units = reserved_units + $2,
-                updated_at     = $3
-            WHERE user_id = $4 AND currency_code = $5
+            SET reserved_units = reserved_units + $1,
+                reserved_cents = FLOOR((reserved_units + $1) * 100)::BIGINT,
+                updated_at     = $2
+            WHERE user_id = $3 AND currency_code = $4
             RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-        `, reservedCentsToAdd, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+        `, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
 			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
 		)
 		if err != nil {
