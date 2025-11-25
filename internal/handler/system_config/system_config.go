@@ -1011,11 +1011,51 @@ func (h *SystemConfigHandler) GetTipSettings(ctx *gin.Context) {
 
 // UpdateTipSettings updates tip settings
 func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
-	var req system_config.TipSettings
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	// Read JSON body to extract both brand_id and tip settings
+	var jsonBody map[string]interface{}
+	if err := ctx.ShouldBindJSON(&jsonBody); err != nil {
 		h.log.Error("Invalid request body", zap.Error(err))
 		_ = ctx.Error(err)
 		return
+	}
+
+	// Extract brand_id from JSON body, query params, or form data (required)
+	var brandID *uuid.UUID
+	if brandIDVal, exists := jsonBody["brand_id"]; exists {
+		if brandIDStr, ok := brandIDVal.(string); ok && brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	// If not in JSON body, check query params or form data
+	if brandID == nil {
+		if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	// brand_id is required for tip settings
+	if brandID == nil {
+		h.log.Error("brand_id is required for tip settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for tip settings"})
+		return
+	}
+
+	// Parse the TipSettings from JSON body
+	var req system_config.TipSettings
+	if tipTransactionFeeFromWho, ok := jsonBody["tip_transaction_fee_from_who"].(string); ok {
+		req.TipTransactionFeeFromWho = tipTransactionFeeFromWho
+	}
+	if transactionFee, ok := jsonBody["transaction_fee"].(float64); ok {
+		req.TransactionFee = transactionFee
 	}
 
 	adminUserID, exists := ctx.Get("user_id")
@@ -1030,18 +1070,6 @@ func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
 		h.log.Error("Invalid user_id type in context")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
 		return
-	}
-
-	// Get brand_id from query params or request body (optional)
-	var brandID *uuid.UUID
-	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
-		if parsed, err := uuid.Parse(brandIDStr); err == nil {
-			brandID = &parsed
-		}
-	} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
-		if parsed, err := uuid.Parse(brandIDStr); err == nil {
-			brandID = &parsed
-		}
 	}
 
 	err := h.systemConfigStorage.UpdateTipSettings(ctx.Request.Context(), req, adminUUID, brandID)

@@ -227,7 +227,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 			-- General bets table
 			SELECT 
 				b.id,
-				COALESCE(b.timestamp, b.created_at, NOW()) as date_time,
+				COALESCE(b.timestamp, NOW()) as date_time,
 				b.user_id as player_id,
 				u.username,
 				u.email,
@@ -507,7 +507,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 
 			SELECT 
 				b.id,
-				COALESCE(b.timestamp, b.created_at, NOW()) as date_time,
+				COALESCE(b.timestamp, NOW()) as date_time,
 				b.user_id as player_id,
 				u.username,
 				u.email,
@@ -620,4 +620,3 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 
 	return res, nil
 }
-

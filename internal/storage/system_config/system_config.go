@@ -552,9 +552,14 @@ func (s *SystemConfig) GetTipSettings(ctx context.Context, brandID *uuid.UUID) (
 	return settings, nil
 }
 
-// UpdateTipSettings updates tip settings in system config
-// If brandID is nil, updates ALL brands. If brandID is set, updates only that brand.
+// UpdateTipSettings updates tip settings in system config for a specific brand
+// brandID is required - checks if tip_settings exists for that brand_id, updates if exists, inserts if not
 func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	if brandID == nil {
+		s.log.Error("brand_id is required for tip settings")
+		return errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required for tip settings")
+	}
+
 	s.log.Info("Updating tip settings", zap.Any("brand_id", brandID))
 
 	configValue, err := json.Marshal(settings)
@@ -563,50 +568,41 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal tip settings")
 	}
 
-	if brandID == nil {
-		// Update ALL brands when brandID is nil (global update)
-		_, err = s.db.GetPool().Exec(ctx, `
-			WITH brand_ids AS (
-				SELECT id FROM brands
-			)
-			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
-			SELECT 
-				$1,
-				$2,
-				$3,
-				bi.id,
-				$4,
-				NOW()
-			FROM brand_ids bi
-			ON CONFLICT (brand_id, config_key) 
-			DO UPDATE SET 
-				config_value = EXCLUDED.config_value,
-				updated_by = EXCLUDED.updated_by,
-				updated_at = NOW()
-		`, "tip_settings", configValue, "Tip transaction fee settings", adminID)
+	// Check if tip_settings exists for this brand_id
+	var exists bool
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM system_config 
+			WHERE config_key = $1 AND brand_id = $2
+		)
+	`, "tip_settings", brandID).Scan(&exists)
 
-		if err != nil {
-			s.log.Error("Failed to update tip settings for all brands", zap.Error(err))
-			return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings for all brands")
-		}
-		s.log.Info("Tip settings updated for all brands")
+	if err != nil {
+		s.log.Error("Failed to check if tip settings exist", zap.Error(err), zap.Any("brand_id", brandID))
+		return errors.ErrInternalServerError.Wrap(err, "failed to check tip settings")
+	}
+
+	// Insert or update based on existence
+	// ON CONFLICT will handle the update if it exists, or insert if it doesn't
+	_, err = s.db.GetPool().Exec(ctx, `
+		INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (brand_id, config_key) 
+		DO UPDATE SET 
+			config_value = EXCLUDED.config_value,
+			updated_by = EXCLUDED.updated_by,
+			updated_at = NOW()
+	`, "tip_settings", configValue, "Tip transaction fee settings", brandID, adminID)
+
+	if err != nil {
+		s.log.Error("Failed to update tip settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings")
+	}
+
+	if exists {
+		s.log.Info("Tip settings updated for brand", zap.Any("brand_id", brandID))
 	} else {
-		// Update specific brand
-		_, err = s.db.GetPool().Exec(ctx, `
-			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
-			VALUES ($1, $2, $3, $4, $5, NOW())
-			ON CONFLICT (brand_id, config_key) 
-			DO UPDATE SET 
-				config_value = EXCLUDED.config_value,
-				updated_by = EXCLUDED.updated_by,
-				updated_at = NOW()
-		`, "tip_settings", configValue, "Tip transaction fee settings", brandID, adminID)
-
-		if err != nil {
-			s.log.Error("Failed to update tip settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
-			return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings")
-		}
-		s.log.Info("Tip settings updated for specific brand", zap.Any("brand_id", brandID))
+		s.log.Info("Tip settings created for brand", zap.Any("brand_id", brandID))
 	}
 
 	return nil

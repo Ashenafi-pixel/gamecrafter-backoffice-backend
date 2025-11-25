@@ -2231,6 +2231,7 @@ func (u *User) CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) 
 		IsAdmin:                  true,
 		Status:                   req.Status,
 		Type:                     dto.Type(req.UserType),
+		BrandID:                  req.BrandID,
 	}
 
 	createdUser, err := u.userStorage.CreateUser(ctx, userData)

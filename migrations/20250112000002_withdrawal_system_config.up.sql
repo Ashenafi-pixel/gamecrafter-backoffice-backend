@@ -2,13 +2,14 @@
 -- This replaces the dedicated withdrawal_pause_settings table with system config entries
 
 -- Insert withdrawal control configurations into system_config table
-INSERT INTO system_config (config_key, config_value, description, updated_by) 
+INSERT INTO system_config (config_key, config_value, description, updated_by, brand_id) 
 VALUES 
     (
         'withdrawal_global_status',
         '{"enabled": true, "reason": "System initialized", "paused_by": null, "paused_at": null}',
         'Global withdrawal status control - enables/disables all withdrawals system-wide',
-        (SELECT id FROM users WHERE username = 'admin' LIMIT 1)
+        (SELECT id FROM users WHERE username = 'admin' LIMIT 1),
+        NULL
     ),
     (
         'withdrawal_thresholds',
@@ -19,7 +20,8 @@ VALUES
             "user_daily": {"value": 5000, "currency": "USD", "active": true}
         }',
         'Withdrawal threshold limits for automatic pausing based on volume and transaction size',
-        (SELECT id FROM users WHERE username = 'admin' LIMIT 1)
+        (SELECT id FROM users WHERE username = 'admin' LIMIT 1),
+        NULL
     ),
     (
         'withdrawal_manual_review',
@@ -30,7 +32,8 @@ VALUES
             "require_kyc": true
         }',
         'Manual review requirements for withdrawals above specified thresholds',
-        (SELECT id FROM users WHERE username = 'admin' LIMIT 1)
+        (SELECT id FROM users WHERE username = 'admin' LIMIT 1),
+        NULL
     ),
     (
         'withdrawal_pause_reasons',
@@ -43,9 +46,10 @@ VALUES
             "maintenance_mode"
         ]',
         'Predefined reasons for pausing withdrawals',
-        (SELECT id FROM users WHERE username = 'admin' LIMIT 1)
+        (SELECT id FROM users WHERE username = 'admin' LIMIT 1),
+        NULL
     )
-ON CONFLICT (config_key) DO NOTHING;
+ON CONFLICT (brand_id, config_key) DO NOTHING;
 
 -- Create indexes for better performance on system config queries
 CREATE INDEX IF NOT EXISTS idx_system_config_key ON system_config(config_key);
@@ -87,9 +91,9 @@ BEGIN
         'paused_at', CASE WHEN p_enabled = FALSE THEN NOW() ELSE NULL END
     );
     
-    INSERT INTO system_config (config_key, config_value, updated_by)
-    VALUES ('withdrawal_global_status', new_config, p_paused_by)
-    ON CONFLICT (config_key) 
+    INSERT INTO system_config (config_key, config_value, updated_by, brand_id)
+    VALUES ('withdrawal_global_status', new_config, p_paused_by, NULL)
+    ON CONFLICT (brand_id, config_key) 
     DO UPDATE SET 
         config_value = new_config,
         updated_by = p_paused_by,

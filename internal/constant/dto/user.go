@@ -441,6 +441,7 @@ type CreateAdminUserReq struct {
 	UserType                 string           `json:"user_type,omitempty"`
 	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
 	WithdrawalLimitEnabled   bool             `json:"withdrawal_limit_enabled,omitempty"`
+	BrandID                  *uuid.UUID       `json:"brand_id,omitempty"`
 }
 
 type UpdateAdminUserReq struct {

@@ -94,3 +94,83 @@ FROM pages p
 LEFT JOIN pages parent ON p.parent_id = parent.id
 ORDER BY p.id ASC;
 
+-- ============================================
+-- DIAGNOSTIC: Check if pages exist and are assigned
+-- ============================================
+
+-- 1. Check if the 5 pages exist in the pages table
+SELECT 
+    'Pages Check' as check_type,
+    COUNT(*) as count,
+    CASE 
+        WHEN COUNT(*) = 5 THEN '✓ All 5 pages exist'
+        ELSE '✗ Missing pages - Expected 5, Found ' || COUNT(*)::text
+    END as status
+FROM pages
+WHERE path IN (
+    '/reports/big-winners',
+    '/reports/player-metrics',
+    '/reports/country',
+    '/reports/game-performance',
+    '/reports/provider-performance'
+);
+
+-- 2. Check if pages are assigned to any admin users
+SELECT 
+    'Assignment Check' as check_type,
+    COUNT(DISTINCT uap.user_id) as admin_users_with_pages,
+    COUNT(DISTINCT uap.page_id) as pages_assigned,
+    CASE 
+        WHEN COUNT(DISTINCT uap.page_id) = 5 THEN '✓ All 5 pages assigned'
+        ELSE '✗ Not all pages assigned - Expected 5, Found ' || COUNT(DISTINCT uap.page_id)::text
+    END as status
+FROM user_allowed_pages uap
+INNER JOIN pages p ON uap.page_id = p.id
+INNER JOIN users u ON uap.user_id = u.id
+WHERE u.is_admin = true
+  AND p.path IN (
+    '/reports/big-winners',
+    '/reports/player-metrics',
+    '/reports/country',
+    '/reports/game-performance',
+    '/reports/provider-performance'
+  );
+
+-- 3. Check specific user's allowed pages (replace USERNAME with your username)
+-- SELECT 
+--     u.username,
+--     u.id as user_id,
+--     p.path,
+--     p.label,
+--     CASE 
+--         WHEN uap.user_id IS NOT NULL THEN '✓ Assigned'
+--         ELSE '✗ NOT Assigned'
+--     END as assignment_status
+-- FROM users u
+-- CROSS JOIN pages p
+-- LEFT JOIN user_allowed_pages uap ON u.id = uap.user_id AND p.id = uap.page_id
+-- WHERE u.username = 'YOUR_USERNAME_HERE'  -- Replace with your username
+--   AND p.path IN (
+--     '/reports/big-winners',
+--     '/reports/player-metrics',
+--     '/reports/country',
+--     '/reports/game-performance',
+--     '/reports/provider-performance'
+--   )
+-- ORDER BY p.path;
+
+-- 4. Force assign pages to a specific user (if needed - uncomment and replace USER_ID)
+-- INSERT INTO user_allowed_pages (user_id, page_id)
+-- SELECT 
+--     'YOUR_USER_ID_HERE'::uuid,  -- Replace with your user ID
+--     p.id
+-- FROM pages p
+-- WHERE p.path IN (
+--     '/reports/big-winners',
+--     '/reports/player-metrics',
+--     '/reports/country',
+--     '/reports/game-performance',
+--     '/reports/provider-performance'
+-- )
+-- ON CONFLICT (user_id, page_id) DO NOTHING;
+
