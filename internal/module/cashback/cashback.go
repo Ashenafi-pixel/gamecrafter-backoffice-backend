@@ -1307,7 +1307,6 @@ func (s *CashbackService) CreateRakebackSchedule(ctx context.Context, adminUserI
 }
 
 // ListRakebackSchedules lists all rakeback schedules with pagination
->>>>>>> f5cd4f6 (Add permission for "get duplicate IP accounts report" in production)
 func (s *CashbackService) ListRakebackSchedules(ctx context.Context, status string, page, pageSize int) (*dto.ListRakebackSchedulesResponse, error) {
 	s.logger.Info("Listing rakeback schedules",
 		zap.String("status", status),
@@ -1507,22 +1506,22 @@ func (s *CashbackService) scheduleToResponse(schedule *dto.RakebackSchedule) *dt
 	}
 
 	response := &dto.RakebackScheduleResponse{
-		ID:            schedule.ID,
-		Name:          schedule.Name,
-		Description:   schedule.Description,
-		StartTime:     schedule.StartTime,
-		EndTime:       schedule.EndTime,
-		Percentage:    schedule.Percentage,
-		ScopeType:     schedule.ScopeType,
-		ScopeValue:    schedule.ScopeValue,
-		Status:        schedule.Status,
-		CreatedBy:     schedule.CreatedBy,
-		ActivatedAt:   schedule.ActivatedAt,
-		DeactivatedAt: schedule.DeactivatedAt,
-		CreatedAt:     schedule.CreatedAt,
-		UpdatedAt:     schedule.UpdatedAt,
-		IsActive:      isActive,
-		TimeRemaining: timeRemaining,
+		ID:             schedule.ID,
+		Name:           schedule.Name,
+		Description:    schedule.Description,
+		StartTime:      schedule.StartTime,
+		EndTime:        schedule.EndTime,
+		Percentage:     schedule.Percentage,
+		ScopeType:      schedule.ScopeType,
+		ScopeValue:     schedule.ScopeValue,
+		Status:         schedule.Status,
+		CreatedBy:      schedule.CreatedBy,
+		ActivatedAt:    schedule.ActivatedAt,
+		DeactivatedAt:  schedule.DeactivatedAt,
+		CreatedAt:      schedule.CreatedAt,
+		UpdatedAt:      schedule.UpdatedAt,
+		IsActive:       isActive,
+		TimeRemaining:  timeRemaining,
 		TimeUntilStart: timeUntilStart,
 	}
 

@@ -28,6 +28,7 @@ import (
 	emailModule "github.com/tucanbit/internal/module/email"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/cashback"
+	cashbackModule "github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform"
 	"github.com/tucanbit/platform/clickhouse"
@@ -291,7 +292,9 @@ func Initiate() {
 	// Start rakeback scheduler for automatic schedule activation/deactivation
 	if persistence.Cashback != nil {
 		logger.Info("Starting rakeback scheduler")
-		rakebackScheduler := cashback.NewRakebackScheduler(persistence.Cashback, logger)
+		// Type assertion to ensure correct type (cashback.CashbackStorage)
+		var _ cashback.CashbackStorage = persistence.Cashback
+		rakebackScheduler := cashbackModule.NewRakebackScheduler(persistence.Cashback, logger)
 		rakebackScheduler.Start(context.Background())
 		logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
 	}
