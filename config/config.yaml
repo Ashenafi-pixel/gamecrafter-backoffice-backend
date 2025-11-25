@@ -223,7 +223,7 @@ kafka:
 # min_idle_conns: Minimum number of idle connections to maintain
 redis:
   enabled: true
-  addr: "172.31.36.46:63790"
+  addr: "localhost:63790"
   password: "tucanbit_redis_password"
   db: 0
   key_prefix: "tucanbit:"

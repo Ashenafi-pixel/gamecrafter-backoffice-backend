@@ -55,6 +55,20 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 	// Get brand_id from request (now available in dto.User)
 	brandID := userRequest.BrandID
 
+	// Ensure default_currency is max 3 characters (database constraint: VARCHAR(3))
+	defaultCurrency := strings.TrimSpace(userRequest.DefaultCurrency)
+	if len(defaultCurrency) > 3 {
+		defaultCurrency = defaultCurrency[:3]
+		u.log.Warn("default_currency truncated to 3 characters", 
+			zap.String("original", userRequest.DefaultCurrency), 
+			zap.String("truncated", defaultCurrency))
+	}
+	// Log the final value being inserted for debugging
+	u.log.Debug("default_currency value for insert", 
+		zap.String("value", defaultCurrency), 
+		zap.Int("length", len(defaultCurrency)),
+		zap.Bool("valid", defaultCurrency != ""))
+
 	// Use raw SQL to include brand_id since SQLC generated code doesn't have it
 	var usr db.User
 	var brandIDFromDB uuid.NullUUID
@@ -62,7 +76,7 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 		INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status,street_address,country,state,city,postal_code,kyc_status,profile,brand_id) 
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) 
 		RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, user_type, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, refered_by_code, referal_type, is_test_account, brand_id
-	`, userRequest.Username, phone, email, userRequest.Password, sql.NullString{String: userRequest.DefaultCurrency, Valid: true}, sql.NullString{String: userRequest.Source, Valid: true}, sql.NullString{String: userRequest.ReferralCode, Valid: true}, sql.NullString{String: userRequest.DateOfBirth, Valid: true}, createdBy, sql.NullBool{Bool: userRequest.IsAdmin, Valid: true}, sql.NullString{String: userRequest.FirstName, Valid: true}, sql.NullString{String: userRequest.LastName, Valid: true}, sql.NullString{String: string(userRequest.ReferalType), Valid: userRequest.ReferalType != ""}, sql.NullString{String: string(userRequest.ReferedByCode), Valid: userRequest.ReferedByCode != ""}, sql.NullString{String: string(userRequest.Type), Valid: userRequest.Type != ""}, sql.NullString{String: userRequest.Status, Valid: userRequest.Status != ""}, userRequest.StreetAddress, userRequest.Country, userRequest.State, userRequest.City, userRequest.PostalCode, userRequest.KYCStatus, userRequest.ProfilePicture, brandID).Scan(
+	`, userRequest.Username, phone, userRequest.Password, sql.NullString{String: defaultCurrency, Valid: defaultCurrency != ""}, email, sql.NullString{String: userRequest.Source, Valid: true}, sql.NullString{String: userRequest.ReferralCode, Valid: true}, sql.NullString{String: userRequest.DateOfBirth, Valid: true}, createdBy, sql.NullBool{Bool: userRequest.IsAdmin, Valid: true}, sql.NullString{String: userRequest.FirstName, Valid: true}, sql.NullString{String: userRequest.LastName, Valid: true}, sql.NullString{String: string(userRequest.ReferalType), Valid: userRequest.ReferalType != ""}, sql.NullString{String: string(userRequest.ReferedByCode), Valid: userRequest.ReferedByCode != ""}, sql.NullString{String: string(userRequest.Type), Valid: userRequest.Type != ""}, sql.NullString{String: userRequest.Status, Valid: userRequest.Status != ""}, userRequest.StreetAddress, userRequest.Country, userRequest.State, userRequest.City, userRequest.PostalCode, userRequest.KYCStatus, userRequest.ProfilePicture, brandID).Scan(
 		&usr.ID, &usr.Username, &usr.PhoneNumber, &usr.Password, &usr.CreatedAt, &usr.DefaultCurrency, &usr.Profile, &usr.Email, &usr.FirstName, &usr.LastName, &usr.DateOfBirth, &usr.Source, &usr.UserType, &usr.ReferalCode, &usr.StreetAddress, &usr.Country, &usr.State, &usr.City, &usr.PostalCode, &usr.KycStatus, &usr.CreatedBy, &usr.IsAdmin, &usr.Status, &usr.ReferedByCode, &usr.ReferalType, &isTestAccount, &brandIDFromDB,
 	)
 	_ = brandIDFromDB // brand_id is stored but not used in db.User struct
