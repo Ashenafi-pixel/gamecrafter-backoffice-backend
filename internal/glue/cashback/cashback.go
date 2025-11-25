@@ -20,10 +20,12 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	{
 		public.GET("/tiers", handler.GetCashbackTiers)
 		public.GET("/house-edge", handler.GetGameHouseEdge)
+		public.GET("/schedules/:id", handler.GetRakebackSchedule)
 	}
 
 	// User routes (authentication required)
 	user := r.Group("/user/cashback")
+
 	user.Use(middleware.Auth())
 	{
 		user.GET("", handler.GetUserCashbackSummary)
