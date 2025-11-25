@@ -317,7 +317,7 @@ func (s *SystemConfig) GetGeneralSettings(ctx context.Context, brandID *uuid.UUI
 		SELECT config_value FROM system_config 
 		WHERE config_key = $1 AND brand_id = $2
 	`, "general_settings", brandID).Scan(&configValue)
-	
+
 	// Handle case where no configuration exists yet
 	if err != nil {
 		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
@@ -380,7 +380,7 @@ func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings Gener
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "general_settings", configValue, "General application settings", adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update general settings for all brands", zap.Error(err))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update general settings for all brands")
@@ -397,7 +397,7 @@ func (s *SystemConfig) UpdateGeneralSettings(ctx context.Context, settings Gener
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "general_settings", configValue, "General application settings", brandID, adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update general settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update general settings")
@@ -423,7 +423,7 @@ func (s *SystemConfig) GetPaymentSettings(ctx context.Context, brandID *uuid.UUI
 		SELECT config_value FROM system_config 
 		WHERE config_key = $1 AND brand_id = $2
 	`, "payment_settings", brandID).Scan(&configValue)
-	
+
 	// Handle case where no configuration exists yet
 	if err != nil {
 		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
@@ -484,7 +484,7 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "payment_settings", configValue, "Payment processing settings", adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update payment settings for all brands", zap.Error(err))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update payment settings for all brands")
@@ -501,7 +501,7 @@ func (s *SystemConfig) UpdatePaymentSettings(ctx context.Context, settings Payme
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "payment_settings", configValue, "Payment processing settings", brandID, adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update payment settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update payment settings")
@@ -527,7 +527,7 @@ func (s *SystemConfig) GetTipSettings(ctx context.Context, brandID *uuid.UUID) (
 		SELECT config_value FROM system_config 
 		WHERE config_key = $1 AND brand_id = $2
 	`, "tip_settings", brandID).Scan(&configValue)
-	
+
 	// Handle case where no configuration exists yet
 	if err != nil {
 		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
@@ -584,7 +584,7 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "tip_settings", configValue, "Tip transaction fee settings", adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update tip settings for all brands", zap.Error(err))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings for all brands")
@@ -601,7 +601,7 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "tip_settings", configValue, "Tip transaction fee settings", brandID, adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update tip settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update tip settings")
@@ -627,7 +627,7 @@ func (s *SystemConfig) GetSecuritySettings(ctx context.Context, brandID *uuid.UU
 		SELECT config_value FROM system_config 
 		WHERE config_key = $1 AND brand_id = $2
 	`, "security_settings", brandID).Scan(&configValue)
-	
+
 	// Handle case where no configuration exists yet
 	if err != nil {
 		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
@@ -691,7 +691,7 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "security_settings", configValue, "Security and authentication settings", adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update security settings for all brands", zap.Error(err))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update security settings for all brands")
@@ -708,7 +708,7 @@ func (s *SystemConfig) UpdateSecuritySettings(ctx context.Context, settings Secu
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "security_settings", configValue, "Security and authentication settings", brandID, adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update security settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update security settings")
@@ -734,7 +734,7 @@ func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context, brandID *uuid
 		SELECT config_value FROM system_config 
 		WHERE config_key = $1 AND brand_id = $2
 	`, "geo_blocking_settings", brandID).Scan(&configValue)
-	
+
 	// Handle case where no configuration exists yet
 	if err != nil {
 		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
@@ -746,7 +746,7 @@ func (s *SystemConfig) GetGeoBlockingSettings(ctx context.Context, brandID *uuid
 				VpnDetection:      false,
 				ProxyDetection:    false,
 				TorBlocking:       false,
-				LogAttempts:        true,
+				LogAttempts:       true,
 				BlockedCountries:  []string{},
 				AllowedCountries:  []string{},
 				BypassCountries:   []string{},
@@ -798,7 +798,7 @@ func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings G
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update geo blocking settings for all brands", zap.Error(err))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update geo blocking settings for all brands")
@@ -815,7 +815,7 @@ func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings G
 				updated_by = EXCLUDED.updated_by,
 				updated_at = NOW()
 		`, "geo_blocking_settings", configValue, "Geo blocking and location-based access control settings", brandID, adminID)
-		
+
 		if err != nil {
 			s.log.Error("Failed to update geo blocking settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
 			return errors.ErrInternalServerError.Wrap(err, "failed to update geo blocking settings")
