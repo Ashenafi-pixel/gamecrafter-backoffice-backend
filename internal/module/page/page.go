@@ -58,9 +58,14 @@ func (p *pageModule) SeedPages(ctx context.Context) error {
 	}{
 		// Reports children
 		{"/reports", "Analytics Dashboard", "/reports"},
-		{"/reports/transaction", "Wallet Report", "/reports"},
+		// {"/reports/transaction", "Wallet Report", "/reports"},
 		{"/reports/daily", "Daily Report", "/reports"},
-		{"/reports/game", "Game Report", "/reports"},
+		// {"/reports/game", "Game Report", "/reports"},
+		{"/reports/big-winners", "Big Winners", "/reports"},
+		{"/reports/player-metrics", "Player Metrics", "/reports"},
+		{"/reports/country", "Country Report", "/reports"},
+		{"/reports/game-performance", "Game Performance", "/reports"},
+		{"/reports/provider-performance", "Provider Performance", "/reports"},
 		
 		// Rakeback children
 		{"/cashback", "VIP Levels", "/cashback"},
