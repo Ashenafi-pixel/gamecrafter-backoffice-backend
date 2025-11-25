@@ -1058,7 +1058,7 @@ func (h *CashbackHandler) ProcessSingleLevelProgression(c *gin.Context) {
 	result := h.cashbackService.CreateLevelProgressionResult(c.Request.Context(), userUUID)
 
 	if result.Error != "" && !result.Success {
-		h.logger.Error("Failed to process level progression", 
+		h.logger.Error("Failed to process level progression",
 			zap.String("user_id", userUUID.String()),
 			zap.String("error", result.Error))
 		c.JSON(http.StatusOK, gin.H{
@@ -1257,7 +1257,7 @@ func (h *CashbackHandler) UpdateGlobalRakebackOverride(c *gin.Context) {
 		message = "Global rakeback override disabled. Users will receive VIP tier-based rakeback."
 	}
 
-		response := dto.GlobalCashbackOverrideResponse{
+	response := dto.GlobalCashbackOverrideResponse{
 		IsEnabled:          updated.IsEnabled,
 		OverridePercentage: updated.OverridePercentage,
 		EnabledBy:          updated.EnabledBy,
@@ -1291,12 +1291,7 @@ func (h *CashbackHandler) UpdateGlobalRakebackOverride(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules [post]
 func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Rakeback schedule feature not yet implemented",
-	})
-	return
-	/* COMMENTED OUT - Service method doesn't exist
+
 	adminUserIDStr := c.GetString("user-id")
 	if adminUserIDStr == "" {
 		h.logger.Error("Admin user ID not found in context")
@@ -1346,7 +1341,6 @@ func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
 		zap.String("name", schedule.Name))
 
 	c.JSON(http.StatusCreated, schedule)
-	*/
 }
 
 // NOTE: ListRakebackSchedules is commented out - service method doesn't exist yet
@@ -1366,12 +1360,7 @@ func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules [get]
 func (h *CashbackHandler) ListRakebackSchedules(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Rakeback schedule feature not yet implemented",
-	})
-	return
-	/* COMMENTED OUT - Service method doesn't exist
+
 	status := c.DefaultQuery("status", "")
 	page := 1
 	pageSize := 20
@@ -1404,7 +1393,6 @@ func (h *CashbackHandler) ListRakebackSchedules(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, schedules)
-	*/
 }
 
 // NOTE: GetRakebackSchedule is commented out - service method doesn't exist yet
@@ -1424,12 +1412,7 @@ func (h *CashbackHandler) ListRakebackSchedules(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules/{id} [get]
 func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Rakeback schedule feature not yet implemented",
-	})
-	return
-	/* COMMENTED OUT - Service method doesn't exist
+
 	scheduleIDStr := c.Param("id")
 	scheduleID, err := uuid.Parse(scheduleIDStr)
 	if err != nil {
@@ -1454,7 +1437,7 @@ func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, schedule)
-	*/
+
 }
 
 // NOTE: UpdateRakebackSchedule is commented out - service method doesn't exist yet
@@ -1475,12 +1458,7 @@ func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules/{id} [put]
 func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Rakeback schedule feature not yet implemented",
-	})
-	return
-	/* COMMENTED OUT - Service method doesn't exist
+
 	scheduleIDStr := c.Param("id")
 	scheduleID, err := uuid.Parse(scheduleIDStr)
 	if err != nil {
@@ -1515,7 +1493,6 @@ func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, schedule)
-	*/
 }
 
 // NOTE: DeleteRakebackSchedule is commented out - service method doesn't exist yet
@@ -1535,12 +1512,7 @@ func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules/{id} [delete]
 func (h *CashbackHandler) DeleteRakebackSchedule(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, dto.ErrorResponse{
-		Code:    http.StatusNotImplemented,
-		Message: "Rakeback schedule feature not yet implemented",
-	})
-	return
-	/* COMMENTED OUT - Service method doesn't exist
+
 	scheduleIDStr := c.Param("id")
 	scheduleID, err := uuid.Parse(scheduleIDStr)
 	if err != nil {
@@ -1567,5 +1539,4 @@ func (h *CashbackHandler) DeleteRakebackSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse{
 		Message: "Rakeback schedule cancelled successfully",
 	})
-	*/
 }
