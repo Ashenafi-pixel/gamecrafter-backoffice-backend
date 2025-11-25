@@ -62,6 +62,7 @@ type User struct {
 	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
 	WithdrawalLimitEnabled   bool             `json:"withdrawal_limit_enabled,omitempty"`
 	WithdrawalAllTimeLimit   *decimal.Decimal `json:"withdrawal_all_time_limit,omitempty"`
+	BrandID                  *uuid.UUID       `json:"brand_id,omitempty"` // brand_id from request
 }
 
 // profileResponse

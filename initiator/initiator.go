@@ -27,6 +27,7 @@ import (
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	emailModule "github.com/tucanbit/internal/module/email"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
+	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform"
 	"github.com/tucanbit/platform/clickhouse"
@@ -288,14 +289,12 @@ func Initiate() {
 	}
 
 	// Start rakeback scheduler for automatic schedule activation/deactivation
-	// NOTE: Commented out - Rakeback schedule feature not yet fully implemented
-	// The GetRakebackScheduler method doesn't exist on CashbackService
-	// if module.Cashback != nil {
-	// 	logger.Info("Starting rakeback scheduler")
-	// 	// rakebackScheduler := cashback.NewRakebackScheduler(persistence.Cashback, logger)
-	// 	// rakebackScheduler.Start(context.Background())
-	// 	logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
-	// }
+	if persistence.Cashback != nil {
+		logger.Info("Starting rakeback scheduler")
+		rakebackScheduler := cashback.NewRakebackScheduler(persistence.Cashback, logger)
+		rakebackScheduler.Start(context.Background())
+		logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
+	}
 
 	// Start daily report cronjob service
 	if dailyReportCronjobService != nil {

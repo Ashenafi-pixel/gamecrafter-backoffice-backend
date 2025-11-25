@@ -51,25 +51,21 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 		email = sql.NullString{String: userRequest.Email, Valid: true}
 	}
 	isTestAccount := sql.NullBool{Bool: userRequest.IsTestAccount, Valid: true}
-	usr, err := u.db.Queries.CreateUser(ctx, db.CreateUserParams{
-		Username:        userRequest.Username,
-		PhoneNumber:     phone,
-		Email:           email,
-		Password:        userRequest.Password,
-		FirstName:       sql.NullString{String: userRequest.FirstName, Valid: true},
-		LastName:        sql.NullString{String: userRequest.LastName, Valid: true},
-		DefaultCurrency: sql.NullString{String: userRequest.DefaultCurrency, Valid: true},
-		Source:          sql.NullString{String: userRequest.Source, Valid: true},
-		ReferalCode:     sql.NullString{String: userRequest.ReferralCode, Valid: true},
-		DateOfBirth:     sql.NullString{String: userRequest.DateOfBirth, Valid: true},
-		IsAdmin:         sql.NullBool{Bool: userRequest.IsAdmin, Valid: true},
-		CreatedBy:       createdBy,
-		Status:          sql.NullString{String: userRequest.Status, Valid: userRequest.Status != ""},
-		UserType:        sql.NullString{String: string(userRequest.Type), Valid: userRequest.Type != ""},
-		ReferedByCode:   sql.NullString{String: string(userRequest.ReferedByCode), Valid: userRequest.ReferedByCode != ""},
-		ReferalType:     sql.NullString{String: string(userRequest.ReferalType), Valid: userRequest.ReferalType != ""},
-		IsTestAccount:   isTestAccount,
-	})
+
+	// Get brand_id from request (now available in dto.User)
+	brandID := userRequest.BrandID
+
+	// Use raw SQL to include brand_id since SQLC generated code doesn't have it
+	var usr db.User
+	var brandIDFromDB uuid.NullUUID
+	err := u.db.GetPool().QueryRow(ctx, `
+		INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status,street_address,country,state,city,postal_code,kyc_status,profile,brand_id) 
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) 
+		RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, user_type, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, refered_by_code, referal_type, is_test_account, brand_id
+	`, userRequest.Username, phone, email, userRequest.Password, sql.NullString{String: userRequest.DefaultCurrency, Valid: true}, sql.NullString{String: userRequest.Source, Valid: true}, sql.NullString{String: userRequest.ReferralCode, Valid: true}, sql.NullString{String: userRequest.DateOfBirth, Valid: true}, createdBy, sql.NullBool{Bool: userRequest.IsAdmin, Valid: true}, sql.NullString{String: userRequest.FirstName, Valid: true}, sql.NullString{String: userRequest.LastName, Valid: true}, sql.NullString{String: string(userRequest.ReferalType), Valid: userRequest.ReferalType != ""}, sql.NullString{String: string(userRequest.ReferedByCode), Valid: userRequest.ReferedByCode != ""}, sql.NullString{String: string(userRequest.Type), Valid: userRequest.Type != ""}, sql.NullString{String: userRequest.Status, Valid: userRequest.Status != ""}, userRequest.StreetAddress, userRequest.Country, userRequest.State, userRequest.City, userRequest.PostalCode, userRequest.KYCStatus, userRequest.ProfilePicture, brandID).Scan(
+		&usr.ID, &usr.Username, &usr.PhoneNumber, &usr.Password, &usr.CreatedAt, &usr.DefaultCurrency, &usr.Profile, &usr.Email, &usr.FirstName, &usr.LastName, &usr.DateOfBirth, &usr.Source, &usr.UserType, &usr.ReferalCode, &usr.StreetAddress, &usr.Country, &usr.State, &usr.City, &usr.PostalCode, &usr.KycStatus, &usr.CreatedBy, &usr.IsAdmin, &usr.Status, &usr.ReferedByCode, &usr.ReferalType, &isTestAccount, &brandIDFromDB,
+	)
+	_ = brandIDFromDB // brand_id is stored but not used in db.User struct
 	if err != nil {
 		u.log.Error("unable to create user ", zap.Error(err), zap.Any("user", userRequest))
 		err = errors.ErrUnableTocreate.Wrap(err, "unable to create user ")
@@ -1254,6 +1250,13 @@ func (u *user) UpdateUserLevelManualOverride(ctx context.Context, req dto.UserLe
 		setAt = nil
 	}
 
+	// Fetch brand_id from users table (in case it changed)
+	var brandID *uuid.UUID
+	err = u.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, req.UserID).Scan(&brandID)
+	if err != nil && err != sql.ErrNoRows {
+		u.log.Warn("Failed to get brand_id from user for user_levels update, continuing without it", zap.Error(err), zap.String("userID", req.UserID.String()))
+	}
+
 	commandTag, err := u.db.GetPool().Exec(ctx, `
 		UPDATE user_levels
 		SET is_manual_override = $2,
@@ -1261,9 +1264,10 @@ func (u *user) UpdateUserLevelManualOverride(ctx context.Context, req dto.UserLe
 			manual_override_tier_id = $4,
 			manual_override_set_by = $5,
 			manual_override_set_at = $6,
+			brand_id = $7,
 			updated_at = NOW()
 		WHERE user_id = $1
-	`, req.UserID, req.IsManualOverride, manualLevelVal, manualTierVal, adminID, setAt)
+	`, req.UserID, req.IsManualOverride, manualLevelVal, manualTierVal, adminID, setAt, brandID)
 	if err != nil {
 		return nil, err
 	}
@@ -1618,10 +1622,10 @@ func (u *user) getVipLevelFromDatabase(ctx context.Context, userID uuid.UUID) (s
 	if err != nil {
 		// Check for "no rows" error - could be sql.ErrNoRows, pgx.ErrNoRows, or error message
 		errMsg := err.Error()
-		if err == sql.ErrNoRows || 
-		   errMsg == "no rows in result set" ||
-		   errMsg == "sql: no rows in result set" ||
-		   errMsg == "pgx: no rows in result set" {
+		if err == sql.ErrNoRows ||
+			errMsg == "no rows in result set" ||
+			errMsg == "sql: no rows in result set" ||
+			errMsg == "pgx: no rows in result set" {
 			// User doesn't have a level record yet, return default
 			u.log.Debug("No user level found, returning default Bronze", zap.String("userID", userID.String()))
 			return "Bronze", nil

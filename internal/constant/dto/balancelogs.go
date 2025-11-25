@@ -24,6 +24,7 @@ type BalanceLogs struct {
 	TransactionID       *string          `json:"transaction_id"`
 	Total               int              `json:"total,omitempty"`
 	Status              string           `json:"status"`
+	BrandID             *uuid.UUID       `json:"brand_id,omitempty"` // brand_id from users table
 }
 
 type BalanceLogsRes struct {

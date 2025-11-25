@@ -1291,7 +1291,6 @@ func (h *CashbackHandler) UpdateGlobalRakebackOverride(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules [post]
 func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
-
 	adminUserIDStr := c.GetString("user-id")
 	if adminUserIDStr == "" {
 		h.logger.Error("Admin user ID not found in context")
@@ -1329,10 +1328,20 @@ func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
 	schedule, err := h.cashbackService.CreateRakebackSchedule(c.Request.Context(), adminUserID, request)
 	if err != nil {
 		h.logger.Error("Failed to create rakeback schedule", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
+		if err.Error() == "end_time must be after start_time" ||
+			err.Error() == "percentage must be between 0 and 100" ||
+			err.Error() == "scope_type must be 'all', 'provider', or 'game'" ||
+			err.Error() == "scope_value is required when scope_type is not 'all'" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			})
+		}
 		return
 	}
 
@@ -1360,7 +1369,6 @@ func (h *CashbackHandler) CreateRakebackSchedule(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules [get]
 func (h *CashbackHandler) ListRakebackSchedules(c *gin.Context) {
-
 	status := c.DefaultQuery("status", "")
 	page := 1
 	pageSize := 20
@@ -1412,7 +1420,6 @@ func (h *CashbackHandler) ListRakebackSchedules(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules/{id} [get]
 func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
-
 	scheduleIDStr := c.Param("id")
 	scheduleID, err := uuid.Parse(scheduleIDStr)
 	if err != nil {
@@ -1437,7 +1444,6 @@ func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, schedule)
-
 }
 
 // NOTE: UpdateRakebackSchedule is commented out - service method doesn't exist yet
@@ -1458,7 +1464,6 @@ func (h *CashbackHandler) GetRakebackSchedule(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules/{id} [put]
 func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
-
 	scheduleIDStr := c.Param("id")
 	scheduleID, err := uuid.Parse(scheduleIDStr)
 	if err != nil {
@@ -1485,10 +1490,26 @@ func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
 	schedule, err := h.cashbackService.UpdateRakebackSchedule(c.Request.Context(), scheduleID, request)
 	if err != nil {
 		h.logger.Error("Failed to update rakeback schedule", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
+		if err.Error() == "cannot update an active schedule" ||
+			err.Error() == "cannot update a completed schedule" ||
+			err.Error() == "cannot update a cancelled schedule" ||
+			err.Error() == "end_time must be after start_time" ||
+			err.Error() == "percentage must be between 0 and 100" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+		} else if err.Error() == "rakeback schedule not found" {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Code:    http.StatusNotFound,
+				Message: err.Error(),
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			})
+		}
 		return
 	}
 
@@ -1512,7 +1533,6 @@ func (h *CashbackHandler) UpdateRakebackSchedule(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /admin/cashback/schedules/{id} [delete]
 func (h *CashbackHandler) DeleteRakebackSchedule(c *gin.Context) {
-
 	scheduleIDStr := c.Param("id")
 	scheduleID, err := uuid.Parse(scheduleIDStr)
 	if err != nil {
@@ -1529,10 +1549,19 @@ func (h *CashbackHandler) DeleteRakebackSchedule(c *gin.Context) {
 	err = h.cashbackService.DeleteRakebackSchedule(c.Request.Context(), scheduleID)
 	if err != nil {
 		h.logger.Error("Failed to delete rakeback schedule", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		})
+		if err.Error() == "cannot cancel an active schedule" ||
+			err.Error() == "cannot cancel a completed schedule" ||
+			err.Error() == "rakeback schedule not found" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			})
+		}
 		return
 	}
 

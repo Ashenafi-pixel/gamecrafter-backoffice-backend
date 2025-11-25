@@ -12,10 +12,11 @@ type Balance struct {
 	ID            uuid.UUID       `json:"id" `
 	UserId        uuid.UUID       `json:"user_id"`
 	CurrencyCode  string          `json:"currency_code" validate:"required"`
-	AmountCents   int64           `json:"amount_cents"`   // amount in cents
-	AmountUnits   decimal.Decimal `json:"amount_units"`   // amount in units
-	ReservedCents int64           `json:"reserved_cents"` // reserved amount in cents
-	ReservedUnits decimal.Decimal `json:"reserved_units"` // reserved amount in units
+	AmountCents   int64           `json:"amount_cents"`       // amount in cents
+	AmountUnits   decimal.Decimal `json:"amount_units"`       // amount in units
+	ReservedCents int64           `json:"reserved_cents"`     // reserved amount in cents
+	ReservedUnits decimal.Decimal `json:"reserved_units"`     // reserved amount in units
+	BrandID       *uuid.UUID      `json:"brand_id,omitempty"` // brand_id from users table
 	UpdateAt      time.Time       `json:"updated_at"`
 }
 

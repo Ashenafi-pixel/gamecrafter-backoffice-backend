@@ -32,6 +32,9 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		return dto.ManualFundRes{}, err
 	}
 
+	// Note: brand_id will be fetched and set by CreateBalance and UpdateMoney methods
+	// which already query it from the users table, so we don't need to fetch it here
+
 	//fund user with the specified amount
 	//create or get operational group and type
 	operationalGroupAndType, err := b.CreateOrGetOperationalGroupAndType(ctx, constant.TRANSFER, constant.ADD_FUND)
@@ -56,6 +59,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 			CurrencyCode: constant.DEFAULT_CURRENCY, // Use default currency for server database
 			AmountCents:  fund.Amount.Mul(decimal.NewFromInt(100)).IntPart(),
 			AmountUnits:  fund.Amount,
+			// BrandID will be fetched by CreateBalance from users table
 		})
 		if err != nil {
 			b.log.Error("Failed to create balance", zap.Error(err))
@@ -78,6 +82,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		b.log.Info("Balance updated successfully", zap.String("newAmountUnits", updatedBalance.AmountUnits.String()), zap.Int64("newAmountCents", updatedBalance.AmountCents))
 	}
 	//save transaction_log
+	// Note: brand_id will be fetched by SaveBalanceLogs from the users table
 	blog, err := b.SaveBalanceLogs(ctx, dto.SaveBalanceLogsReq{
 		OperationalGroupID:   operationalGroupAndType.OperationalGroupID,
 		OperationalGroupType: operationalGroupAndType.OperationalTypeID,
@@ -134,13 +139,13 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		go func() {
 			// Small delay to ensure database transaction is committed
 			time.Sleep(500 * time.Millisecond)
-			
+
 			// Run in background to not block the response
 			// Use the alert service's CheckDepositAlerts which handles both trigger creation and email sending
 			b.log.Info("Checking deposit alerts after manual fund addition",
 				zap.String("user_id", fund.UserID.String()),
 				zap.String("amount", fund.Amount.String()))
-			
+
 			// Skip duplicate check when manually adding funds - we want to create a trigger and send email
 			if err := b.alertService.CheckDepositAlerts(context.Background(), true); err != nil {
 				b.log.Error("Failed to check deposit alerts after manual fund", zap.Error(err))
@@ -386,7 +391,7 @@ func (b *balance) ValidateFundReq(ctx context.Context, fund dto.ManualFundReq) e
 		// Admin has a funding limit set
 		if fund.Amount.GreaterThan(*maxLimit) {
 			err = fmt.Errorf("funding amount %s exceeds admin's limit of %s", fund.Amount.String(), maxLimit.String())
-			b.log.Warn("Funding limit exceeded", 
+			b.log.Warn("Funding limit exceeded",
 				zap.String("adminID", fund.AdminID.String()),
 				zap.String("requestedAmount", fund.Amount.String()),
 				zap.String("limit", maxLimit.String()))

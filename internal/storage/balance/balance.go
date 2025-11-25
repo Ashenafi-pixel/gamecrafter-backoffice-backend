@@ -84,12 +84,19 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 		reservedCents = createBalanceReq.ReservedUnits.Mul(decimal.NewFromInt(100)).IntPart()
 		reservedUnits = createBalanceReq.ReservedUnits
 
-		err := b.db.GetPool().QueryRow(ctx, `
-			INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at) 
-			VALUES ($1, $2, $3, $4, $5, $6, $7) 
-			RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-		`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, amountCents, amountUnits, reservedCents, reservedUnits, time.Now()).Scan(
-			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+		// Fetch brand_id from users table
+		var brandID *uuid.UUID
+		err := b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, createBalanceReq.UserId).Scan(&brandID)
+		if err != nil && err != sql.ErrNoRows {
+			b.log.Warn("Failed to get brand_id from user, continuing without it", zap.Error(err), zap.String("userID", createBalanceReq.UserId.String()))
+		}
+
+		err = b.db.GetPool().QueryRow(ctx, `
+			INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+			RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at
+		`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, amountCents, amountUnits, reservedCents, reservedUnits, brandID, time.Now()).Scan(
+			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &brandID, &updatedAt,
 		)
 		if err != nil {
 			b.log.Error("unable to create balance ", zap.Error(err), zap.Any("user", createBalanceReq))
@@ -119,12 +126,19 @@ func (b *balance) CreateBalance(ctx context.Context, createBalanceReq dto.Balanc
 	var reservedUnits decimal.Decimal
 	var updatedAt time.Time
 
-	err := b.db.GetPool().QueryRow(ctx, `
-		INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) 
-		RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-	`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, 0, createBalanceReq.AmountUnits, 0, createBalanceReq.ReservedUnits, time.Now()).Scan(
-		&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+	// Fetch brand_id from users table
+	var brandID *uuid.UUID
+	err := b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, createBalanceReq.UserId).Scan(&brandID)
+	if err != nil && err != sql.ErrNoRows {
+		b.log.Warn("Failed to get brand_id from user, continuing without it", zap.Error(err), zap.String("userID", createBalanceReq.UserId.String()))
+	}
+
+	err = b.db.GetPool().QueryRow(ctx, `
+		INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+		RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at
+	`, createBalanceReq.UserId, createBalanceReq.CurrencyCode, 0, createBalanceReq.AmountUnits, 0, createBalanceReq.ReservedUnits, brandID, time.Now()).Scan(
+		&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &brandID, &updatedAt,
 	)
 	if err != nil {
 		b.log.Error("unable to create balance", zap.Error(err), zap.Any("user", createBalanceReq))
@@ -387,14 +401,20 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 
 		b.log.Info("UpdateMoney - Balance existence check", zap.Bool("exists", exists), zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("amount", updateReq.Amount.String()))
 
-		// Create balance if it doesn't exist
+		// Create balance if it doesn't exist - fetch brand_id from user
 		if !exists {
+			var brandID *uuid.UUID
+			err = b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, updateReq.UserID).Scan(&brandID)
+			if err != nil && err != sql.ErrNoRows {
+				b.log.Error("unable to get brand_id from user", zap.Error(err), zap.String("userID", updateReq.UserID.String()))
+			}
+
 			err = b.db.GetPool().QueryRow(ctx, `
-				INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at) 
-				VALUES ($1, $2, $3, $4, $5, $6, $7) 
-				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-			`, updateReq.UserID, updateReq.Currency, 0, decimal.Zero, 0, decimal.Zero, time.Now()).Scan(
-				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+				INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at) 
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at
+			`, updateReq.UserID, updateReq.Currency, 0, decimal.Zero, 0, decimal.Zero, brandID, time.Now()).Scan(
+				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &brandID, &updatedAt,
 			)
 			if err != nil {
 				b.log.Error("unable to create balance", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -429,17 +449,25 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 			b.log.Info("UpdateMoney - Successfully updated balance", zap.String("userID", updateReq.UserID.String()), zap.String("currency", updateReq.Currency), zap.String("newAmountUnits", amountUnits.String()), zap.Int64("newAmountCents", amountCents))
 		case constant.BONUS_MONEY:
 			// First update reserved_units, then recalculate reserved_cents from the final reserved_units value
+			// Also update brand_id from user if it's different
 			// This ensures accuracy and prevents drift between cents and units
 			// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
+			var brandID *uuid.UUID
+			err = b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, updateReq.UserID).Scan(&brandID)
+			if err != nil && err != sql.ErrNoRows {
+				b.log.Error("unable to get brand_id from user", zap.Error(err), zap.String("userID", updateReq.UserID.String()))
+			}
+
 			err = b.db.GetPool().QueryRow(ctx, `
 				UPDATE balances 
 				SET reserved_units = reserved_units + $1, 
 				    reserved_cents = FLOOR((reserved_units + $1) * 100)::BIGINT,
-				    updated_at = $2 
-				WHERE user_id = $3 AND currency_code = $4
-				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-			`, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
-				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+				    brand_id = $2,
+				    updated_at = $3 
+				WHERE user_id = $4 AND currency_code = $5
+				RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at
+			`, updateReq.Amount, brandID, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+				&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &brandID, &updatedAt,
 			)
 		}
 
@@ -473,15 +501,21 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		return dto.Balance{}, err
 	}
 	if !exist {
-		_, err = b.db.Queries.CreateBalance(ctx, db.CreateBalanceParams{
-			UserID:        updateReq.UserID,
-			CurrencyCode:  updateReq.Currency,
-			AmountCents:   0,
-			AmountUnits:   decimal.Zero,
-			ReservedCents: 0,
-			ReservedUnits: decimal.Zero,
-			UpdatedAt:     time.Now(),
-		})
+		// Fetch brand_id from users table
+		var brandID *uuid.UUID
+		err = b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, updateReq.UserID).Scan(&brandID)
+		if err != nil && err != sql.ErrNoRows {
+			b.log.Warn("Failed to get brand_id from user, continuing without it", zap.Error(err), zap.String("userID", updateReq.UserID.String()))
+		}
+
+		// Use raw SQL to include brand_id since sqlc might not have it
+		var insertedID uuid.UUID
+		err = b.db.GetPool().QueryRow(ctx, `
+			INSERT INTO balances(user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+			RETURNING id
+		`, updateReq.UserID, updateReq.Currency, 0, decimal.Zero, 0, decimal.Zero, brandID, time.Now()).Scan(&insertedID)
+		_ = insertedID // insertedID is used to avoid unused variable error
 		if err != nil {
 			b.log.Error("unable to create balance ", zap.Error(err), zap.Any("updateReq", updateReq))
 			return dto.Balance{}, err
@@ -504,15 +538,23 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		// First update amount_units, then recalculate amount_cents from the final amount_units value
 		// This ensures accuracy and prevents drift between cents and units
 		// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
+		// Fetch brand_id from user
+		var brandID *uuid.UUID
+		err = b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, updateReq.UserID).Scan(&brandID)
+		if err != nil && err != sql.ErrNoRows {
+			b.log.Error("unable to get brand_id from user", zap.Error(err), zap.String("userID", updateReq.UserID.String()))
+		}
+
 		err = b.db.GetPool().QueryRow(ctx, `
             UPDATE balances
             SET amount_units = amount_units + $1,
                 amount_cents = FLOOR((amount_units + $1) * 100)::BIGINT,
-                updated_at   = $2
-            WHERE user_id = $3 AND currency_code = $4
-            RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-        `, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
-			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+                brand_id = $2,
+                updated_at   = $3
+            WHERE user_id = $4 AND currency_code = $5
+            RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at
+        `, updateReq.Amount, brandID, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &brandID, &updatedAt,
 		)
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -521,17 +563,25 @@ func (b *balance) UpdateMoney(ctx context.Context, updateReq dto.UpdateBalanceRe
 		}
 	case constant.BONUS_MONEY:
 		// First update reserved_units, then recalculate reserved_cents from the final reserved_units value
+		// Also update brand_id from user if it's different
 		// This ensures accuracy and prevents drift between cents and units
 		// Use FLOOR to match Go's IntPart() behavior (truncate to integer)
+		var brandID *uuid.UUID
+		err = b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, updateReq.UserID).Scan(&brandID)
+		if err != nil && err != sql.ErrNoRows {
+			b.log.Error("unable to get brand_id from user", zap.Error(err), zap.String("userID", updateReq.UserID.String()))
+		}
+
 		err = b.db.GetPool().QueryRow(ctx, `
             UPDATE balances
             SET reserved_units = reserved_units + $1,
                 reserved_cents = FLOOR((reserved_units + $1) * 100)::BIGINT,
-                updated_at     = $2
-            WHERE user_id = $3 AND currency_code = $4
-            RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, updated_at
-        `, updateReq.Amount, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
-			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &updatedAt,
+                brand_id = $2,
+                updated_at     = $3
+            WHERE user_id = $4 AND currency_code = $5
+            RETURNING id, user_id, currency_code, amount_cents, amount_units, reserved_cents, reserved_units, brand_id, updated_at
+        `, updateReq.Amount, brandID, time.Now(), updateReq.UserID, updateReq.Currency).Scan(
+			&id, &userID, &currencyCode, &amountCents, &amountUnits, &reservedCents, &reservedUnits, &brandID, &updatedAt,
 		)
 		if err != nil {
 			b.log.Error("unable to update balance ", zap.Error(err), zap.Any("updateReq", updateReq))
@@ -1301,12 +1351,12 @@ func (b *balance) GetAdminFundingLimit(ctx context.Context, adminID uuid.UUID) (
 		b.log.Error("Failed to get admin funding limit", zap.Error(err), zap.String("adminID", adminID.String()))
 		return nil, err
 	}
-	
+
 	if !result.MaxFundingLimit.Valid {
 		// No funding limit set (unlimited)
 		return nil, nil
 	}
-	
+
 	limit := result.MaxFundingLimit.Decimal
 	return &limit, nil
 }

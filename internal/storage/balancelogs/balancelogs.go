@@ -59,12 +59,22 @@ func (b *balance_logs) SaveBalanceLogs(ctx context.Context, blanceLogReq dto.Bal
 		transactionIDValue = *blanceLogReq.TransactionID
 	}
 
-	err := b.db.GetPool().QueryRow(ctx, `
-		INSERT INTO balance_logs (user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
-		RETURNING id, user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code
-	`, blanceLogReq.UserID, blanceLogReq.Component, changeCents, blanceLogReq.ChangeAmount, blanceLogReq.OperationalGroupID, blanceLogReq.OperationalTypeID, blanceLogReq.Description, time.Now(), balanceAfterCents, *blanceLogReq.BalanceAfterUpdate, transactionIDValue, balanceStatus.String, constant.DEFAULT_CURRENCY).Scan(
-		&id, &userID, &component, &changeCents, &changeAmount, &operationalGroupID, &operationalTypeID, &description, &timestamp, &balanceAfterCents, &balanceAfterUpdate, &transactionID, &status, &currencyCode,
+	// Fetch brand_id from users table
+	var brandID *uuid.UUID
+	err := b.db.GetPool().QueryRow(ctx, `SELECT brand_id FROM users WHERE id = $1`, blanceLogReq.UserID).Scan(&brandID)
+	if err != nil {
+		// Check if it's a "no rows" error, which is acceptable (brand_id can be NULL)
+		if err.Error() != "no rows in result set" {
+			b.log.Warn("Failed to get brand_id from user, continuing without it", zap.Error(err), zap.String("userID", blanceLogReq.UserID.String()))
+		}
+	}
+
+	err = b.db.GetPool().QueryRow(ctx, `
+		INSERT INTO balance_logs (user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code, brand_id) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+		RETURNING id, user_id, component, change_cents, change_units, operational_group_id, operational_type_id, description, timestamp, balance_after_cents, balance_after_units, transaction_id, status, currency_code, brand_id
+	`, blanceLogReq.UserID, blanceLogReq.Component, changeCents, blanceLogReq.ChangeAmount, blanceLogReq.OperationalGroupID, blanceLogReq.OperationalTypeID, blanceLogReq.Description, time.Now(), balanceAfterCents, *blanceLogReq.BalanceAfterUpdate, transactionIDValue, balanceStatus.String, constant.DEFAULT_CURRENCY, brandID).Scan(
+		&id, &userID, &component, &changeCents, &changeAmount, &operationalGroupID, &operationalTypeID, &description, &timestamp, &balanceAfterCents, &balanceAfterUpdate, &transactionID, &status, &currencyCode, &brandID,
 	)
 	if err != nil {
 		b.log.Error(fmt.Sprintf("unable to save balance logs error %s ", err.Error()), zap.Any("blanceLogReq", blanceLogReq))
@@ -83,6 +93,7 @@ func (b *balance_logs) SaveBalanceLogs(ctx context.Context, blanceLogReq dto.Bal
 		Status:             status,
 		BalanceAfterUpdate: blanceLogReq.BalanceAfterUpdate,
 		TransactionID:      &transactionID,
+		BrandID:            brandID, // Include brand_id from database
 	}, nil
 }
 

@@ -1233,78 +1233,106 @@ func (s *CashbackService) CreateLevelProgressionResult(ctx context.Context, user
 }
 
 // CreateRakebackSchedule creates a new scheduled rakeback event
-func (s *CashbackService) CreateRakebackSchedule(ctx context.Context, adminUserID uuid.UUID, req dto.CreateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
+func (s *CashbackService) CreateRakebackSchedule(ctx context.Context, adminUserID uuid.UUID, request dto.CreateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
 	s.logger.Info("Creating rakeback schedule",
-		zap.String("name", req.Name),
-		zap.String("admin_id", adminUserID.String()))
+		zap.String("admin_user_id", adminUserID.String()),
+		zap.String("name", request.Name))
 
 	// Validate time range
-	if req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime) {
-		return nil, fmt.Errorf("end time must be after start time")
+	if request.EndTime.Before(request.StartTime) {
+		return nil, errors.ErrInvalidUserInput.New("end_time must be after start_time")
 	}
 
-	// Validate scope value
-	if (req.ScopeType == "provider" || req.ScopeType == "game") && req.ScopeValue == "" {
-		return nil, fmt.Errorf("scope_value is required when scope_type is provider or game")
+	// Validate percentage
+	if request.Percentage.LessThan(decimal.Zero) || request.Percentage.GreaterThan(decimal.NewFromInt(100)) {
+		return nil, errors.ErrInvalidUserInput.New("percentage must be between 0 and 100")
+	}
+
+	// Validate scope
+	if request.ScopeType != "all" && request.ScopeType != "provider" && request.ScopeType != "game" {
+		return nil, errors.ErrInvalidUserInput.New("scope_type must be 'all', 'provider', or 'game'")
+	}
+
+	if request.ScopeType != "all" && request.ScopeValue == "" {
+		return nil, errors.ErrInvalidUserInput.New("scope_value is required when scope_type is not 'all'")
+	}
+
+	// Determine initial status based on start time
+	now := time.Now()
+	status := "scheduled"
+	if request.StartTime.Before(now) || request.StartTime.Equal(now) {
+		if request.EndTime.After(now) {
+			status = "active"
+		} else {
+			status = "completed"
+		}
 	}
 
 	// Create schedule
-	var description *string
-	if req.Description != "" {
-		description = &req.Description
-	}
-
-	var scopeValue *string
-	if req.ScopeValue != "" {
-		scopeValue = &req.ScopeValue
-	}
-
 	schedule := dto.RakebackSchedule{
-		Name:        req.Name,
-		Description: description,
-		StartTime:   req.StartTime,
-		EndTime:     req.EndTime,
-		Percentage:  req.Percentage,
-		ScopeType:   req.ScopeType,
-		ScopeValue:  scopeValue,
-		Status:      "scheduled",
+		Name:        request.Name,
+		Description: &request.Description,
+		StartTime:   request.StartTime,
+		EndTime:     request.EndTime,
+		Percentage:  request.Percentage,
+		ScopeType:   request.ScopeType,
+		Status:      status,
 		CreatedBy:   &adminUserID,
+	}
+
+	if request.ScopeValue != "" {
+		schedule.ScopeValue = &request.ScopeValue
+	}
+
+	// If starting now, set activated_at
+	if status == "active" {
+		now := time.Now()
+		schedule.ActivatedAt = &now
 	}
 
 	created, err := s.storage.CreateRakebackSchedule(ctx, schedule)
 	if err != nil {
 		s.logger.Error("Failed to create rakeback schedule", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to create rakeback schedule")
 	}
 
-	// Convert to response
+	// Convert to response format
 	response := s.scheduleToResponse(created)
-	return &response, nil
+
+	s.logger.Info("Rakeback schedule created successfully",
+		zap.String("schedule_id", created.ID.String()),
+		zap.String("name", created.Name))
+
+	return response, nil
 }
 
-// ListRakebackSchedules lists rakeback schedules with pagination
+// ListRakebackSchedules lists all rakeback schedules with pagination
+>>>>>>> f5cd4f6 (Add permission for "get duplicate IP accounts report" in production)
 func (s *CashbackService) ListRakebackSchedules(ctx context.Context, status string, page, pageSize int) (*dto.ListRakebackSchedulesResponse, error) {
 	s.logger.Info("Listing rakeback schedules",
 		zap.String("status", status),
 		zap.Int("page", page),
 		zap.Int("page_size", pageSize))
 
+	// Check and deactivate expired schedules
+	s.checkAndDeactivateExpiredSchedules(ctx)
+
 	schedules, total, err := s.storage.ListRakebackSchedules(ctx, status, page, pageSize)
 	if err != nil {
 		s.logger.Error("Failed to list rakeback schedules", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to list rakeback schedules")
 	}
 
-	// Convert to responses
-	responses := make([]dto.RakebackScheduleResponse, 0, len(schedules))
+	// Convert to response format
+	responseSchedules := make([]dto.RakebackScheduleResponse, 0, len(schedules))
 	for _, schedule := range schedules {
-		responses = append(responses, s.scheduleToResponse(&schedule))
+		responseSchedules = append(responseSchedules, *s.scheduleToResponse(&schedule))
 	}
 
 	totalPages := (total + pageSize - 1) / pageSize
 
 	return &dto.ListRakebackSchedulesResponse{
-		Schedules:  responses,
+		Schedules:  responseSchedules,
 		Total:      total,
 		Page:       page,
 		PageSize:   pageSize,
@@ -1314,87 +1342,171 @@ func (s *CashbackService) ListRakebackSchedules(ctx context.Context, status stri
 
 // GetRakebackSchedule retrieves a single rakeback schedule by ID
 func (s *CashbackService) GetRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) (*dto.RakebackScheduleResponse, error) {
-	s.logger.Info("Getting rakeback schedule", zap.String("id", scheduleID.String()))
+	s.logger.Info("Getting rakeback schedule", zap.String("schedule_id", scheduleID.String()))
+
+	// Check and deactivate expired schedules
+	s.checkAndDeactivateExpiredSchedules(ctx)
 
 	schedule, err := s.storage.GetRakebackSchedule(ctx, scheduleID)
 	if err != nil {
 		s.logger.Error("Failed to get rakeback schedule", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrResourceNotFound.Wrap(err, "rakeback schedule not found")
 	}
 
-	response := s.scheduleToResponse(schedule)
-	return &response, nil
+	return s.scheduleToResponse(schedule), nil
 }
 
 // UpdateRakebackSchedule updates an existing rakeback schedule
-func (s *CashbackService) UpdateRakebackSchedule(ctx context.Context, scheduleID uuid.UUID, req dto.UpdateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
-	s.logger.Info("Updating rakeback schedule", zap.String("id", scheduleID.String()))
+func (s *CashbackService) UpdateRakebackSchedule(ctx context.Context, scheduleID uuid.UUID, request dto.UpdateRakebackScheduleRequest) (*dto.RakebackScheduleResponse, error) {
+	s.logger.Info("Updating rakeback schedule", zap.String("schedule_id", scheduleID.String()))
 
 	// Get existing schedule
 	existing, err := s.storage.GetRakebackSchedule(ctx, scheduleID)
 	if err != nil {
-		return nil, err
+		s.logger.Error("Failed to get existing schedule", zap.Error(err))
+		return nil, errors.ErrResourceNotFound.Wrap(err, "rakeback schedule not found")
 	}
 
-	// Only allow updating scheduled (not yet active) schedules
-	if existing.Status != "scheduled" {
-		return nil, fmt.Errorf("can only update schedules with status 'scheduled'")
+	// Cannot update if already active or completed
+	if existing.Status == "active" {
+		return nil, errors.ErrInvalidUserInput.New("cannot update an active schedule")
+	}
+	if existing.Status == "completed" {
+		return nil, errors.ErrInvalidUserInput.New("cannot update a completed schedule")
+	}
+	if existing.Status == "cancelled" {
+		return nil, errors.ErrInvalidUserInput.New("cannot update a cancelled schedule")
 	}
 
-	// Update fields
-	if req.Name != "" {
-		existing.Name = req.Name
+	// Update fields (only update if provided)
+	if request.Name != "" {
+		existing.Name = request.Name
 	}
-	if req.Description != "" {
-		desc := req.Description
-		existing.Description = &desc
+	if request.Description != "" {
+		existing.Description = &request.Description
+	} else if request.Description == "" && existing.Description != nil {
+		// Allow clearing description by sending empty string
+		existing.Description = nil
 	}
-	if !req.StartTime.IsZero() {
-		existing.StartTime = req.StartTime
+	if !request.StartTime.IsZero() {
+		existing.StartTime = request.StartTime
 	}
-	if !req.EndTime.IsZero() {
-		existing.EndTime = req.EndTime
+	if !request.EndTime.IsZero() {
+		existing.EndTime = request.EndTime
 	}
-	if !req.Percentage.IsZero() {
-		existing.Percentage = req.Percentage
+	if !request.Percentage.IsZero() {
+		existing.Percentage = request.Percentage
 	}
-	if req.ScopeType != "" {
-		existing.ScopeType = req.ScopeType
+	if request.ScopeType != "" {
+		existing.ScopeType = request.ScopeType
 	}
-	if req.ScopeValue != "" {
-		val := req.ScopeValue
-		existing.ScopeValue = &val
+	if request.ScopeValue != "" {
+		existing.ScopeValue = &request.ScopeValue
+	} else if request.ScopeValue == "" && request.ScopeType == "all" {
+		// Clear scope_value when scope_type is "all"
+		existing.ScopeValue = nil
 	}
 
-	// Update in storage
+	// Validate time range
+	if existing.EndTime.Before(existing.StartTime) {
+		return nil, errors.ErrInvalidUserInput.New("end_time must be after start_time")
+	}
+
+	// Validate percentage
+	if existing.Percentage.LessThan(decimal.Zero) || existing.Percentage.GreaterThan(decimal.NewFromInt(100)) {
+		return nil, errors.ErrInvalidUserInput.New("percentage must be between 0 and 100")
+	}
+
+	// Update status based on new times
+	now := time.Now()
+	if existing.StartTime.Before(now) || existing.StartTime.Equal(now) {
+		if existing.EndTime.After(now) {
+			existing.Status = "active"
+			now := time.Now()
+			existing.ActivatedAt = &now
+		} else {
+			existing.Status = "completed"
+		}
+	}
+
 	updated, err := s.storage.UpdateRakebackSchedule(ctx, scheduleID, *existing)
 	if err != nil {
 		s.logger.Error("Failed to update rakeback schedule", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to update rakeback schedule")
 	}
 
-	response := s.scheduleToResponse(updated)
-	return &response, nil
+	return s.scheduleToResponse(updated), nil
 }
 
 // DeleteRakebackSchedule cancels a rakeback schedule
 func (s *CashbackService) DeleteRakebackSchedule(ctx context.Context, scheduleID uuid.UUID) error {
-	s.logger.Info("Deleting rakeback schedule", zap.String("id", scheduleID.String()))
+	s.logger.Info("Deleting rakeback schedule", zap.String("schedule_id", scheduleID.String()))
 
-	err := s.storage.DeleteRakebackSchedule(ctx, scheduleID)
+	// Get existing schedule to check status
+	existing, err := s.storage.GetRakebackSchedule(ctx, scheduleID)
+	if err != nil {
+		s.logger.Error("Failed to get existing schedule", zap.Error(err))
+		return errors.ErrResourceNotFound.Wrap(err, "rakeback schedule not found")
+	}
+
+	// Cannot delete if already active or completed
+	if existing.Status == "active" {
+		return errors.ErrInvalidUserInput.New("cannot cancel an active schedule")
+	}
+	if existing.Status == "completed" {
+		return errors.ErrInvalidUserInput.New("cannot cancel a completed schedule")
+	}
+
+	err = s.storage.DeleteRakebackSchedule(ctx, scheduleID)
 	if err != nil {
 		s.logger.Error("Failed to delete rakeback schedule", zap.Error(err))
-		return err
+		return errors.ErrInternalServerError.Wrap(err, "failed to delete rakeback schedule")
 	}
 
 	return nil
 }
 
-// scheduleToResponse converts a RakebackSchedule to RakebackScheduleResponse with metadata
-func (s *CashbackService) scheduleToResponse(schedule *dto.RakebackSchedule) dto.RakebackScheduleResponse {
-	now := time.Now()
+// checkAndDeactivateExpiredSchedules checks for schedules that have passed their end time and deactivates them
+func (s *CashbackService) checkAndDeactivateExpiredSchedules(ctx context.Context) {
+	schedules, err := s.storage.GetSchedulesToDeactivate(ctx)
+	if err != nil {
+		s.logger.Error("Failed to get schedules to deactivate", zap.Error(err))
+		return
+	}
 
-	response := dto.RakebackScheduleResponse{
+	for _, schedule := range schedules {
+		err := s.storage.DeactivateSchedule(ctx, schedule.ID)
+		if err != nil {
+			s.logger.Error("Failed to deactivate schedule",
+				zap.String("schedule_id", schedule.ID.String()),
+				zap.Error(err))
+		} else {
+			s.logger.Info("Automatically deactivated expired schedule",
+				zap.String("schedule_id", schedule.ID.String()),
+				zap.String("name", schedule.Name))
+		}
+	}
+}
+
+// scheduleToResponse converts a RakebackSchedule to RakebackScheduleResponse
+func (s *CashbackService) scheduleToResponse(schedule *dto.RakebackSchedule) *dto.RakebackScheduleResponse {
+	now := time.Now()
+	isActive := schedule.Status == "active" && schedule.StartTime.Before(now) && schedule.EndTime.After(now)
+
+	var timeRemaining *string
+	var timeUntilStart *string
+
+	if isActive {
+		remaining := schedule.EndTime.Sub(now)
+		remainingStr := formatDuration(remaining)
+		timeRemaining = &remainingStr
+	} else if schedule.Status == "scheduled" && schedule.StartTime.After(now) {
+		untilStart := schedule.StartTime.Sub(now)
+		untilStartStr := formatDuration(untilStart)
+		timeUntilStart = &untilStartStr
+	}
+
+	response := &dto.RakebackScheduleResponse{
 		ID:            schedule.ID,
 		Name:          schedule.Name,
 		Description:   schedule.Description,
@@ -1409,40 +1521,24 @@ func (s *CashbackService) scheduleToResponse(schedule *dto.RakebackSchedule) dto
 		DeactivatedAt: schedule.DeactivatedAt,
 		CreatedAt:     schedule.CreatedAt,
 		UpdatedAt:     schedule.UpdatedAt,
-		IsActive:      schedule.Status == "active",
-	}
-
-	// Calculate time remaining/until start
-	if schedule.Status == "scheduled" && schedule.StartTime.After(now) {
-		duration := schedule.StartTime.Sub(now)
-		timeStr := formatDuration(duration)
-		response.TimeUntilStart = &timeStr
-	}
-
-	if schedule.Status == "active" && schedule.EndTime.After(now) {
-		duration := schedule.EndTime.Sub(now)
-		timeStr := formatDuration(duration)
-		response.TimeRemaining = &timeStr
+		IsActive:      isActive,
+		TimeRemaining: timeRemaining,
+		TimeUntilStart: timeUntilStart,
 	}
 
 	return response
 }
 
-// formatDuration formats a duration as a human-readable string
+// formatDuration formats a duration into a human-readable string
 func formatDuration(d time.Duration) string {
-	days := int(d.Hours() / 24)
-	hours := int(d.Hours()) % 24
-	minutes := int(d.Minutes()) % 60
-
-	if days > 0 {
-		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
-	} else if hours > 0 {
-		return fmt.Sprintf("%dh %dm", hours, minutes)
+	if d < time.Minute {
+		return fmt.Sprintf("%.0f seconds", d.Seconds())
+	} else if d < time.Hour {
+		return fmt.Sprintf("%.0f minutes", d.Minutes())
+	} else if d < 24*time.Hour {
+		return fmt.Sprintf("%.1f hours", d.Hours())
+	} else {
+		days := d.Hours() / 24
+		return fmt.Sprintf("%.1f days", days)
 	}
-	return fmt.Sprintf("%dm", minutes)
-}
-
-// GetRakebackScheduler creates and returns a rakeback scheduler instance
-func (s *CashbackService) GetRakebackScheduler(storage cashback.CashbackStorage, logger *zap.Logger) *RakebackScheduler {
-	return NewRakebackScheduler(storage, logger)
 }
