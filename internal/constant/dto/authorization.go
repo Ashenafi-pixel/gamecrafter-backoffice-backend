@@ -19,8 +19,8 @@ type Role struct {
 }
 
 type PermissionWithValue struct {
-	PermissionID uuid.UUID  `json:"permission_id"`
-	Value        *float64   `json:"value,omitempty"` // NULL = unlimited, value = funding limit
+	PermissionID uuid.UUID `json:"permission_id"`
+	Value        *float64  `json:"value,omitempty"` // NULL = unlimited, value = funding limit
 }
 
 type CreateRoleReq struct {
@@ -72,10 +72,10 @@ type RolePermissions struct {
 }
 
 type AssignPermissionToRoleData struct {
-	ID           uuid.UUID  `json:"id"`
-	RoleID       uuid.UUID  `json:"role_id"`
-	PermissionID uuid.UUID  `json:"permission_id"`
-	Value        *float64   `json:"value,omitempty"` // NULL = unlimited, value = funding limit
+	ID           uuid.UUID `json:"id"`
+	RoleID       uuid.UUID `json:"role_id"`
+	PermissionID uuid.UUID `json:"permission_id"`
+	Value        *float64  `json:"value,omitempty"` // NULL = unlimited, value = funding limit
 }
 
 type AssignPermissionToRoleRes struct {
@@ -171,6 +171,13 @@ var PermissionsList = map[string]PermissionsToRoute{
 	"update game status":               {EndPoint: "/api/admin/games/status", Method: http.MethodPut, Name: "update game status", Description: "allow admin to update game status"},
 	"get daily report":                 {EndPoint: "/api/admin/report/daily", Method: http.MethodGet, Name: "get daily report", Description: "allow user to get daily report"},
 	"get duplicate ip accounts report": {EndPoint: "/api/admin/report/duplicate-ip-accounts", Method: http.MethodGet, Name: "get duplicate ip accounts report", Description: "allow user to get duplicate IP accounts report"},
+	"get big winners report":           {EndPoint: "/api/admin/report/big-winners", Method: http.MethodGet, Name: "get big winners report", Description: "allow user to get big winners report"},
+	"get player metrics report":        {EndPoint: "/api/admin/report/player-metrics", Method: http.MethodGet, Name: "get player metrics report", Description: "allow user to get player metrics report"},
+	"get player transactions report":   {EndPoint: "/api/admin/report/player-metrics/:player_id/transactions", Method: http.MethodGet, Name: "get player transactions report", Description: "allow user to get player transactions for drill-down"},
+	"get country report":                {EndPoint: "/api/admin/report/country", Method: http.MethodGet, Name: "get country report", Description: "allow user to get country report"},
+	"get game performance report":        {EndPoint: "/api/admin/report/game-performance", Method: http.MethodGet, Name: "get game performance report", Description: "allow user to get game performance report"},
+	"get game players report":            {EndPoint: "/api/admin/report/game-performance/:game_id/players", Method: http.MethodGet, Name: "get game players report", Description: "allow user to get players who played a specific game"},
+	"get provider performance report":     {EndPoint: "/api/admin/report/provider-performance", Method: http.MethodGet, Name: "get provider performance report", Description: "allow user to get provider performance report"},
 	"create mysteries":                 {EndPoint: "/api/admin/spinningwheels/mysteries", Method: http.MethodPost, Name: "create mysteries", Description: "allow user to create spinning wheel mysteries"},
 	"get mysteries":                    {EndPoint: "/api/admin/spinningwheels/mysteries", Method: http.MethodGet, Name: "get mysteries", Description: "allow user to get spinning wheel mysteries"},
 	"delete mysteries":                 {EndPoint: "/api/admin/spinningwheels/mysteries", Method: http.MethodDelete, Name: "delete mysteries", Description: "allow user to delete spinning wheel mysteries"},

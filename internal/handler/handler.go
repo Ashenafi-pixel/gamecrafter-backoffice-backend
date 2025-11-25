@@ -282,6 +282,22 @@ type Brand interface {
 type Report interface {
 	GetDailyReport(c *gin.Context)
 	GetDuplicateIPAccounts(c *gin.Context)
+	GetBigWinners(c *gin.Context)
+	ExportBigWinners(c *gin.Context)
+	GetPlayerMetrics(c *gin.Context)
+	GetPlayerTransactions(c *gin.Context)
+	ExportPlayerMetrics(c *gin.Context)
+	ExportPlayerTransactions(c *gin.Context)
+	GetCountryMetrics(c *gin.Context)
+	GetCountryPlayers(c *gin.Context)
+	ExportCountryMetrics(c *gin.Context)
+	ExportCountryPlayers(c *gin.Context)
+	GetGamePerformance(c *gin.Context)
+	GetGamePlayers(c *gin.Context)
+	ExportGamePerformance(c *gin.Context)
+	ExportGamePlayers(c *gin.Context)
+	GetProviderPerformance(c *gin.Context)
+	ExportProviderPerformance(c *gin.Context)
 }
 
 type Squads interface {

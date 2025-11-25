@@ -280,6 +280,14 @@ type Brand interface {
 type Report interface {
 	DailyReport(ctx context.Context, req dto.DailyReportReq) (dto.DailyReportRes, error)
 	GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPAccountsReport, error)
+	GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq, userBrandIDs []uuid.UUID) (dto.BigWinnersReportRes, error)
+	GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsReportReq, userBrandIDs []uuid.UUID) (dto.PlayerMetricsReportRes, error)
+	GetPlayerTransactions(ctx context.Context, req dto.PlayerTransactionsReq) (dto.PlayerTransactionsRes, error)
+	GetCountryMetrics(ctx context.Context, req dto.CountryReportReq, userBrandIDs []uuid.UUID) (dto.CountryReportRes, error)
+	GetCountryPlayers(ctx context.Context, req dto.CountryPlayersReq, userBrandIDs []uuid.UUID) (dto.CountryPlayersRes, error)
+	GetGamePerformance(ctx context.Context, req dto.GamePerformanceReportReq, userBrandIDs []uuid.UUID) (dto.GamePerformanceReportRes, error)
+	GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, userBrandIDs []uuid.UUID) (dto.GamePlayersRes, error)
+	GetProviderPerformance(ctx context.Context, req dto.ProviderPerformanceReportReq, userBrandIDs []uuid.UUID) (dto.ProviderPerformanceReportRes, error)
 }
 
 type Squads interface {
