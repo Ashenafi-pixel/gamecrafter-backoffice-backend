@@ -16,7 +16,7 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	log.Info("Initializing cashback routes")
 
 	// Public routes (no authentication required)
-	public := r.Group("/cashback")
+	public := r.Group("/api/cashback")
 	{
 		public.GET("/tiers", handler.GetCashbackTiers)
 		public.GET("/house-edge", handler.GetGameHouseEdge)
@@ -24,7 +24,7 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	}
 
 	// User routes (authentication required)
-	user := r.Group("/user/cashback")
+	user := r.Group("/api/user/cashback")
 
 	user.Use(middleware.Auth())
 	{
@@ -42,7 +42,7 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 	}
 
 	// Balance synchronization routes (authentication required)
-	balance := r.Group("/user/balance")
+	balance := r.Group("/api/user/balance")
 	balance.Use(middleware.Auth())
 	{
 		balance.GET("/validate-sync", handler.ValidateBalanceSync)
