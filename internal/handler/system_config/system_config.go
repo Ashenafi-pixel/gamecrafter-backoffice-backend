@@ -3,6 +3,7 @@ package system_config
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -1051,12 +1052,39 @@ func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
 
 	// Parse the TipSettings from JSON body
 	var req system_config.TipSettings
-	if tipTransactionFeeFromWho, ok := jsonBody["tip_transaction_fee_from_who"].(string); ok {
+
+	// Parse tip_transaction_fee_from_who
+	if tipTransactionFeeFromWho, ok := jsonBody["tip_transaction_fee_from_who"].(string); ok && tipTransactionFeeFromWho != "" {
 		req.TipTransactionFeeFromWho = tipTransactionFeeFromWho
+	} else {
+		h.log.Warn("tip_transaction_fee_from_who missing or invalid, using default")
+		req.TipTransactionFeeFromWho = "sender" // Default value
 	}
-	if transactionFee, ok := jsonBody["transaction_fee"].(float64); ok {
-		req.TransactionFee = transactionFee
+
+	// Parse transaction_fee - handle both float64 and int types from JSON
+	if transactionFeeVal, exists := jsonBody["transaction_fee"]; exists {
+		switch v := transactionFeeVal.(type) {
+		case float64:
+			req.TransactionFee = v
+		case int:
+			req.TransactionFee = float64(v)
+		case int64:
+			req.TransactionFee = float64(v)
+		case float32:
+			req.TransactionFee = float64(v)
+		default:
+			h.log.Warn("transaction_fee has invalid type, using 0.0", zap.Any("type", fmt.Sprintf("%T", v)))
+			req.TransactionFee = 0.0
+		}
+	} else {
+		h.log.Warn("transaction_fee missing, using default 0.0")
+		req.TransactionFee = 0.0
 	}
+
+	h.log.Info("Parsed tip settings",
+		zap.String("tip_transaction_fee_from_who", req.TipTransactionFeeFromWho),
+		zap.Float64("transaction_fee", req.TransactionFee),
+		zap.Any("brand_id", brandID))
 
 	adminUserID, exists := ctx.Get("user_id")
 	if !exists {
