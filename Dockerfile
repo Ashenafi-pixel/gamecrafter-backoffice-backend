@@ -1,5 +1,5 @@
 # Build stage
-FROM --platform=linux/amd64 golang:1.24-alpine AS builder
+FROM --platform=linux/amd64 golang:1.24-bullseye AS builder
 
 
 # Install migrate tool
@@ -31,10 +31,8 @@ ENV GOARCH=amd64
 RUN go build -o tucanbit cmd/main.go
 
 
-FROM alpine:latest
+FROM debian:bullseye-slim
 
-# Install ca-certificates for HTTPS connections
-RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 
