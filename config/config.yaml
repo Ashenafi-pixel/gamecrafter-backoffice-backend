@@ -417,3 +417,9 @@ airtime:
   password: "airtime_password"
   timeout: "10s"
   vaspid: 12345
+
+
+# Affiliate Postback Configuration
+postback:
+  base_url: "https://play.latm.bet/pb/"
+  timeout: "5s"
