@@ -156,8 +156,8 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			-- GrooveTech transactions
 			SELECT 
 				gt.game_id,
-				COALESCE(gt.game_id, 'Unknown') as game_name,
-				COALESCE(gt.game_id, 'GrooveTech') as provider,
+				COALESCE(g.name, gt.game_id, 'Unknown') as game_name,
+				COALESCE(g.provider, 'GrooveTech') as provider,
 				NULL::text as category,
 				ga.user_id,
 				gt.amount,
@@ -181,6 +181,7 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			FROM groove_transactions gt
 			JOIN groove_accounts ga ON gt.account_id = ga.account_id
 			JOIN users u ON ga.user_id = u.id
+			LEFT JOIN games g ON gt.game_id = g.game_id
 			WHERE gt.type IN ('wager', 'result')
 				AND gt.created_at >= $%d
 				AND gt.created_at <= $%d
@@ -188,16 +189,16 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 
 			UNION ALL
 
-			-- General bets
+			-- General bets (crash game)
 			SELECT 
-				COALESCE(b.game_id, b.game_name, 'Unknown') as game_id,
-				COALESCE(b.game_name, b.game_id, 'Unknown') as game_name,
-				COALESCE(b.provider, 'Unknown') as provider,
+				'Crash Game'::text as game_id,
+				'Crash Game'::text as game_name,
+				'Crash'::text as provider,
 				NULL::text as category,
 				b.user_id,
 				COALESCE(b.payout, b.amount) as amount,
 				CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				COALESCE(b.timestamp, b.created_at, NOW()) as created_at,
+				COALESCE(b.timestamp, NOW()) as created_at,
 				b.round_id::text as round_id,
 				COALESCE(b.payout, 0) as win_amount,
 				b.amount as bet_amount,
@@ -205,8 +206,8 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			FROM bets b
 			JOIN users u ON b.user_id = u.id
 			WHERE (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				AND COALESCE(b.timestamp, b.created_at, NOW()) >= $%d
-				AND COALESCE(b.timestamp, b.created_at, NOW()) <= $%d
+				AND COALESCE(b.timestamp, NOW()) >= $%d
+				AND COALESCE(b.timestamp, NOW()) <= $%d
 				%s
 		),
 		game_metrics AS (
@@ -296,7 +297,7 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		LEFT JOIN game_rakeback gr ON gm.game_id = gr.game_id
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, dateFromParam, dateToParam, whereClause, orderBy, argIndex+1, argIndex+2)
+	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, orderBy, argIndex, argIndex+1)
 
 	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
@@ -366,12 +367,12 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			UNION
 
 			SELECT DISTINCT
-				COALESCE(b.game_id, b.game_name, 'Unknown') as game_id
+				'Crash Game'::text as game_id
 			FROM bets b
 			JOIN users u ON b.user_id = u.id
 			WHERE (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				AND COALESCE(b.timestamp, b.created_at, NOW()) >= $%d
-				AND COALESCE(b.timestamp, b.created_at, NOW()) <= $%d
+				AND COALESCE(b.timestamp, NOW()) >= $%d
+				AND COALESCE(b.timestamp, NOW()) <= $%d
 				%s
 		)
 		SELECT COUNT(DISTINCT game_id) as total
@@ -580,13 +581,13 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 
 			UNION ALL
 
-			-- General bets
+			-- General bets (crash game)
 			SELECT 
 				b.user_id,
-				COALESCE(b.game_id, b.game_name, 'Unknown') as game_id,
+				'Crash Game'::text as game_id,
 				COALESCE(b.payout, b.amount) as amount,
 				CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				COALESCE(b.timestamp, b.created_at, NOW()) as transaction_date,
+				COALESCE(b.timestamp, NOW()) as transaction_date,
 				b.round_id::text as round_id,
 				b.currency,
 				'cash' as bet_type,
@@ -594,7 +595,7 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 				b.amount as bet_amount
 			FROM bets b
 			JOIN users u ON b.user_id = u.id
-			WHERE COALESCE(b.game_id, b.game_name, 'Unknown') = $1
+			WHERE 'Crash Game' = $1
 				AND (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
 				%s
 		),
@@ -699,7 +700,7 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 			SELECT DISTINCT b.user_id
 			FROM bets b
 			JOIN users u ON b.user_id = u.id
-			WHERE COALESCE(b.game_id, b.game_name, 'Unknown') = $1
+			WHERE 'Crash Game' = $1
 				AND (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
 				%s
 		)

@@ -201,8 +201,8 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 				COALESCE(u.country, 'Unknown') as country,
 				COUNT(DISTINCT u.id) as total_registrations,
 				COUNT(DISTINCT CASE 
-					WHEN COALESCE(u.last_activity, u.created_at) >= $%d 
-					AND COALESCE(u.last_activity, u.created_at) <= $%d 
+					WHEN COALESCE((SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id), u.created_at) >= $%d 
+					AND COALESCE((SELECT MAX(t3.created_at) FROM transactions t3 WHERE t3.user_id = u.id), u.created_at) <= $%d 
 					THEN u.id 
 					ELSE NULL 
 				END) as active_players,
@@ -276,7 +276,7 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 		%s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, dateFromParam2, dateToParam2, dateFromParam3, dateToParam3, dateFromParam4, transactionDateFilter, whereClause, havingClause, orderBy, argIndex+1, argIndex+2)
+	`, dateFromParam2, dateToParam2, dateFromParam3, dateToParam3, dateFromParam4, transactionDateFilter, whereClause, havingClause, orderBy, argIndex, argIndex+1)
 
 	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
@@ -451,14 +451,14 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 		argIndex++
 	}
 
-	// Activity date range
+	// Activity date range - calculate last_activity from transactions
 	if activityFrom != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE(u.last_activity, u.created_at) >= $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE((SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id), u.created_at) >= $%d", argIndex))
 		args = append(args, *activityFrom)
 		argIndex++
 	}
 	if activityTo != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE(u.last_activity, u.created_at) <= $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE((SELECT MAX(t3.created_at) FROM transactions t3 WHERE t3.user_id = u.id), u.created_at) <= $%d", argIndex))
 		args = append(args, *activityTo)
 		argIndex++
 	}
@@ -531,19 +531,19 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 				u.email,
 				u.country,
 				u.created_at as registration_date,
-				u.last_activity,
 				COALESCE(bal.amount_units, 0) as balance,
 				COALESCE(u.default_currency, 'USD') as currency,
 				COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) as total_deposits,
 				COALESCE(SUM(CASE WHEN t.transaction_type = 'withdrawal' THEN t.amount ELSE 0 END), 0) as total_withdrawals,
 				COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) as total_wagered,
 				COALESCE(SUM(CASE WHEN t.transaction_type IN ('win', 'groove_win') THEN t.amount ELSE 0 END), 0) as total_won,
-				COALESCE(SUM(CASE WHEN t.transaction_type = 'rakeback_earned' THEN t.amount ELSE 0 END), 0) as rakeback_earned
+				COALESCE(SUM(CASE WHEN t.transaction_type = 'rakeback_earned' THEN t.amount ELSE 0 END), 0) as rakeback_earned,
+				COALESCE(MAX(t.created_at), u.created_at) as last_activity
 			FROM users u
 			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
 			LEFT JOIN transactions t ON u.id = t.user_id
 			%s
-			GROUP BY u.id, u.username, u.email, u.country, u.created_at, u.last_activity, bal.amount_units, u.default_currency
+			GROUP BY u.id, u.username, u.email, u.country, u.created_at, bal.amount_units, u.default_currency
 		)
 		SELECT 
 			player_id,

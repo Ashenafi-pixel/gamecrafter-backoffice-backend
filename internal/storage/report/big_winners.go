@@ -43,6 +43,9 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 	if req.DateFrom != nil && *req.DateFrom != "" {
 		parsed, err := time.Parse("2006-01-02T15:04:05", *req.DateFrom)
 		if err != nil {
+			parsed, err = time.Parse("2006-01-02T15:04", *req.DateFrom)
+		}
+		if err != nil {
 			parsed, err = time.Parse("2006-01-02", *req.DateFrom)
 		}
 		if err == nil {
@@ -52,12 +55,19 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 	if req.DateTo != nil && *req.DateTo != "" {
 		parsed, err := time.Parse("2006-01-02T15:04:05", *req.DateTo)
 		if err != nil {
+			parsed, err = time.Parse("2006-01-02T15:04", *req.DateTo)
+		}
+		if err != nil {
 			parsed, err = time.Parse("2006-01-02", *req.DateTo)
 		}
 		if err == nil {
-			// Set to end of day
-			endOfDay := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-			dateTo = &endOfDay
+			// Set to end of day if only date provided, otherwise use as-is
+			if len(*req.DateTo) == 10 { // Only date part
+				endOfDay := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+				dateTo = &endOfDay
+			} else {
+				dateTo = &parsed
+			}
 		}
 	}
 
@@ -273,7 +283,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 				NULL::text as game_id,
 				NULL::text as game_name,
 				sb.transaction_id as bet_id,
-				sb.round_id::text as round_id,
+				NULL::text as round_id,
 				sb.bet_amount as stake_amount,
 				COALESCE(sb.actual_win, 0) as win_amount,
 				COALESCE(sb.actual_win, 0) - sb.bet_amount as net_win,
@@ -370,7 +380,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 	}
 	defer rows.Close()
 
-	var winners []dto.BigWinner
+	winners := make([]dto.BigWinner, 0)
 	for rows.Next() {
 		var winner dto.BigWinner
 		var winMultiplier sql.NullString
@@ -544,7 +554,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 				NULL::text as game_id,
 				NULL::text as game_name,
 				sb.transaction_id as bet_id,
-				sb.round_id::text as round_id,
+				NULL::text as round_id,
 				sb.bet_amount as stake_amount,
 				COALESCE(sb.actual_win, 0) as win_amount,
 				COALESCE(sb.actual_win, 0) - sb.bet_amount as net_win,
@@ -611,12 +621,36 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 	}
 
 	res.Message = "Big winners retrieved successfully"
+	// Ensure data is always an array, not nil
+	if winners == nil {
+		winners = make([]dto.BigWinner, 0)
+	}
 	res.Data = winners
 	res.Total = total
 	res.TotalPages = totalPages
 	res.Page = req.Page
 	res.PerPage = req.PerPage
 	res.Summary = summary
+
+	dateFromStr := ""
+	if req.DateFrom != nil {
+		dateFromStr = *req.DateFrom
+	}
+	dateToStr := ""
+	if req.DateTo != nil {
+		dateToStr = *req.DateTo
+	}
+	minThreshold := 0.0
+	if req.MinWinThreshold != nil {
+		minThreshold = *req.MinWinThreshold
+	}
+
+	r.log.Info("big winners query completed",
+		zap.Int("winners_count", len(winners)),
+		zap.Int64("total", total),
+		zap.String("date_from", dateFromStr),
+		zap.String("date_to", dateToStr),
+		zap.Float64("min_threshold", minThreshold))
 
 	return res, nil
 }

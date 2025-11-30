@@ -87,24 +87,19 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 		argIndex++
 	}
 
-	// Provider filter
-	if req.Provider != nil && *req.Provider != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("provider = $%d", argIndex))
-		args = append(args, *req.Provider)
-		argIndex++
-	}
-
-	// Category filter
-	if req.Category != nil && *req.Category != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("category = $%d", argIndex))
-		args = append(args, *req.Category)
-		argIndex++
-	}
-
 	whereClause := ""
 	if len(whereConditions) > 0 {
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
 	}
+
+	// Provider filter (applied after provider_metrics CTE)
+	providerFilter := ""
+	if req.Provider != nil && *req.Provider != "" {
+		providerFilter = fmt.Sprintf("AND pm.provider = $%d", argIndex)
+		args = append(args, *req.Provider)
+		argIndex++
+	}
+	// Note: Category filter is not applicable for provider performance reports
 
 	// Build ORDER BY clause
 	orderBy := "ggr DESC"
@@ -147,7 +142,7 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 		WITH all_game_transactions AS (
 			-- GrooveTech transactions
 			SELECT 
-				COALESCE(gt.game_id, 'GrooveTech') as provider,
+				COALESCE(g.provider, 'GrooveTech') as provider,
 				gt.game_id,
 				ga.user_id,
 				gt.amount,
@@ -171,6 +166,7 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 			FROM groove_transactions gt
 			JOIN groove_accounts ga ON gt.account_id = ga.account_id
 			JOIN users u ON ga.user_id = u.id
+			LEFT JOIN games g ON gt.game_id = g.game_id
 			WHERE gt.type IN ('wager', 'result')
 				AND gt.created_at >= $%d
 				AND gt.created_at <= $%d
@@ -178,14 +174,14 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 
 			UNION ALL
 
-			-- General bets
+			-- General bets (crash game)
 			SELECT 
-				COALESCE(b.provider, 'Unknown') as provider,
-				COALESCE(b.game_id, b.game_name, 'Unknown') as game_id,
+				'Crash'::text as provider,
+				'Crash Game'::text as game_id,
 				b.user_id,
 				COALESCE(b.payout, b.amount) as amount,
 				CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				COALESCE(b.timestamp, b.created_at, NOW()) as created_at,
+				COALESCE(b.timestamp, NOW()) as created_at,
 				b.round_id::text as round_id,
 				COALESCE(b.payout, 0) as win_amount,
 				b.amount as bet_amount,
@@ -193,8 +189,8 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 			FROM bets b
 			JOIN users u ON b.user_id = u.id
 			WHERE (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				AND COALESCE(b.timestamp, b.created_at, NOW()) >= $%d
-				AND COALESCE(b.timestamp, b.created_at, NOW()) <= $%d
+				AND COALESCE(b.timestamp, NOW()) >= $%d
+				AND COALESCE(b.timestamp, NOW()) <= $%d
 				%s
 		),
 		provider_metrics AS (
@@ -278,9 +274,10 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 			COALESCE(pm.highest_multiplier, 0) as highest_multiplier
 		FROM provider_metrics pm
 		LEFT JOIN provider_rakeback pr ON pm.provider = pr.provider
+		WHERE 1=1 %s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, orderBy, argIndex+1, argIndex+2)
+	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, providerFilter, orderBy, argIndex, argIndex+1)
 
 	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
@@ -331,10 +328,11 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 	countQuery := fmt.Sprintf(`
 		WITH all_game_transactions AS (
 			SELECT DISTINCT
-				COALESCE(gt.game_id, 'GrooveTech') as provider
+				COALESCE(g.provider, 'GrooveTech') as provider
 			FROM groove_transactions gt
 			JOIN groove_accounts ga ON gt.account_id = ga.account_id
 			JOIN users u ON ga.user_id = u.id
+			LEFT JOIN games g ON gt.game_id = g.game_id
 			WHERE gt.type IN ('wager', 'result')
 				AND gt.created_at >= $%d
 				AND gt.created_at <= $%d
@@ -343,17 +341,18 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 			UNION
 
 			SELECT DISTINCT
-				COALESCE(b.provider, 'Unknown') as provider
+				'Crash'::text as provider
 			FROM bets b
 			JOIN users u ON b.user_id = u.id
 			WHERE (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				AND COALESCE(b.timestamp, b.created_at, NOW()) >= $%d
-				AND COALESCE(b.timestamp, b.created_at, NOW()) <= $%d
+				AND COALESCE(b.timestamp, NOW()) >= $%d
+				AND COALESCE(b.timestamp, NOW()) <= $%d
 				%s
 		)
 		SELECT COUNT(DISTINCT provider) as total
 		FROM all_game_transactions
-	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause)
+		WHERE 1=1 %s
+	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, providerFilter)
 
 	var total int64
 	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)

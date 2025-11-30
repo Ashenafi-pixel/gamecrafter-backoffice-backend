@@ -121,14 +121,14 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		argIndex++
 	}
 
-	// Last active date range
+	// Last active date range - calculate last_activity from transactions
 	if lastActiveFrom != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE(u.last_activity, u.created_at) >= $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE((SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id), u.created_at) >= $%d", argIndex))
 		args = append(args, *lastActiveFrom)
 		argIndex++
 	}
 	if lastActiveTo != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE(u.last_activity, u.created_at) <= $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE((SELECT MAX(t3.created_at) FROM transactions t3 WHERE t3.user_id = u.id), u.created_at) <= $%d", argIndex))
 		args = append(args, *lastActiveTo)
 		argIndex++
 	}
@@ -245,7 +245,6 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 				b.name as brand_name,
 				u.country,
 				u.created_at as registration_date,
-				u.last_activity,
 				u.status as account_status,
 				u.kyc_status,
 				COALESCE(u.default_currency, 'USD') as currency,
@@ -268,7 +267,7 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 				brand_name,
 				country,
 				registration_date,
-				MAX(last_activity) as last_activity,
+				COALESCE(MAX(transaction_date), registration_date) as last_activity,
 				MAX(main_balance) as main_balance,
 				MAX(currency) as currency,
 				MAX(account_status) as account_status,
