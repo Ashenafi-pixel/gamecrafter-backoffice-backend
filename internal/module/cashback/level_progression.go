@@ -282,21 +282,77 @@ func (s *LevelProgressionService) GetLevelProgressionInfo(ctx context.Context, u
 		return nil, fmt.Errorf("user level not found")
 	}
 
-	// Get current tier
-	currentTier, err := s.storage.GetCashbackTierByID(ctx, userLevel.CurrentTierID)
-	if err != nil {
-		s.logger.Error("Failed to get current tier", zap.Error(err))
-		return nil, fmt.Errorf("failed to get current tier: %w", err)
+	// Validate CurrentLevel - ensure it's at least 1
+	if userLevel.CurrentLevel < 1 {
+		s.logger.Warn("Invalid current level, defaulting to level 1",
+			zap.String("user_id", userID.String()),
+			zap.Int("current_level", userLevel.CurrentLevel))
+		userLevel.CurrentLevel = 1
 	}
 
-	// Get next tier
-	var nextTier *dto.CashbackTier
-	if userLevel.CurrentLevel < 5 { // Not the highest tier
-		nextTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel+1)
+	// Get current tier - try by ID first, fallback to level if ID is invalid or missing
+	var currentTier *dto.CashbackTier
+	zeroUUID := uuid.UUID{}
+	if userLevel.CurrentTierID != zeroUUID {
+		currentTier, err = s.storage.GetCashbackTierByID(ctx, userLevel.CurrentTierID)
 		if err != nil {
-			s.logger.Warn("Failed to get next tier", zap.Error(err))
-			// Continue without next tier info
+			s.logger.Warn("Failed to get current tier by ID, falling back to level",
+				zap.Error(err),
+				zap.String("tier_id", userLevel.CurrentTierID.String()),
+				zap.Int("current_level", userLevel.CurrentLevel))
+			// Fallback to getting tier by level
+			currentTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel)
+			if err != nil {
+				s.logger.Error("Failed to get current tier by level, trying level 1",
+					zap.Error(err),
+					zap.Int("requested_level", userLevel.CurrentLevel))
+				// Last resort: try level 1 (Bronze tier)
+				currentTier, err = s.storage.GetCashbackTierByLevel(ctx, 1)
+				if err != nil {
+					s.logger.Error("Failed to get tier level 1", zap.Error(err))
+					return nil, fmt.Errorf("failed to get current tier: no valid tier found (tried level %d and level 1): %w", userLevel.CurrentLevel, err)
+				}
+				s.logger.Warn("Using tier level 1 as fallback",
+					zap.String("user_id", userID.String()),
+					zap.Int("original_level", userLevel.CurrentLevel))
+			}
 		}
+	} else {
+		// CurrentTierID is NULL/empty, get tier by level
+		s.logger.Warn("CurrentTierID is empty, getting tier by level",
+			zap.String("user_id", userID.String()),
+			zap.Int("current_level", userLevel.CurrentLevel))
+		currentTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel)
+		if err != nil {
+			s.logger.Error("Failed to get current tier by level, trying level 1",
+				zap.Error(err),
+				zap.Int("requested_level", userLevel.CurrentLevel))
+			// Last resort: try level 1 (Bronze tier)
+			currentTier, err = s.storage.GetCashbackTierByLevel(ctx, 1)
+			if err != nil {
+				s.logger.Error("Failed to get tier level 1", zap.Error(err))
+				return nil, fmt.Errorf("failed to get current tier: no valid tier found (tried level %d and level 1): %w", userLevel.CurrentLevel, err)
+			}
+			s.logger.Warn("Using tier level 1 as fallback",
+				zap.String("user_id", userID.String()),
+				zap.Int("original_level", userLevel.CurrentLevel))
+		}
+	}
+
+	if currentTier == nil {
+		return nil, fmt.Errorf("current tier is nil")
+	}
+
+	// Get next tier - try to get tier at next level, if it doesn't exist, user is at max level
+	var nextTier *dto.CashbackTier
+	nextTier, err = s.storage.GetCashbackTierByLevel(ctx, userLevel.CurrentLevel+1)
+	if err != nil {
+		// No next tier exists - user is at the highest tier
+		s.logger.Debug("No next tier found, user is at highest tier",
+			zap.String("user_id", userID.String()),
+			zap.Int("current_level", userLevel.CurrentLevel))
+		// Continue without next tier info
+		nextTier = nil
 	}
 
 	// Calculate progress to next level

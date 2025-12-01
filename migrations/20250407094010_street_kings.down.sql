@@ -1,1 +1,0 @@
-drop table street_kings ;

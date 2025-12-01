@@ -1,1 +1,0 @@
-drop table spinning_wheel_mysteries;

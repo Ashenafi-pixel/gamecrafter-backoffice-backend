@@ -1,1 +1,0 @@
-drop table exchange_rates  CASCADE;

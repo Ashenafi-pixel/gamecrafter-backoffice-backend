@@ -1,1 +1,0 @@
-alter table rounds rename COLUMN crash_poi TO crash_point;

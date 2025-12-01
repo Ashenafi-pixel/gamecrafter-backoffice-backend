@@ -1,1 +1,0 @@
-drop table operational_groups  CASCADE;

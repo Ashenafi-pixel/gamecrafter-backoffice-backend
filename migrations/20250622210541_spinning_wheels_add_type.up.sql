@@ -1,1 +1,0 @@
-alter table spinning_wheels add column type varchar(255);

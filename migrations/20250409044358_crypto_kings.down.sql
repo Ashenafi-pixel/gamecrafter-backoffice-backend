@@ -1,1 +1,0 @@
-drop table crypto_kings;

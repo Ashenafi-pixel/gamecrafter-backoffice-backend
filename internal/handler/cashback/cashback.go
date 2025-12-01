@@ -997,10 +997,12 @@ func (h *CashbackHandler) GetLevelProgressionInfoForUser(c *gin.Context) {
 
 	progressionInfo, err := h.cashbackService.GetLevelProgressionInfo(c.Request.Context(), userUUID)
 	if err != nil {
-		h.logger.Error("Failed to get level progression info", zap.Error(err))
+		h.logger.Error("Failed to get level progression info",
+			zap.Error(err),
+			zap.String("user_id", userUUID.String()))
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Code:    http.StatusInternalServerError,
-			Message: "Failed to get level progression info",
+			Message: fmt.Sprintf("Failed to get level progression info: %v", err),
 		})
 		return
 	}

@@ -1,1 +1,0 @@
-drop table football_match_rounds;

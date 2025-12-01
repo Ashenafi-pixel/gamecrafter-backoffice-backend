@@ -1,1 +1,0 @@
-ALTER TYPE SpinningWheelTypes ADD VALUE 'free spin';

@@ -1,1 +1,0 @@
-DROP TABLE failed_bet_logs CASCADE;

@@ -1,1 +1,0 @@
-drop table tournaments_claims;

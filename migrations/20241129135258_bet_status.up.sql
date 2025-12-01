@@ -1,1 +1,0 @@
-CREATE TYPE bet_status AS ENUM ('open','in_progress','closed');
