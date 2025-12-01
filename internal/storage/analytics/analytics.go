@@ -994,81 +994,6 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 	startOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 
 	query := `
-		WITH mtd_data AS (
-			-- Deposits from deposits table
-			SELECT 
-				user_id,
-				amount,
-				'deposit' as transaction_type,
-				created_at,
-				'deposits' as source
-			FROM tucanbit_analytics.deposits
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- Withdrawals from withdrawals table
-			SELECT 
-				user_id,
-				amount,
-				'withdrawal' as transaction_type,
-				created_at,
-				'withdrawals' as source
-			FROM tucanbit_analytics.withdrawals
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- GrooveTech wagers and results
-			SELECT 
-				account_id as user_id,
-				amount,
-				CASE 
-					WHEN type = 'wager' THEN 'groove_bet'
-					WHEN type = 'result' THEN 'groove_win'
-					ELSE type
-				END as transaction_type,
-				created_at,
-				'groove' as source
-			FROM tucanbit_analytics.groove_transactions
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- Regular bets
-			SELECT 
-				user_id,
-				amount,
-				'bet' as transaction_type,
-				timestamp as created_at,
-				'bets' as source
-			FROM tucanbit_analytics.bets
-			WHERE toDate(timestamp) >= ? AND toDate(timestamp) <= ?
-			
-			UNION ALL
-			
-			-- Cashback earnings
-			SELECT 
-				user_id,
-				earned_amount as amount,
-				'cashback_earned' as transaction_type,
-				created_at,
-				'cashback_earnings' as source
-			FROM tucanbit_analytics.cashback_earnings
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- Cashback claims
-			SELECT 
-				user_id,
-				claim_amount as amount,
-				'cashback_claimed' as transaction_type,
-				created_at,
-				'cashback_claims' as source
-			FROM tucanbit_analytics.cashback_claims
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-		)
 		SELECT 
 			toUInt64(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
@@ -1085,15 +1010,21 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
 			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
 			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
-		FROM mtd_data
+		FROM tucanbit_analytics.transactions
+		WHERE toDate(created_at + INTERVAL 3 HOUR) >= ? AND toDate(created_at + INTERVAL 3 HOUR) <= ?
 	`
 
 	startOfMonthStr := startOfMonth.Format("2006-01-02")
 	dateStr := date.Format("2006-01-02")
-	row := s.clickhouse.QueryRow(ctx, query, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr, startOfMonthStr, dateStr)
+
+	s.logger.Debug("Executing MTD query",
+		zap.String("start_date", startOfMonthStr),
+		zap.String("end_date", dateStr))
+
+	row := s.clickhouse.QueryRow(ctx, query, startOfMonthStr, dateStr)
 
 	var mtd dto.DailyReportMTD
 	err := row.Scan(
@@ -1117,6 +1048,10 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 		&mtd.AdminCorrections,
 	)
 	if err != nil {
+		s.logger.Error("Failed to scan MTD data",
+			zap.String("start_date", startOfMonthStr),
+			zap.String("end_date", dateStr),
+			zap.Error(err))
 		return nil, fmt.Errorf("failed to scan MTD data: %w", err)
 	}
 
@@ -1137,81 +1072,6 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 	}
 
 	query := `
-		WITH splm_data AS (
-			-- Deposits from deposits table
-			SELECT 
-				user_id,
-				amount,
-				'deposit' as transaction_type,
-				created_at,
-				'deposits' as source
-			FROM tucanbit_analytics.deposits
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- Withdrawals from withdrawals table
-			SELECT 
-				user_id,
-				amount,
-				'withdrawal' as transaction_type,
-				created_at,
-				'withdrawals' as source
-			FROM tucanbit_analytics.withdrawals
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- GrooveTech wagers and results
-			SELECT 
-				account_id as user_id,
-				amount,
-				CASE 
-					WHEN type = 'wager' THEN 'groove_bet'
-					WHEN type = 'result' THEN 'groove_win'
-					ELSE type
-				END as transaction_type,
-				created_at,
-				'groove' as source
-			FROM tucanbit_analytics.groove_transactions
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- Regular bets
-			SELECT 
-				user_id,
-				amount,
-				'bet' as transaction_type,
-				timestamp as created_at,
-				'bets' as source
-			FROM tucanbit_analytics.bets
-			WHERE toDate(timestamp) >= ? AND toDate(timestamp) <= ?
-			
-			UNION ALL
-			
-			-- Cashback earnings
-			SELECT 
-				user_id,
-				earned_amount as amount,
-				'cashback_earned' as transaction_type,
-				created_at,
-				'cashback_earnings' as source
-			FROM tucanbit_analytics.cashback_earnings
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-			
-			UNION ALL
-			
-			-- Cashback claims
-			SELECT 
-				user_id,
-				claim_amount as amount,
-				'cashback_claimed' as transaction_type,
-				created_at,
-				'cashback_claims' as source
-			FROM tucanbit_analytics.cashback_claims
-			WHERE toDate(created_at) >= ? AND toDate(created_at) <= ?
-		)
 		SELECT 
 			toUInt64(count()) as total_transactions,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
@@ -1228,15 +1088,21 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
 			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
 			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback_earned'), 8) as cashback_earned,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback_claimed'), 8) as cashback_claimed,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
+			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
 			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
-		FROM splm_data
+		FROM tucanbit_analytics.transactions
+		WHERE toDate(created_at + INTERVAL 3 HOUR) >= ? AND toDate(created_at + INTERVAL 3 HOUR) <= ?
 	`
 
 	startOfLastMonthStr := startOfLastMonth.Format("2006-01-02")
 	splmEndDateStr := splmEndDate.Format("2006-01-02")
-	row := s.clickhouse.QueryRow(ctx, query, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr, startOfLastMonthStr, splmEndDateStr)
+
+	s.logger.Debug("Executing SPLM query",
+		zap.String("start_date", startOfLastMonthStr),
+		zap.String("end_date", splmEndDateStr))
+
+	row := s.clickhouse.QueryRow(ctx, query, startOfLastMonthStr, splmEndDateStr)
 
 	var splm dto.DailyReportSPLM
 	err := row.Scan(
