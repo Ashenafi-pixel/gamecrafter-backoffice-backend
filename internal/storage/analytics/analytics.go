@@ -1080,7 +1080,7 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt64(uniqExact(user_id)) as active_users,
-			toUInt64(uniqExactIf(game_id, game_id IS NOT NULL AND game_id != '')) as active_games,
+			toUInt64(0) as active_games, -- TODO: Get from games table
 			toUInt64(0) as new_users, -- TODO: Get from users table
 			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
 			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
