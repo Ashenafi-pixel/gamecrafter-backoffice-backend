@@ -1705,7 +1705,8 @@ WITH admin_users AS (
     FROM users us
     LEFT JOIN user_roles ur ON ur.user_id = us.id
     LEFT JOIN roles r ON r.id = ur.role_id
-    WHERE us.is_admin = true AND us.user_type = 'ADMIN'
+    WHERE (us.is_admin = true AND us.user_type = 'ADMIN')
+       OR EXISTS (SELECT 1 FROM user_roles ur2 WHERE ur2.user_id = us.id AND ur2.role_id = '33dbb86c-e306-4d1d-b7df-cdf556e1ae32'::uuid)
     GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.created_at, us.updated_at, us.last_login, us.is_admin, us.user_type
 )
 SELECT 

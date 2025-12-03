@@ -1331,7 +1331,8 @@ func (u *user) GetAllAdminUsers(ctx context.Context, req dto.GetAdminsReq) ([]dt
 		FROM users us
 		LEFT JOIN user_roles ur ON ur.user_id = us.id
 		LEFT JOIN roles r ON r.id = ur.role_id
-		WHERE us.is_admin = true AND us.user_type = 'ADMIN'
+		WHERE (us.is_admin = true AND us.user_type = 'ADMIN')
+		   OR EXISTS (SELECT 1 FROM user_roles ur2 WHERE ur2.user_id = us.id AND ur2.role_id = '33dbb86c-e306-4d1d-b7df-cdf556e1ae32'::uuid)
 		GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.street_address, us.city, us.postal_code, us.state, us.country, us.kyc_status, us.is_email_verified, us.default_currency, us.wallet_verification_status, us.created_at, us.is_admin, us.user_type
 		ORDER BY us.created_at DESC
 		LIMIT $1 OFFSET $2
