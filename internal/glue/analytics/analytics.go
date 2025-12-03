@@ -12,8 +12,13 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 	{
 		// User analytics endpoints
 		adminAnalyticsGroup.GET("/users/:user_id/transactions", analyticsHandler.GetUserTransactions)
+		adminAnalyticsGroup.GET("/users/:user_id/transactions/totals", analyticsHandler.GetUserTransactionsTotals)
 		adminAnalyticsGroup.GET("/users/:user_id/analytics", analyticsHandler.GetUserAnalytics)
 		adminAnalyticsGroup.GET("/users/:user_id/balance-history", analyticsHandler.GetUserBalanceHistory)
+		adminAnalyticsGroup.GET("/users/:user_id/rakeback", analyticsHandler.GetUserRakebackTransactions)
+		adminAnalyticsGroup.GET("/users/:user_id/rakeback/totals", analyticsHandler.GetUserRakebackTotals)
+		adminAnalyticsGroup.GET("/users/:user_id/tips", analyticsHandler.GetUserTips)
+		adminAnalyticsGroup.GET("/users/:user_id/tips/totals", analyticsHandler.GetUserTipsTotals)
 
 		// Real-time analytics
 		adminAnalyticsGroup.GET("/realtime/stats", analyticsHandler.GetRealTimeStats)
@@ -42,6 +47,8 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 		publicAnalyticsGroup.GET("/users/:user_id/transactions", analyticsHandler.GetUserTransactions)
 		publicAnalyticsGroup.GET("/users/:user_id/analytics", analyticsHandler.GetUserAnalytics)
 		publicAnalyticsGroup.GET("/users/:user_id/balance-history", analyticsHandler.GetUserBalanceHistory)
+		publicAnalyticsGroup.GET("/users/:user_id/rakeback", analyticsHandler.GetUserRakebackTransactions)
+		publicAnalyticsGroup.GET("/users/:user_id/tips", analyticsHandler.GetUserTips)
 
 		// Real-time analytics
 		publicAnalyticsGroup.GET("/realtime/stats", analyticsHandler.GetRealTimeStats)

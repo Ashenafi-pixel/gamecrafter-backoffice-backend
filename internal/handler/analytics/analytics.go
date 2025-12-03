@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -36,6 +37,33 @@ func (a *analytics) checkAnalyticsStorage(c *gin.Context) bool {
 		return false
 	}
 	return true
+}
+
+// getUserBrandID fetches the brand_id for a given user from PostgreSQL.
+func (a *analytics) getUserBrandID(ctx context.Context, userID uuid.UUID) (*string, error) {
+	if a.pgPool == nil {
+		return nil, nil
+	}
+	row := a.pgPool.QueryRow(ctx, "SELECT brand_id FROM users WHERE id = $1", userID)
+	var brandID uuid.UUID
+	if err := row.Scan(&brandID); err != nil {
+		return nil, err
+	}
+	brandStr := brandID.String()
+	return &brandStr, nil
+}
+
+// getUsernameByID fetches the username for a given user ID from PostgreSQL.
+func (a *analytics) getUsernameByID(ctx context.Context, userID uuid.UUID) *string {
+	if a.pgPool == nil {
+		return nil
+	}
+	row := a.pgPool.QueryRow(ctx, "SELECT username FROM users WHERE id = $1", userID)
+	var username string
+	if err := row.Scan(&username); err != nil {
+		return nil
+	}
+	return &username
 }
 
 // getUserIDsByTestAccount gets user IDs filtered by is_test_account from PostgreSQL
@@ -127,16 +155,25 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 		}
 	}
 
-	if transactionType := c.Query("transaction_type"); transactionType != "" {
-		filters.TransactionType = &transactionType
+	// Default transaction_type to "groove_bet" if not provided or empty
+	transactionType := c.Query("transaction_type")
+	if transactionType == "" {
+		transactionType = "groove_bet"
 	}
+	filters.TransactionType = &transactionType
 
 	if gameID := c.Query("game_id"); gameID != "" {
 		filters.GameID = &gameID
 	}
 
-	if status := c.Query("status"); status != "" {
-		filters.Status = &status
+	// For groove_bet and groove_win, always force status to "completed"
+	// Otherwise, use the provided status if given
+	statusParam := c.Query("status")
+	if transactionType == "groove_bet" || transactionType == "groove_win" {
+		completedStatus := "completed"
+		filters.Status = &completedStatus
+	} else if statusParam != "" {
+		filters.Status = &statusParam
 	}
 
 	if limitStr := c.Query("limit"); limitStr != "" {
@@ -153,25 +190,423 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 		}
 	}
 
-	transactions, err := a.analyticsStorage.GetUserTransactions(c.Request.Context(), userID, filters)
+	// Brand isolation: get brand_id for this user from Postgres and pass into ClickHouse filter
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	transactions, total, err := a.analyticsStorage.GetUserTransactions(c.Request.Context(), userID, filters)
 	if err != nil {
 		a.logger.Error("Failed to get user transactions",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
 			Success: false,
-			Error:   "Failed to retrieve transactions",
+			Error:   fmt.Sprintf("Failed to retrieve transactions: %v", err),
 		})
 		return
+	}
+
+	// Calculate pagination meta to match BACKOFFICE_PLAYER_ANALYTICS_ENDPOINTS.md
+	pageSize := filters.Limit
+	if pageSize <= 0 {
+		pageSize = total
+	}
+	page := 1
+	if pageSize > 0 {
+		page = (filters.Offset / pageSize) + 1
+	}
+	pages := 1
+	if pageSize > 0 && total > 0 {
+		pages = (total + pageSize - 1) / pageSize
 	}
 
 	c.JSON(http.StatusOK, dto.AnalyticsResponse{
 		Success: true,
 		Data:    transactions,
 		Meta: &dto.Meta{
-			Total:    len(transactions),
-			PageSize: filters.Limit,
+			Total:    total,
+			Page:     page,
+			PageSize: pageSize,
+			Pages:    pages,
 		},
+	})
+}
+
+// GetUserRakebackTransactions implements GET /analytics/users/{user_id}/rakeback
+func (a *analytics) GetUserRakebackTransactions(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	// Default transaction_type is "earned" if not provided
+	transactionType := c.DefaultQuery("transaction_type", "earned")
+	filters := &dto.RakebackFilters{
+		TransactionType: transactionType,
+	}
+
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			filters.Limit = limit
+		}
+	} else {
+		filters.Limit = 22 // default from doc for rakeback
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			filters.Offset = offset
+		}
+	}
+
+	// Brand isolation via Postgres
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	rows, total, totals, err := a.analyticsStorage.GetUserRakebackTransactions(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user rakeback transactions",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve rakeback transactions",
+		})
+		return
+	}
+
+	pageSize := filters.Limit
+	if pageSize <= 0 {
+		pageSize = total
+	}
+	page := 1
+	if pageSize > 0 {
+		page = (filters.Offset / pageSize) + 1
+	}
+	pages := 1
+	if pageSize > 0 && total > 0 {
+		pages = (total + pageSize - 1) / pageSize
+	}
+
+	// meta.total_claimed_amount is part of the markdown spec; we expose totals alongside standard meta.
+	totalClaimedAmountStr := totals.TotalClaimedAmount.String()
+	meta := &dto.Meta{
+		Total:              total,
+		Page:               page,
+		PageSize:           pageSize,
+		Pages:              pages,
+		TotalClaimedAmount: &totalClaimedAmountStr,
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    rows,
+		Meta:    meta,
+	})
+}
+
+// GetUserTips implements GET /analytics/users/{account_id}/tips
+func (a *analytics) GetUserTips(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.TipFilters{}
+
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			filters.Limit = limit
+		}
+	} else {
+		filters.Limit = 100
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			filters.Offset = offset
+		}
+	}
+
+	// Brand isolation via Postgres
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	rows, total, err := a.analyticsStorage.GetUserTips(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user tips",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve tip transactions",
+		})
+		return
+	}
+
+	// Parse metadata and resolve usernames from PostgreSQL
+	if a.pgPool != nil {
+		for _, tip := range rows {
+			if tip.Metadata != nil && *tip.Metadata != "" {
+				var metadata map[string]interface{}
+				if err := json.Unmarshal([]byte(*tip.Metadata), &metadata); err == nil {
+					if tip.TransactionType == "tip_sent" {
+						// For tip_sent: sender is current user, receiver is in metadata
+						if recipientID, ok := metadata["recipient_id"].(string); ok && recipientID != "" {
+							if receiverID, err := uuid.Parse(recipientID); err == nil {
+								if username := a.getUsernameByID(c.Request.Context(), receiverID); username != nil {
+									tip.ReceiverUsername = username
+								}
+							}
+						} else if receiverID, ok := metadata["receiver_id"].(string); ok && receiverID != "" {
+							if receiverUUID, err := uuid.Parse(receiverID); err == nil {
+								if username := a.getUsernameByID(c.Request.Context(), receiverUUID); username != nil {
+									tip.ReceiverUsername = username
+								}
+							}
+						}
+						// Set sender username to current user
+						if senderUsername := a.getUsernameByID(c.Request.Context(), userID); senderUsername != nil {
+							tip.SenderUsername = senderUsername
+						}
+					} else if tip.TransactionType == "tip_received" {
+						// For tip_received: receiver is current user, sender is in metadata
+						if senderID, ok := metadata["sender_id"].(string); ok && senderID != "" {
+							if senderUUID, err := uuid.Parse(senderID); err == nil {
+								if username := a.getUsernameByID(c.Request.Context(), senderUUID); username != nil {
+									tip.SenderUsername = username
+								}
+							}
+						}
+						// Set receiver username to current user
+						if receiverUsername := a.getUsernameByID(c.Request.Context(), userID); receiverUsername != nil {
+							tip.ReceiverUsername = receiverUsername
+						}
+					}
+				}
+			}
+		}
+	}
+
+	pageSize := filters.Limit
+	if pageSize <= 0 {
+		pageSize = total
+	}
+	page := 1
+	if pageSize > 0 {
+		page = (filters.Offset / pageSize) + 1
+	}
+	pages := 1
+	if pageSize > 0 && total > 0 {
+		pages = (total + pageSize - 1) / pageSize
+	}
+
+	meta := &dto.Meta{
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+		Pages:    pages,
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    rows,
+		Meta:    meta,
+	})
+}
+
+// GetUserTransactionsTotals implements /api/admin/analytics/users/{user_id}/transactions/totals
+func (a *analytics) GetUserTransactionsTotals(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.TransactionFilters{}
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+	if transactionType := c.Query("transaction_type"); transactionType != "" {
+		filters.TransactionType = &transactionType
+	}
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	totals, err := a.analyticsStorage.GetUserTransactionsTotals(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user transaction totals",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve transaction totals",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    totals,
+	})
+}
+
+// GetUserRakebackTotals implements /api/admin/analytics/users/{user_id}/rakeback/totals
+func (a *analytics) GetUserRakebackTotals(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	transactionType := c.DefaultQuery("transaction_type", "earned")
+	filters := &dto.RakebackFilters{
+		TransactionType: transactionType,
+	}
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	totals, err := a.analyticsStorage.GetUserRakebackTotals(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user rakeback totals",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve rakeback totals",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    totals,
+	})
+}
+
+// GetUserTipsTotals implements /api/admin/analytics/users/{user_id}/tips/totals
+func (a *analytics) GetUserTipsTotals(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.TipFilters{}
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	totals, err := a.analyticsStorage.GetUserTipsTotals(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user tips totals",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve tips totals",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    totals,
 	})
 }
 

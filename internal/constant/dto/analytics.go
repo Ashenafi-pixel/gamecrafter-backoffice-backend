@@ -40,8 +40,30 @@ type TransactionFilters struct {
 	TransactionType *string    `json:"transaction_type,omitempty"`
 	GameID          *string    `json:"game_id,omitempty"`
 	Status          *string    `json:"status,omitempty"`
+	BrandID         *string    `json:"brand_id,omitempty"`
 	Limit           int        `json:"limit,omitempty"`
 	Offset          int        `json:"offset,omitempty"`
+}
+
+// RakebackFilters for querying rakeback transactions
+type RakebackFilters struct {
+	TransactionType string     `json:"transaction_type"`    // "earned" or "claimed"
+	Status          *string    `json:"status,omitempty"`    // available|completed|claimed
+	DateFrom        *time.Time `json:"date_from,omitempty"` // optional, future-proof
+	DateTo          *time.Time `json:"date_to,omitempty"`   // optional, future-proof
+	BrandID         *string    `json:"brand_id,omitempty"`  // brand isolation
+	Limit           int        `json:"limit,omitempty"`
+	Offset          int        `json:"offset,omitempty"`
+}
+
+// TipFilters for querying tip transactions
+type TipFilters struct {
+	Status   *string    `json:"status,omitempty"`
+	DateFrom *time.Time `json:"date_from,omitempty"`
+	DateTo   *time.Time `json:"date_to,omitempty"`
+	BrandID  *string    `json:"brand_id,omitempty"`
+	Limit    int        `json:"limit,omitempty"`
+	Offset   int        `json:"offset,omitempty"`
 }
 
 // DateRange for analytics queries
@@ -306,6 +328,71 @@ type PlayerStats struct {
 	Rank              int             `json:"rank"`
 }
 
+// RakebackTransaction represents a single rakeback earning or claim row
+type RakebackTransaction struct {
+	ID              string           `json:"id"`
+	UserID          uuid.UUID        `json:"user_id"`
+	TransactionType string           `json:"transaction_type"` // "earned" or "claimed"
+	RakebackAmount  decimal.Decimal  `json:"rakeback_amount"`
+	Currency        string           `json:"currency"`
+	Status          string           `json:"status"`
+	GameID          *string          `json:"game_id,omitempty"`
+	GameName        *string          `json:"game_name,omitempty"`
+	Provider        *string          `json:"provider,omitempty"`
+	ProcessingFee   *decimal.Decimal `json:"processing_fee,omitempty"`
+	NetAmount       *decimal.Decimal `json:"net_amount,omitempty"`
+	ClaimedAt       *time.Time       `json:"claimed_at,omitempty"`
+	ClaimedEarnings *string          `json:"claimed_earnings,omitempty"`
+	ClaimID         *string          `json:"claim_id,omitempty"`
+	EarningID       *string          `json:"earning_id,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	UpdatedAt       time.Time        `json:"updated_at"`
+}
+
+// TipTransaction represents a single tip sent/received row
+type TipTransaction struct {
+	ID                    string          `json:"id"`
+	UserID                uuid.UUID       `json:"user_id"`
+	TransactionType       string          `json:"transaction_type"` // "tip_sent" or "tip_received"
+	Amount                decimal.Decimal `json:"amount"`
+	Currency              string          `json:"currency"`
+	Status                string          `json:"status"`
+	BalanceBefore         decimal.Decimal `json:"balance_before"`
+	BalanceAfter          decimal.Decimal `json:"balance_after"`
+	ExternalTransactionID *string         `json:"external_transaction_id,omitempty"`
+	Metadata              *string         `json:"metadata,omitempty"`
+	CreatedAt             time.Time       `json:"created_at"`
+	SenderUsername        *string         `json:"sender_username,omitempty"`   // Populated from users table
+	ReceiverUsername      *string         `json:"receiver_username,omitempty"` // Populated from users table
+}
+
+// UserTransactionsTotals represents summary totals for game transactions
+type UserTransactionsTotals struct {
+	TotalCount     uint64          `json:"total_count"`
+	TotalBetAmount decimal.Decimal `json:"total_bet_amount"`
+	TotalWinAmount decimal.Decimal `json:"total_win_amount"`
+	NetResult      decimal.Decimal `json:"net_result"`
+}
+
+// UserRakebackTotals represents summary totals for rakeback
+type UserRakebackTotals struct {
+	TotalEarnedCount   uint64          `json:"total_earned_count"`
+	TotalEarnedAmount  decimal.Decimal `json:"total_earned_amount"`
+	TotalClaimedCount  uint64          `json:"total_claimed_count"`
+	TotalClaimedAmount decimal.Decimal `json:"total_claimed_amount"`
+	AvailableRakeback  decimal.Decimal `json:"available_rakeback"`
+}
+
+// UserTipsTotals represents summary totals for tip transactions
+type UserTipsTotals struct {
+	TotalTipsCount      uint64          `json:"total_tips_count"`
+	TotalSentCount      uint64          `json:"total_sent_count"`
+	TotalSentAmount     decimal.Decimal `json:"total_sent_amount"`
+	TotalReceivedCount  uint64          `json:"total_received_count"`
+	TotalReceivedAmount decimal.Decimal `json:"total_received_amount"`
+	NetTips             decimal.Decimal `json:"net_tips"`
+}
+
 // BalanceSnapshot represents a balance snapshot at a point in time
 type BalanceSnapshot struct {
 	UserID          uuid.UUID       `json:"user_id"`
@@ -326,10 +413,11 @@ type AnalyticsResponse struct {
 
 // Meta represents pagination and metadata
 type Meta struct {
-	Total    int `json:"total"`
-	Page     int `json:"page"`
-	PageSize int `json:"page_size"`
-	Pages    int `json:"pages"`
+	Total              int     `json:"total"`
+	Page               int     `json:"page"`
+	PageSize           int     `json:"page_size"`
+	Pages              int     `json:"pages"`
+	TotalClaimedAmount *string `json:"total_claimed_amount,omitempty"` // Only for rakeback endpoints
 }
 
 // TransactionSummaryStats represents transaction summary statistics from ClickHouse

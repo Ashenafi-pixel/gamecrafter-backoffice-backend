@@ -87,7 +87,16 @@ type Analytics interface {
 	// Transaction methods
 	InsertTransaction(ctx context.Context, transaction *dto.AnalyticsTransaction) error
 	InsertTransactions(ctx context.Context, transactions []*dto.AnalyticsTransaction) error
-	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+	// GetUserTransactions returns paginated transactions and the total count matching the filters
+	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, int, error)
+	// Player analytics extensions
+	GetUserRakebackTransactions(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) ([]*dto.RakebackTransaction, int, dto.UserRakebackTotals, error)
+	GetUserTips(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) ([]*dto.TipTransaction, int, error)
+
+	// Totals endpoints
+	GetUserTransactionsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) (*dto.UserTransactionsTotals, error)
+	GetUserRakebackTotals(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) (*dto.UserRakebackTotals, error)
+	GetUserTipsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) (*dto.UserTipsTotals, error)
 	GetGameTransactions(ctx context.Context, gameID string, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 	GetTransactionReport(ctx context.Context, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 

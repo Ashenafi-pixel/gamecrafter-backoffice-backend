@@ -84,6 +84,13 @@ type Analytics interface {
 	ScheduleDailyReportCronJob(c *gin.Context)
 	SendTestDailyReport(c *gin.Context)
 	GetCronjobStatus(c *gin.Context)
+
+	// Player analytics extensions
+	GetUserRakebackTransactions(c *gin.Context)
+	GetUserTips(c *gin.Context)
+	GetUserTransactionsTotals(c *gin.Context)
+	GetUserRakebackTotals(c *gin.Context)
+	GetUserTipsTotals(c *gin.Context)
 }
 
 type OTP interface {

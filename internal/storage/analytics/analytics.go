@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -17,9 +18,19 @@ type AnalyticsStorage interface {
 	// Transaction methods
 	InsertTransaction(ctx context.Context, transaction *dto.AnalyticsTransaction) error
 	InsertTransactions(ctx context.Context, transactions []*dto.AnalyticsTransaction) error
-	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+	// GetUserTransactions returns paginated transactions and the total count matching the filters
+	GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, int, error)
 	GetGameTransactions(ctx context.Context, gameID string, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 	GetTransactionReport(ctx context.Context, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
+
+	// Player analytics extensions
+	GetUserRakebackTransactions(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) ([]*dto.RakebackTransaction, int, dto.UserRakebackTotals, error)
+	GetUserTips(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) ([]*dto.TipTransaction, int, error)
+
+	// Totals endpoints
+	GetUserTransactionsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) (*dto.UserTransactionsTotals, error)
+	GetUserRakebackTotals(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) (*dto.UserRakebackTotals, error)
+	GetUserTipsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) (*dto.UserTipsTotals, error)
 
 	// Analytics methods
 	GetUserAnalytics(ctx context.Context, userID uuid.UUID, dateRange *dto.DateRange) (*dto.UserAnalytics, error)
@@ -164,53 +175,75 @@ func (s *AnalyticsStorageImpl) InsertTransactions(ctx context.Context, transacti
 	return nil
 }
 
-func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error) {
-	query := `
+func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, int, error) {
+	// Base WHERE clause and args that we reuse for both count and data queries
+	where := "WHERE user_id = ?"
+	args := []interface{}{userID.String()}
+
+	// Add filters (date range, type, game, status) to match BACKOFFICE_PLAYER_ANALYTICS_ENDPOINTS.md
+	if filters != nil {
+		if filters.DateFrom != nil {
+			where += " AND created_at >= ?"
+			args = append(args, *filters.DateFrom)
+		}
+		if filters.DateTo != nil {
+			where += " AND created_at <= ?"
+			args = append(args, *filters.DateTo)
+		}
+		if filters.TransactionType != nil {
+			where += " AND transaction_type = ?"
+			args = append(args, *filters.TransactionType)
+		}
+		if filters.GameID != nil {
+			where += " AND game_id = ?"
+			args = append(args, *filters.GameID)
+		}
+		if filters.Status != nil {
+			where += " AND status = ?"
+			args = append(args, *filters.Status)
+		}
+		if filters.BrandID != nil {
+			where += " AND brand_id = ?"
+			args = append(args, *filters.BrandID)
+		}
+	}
+
+	// 1) Count query for pagination meta
+	countQuery := `
+		SELECT COUNT(*)
+		FROM tucanbit_analytics.transactions
+	` + " " + where
+
+	// ClickHouse COUNT() returns UInt64; scan into uint64 then cast to int for our API
+	var total64 uint64
+	if err := s.clickhouse.QueryRow(ctx, countQuery, args...).Scan(&total64); err != nil {
+		return nil, 0, fmt.Errorf("failed to count user transactions: %w", err)
+	}
+	total := int(total64)
+
+	// 2) Main data query
+	dataQuery := `
 		SELECT 
 			id, user_id, transaction_type, amount, currency, status,
 			game_id, game_name, provider, session_id, round_id,
 			bet_amount, win_amount, net_result, balance_before, balance_after,
 			payment_method, external_transaction_id, metadata, created_at, updated_at
-		FROM transactions
-		WHERE user_id = ? AND amount > 0
-	`
+		FROM tucanbit_analytics.transactions
+	` + " " + where + " ORDER BY created_at DESC"
 
-	args := []interface{}{userID.String()}
-
-	// Add filters
-	if filters != nil {
-		if filters.DateFrom != nil {
-			query += " AND created_at >= ?"
-			args = append(args, *filters.DateFrom)
-		}
-		if filters.DateTo != nil {
-			query += " AND created_at <= ?"
-			args = append(args, *filters.DateTo)
-		}
-		if filters.TransactionType != nil {
-			query += " AND transaction_type = ?"
-			args = append(args, *filters.TransactionType)
-		}
-		if filters.GameID != nil {
-			query += " AND game_id = ?"
-			args = append(args, *filters.GameID)
-		}
-		if filters.Status != nil {
-			query += " AND status = ?"
-			args = append(args, *filters.Status)
-		}
-	}
-
-	query += " ORDER BY created_at DESC"
-
+	dataArgs := append([]interface{}{}, args...)
 	if filters != nil && filters.Limit > 0 {
-		query += " LIMIT ?"
-		args = append(args, filters.Limit)
+		dataQuery += " LIMIT ?"
+		dataArgs = append(dataArgs, filters.Limit)
+	}
+	if filters != nil && filters.Offset > 0 {
+		dataQuery += " OFFSET ?"
+		dataArgs = append(dataArgs, filters.Offset)
 	}
 
-	rows, err := s.clickhouse.Query(ctx, query, args...)
+	rows, err := s.clickhouse.Query(ctx, dataQuery, dataArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query user transactions: %w", err)
+		return nil, 0, fmt.Errorf("failed to query user transactions: %w", err)
 	}
 	defer rows.Close()
 
@@ -244,7 +277,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			&transaction.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan transaction: %w", err)
 		}
 
 		// Handle NULL values by converting empty strings to nil pointers
@@ -298,13 +331,424 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 
 		transaction.UserID, err = uuid.Parse(userIDStr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse user ID: %w", err)
+			return nil, 0, fmt.Errorf("failed to parse user ID: %w", err)
 		}
 
 		transactions = append(transactions, &transaction)
 	}
 
-	return transactions, nil
+	return transactions, total, nil
+}
+
+// GetUserRakebackTransactions implements the /analytics/users/{user_id}/rakeback endpoint.
+func (s *AnalyticsStorageImpl) GetUserRakebackTransactions(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) ([]*dto.RakebackTransaction, int, dto.UserRakebackTotals, error) {
+	userIDStr := userID.String()
+
+	// Map API transaction_type to underlying ClickHouse values
+	var chType string
+	switch filters.TransactionType {
+	case "earned":
+		chType = "cashback_earning"
+	case "claimed":
+		chType = "cashback_claim"
+	default:
+		chType = "cashback_earning"
+	}
+
+	// Base WHERE clause
+	where := "WHERE user_id = ? AND transaction_type = ?"
+	args := []interface{}{userIDStr, chType}
+
+	if filters.Status != nil && *filters.Status != "" {
+		where += " AND status = ?"
+		args = append(args, *filters.Status)
+	}
+	if filters.BrandID != nil {
+		// brand_id is not stored in cashback_analytics, so brand isolation must
+		// be enforced at insert-time; we keep BrandID in filters for future use.
+	}
+
+	// Count and totals queries differ slightly between earned and claimed
+	var totalCount uint64
+	var totals dto.UserRakebackTotals
+
+	// For "earned" transactions, fetch claim transactions to extract claimed earning IDs
+	var claimedEarningIDs map[string]bool
+	if filters.TransactionType == "earned" {
+		claimedEarningIDs = make(map[string]bool)
+		claimsQuery := `
+			SELECT claimed_earnings
+			FROM tucanbit_analytics.cashback_analytics
+			WHERE user_id = ? 
+				AND transaction_type = 'cashback_claim'
+				AND claimed_earnings IS NOT NULL
+				AND claimed_earnings != ''
+		`
+		claimsRows, err := s.clickhouse.Query(ctx, claimsQuery, userIDStr)
+		if err == nil {
+			defer claimsRows.Close()
+			for claimsRows.Next() {
+				var claimedEarningsJSON string
+				if err := claimsRows.Scan(&claimedEarningsJSON); err == nil && claimedEarningsJSON != "" {
+					// Parse JSON: claimed_earnings is a JSON object where keys are earning IDs
+					// Example: {"earning_id_1": "0.5", "earning_id_2": "1.0"}
+					// We extract the keys (earning IDs)
+					var claimedMap map[string]interface{}
+					if err := json.Unmarshal([]byte(claimedEarningsJSON), &claimedMap); err == nil {
+						for earningID := range claimedMap {
+							claimedEarningIDs[earningID] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Common count query
+	countQuery := `
+		SELECT COUNT(*)
+		FROM tucanbit_analytics.cashback_analytics
+	` + " " + where
+
+	if err := s.clickhouse.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, dto.UserRakebackTotals{}, fmt.Errorf("failed to count rakeback rows: %w", err)
+	}
+
+	// Totals query (earned + claimed + available)
+	totalsQuery := `
+		SELECT
+			COUNTIf(transaction_type = 'cashback_earning') AS total_earned_count,
+			COALESCE(SUMIf(amount, transaction_type = 'cashback_earning'), 0) AS total_earned_amount,
+			COUNTIf(transaction_type = 'cashback_claim') AS total_claimed_count,
+			COALESCE(SUMIf(amount, transaction_type = 'cashback_claim'), 0) AS total_claimed_amount,
+			COALESCE(
+				SUMIf(available_amount, transaction_type = 'cashback_earning'),
+				0
+			) AS available_rakeback
+		FROM tucanbit_analytics.cashback_analytics
+		WHERE user_id = ?
+	`
+
+	var earnedCount, claimedCount uint64
+	if err := s.clickhouse.QueryRow(ctx, totalsQuery, userIDStr).Scan(
+		&earnedCount,
+		&totals.TotalEarnedAmount,
+		&claimedCount,
+		&totals.TotalClaimedAmount,
+		&totals.AvailableRakeback,
+	); err != nil {
+		return nil, 0, dto.UserRakebackTotals{}, fmt.Errorf("failed to get rakeback totals: %w", err)
+	}
+	totals.TotalEarnedCount = earnedCount
+	totals.TotalClaimedCount = claimedCount
+
+	// Data query
+	dataQuery := `
+		SELECT 
+			id,
+			user_id,
+			transaction_type,
+			amount,
+			currency,
+			status,
+			game_id,
+			game_name,
+			provider,
+			processing_fee,
+			net_amount,
+			claimed_at,
+			claimed_earnings,
+			claim_id,
+			earning_id,
+			created_at,
+			updated_at
+		FROM tucanbit_analytics.cashback_analytics
+	` + " " + where + " ORDER BY created_at DESC"
+
+	dataArgs := append([]interface{}{}, args...)
+	if filters.Limit > 0 {
+		dataQuery += " LIMIT ?"
+		dataArgs = append(dataArgs, filters.Limit)
+	}
+	if filters.Offset > 0 {
+		dataQuery += " OFFSET ?"
+		dataArgs = append(dataArgs, filters.Offset)
+	}
+
+	rows, err := s.clickhouse.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, dto.UserRakebackTotals{}, fmt.Errorf("failed to query rakeback transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*dto.RakebackTransaction
+	for rows.Next() {
+		var row dto.RakebackTransaction
+		var userIDStrLocal, chTypeLocal string
+
+		err := rows.Scan(
+			&row.ID,
+			&userIDStrLocal,
+			&chTypeLocal,
+			&row.RakebackAmount,
+			&row.Currency,
+			&row.Status,
+			&row.GameID,
+			&row.GameName,
+			&row.Provider,
+			&row.ProcessingFee,
+			&row.NetAmount,
+			&row.ClaimedAt,
+			&row.ClaimedEarnings,
+			&row.ClaimID,
+			&row.EarningID,
+			&row.CreatedAt,
+			&row.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, dto.UserRakebackTotals{}, fmt.Errorf("failed to scan rakeback row: %w", err)
+		}
+
+		row.UserID, err = uuid.Parse(userIDStrLocal)
+		if err != nil {
+			return nil, 0, dto.UserRakebackTotals{}, fmt.Errorf("failed to parse user ID: %w", err)
+		}
+
+		// Map ClickHouse transaction_type back to API-level "earned"/"claimed"
+		if chTypeLocal == "cashback_earning" {
+			row.TransactionType = "earned"
+			// For earned transactions, always override status based on claimed earnings logic
+			// Status should be "available" or "claimed", not "completed"
+			if filters.TransactionType == "earned" {
+				if row.EarningID != nil && claimedEarningIDs[*row.EarningID] {
+					// Mark as "claimed" if earning_id appears in any claim's claimed_earnings
+					row.Status = "claimed"
+				} else {
+					// Otherwise set to "available" (earned but not yet claimed)
+					row.Status = "available"
+				}
+			}
+		} else if chTypeLocal == "cashback_claim" {
+			row.TransactionType = "claimed"
+		} else {
+			row.TransactionType = chTypeLocal
+		}
+
+		result = append(result, &row)
+	}
+
+	return result, int(totalCount), totals, nil
+}
+
+// GetUserTips implements /analytics/users/{account_id}/tips backed by transactions.
+func (s *AnalyticsStorageImpl) GetUserTips(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) ([]*dto.TipTransaction, int, error) {
+	userIDStr := userID.String()
+
+	where := "WHERE user_id = ? AND transaction_type IN ('tip_sent', 'tip_received')"
+	args := []interface{}{userIDStr}
+
+	if filters.DateFrom != nil {
+		where += " AND created_at >= ?"
+		args = append(args, *filters.DateFrom)
+	}
+	if filters.DateTo != nil {
+		where += " AND created_at <= ?"
+		args = append(args, *filters.DateTo)
+	}
+	if filters.Status != nil && *filters.Status != "" {
+		where += " AND status = ?"
+		args = append(args, *filters.Status)
+	}
+	if filters.BrandID != nil {
+		where += " AND brand_id = ?"
+		args = append(args, *filters.BrandID)
+	}
+
+	// Count
+	countQuery := `
+		SELECT COUNT(*)
+		FROM tucanbit_analytics.transactions
+	` + " " + where
+
+	var total uint64
+	if err := s.clickhouse.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count tips: %w", err)
+	}
+
+	// Data
+	dataQuery := `
+		SELECT 
+			id,
+			user_id,
+			transaction_type,
+			amount,
+			currency,
+			status,
+			balance_before,
+			balance_after,
+			external_transaction_id,
+			metadata,
+			created_at
+		FROM tucanbit_analytics.transactions
+	` + " " + where + " ORDER BY created_at DESC"
+
+	dataArgs := append([]interface{}{}, args...)
+	if filters.Limit > 0 {
+		dataQuery += " LIMIT ?"
+		dataArgs = append(dataArgs, filters.Limit)
+	}
+	if filters.Offset > 0 {
+		dataQuery += " OFFSET ?"
+		dataArgs = append(dataArgs, filters.Offset)
+	}
+
+	rows, err := s.clickhouse.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query tips: %w", err)
+	}
+	defer rows.Close()
+
+	var tips []*dto.TipTransaction
+	for rows.Next() {
+		var t dto.TipTransaction
+		var userIDStrLocal string
+
+		if err := rows.Scan(
+			&t.ID,
+			&userIDStrLocal,
+			&t.TransactionType,
+			&t.Amount,
+			&t.Currency,
+			&t.Status,
+			&t.BalanceBefore,
+			&t.BalanceAfter,
+			&t.ExternalTransactionID,
+			&t.Metadata,
+			&t.CreatedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan tip row: %w", err)
+		}
+
+		t.UserID, err = uuid.Parse(userIDStrLocal)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to parse user ID: %w", err)
+		}
+
+		tips = append(tips, &t)
+	}
+
+	return tips, int(total), nil
+}
+
+// GetUserTransactionsTotals implements totals for game transactions.
+func (s *AnalyticsStorageImpl) GetUserTransactionsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) (*dto.UserTransactionsTotals, error) {
+	userIDStr := userID.String()
+
+	where := "WHERE user_id = ?"
+	args := []interface{}{userIDStr}
+
+	if filters != nil {
+		if filters.DateFrom != nil {
+			where += " AND created_at >= ?"
+			args = append(args, *filters.DateFrom)
+		}
+		if filters.DateTo != nil {
+			where += " AND created_at <= ?"
+			args = append(args, *filters.DateTo)
+		}
+		if filters.TransactionType != nil {
+			where += " AND transaction_type = ?"
+			args = append(args, *filters.TransactionType)
+		}
+		if filters.Status != nil {
+			where += " AND status = ?"
+			args = append(args, *filters.Status)
+		}
+		if filters.BrandID != nil {
+			where += " AND brand_id = ?"
+			args = append(args, *filters.BrandID)
+		}
+	}
+
+	query := `
+		SELECT 
+			COUNT(*) AS total_count,
+			COALESCE(SUMIf(bet_amount, transaction_type IN ('groove_bet','bet')), 0) AS total_bet_amount,
+			COALESCE(SUMIf(win_amount, transaction_type IN ('groove_win','win')), 0) AS total_win_amount
+		FROM tucanbit_analytics.transactions
+	` + " " + where
+
+	var totals dto.UserTransactionsTotals
+	if err := s.clickhouse.QueryRow(ctx, query, args...).Scan(
+		&totals.TotalCount,
+		&totals.TotalBetAmount,
+		&totals.TotalWinAmount,
+	); err != nil {
+		return nil, fmt.Errorf("failed to get transaction totals: %w", err)
+	}
+
+	totals.NetResult = totals.TotalBetAmount.Sub(totals.TotalWinAmount)
+	return &totals, nil
+}
+
+// GetUserRakebackTotals wraps GetUserRakebackTransactions totals for convenience.
+func (s *AnalyticsStorageImpl) GetUserRakebackTotals(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) (*dto.UserRakebackTotals, error) {
+	_, _, totals, err := s.GetUserRakebackTransactions(ctx, userID, filters)
+	if err != nil {
+		return nil, err
+	}
+	return &totals, nil
+}
+
+// GetUserTipsTotals implements totals for tips.
+func (s *AnalyticsStorageImpl) GetUserTipsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) (*dto.UserTipsTotals, error) {
+	userIDStr := userID.String()
+
+	where := "WHERE user_id = ? AND transaction_type IN ('tip_sent','tip_received')"
+	args := []interface{}{userIDStr}
+
+	if filters != nil {
+		if filters.DateFrom != nil {
+			where += " AND created_at >= ?"
+			args = append(args, *filters.DateFrom)
+		}
+		if filters.DateTo != nil {
+			where += " AND created_at <= ?"
+			args = append(args, *filters.DateTo)
+		}
+		if filters.Status != nil {
+			where += " AND status = ?"
+			args = append(args, *filters.Status)
+		}
+		if filters.BrandID != nil {
+			where += " AND brand_id = ?"
+			args = append(args, *filters.BrandID)
+		}
+	}
+
+	query := `
+		SELECT 
+			COUNT(*) AS total_tips_count,
+			COUNTIf(transaction_type = 'tip_sent') AS total_sent_count,
+			COALESCE(SUMIf(amount, transaction_type = 'tip_sent'), 0) AS total_sent_amount,
+			COUNTIf(transaction_type = 'tip_received') AS total_received_count,
+			COALESCE(SUMIf(amount, transaction_type = 'tip_received'), 0) AS total_received_amount
+		FROM tucanbit_analytics.transactions
+	` + " " + where
+
+	var totals dto.UserTipsTotals
+	if err := s.clickhouse.QueryRow(ctx, query, args...).Scan(
+		&totals.TotalTipsCount,
+		&totals.TotalSentCount,
+		&totals.TotalSentAmount,
+		&totals.TotalReceivedCount,
+		&totals.TotalReceivedAmount,
+	); err != nil {
+		return nil, fmt.Errorf("failed to get tips totals: %w", err)
+	}
+
+	totals.NetTips = totals.TotalReceivedAmount.Sub(totals.TotalSentAmount)
+	return &totals, nil
 }
 
 func (s *AnalyticsStorageImpl) GetUserAnalytics(ctx context.Context, userID uuid.UUID, dateRange *dto.DateRange) (*dto.UserAnalytics, error) {

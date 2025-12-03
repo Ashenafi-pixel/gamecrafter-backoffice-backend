@@ -152,17 +152,17 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	if req.Description != nil && *req.Description != "" {
 		descriptionVal = *req.Description
 	}
-	
+
 	var currencyCodeVal interface{} = nil
 	if req.CurrencyCode != nil {
 		currencyCodeVal = string(*req.CurrencyCode)
 	}
-	
+
 	var webhookURLVal interface{} = nil
 	if req.WebhookURL != nil && *req.WebhookURL != "" {
 		webhookURLVal = *req.WebhookURL
 	}
-	
+
 	query := `
         INSERT INTO alert_configurations (
             name, description, alert_type, status, threshold_amount, time_window_minutes,
@@ -183,16 +183,16 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 		zap.Any("currency_code", currencyCodeVal),
 		zap.Any("webhook_url", webhookURLVal),
 	)
-	
+
 	// Execute the query and scan the result
 	var config dto.AlertConfiguration
 	var scannedEmailGroupIDs UUIDArray
-	
+
 	// Use sql.NullString for nullable text/enum fields when scanning
 	var scannedDescription sql.NullString
 	var scannedCurrencyCode sql.NullString
 	var scannedWebhookURL sql.NullString
-	
+
 	err = tx.QueryRow(ctx, query,
 		req.Name, descriptionVal, req.AlertType, req.ThresholdAmount,
 		req.TimeWindowMinutes, currencyCodeVal, req.EmailNotifications,
@@ -203,7 +203,7 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 		&scannedCurrencyCode, &config.EmailNotifications, &scannedWebhookURL,
 		&scannedEmailGroupIDs, &config.CreatedBy, &config.CreatedAt, &config.UpdatedAt, &config.UpdatedBy,
 	)
-	
+
 	// Convert scanned nullable fields to pointers
 	if scannedDescription.Valid {
 		config.Description = &scannedDescription.String
@@ -215,7 +215,7 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	if scannedWebhookURL.Valid {
 		config.WebhookURL = &scannedWebhookURL.String
 	}
-	
+
 	if err == nil {
 		config.EmailGroupIDs = []uuid.UUID(scannedEmailGroupIDs)
 		// Commit the transaction
@@ -228,18 +228,18 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 	if err != nil {
 		// Rollback transaction on error
 		tx.Rollback(ctx)
-		
+
 		// Check if it's a unique constraint violation
-		if strings.Contains(err.Error(), "idx_alert_configurations_type_unique_active") || 
-		   strings.Contains(err.Error(), "unique constraint") {
+		if strings.Contains(err.Error(), "idx_alert_configurations_type_unique_active") ||
+			strings.Contains(err.Error(), "unique constraint") {
 			return nil, fmt.Errorf("an active alert configuration with alert_type '%s' already exists. Only one active alert per type is allowed", req.AlertType)
 		}
-		
+
 		// Check for foreign key constraint violations
 		if strings.Contains(err.Error(), "foreign key") || strings.Contains(err.Error(), "violates foreign key constraint") {
 			return nil, fmt.Errorf("invalid reference: %w", err)
 		}
-		
+
 		// Log detailed error information
 		s.log.Error("Failed to create alert configuration",
 			zap.Error(err),
@@ -256,12 +256,12 @@ func (s *alertStorage) CreateAlertConfiguration(ctx context.Context, req *dto.Cr
 			zap.Any("email_group_ids", emailGroupIDs),
 			zap.String("created_by", createdBy.String()),
 		)
-		
+
 		// Return a more descriptive error
 		if err == pgx.ErrNoRows || err == sql.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
 			return nil, fmt.Errorf("insert query returned no rows - this may indicate a database constraint, trigger, or data type issue. Please check server logs for details: %w", err)
 		}
-		
+
 		return nil, fmt.Errorf("failed to create alert configuration: %w", err)
 	}
 
@@ -632,7 +632,7 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 		var contextData sql.NullString
 		var acknowledgedAt sql.NullTime
 		var emailGroupIDs UUIDArray
-		
+
 		if err := rows.Scan(
 			&t.ID, &t.AlertConfigurationID, &t.TriggeredAt, &t.TriggerValue, &t.ThresholdValue,
 			&userIDStr, &transactionID, &amountUSD, &currencyCode, &contextData,
@@ -645,7 +645,7 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 			s.log.Error("Failed to scan alert trigger", zap.Error(err))
 			return nil, 0, err
 		}
-		
+
 		// Handle nullable UUID fields - scan as string and parse
 		if userIDStr.Valid && userIDStr.String != "" {
 			if userUUID, err := uuid.Parse(userIDStr.String); err == nil {
@@ -654,7 +654,7 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 				s.log.Warn("Failed to parse user_id", zap.String("user_id_str", userIDStr.String), zap.Error(err))
 			}
 		}
-		
+
 		if acknowledgedByStr.Valid && acknowledgedByStr.String != "" {
 			if ackByUUID, err := uuid.Parse(acknowledgedByStr.String); err == nil {
 				t.AcknowledgedBy = &ackByUUID
@@ -662,49 +662,49 @@ func (s *alertStorage) GetAlertTriggers(ctx context.Context, req *dto.GetAlertTr
 				s.log.Warn("Failed to parse acknowledged_by", zap.String("acknowledged_by_str", acknowledgedByStr.String), zap.Error(err))
 			}
 		}
-		
+
 		// Handle nullable string fields
 		if transactionID.Valid && transactionID.String != "" {
 			t.TransactionID = &transactionID.String
 		}
-		
+
 		// Handle nullable float fields
 		if amountUSD.Valid {
 			t.AmountUSD = &amountUSD.Float64
 		}
-		
+
 		// Handle nullable currency code
 		if currencyCode.Valid && currencyCode.String != "" {
 			currencyType := dto.CurrencyType(currencyCode.String)
 			t.CurrencyCode = &currencyType
 		}
-		
+
 		// Handle nullable context data
 		if contextData.Valid && contextData.String != "" {
 			t.ContextData = &contextData.String
 		}
-		
+
 		// Handle nullable timestamp
 		if acknowledgedAt.Valid {
 			t.AcknowledgedAt = &acknowledgedAt.Time
 		}
-		
+
 		// Populate email group IDs
 		ac.EmailGroupIDs = []uuid.UUID(emailGroupIDs)
-		
+
 		// attach joined fields
 		t.AlertConfiguration = &ac
-		
+
 		// Set username from users table (not user_id)
 		if username.Valid && username.String != "" {
 			t.Username = &username.String
 		}
-		
+
 		// Set user email from users table
 		if email.Valid && email.String != "" {
 			t.UserEmail = &email.String
 		}
-		
+
 		triggers = append(triggers, t)
 	}
 
@@ -780,16 +780,19 @@ func (s *alertStorage) CheckBetCountAlerts(ctx context.Context, timeWindow time.
 		if config.Status != dto.AlertStatusActive {
 			continue
 		}
-		
+
 		// Use the config's time window instead of the parameter
 		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
 
-		// Count bets from all sources: bets, groove_transactions (wager type), sport_bets, plinko
+		// Count bets from all sources: transactions (bet-type rows), groove_transactions (wager type), sport_bets, plinko
 		query := `
 			SELECT COUNT(*)::float
 			FROM (
-				SELECT id, timestamp as created_at FROM bets 
-				WHERE timestamp >= $1 AND timestamp <= $2
+				-- Main bet source: transactions table by transaction_type
+				SELECT id::text as id, created_at
+				FROM transactions
+				WHERE created_at >= $1 AND created_at <= $2
+				  AND transaction_type IN ('bet', 'groove_bet')
 				UNION ALL
 				SELECT id::text as id, created_at FROM groove_transactions 
 				WHERE type = 'wager' AND created_at >= $1 AND created_at <= $2
@@ -832,7 +835,7 @@ func (s *alertStorage) CheckBetCountAlerts(ctx context.Context, timeWindow time.
 				s.log.Error("Failed to check for recent triggers", zap.Error(err), zap.String("alert_id", config.ID.String()))
 				// Continue anyway - don't block trigger creation due to check failure
 			}
-			
+
 			if recentCount == 0 {
 				// Create trigger
 				trigger := &dto.AlertTrigger{
@@ -1022,7 +1025,7 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 	for _, config := range depositConfigs {
 		// Use the config's time window instead of the passed parameter
 		configTimeWindowStart := time.Now().Add(-time.Duration(config.TimeWindowMinutes) * time.Minute)
-		
+
 		var totalAmount float64
 		var query string
 		var args []interface{}
@@ -1081,7 +1084,7 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 			s.log.Error("Failed to calculate deposit total", zap.Error(err), zap.String("alert_id", config.ID.String()))
 			continue
 		}
-		
+
 		// Get the most recent deposit's user_id and amount
 		var recentUserIDStr sql.NullString
 		var recentAmount sql.NullFloat64
@@ -1090,14 +1093,14 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 			if recentUserIDStr.Valid && recentUserIDStr.String != "" {
 				if uid, parseErr := uuid.Parse(recentUserIDStr.String); parseErr == nil {
 					mostRecentUserID = &uid
-					s.log.Debug("Found most recent deposit user_id", 
+					s.log.Debug("Found most recent deposit user_id",
 						zap.String("user_id", mostRecentUserID.String()),
 						zap.String("alert_id", config.ID.String()))
 				}
 			}
 			if recentAmount.Valid {
 				mostRecentAmount = recentAmount.Float64
-				s.log.Debug("Found most recent deposit amount", 
+				s.log.Debug("Found most recent deposit amount",
 					zap.Float64("amount", mostRecentAmount),
 					zap.String("alert_id", config.ID.String()))
 			}
@@ -1120,7 +1123,7 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 
 		if shouldTrigger {
 			shouldCreateTrigger := true
-			
+
 			// Check for duplicates only if skipDuplicateCheck is false
 			if !skipDuplicateCheck {
 				// Check if we already triggered this alert recently (avoid duplicates within last 5 minutes)
@@ -1139,17 +1142,17 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 					// Continue anyway - don't block trigger creation due to check failure
 				} else if recentCount > 0 {
 					shouldCreateTrigger = false
-					s.log.Debug("Skipping duplicate deposit trigger", 
+					s.log.Debug("Skipping duplicate deposit trigger",
 						zap.String("alert_id", config.ID.String()),
 						zap.Int64("recent_count", recentCount),
 						zap.Float64("total_amount", totalAmount),
 						zap.Float64("threshold", config.ThresholdAmount))
 				}
 			} else {
-				s.log.Debug("Skipping duplicate check for deposit alert (manual fund addition)", 
+				s.log.Debug("Skipping duplicate check for deposit alert (manual fund addition)",
 					zap.String("alert_id", config.ID.String()))
 			}
-			
+
 			if shouldCreateTrigger {
 				// Create trigger - use the most recent deposit amount as trigger value (not the total)
 				// This shows the specific deposit that triggered the alert
@@ -1160,13 +1163,13 @@ func (s *alertStorage) CheckDepositAlerts(ctx context.Context, timeWindow time.D
 					triggerValue = mostRecentAmount
 					amountUSD = &mostRecentAmount
 				}
-				
+
 				trigger := &dto.AlertTrigger{
 					AlertConfigurationID: config.ID,
 					TriggeredAt:          time.Now(),
 					TriggerValue:         triggerValue, // Use the individual deposit amount, not total
 					ThresholdValue:       config.ThresholdAmount,
-					AmountUSD:            amountUSD, // Use the individual deposit amount
+					AmountUSD:            amountUSD,        // Use the individual deposit amount
 					UserID:               mostRecentUserID, // Include user_id from most recent deposit
 				}
 				if config.CurrencyCode != nil {
