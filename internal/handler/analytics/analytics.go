@@ -166,13 +166,8 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 		filters.GameID = &gameID
 	}
 
-	// For groove_bet and groove_win, always force status to "completed"
-	// Otherwise, use the provided status if given
-	statusParam := c.Query("status")
-	if transactionType == "groove_bet" || transactionType == "groove_win" {
-		completedStatus := "completed"
-		filters.Status = &completedStatus
-	} else if statusParam != "" {
+	// Use the provided status if given, otherwise fetch all statuses
+	if statusParam := c.Query("status"); statusParam != "" {
 		filters.Status = &statusParam
 	}
 
