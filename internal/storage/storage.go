@@ -329,6 +329,7 @@ type Authz interface {
 	GetUserRoleUsingUserIDandRole(ctx context.Context, userID, roleID uuid.UUID) (dto.UserRole, bool, error)
 	RemoveRoleFromUserRoles(ctx context.Context, roleID uuid.UUID) error
 	RevokeUserRole(ctx context.Context, userID, roleID uuid.UUID) error
+	RemoveAllUserRolesExceptSuper(ctx context.Context, userID uuid.UUID) error
 	GetRoleUsers(ctx context.Context, roleID uuid.UUID) ([]dto.User, error)
 	CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error)
 }

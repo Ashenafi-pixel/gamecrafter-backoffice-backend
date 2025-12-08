@@ -386,6 +386,17 @@ func (q *Queries) RevokeUserRole(ctx context.Context, arg RevokeUserRoleParams) 
 	return err
 }
 
+const removeAllUserRolesExceptSuper = `-- name: RemoveAllUserRolesExceptSuper :exec
+DELETE FROM user_roles 
+WHERE user_id = $1 
+AND role_id NOT IN (SELECT id FROM roles WHERE name = 'super')
+`
+
+func (q *Queries) RemoveAllUserRolesExceptSuper(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, removeAllUserRolesExceptSuper, userID)
+	return err
+}
+
 const getAdminFundingLimit = `-- name: GetAdminFundingLimit :one
 SELECT COALESCE(MAX(rp.value), NULL) as max_funding_limit
 FROM user_roles ur

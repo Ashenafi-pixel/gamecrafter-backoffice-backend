@@ -56,6 +56,11 @@ DELETE FROM user_roles where role_id = $1;
 -- name: RevokeUserRole :exec 
 DELETE FROM  user_roles where user_id = $1 and role_id = $2;
 
+-- name: RemoveAllUserRolesExceptSuper :exec
+DELETE FROM user_roles 
+WHERE user_id = $1 
+AND role_id NOT IN (SELECT id FROM roles WHERE name = 'super');
+
 -- name: GetRoleUsers :many 
 SELECT u.* from user_roles ur join users u on ur.user_id = u.id where role_id = $1;
 
