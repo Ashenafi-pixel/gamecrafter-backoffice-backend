@@ -208,11 +208,24 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 		}
 	}
 
-	// 1) Count query for pagination meta
+	// 1) Count query for pagination meta - count distinct transaction IDs after deduplication
+	// We need to deduplicate by id, preferring "completed" status
 	countQuery := `
-		SELECT COUNT(*)
-		FROM tucanbit_analytics.transactions
-	` + " " + where
+		SELECT COUNT(DISTINCT id)
+		FROM (
+			SELECT id,
+				ROW_NUMBER() OVER (PARTITION BY id ORDER BY 
+					CASE status 
+						WHEN 'completed' THEN 1 
+						ELSE 2 
+					END,
+					created_at DESC
+				) as rn
+			FROM tucanbit_analytics.transactions
+			` + " " + where + `
+		) deduped
+		WHERE rn = 1
+	`
 
 	// ClickHouse COUNT() returns UInt64; scan into uint64 then cast to int for our API
 	var total64 uint64
@@ -221,15 +234,32 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 	}
 	total := int(total64)
 
-	// 2) Main data query
+	// 2) Main data query - deduplicate by id, preferring "completed" status
 	dataQuery := `
 		SELECT 
 			id, user_id, transaction_type, amount, currency, status,
 			game_id, game_name, provider, session_id, round_id,
 			bet_amount, win_amount, net_result, balance_before, balance_after,
 			payment_method, external_transaction_id, metadata, created_at, updated_at
-		FROM tucanbit_analytics.transactions
-	` + " " + where + " ORDER BY created_at DESC"
+		FROM (
+			SELECT 
+				id, user_id, transaction_type, amount, currency, status,
+				game_id, game_name, provider, session_id, round_id,
+				bet_amount, win_amount, net_result, balance_before, balance_after,
+				payment_method, external_transaction_id, metadata, created_at, updated_at,
+				ROW_NUMBER() OVER (PARTITION BY id ORDER BY 
+					CASE status 
+						WHEN 'completed' THEN 1 
+						ELSE 2 
+					END,
+					created_at DESC
+				) as rn
+			FROM tucanbit_analytics.transactions
+			` + " " + where + `
+		) deduped
+		WHERE rn = 1
+		ORDER BY created_at DESC
+	`
 
 	dataArgs := append([]interface{}{}, args...)
 	if filters != nil && filters.Limit > 0 {
