@@ -65,6 +65,7 @@ func NewRakebackOverrideStorage(db *persistencedb.PersistenceDB, log *zap.Logger
 }
 
 // GetActiveOverride retrieves the currently active global rakeback override
+// It checks if is_active is true AND if current time is within the daily time window (start_time to end_time)
 func (r *rakebackOverrideStorage) GetActiveOverride(ctx context.Context) (*GlobalRakebackOverride, error) {
 	result, err := r.db.Queries.GetActiveGlobalRakebackOverride(ctx)
 	if err != nil {
@@ -76,7 +77,70 @@ func (r *rakebackOverrideStorage) GetActiveOverride(ctx context.Context) (*Globa
 	}
 
 	override := r.convertToOverride(result)
+	
+	// Check if current time is within the daily time window
+	if !r.isWithinTimeWindow(override) {
+		// Override exists but is not within time window, return nil
+		return nil, nil
+	}
+	
 	return override, nil
+}
+
+// isWithinTimeWindow checks if the current UTC time is within the daily time window
+// It compares only the time portion (HH:MM) for daily repetition
+func (r *rakebackOverrideStorage) isWithinTimeWindow(override *GlobalRakebackOverride) bool {
+	// If no time window is set, consider it always active (if is_active is true)
+	if override.StartTime == nil && override.EndTime == nil {
+		return true
+	}
+	
+	// Get current UTC time
+	now := time.Now().UTC()
+	currentHours := now.Hour()
+	currentMinutes := now.Minute()
+	currentTimeMinutes := currentHours*60 + currentMinutes
+	
+	// Parse start time (extract time portion only)
+	var startTimeMinutes *int
+	if override.StartTime != nil {
+		startHours := override.StartTime.Hour()
+		startMins := override.StartTime.Minute()
+		minutes := startHours*60 + startMins
+		startTimeMinutes = &minutes
+	}
+	
+	// Parse end time (extract time portion only)
+	var endTimeMinutes *int
+	if override.EndTime != nil {
+		endHours := override.EndTime.Hour()
+		endMins := override.EndTime.Minute()
+		minutes := endHours*60 + endMins
+		endTimeMinutes = &minutes
+	}
+	
+	// Check if current time is within the daily time window
+	if startTimeMinutes != nil && endTimeMinutes != nil {
+		// Both start and end times are set
+		if *endTimeMinutes <= *startTimeMinutes {
+			// Time window spans midnight (e.g., 22:00 to 02:00)
+			// Active if current time >= start OR current time <= end
+			return currentTimeMinutes >= *startTimeMinutes || currentTimeMinutes <= *endTimeMinutes
+		} else {
+			// Normal time window (same day, e.g., 10:00 to 14:00)
+			// Active if current time >= start AND current time <= end
+			return currentTimeMinutes >= *startTimeMinutes && currentTimeMinutes <= *endTimeMinutes
+		}
+	} else if startTimeMinutes != nil {
+		// Only start time is set - active if current time >= start
+		return currentTimeMinutes >= *startTimeMinutes
+	} else if endTimeMinutes != nil {
+		// Only end time is set - active if current time <= end
+		return currentTimeMinutes <= *endTimeMinutes
+	}
+	
+	// No time window constraints
+	return true
 }
 
 // GetOverride retrieves the most recent global rakeback override (active or not)
