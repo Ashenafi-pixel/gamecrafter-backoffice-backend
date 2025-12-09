@@ -229,16 +229,27 @@ func (a *authz) AssignRoleToUser(ctx context.Context, req dto.AssignRoleToUserRe
 		return dto.AssignRoleToUserRes{}, err
 	}
 
-	//check if the role is already assigned or not
-	_, exist, err = a.authzStorage.GetUserRoleUsingUserIDandRole(ctx, req.UserID, req.RoleID)
-	if err != nil {
-		return dto.AssignRoleToUserRes{}, err
-	}
+	// If assigning "manager" or "admin role", replace all existing roles (except super)
+	if r.Name == "manager" || r.Name == "admin role" {
+		// Remove all existing roles for this user (except super)
+		err = a.authzStorage.RemoveAllUserRolesExceptSuper(ctx, req.UserID)
+		if err != nil {
+			a.Log.Error("failed to remove existing roles", zap.Error(err), zap.Any("userID", req.UserID))
+			err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+			return dto.AssignRoleToUserRes{}, err
+		}
+	} else {
+		// For other roles, check if the role is already assigned
+		_, exist, err = a.authzStorage.GetUserRoleUsingUserIDandRole(ctx, req.UserID, req.RoleID)
+		if err != nil {
+			return dto.AssignRoleToUserRes{}, err
+		}
 
-	if exist {
-		err := fmt.Errorf("role already assigned to the user")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
-		return dto.AssignRoleToUserRes{}, err
+		if exist {
+			err := fmt.Errorf("role already assigned to the user")
+			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+			return dto.AssignRoleToUserRes{}, err
+		}
 	}
 
 	_, err = a.authzStorage.AddRoleToUser(ctx, req.RoleID, req.UserID)

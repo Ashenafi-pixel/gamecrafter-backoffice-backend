@@ -433,6 +433,15 @@ func (a *authz) RevokeUserRole(ctx context.Context, userID, roleID uuid.UUID) er
 
 }
 
+func (a *authz) RemoveAllUserRolesExceptSuper(ctx context.Context, userID uuid.UUID) error {
+	if err := a.pdb.Queries.RemoveAllUserRolesExceptSuper(ctx, userID); err != nil {
+		a.log.Error(err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		return err
+	}
+	return nil
+}
+
 func (a *authz) CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error) {
 	query := `
 		SELECT EXISTS(
