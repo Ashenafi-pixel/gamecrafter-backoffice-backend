@@ -1120,6 +1120,196 @@ func (h *SystemConfigHandler) UpdateTipSettings(ctx *gin.Context) {
 	})
 }
 
+// GetWelcomeBonusSettings retrieves welcome bonus settings
+func (h *SystemConfigHandler) GetWelcomeBonusSettings(ctx *gin.Context) {
+	h.log.Info("Getting welcome bonus settings")
+
+	// Get brand_id from query params (required)
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	// brand_id is required for welcome bonus settings
+	if brandID == nil {
+		h.log.Error("brand_id is required for welcome bonus settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for welcome bonus settings"})
+		return
+	}
+
+	settings, err := h.systemConfigStorage.GetWelcomeBonusSettings(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Failed to get welcome bonus settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "Welcome bonus settings retrieved successfully",
+	})
+}
+
+// UpdateWelcomeBonusSettings updates welcome bonus settings
+func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
+	// Read JSON body to extract both brand_id and welcome bonus settings
+	var jsonBody map[string]interface{}
+	if err := ctx.ShouldBindJSON(&jsonBody); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Extract brand_id from JSON body, query params, or form data (required)
+	var brandID *uuid.UUID
+	if brandIDVal, exists := jsonBody["brand_id"]; exists {
+		if brandIDStr, ok := brandIDVal.(string); ok && brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	// If not in JSON body, check query params or form data
+	if brandID == nil {
+		if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		} else if brandIDStr := ctx.PostForm("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	// brand_id is required for welcome bonus settings
+	if brandID == nil {
+		h.log.Error("brand_id is required for welcome bonus settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for welcome bonus settings"})
+		return
+	}
+
+	// Parse the WelcomeBonusSettings from JSON body
+	var req system_config.WelcomeBonusSettings
+
+	// Parse type
+	if typeVal, ok := jsonBody["type"].(string); ok && typeVal != "" {
+		if typeVal == "fixed" || typeVal == "percentage" {
+			req.Type = typeVal
+		} else {
+			h.log.Warn("Invalid type, using default 'fixed'")
+			req.Type = "fixed"
+		}
+	} else {
+		h.log.Warn("type missing or invalid, using default 'fixed'")
+		req.Type = "fixed"
+	}
+
+	// Parse enabled
+	if enabledVal, exists := jsonBody["enabled"]; exists {
+		if enabled, ok := enabledVal.(bool); ok {
+			req.Enabled = enabled
+		} else {
+			h.log.Warn("enabled missing or invalid, using default false")
+			req.Enabled = false
+		}
+	} else {
+		req.Enabled = false
+	}
+
+	// Helper function to parse float64 from JSON (handles int, int64, float32, float64)
+	parseFloat := func(key string, defaultValue float64) float64 {
+		if val, exists := jsonBody[key]; exists {
+			switch v := val.(type) {
+			case float64:
+				return v
+			case int:
+				return float64(v)
+			case int64:
+				return float64(v)
+			case float32:
+				return float64(v)
+			default:
+				h.log.Warn(fmt.Sprintf("%s has invalid type, using default %.2f", key, defaultValue), zap.Any("type", fmt.Sprintf("%T", v)))
+				return defaultValue
+			}
+		}
+		return defaultValue
+	}
+
+	// Parse fixed_amount
+	req.FixedAmount = parseFloat("fixed_amount", 0.0)
+
+	// Parse percentage
+	req.Percentage = parseFloat("percentage", 0.0)
+
+	// Parse min_deposit_amount
+	req.MinDepositAmount = parseFloat("min_deposit_amount", 0.0)
+
+	// Parse max_bonus_percentage
+	req.MaxBonusPercentage = parseFloat("max_bonus_percentage", 90.0)
+
+	// Validate: only one type can be enabled at a time
+	// This validation is done at the storage layer, but we can add a check here too
+	if req.Enabled && req.Type == "percentage" {
+		if req.MaxBonusPercentage >= 100 {
+			h.log.Error("max_bonus_percentage must be less than 100")
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "max_bonus_percentage must be less than 100 to prevent bonus from equaling deposit"})
+			return
+		}
+	}
+
+	h.log.Info("Parsed welcome bonus settings",
+		zap.String("type", req.Type),
+		zap.Bool("enabled", req.Enabled),
+		zap.Float64("fixed_amount", req.FixedAmount),
+		zap.Float64("percentage", req.Percentage),
+		zap.Float64("min_deposit_amount", req.MinDepositAmount),
+		zap.Float64("max_bonus_percentage", req.MaxBonusPercentage),
+		zap.Any("brand_id", brandID))
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err := h.systemConfigStorage.UpdateWelcomeBonusSettings(ctx.Request.Context(), req, adminUUID, brandID)
+	if err != nil {
+		h.log.Error("Failed to update welcome bonus settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Log admin activity
+	h.logAdminActivity(ctx, "update", "welcome_bonus_settings", "Updated welcome bonus settings", map[string]interface{}{
+		"type":                req.Type,
+		"enabled":             req.Enabled,
+		"fixed_amount":        req.FixedAmount,
+		"percentage":          req.Percentage,
+		"min_deposit_amount":  req.MinDepositAmount,
+		"max_bonus_percentage": req.MaxBonusPercentage,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "Welcome bonus settings updated successfully",
+	})
+}
+
 // GetSecuritySettings retrieves security settings
 func (h *SystemConfigHandler) GetSecuritySettings(ctx *gin.Context) {
 	h.log.Info("Getting security settings")

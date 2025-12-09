@@ -182,6 +182,22 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
+			Path:    "/api/admin/settings/welcome-bonus",
+			Handler: systemConfigHandler.GetWelcomeBonusSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+			Path:    "/api/admin/settings/welcome-bonus",
+			Handler: systemConfigHandler.UpdateWelcomeBonusSettings,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
 			Path:    "/api/admin/settings/security",
 			Handler: systemConfigHandler.GetSecuritySettings,
 			Middleware: []gin.HandlerFunc{
