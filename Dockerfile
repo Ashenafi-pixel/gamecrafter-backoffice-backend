@@ -13,6 +13,11 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 
+# Configure Go module proxy to bypass proxy.golang.org (which is failing with TLS errors)
+# and fetch modules directly from the VCS hosts (GitHub, etc.).
+ENV GOPROXY=direct
+
+
 # Download dependencies (this layer will be cached if go.mod/go.sum don't change)
 RUN go mod download
 

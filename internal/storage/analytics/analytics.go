@@ -208,7 +208,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 		}
 	}
 
-	// 1) Count query for pagination meta - count distinct transaction IDs after deduplication
+	// Count query for pagination meta - count distinct transaction IDs after deduplication
 	// We need to deduplicate by id, preferring "completed" status
 	countQuery := `
 		SELECT COUNT(DISTINCT id)
@@ -234,7 +234,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 	}
 	total := int(total64)
 
-	// 2) Main data query - deduplicate by id, preferring "completed" status
+	//  Main data query - deduplicate by id, preferring "completed" status
 	dataQuery := `
 		SELECT 
 			id, user_id, transaction_type, amount, currency, status,

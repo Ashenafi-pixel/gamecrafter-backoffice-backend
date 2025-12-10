@@ -83,6 +83,15 @@ type TipSettings struct {
 	TransactionFee           float64 `json:"transaction_fee"`              // 1-100
 }
 
+type WelcomeBonusSettings struct {
+	Type               string  `json:"type"`                 // "fixed" or "percentage"
+	Enabled            bool    `json:"enabled"`              // true if this bonus type is enabled
+	FixedAmount        float64 `json:"fixed_amount"`         // fixed bonus amount (for fixed type)
+	Percentage         float64 `json:"percentage"`           // percentage value e.g., 50 for 50% (for percentage type)
+	MinDepositAmount   float64 `json:"min_deposit_amount"`   // minimum deposit required (for percentage type)
+	MaxBonusPercentage float64 `json:"max_bonus_percentage"` // max bonus as % of deposit, default 90% to prevent 100% match
+}
+
 type GeoBlockingSettings struct {
 	EnableGeoBlocking bool     `json:"enable_geo_blocking"`
 	DefaultAction     string   `json:"default_action"` // "allow" or "block"
@@ -603,6 +612,139 @@ func (s *SystemConfig) UpdateTipSettings(ctx context.Context, settings TipSettin
 		s.log.Info("Tip settings updated for brand", zap.Any("brand_id", brandID))
 	} else {
 		s.log.Info("Tip settings created for brand", zap.Any("brand_id", brandID))
+	}
+
+	return nil
+}
+
+// GetWelcomeBonusSettings retrieves welcome bonus settings from system config
+func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uuid.UUID) (WelcomeBonusSettings, error) {
+	s.log.Info("Getting welcome bonus settings from system config", zap.Any("brand_id", brandID))
+
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting settings")
+		return WelcomeBonusSettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
+	}
+
+	// Get brand-specific settings (brand_id is required, no fallback)
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "welcome_bonus_settings", brandID).Scan(&configValue)
+
+	// Handle case where no configuration exists yet
+	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No welcome bonus settings found, returning defaults", zap.Any("brand_id", brandID))
+			// Return default values when no configuration exists
+			return WelcomeBonusSettings{
+				Type:               "fixed",
+				Enabled:            false,
+				FixedAmount:        0.0,
+				Percentage:         0.0,
+				MinDepositAmount:   0.0,
+				MaxBonusPercentage: 90.0,
+			}, nil
+		}
+		s.log.Error("Failed to get welcome bonus settings from database", zap.Error(err))
+		return WelcomeBonusSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to get welcome bonus settings")
+	}
+
+	var settings WelcomeBonusSettings
+	err = json.Unmarshal(configValue, &settings)
+	if err != nil {
+		s.log.Error("Failed to unmarshal welcome bonus settings", zap.Error(err))
+		return WelcomeBonusSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to parse welcome bonus settings")
+	}
+
+	return settings, nil
+}
+
+// UpdateWelcomeBonusSettings updates welcome bonus settings in system config for a specific brand
+// brandID is required - checks if welcome_bonus_settings exists for that brand_id, updates if exists, inserts if not
+func (s *SystemConfig) UpdateWelcomeBonusSettings(ctx context.Context, settings WelcomeBonusSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	if brandID == nil {
+		s.log.Error("brand_id is required for welcome bonus settings")
+		return errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required for welcome bonus settings")
+	}
+
+	s.log.Info("Updating welcome bonus settings", zap.Any("brand_id", brandID))
+
+	// Validate that max_bonus_percentage < 100 for percentage type
+	if settings.Type == "percentage" && settings.Enabled {
+		if settings.MaxBonusPercentage >= 100 {
+			s.log.Error("max_bonus_percentage must be less than 100 to prevent bonus from equaling deposit")
+			return errors.ErrInvalidUserInput.Wrap(nil, "max_bonus_percentage must be less than 100")
+		}
+	}
+
+	configValue, err := json.Marshal(settings)
+	if err != nil {
+		s.log.Error("Failed to marshal welcome bonus settings", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to marshal welcome bonus settings")
+	}
+
+	// Check if welcome_bonus_settings exists for this brand_id
+	var exists bool
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM system_config 
+			WHERE config_key = $1 AND brand_id = $2
+		)
+	`, "welcome_bonus_settings", brandID).Scan(&exists)
+
+	if err != nil {
+		s.log.Error("Failed to check if welcome bonus settings exist", zap.Error(err), zap.Any("brand_id", brandID))
+		return errors.ErrInternalServerError.Wrap(err, "failed to check welcome bonus settings")
+	}
+
+	// Check if the admin user exists in the database
+	var userExists bool
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
+	`, adminID).Scan(&userExists)
+
+	if err != nil {
+		s.log.Warn("Failed to check if admin user exists, proceeding with NULL updated_by", zap.Error(err), zap.Any("admin_id", adminID))
+		userExists = false
+	}
+
+	// Insert or update based on existence
+	// ON CONFLICT will handle the update if it exists, or insert if it doesn't
+	// Only set updated_by if user exists, otherwise keep existing value or set to NULL
+	if userExists {
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "welcome_bonus_settings", configValue, "Welcome bonus settings", brandID, adminID)
+	} else {
+		s.log.Warn("Admin user not found in database, setting updated_by to NULL", zap.Any("admin_id", adminID))
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, NULL, NOW())
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = system_config.updated_by,
+				updated_at = NOW()
+		`, "welcome_bonus_settings", configValue, "Welcome bonus settings", brandID)
+	}
+
+	if err != nil {
+		s.log.Error("Failed to update welcome bonus settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update welcome bonus settings")
+	}
+
+	if exists {
+		s.log.Info("Welcome bonus settings updated for brand", zap.Any("brand_id", brandID))
+	} else {
+		s.log.Info("Welcome bonus settings created for brand", zap.Any("brand_id", brandID))
 	}
 
 	return nil
