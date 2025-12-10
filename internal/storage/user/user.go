@@ -763,6 +763,18 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			KycStatus:     normalizedKycStatus,
 			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 			BrandID:       brandIDs,
+			SortBy:        sql.NullString{String: "", Valid: false},
+			SortOrder:     sql.NullString{String: "", Valid: false},
+		}
+		
+		// Set sort parameters if provided
+		if req.SortBy != nil && *req.SortBy != "" {
+			params.SortBy = sql.NullString{String: *req.SortBy, Valid: true}
+			if req.SortOrder != nil && (*req.SortOrder == "asc" || *req.SortOrder == "desc") {
+				params.SortOrder = sql.NullString{String: *req.SortOrder, Valid: true}
+			} else {
+				params.SortOrder = sql.NullString{String: "asc", Valid: true}
+			}
 		}
 
 		// Use normal pagination for all searches (removed special handling for user_id length)

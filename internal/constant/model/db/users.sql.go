@@ -1504,23 +1504,25 @@ func (q *Queries) UpdateProfilePicuter(ctx context.Context, arg UpdateProfilePic
 
 const getAllUsersWithFilters = `-- name: GetAllUsersWithFilters :many 
 WITH users_data AS (
-    SELECT *
-    FROM users 
-    WHERE default_currency IS NOT NULL 
-    AND user_type = 'PLAYER'
-    AND is_admin = false
+    SELECT u.*, COALESCE(SUM(b.amount_units), 0) as total_balance
+    FROM users u
+    LEFT JOIN balances b ON u.id = b.user_id
+    WHERE u.default_currency IS NOT NULL 
+    AND u.user_type = 'PLAYER'
+    AND u.is_admin = false
     AND (
         -- Search across all fields using contains (ILIKE) match
         ($1::text IS NULL OR $1 = '' OR $1 = '%%' OR 
-         (username IS NOT NULL AND username ILIKE '%' || $1 || '%') OR 
-         (email IS NOT NULL AND email ILIKE '%' || $1 || '%') OR 
-         (phone_number IS NOT NULL AND phone_number ILIKE '%' || $1 || '%') OR 
-         (id::text ILIKE '%' || $1 || '%'))
+         (u.username IS NOT NULL AND u.username ILIKE '%' || $1 || '%') OR 
+         (u.email IS NOT NULL AND u.email ILIKE '%' || $1 || '%') OR 
+         (u.phone_number IS NOT NULL AND u.phone_number ILIKE '%' || $1 || '%') OR 
+         (u.id::text ILIKE '%' || $1 || '%'))
     )
-    AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR status = ANY($2))
-    AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR kyc_status = ANY($3))
-    AND ($4::boolean IS NULL OR is_test_account = $4)
-    AND ($5::uuid[] IS NULL OR array_length($5, 1) IS NULL OR array_length($5, 1) = 0 OR brand_id = ANY($5))
+    AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR u.status = ANY($2))
+    AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR u.kyc_status = ANY($3))
+    AND ($4::boolean IS NULL OR u.is_test_account = $4)
+    AND ($5::uuid[] IS NULL OR array_length($5, 1) IS NULL OR array_length($5, 1) = 0 OR u.brand_id = ANY($5))
+    GROUP BY u.id
 ),
 row_count AS (
     SELECT COUNT(*) AS total_rows
@@ -1558,11 +1560,21 @@ SELECT
     c.is_test_account,
     c.two_factor_enabled,
     c.two_factor_setup_at,
+    c.total_balance,
     r.total_rows
 FROM users_data c
 CROSS JOIN row_count r
-ORDER BY c.created_at DESC
-LIMIT $6 OFFSET $7
+ORDER BY 
+  CASE WHEN $6::text = 'username' AND $7::text = 'asc' THEN c.username END ASC NULLS LAST,
+  CASE WHEN $6::text = 'username' AND $7::text = 'desc' THEN c.username END DESC NULLS LAST,
+  CASE WHEN $6::text = 'email' AND $7::text = 'asc' THEN c.email END ASC NULLS LAST,
+  CASE WHEN $6::text = 'email' AND $7::text = 'desc' THEN c.email END DESC NULLS LAST,
+  CASE WHEN $6::text = 'balance' AND $7::text = 'asc' THEN c.total_balance END ASC NULLS LAST,
+  CASE WHEN $6::text = 'balance' AND $7::text = 'desc' THEN c.total_balance END DESC NULLS LAST,
+  CASE WHEN $6::text = 'created_at' AND $7::text = 'asc' THEN c.created_at END ASC NULLS LAST,
+  CASE WHEN $6::text = 'created_at' AND $7::text = 'desc' THEN c.created_at END DESC NULLS LAST,
+  c.created_at DESC
+LIMIT $8 OFFSET $9
 `
 
 type GetAllUsersWithFiltersParams struct {
@@ -1573,6 +1585,8 @@ type GetAllUsersWithFiltersParams struct {
 	Offset        int32
 	IsTestAccount sql.NullBool
 	BrandID       []uuid.UUID
+	SortBy        sql.NullString
+	SortOrder     sql.NullString
 }
 
 type GetAllUsersWithFiltersRow struct {
@@ -1621,6 +1635,8 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 		pq.Array(arg.KycStatus),
 		arg.IsTestAccount,
 		brandIDArray,
+		arg.SortBy,
+		arg.SortOrder,
 		arg.Limit,
 		arg.Offset,
 	)
@@ -1631,6 +1647,7 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 	var items []GetAllUsersWithFiltersRow
 	for rows.Next() {
 		var i GetAllUsersWithFiltersRow
+		var totalBalance sql.NullString // Temporary variable for total_balance (used only for sorting)
 		if err := rows.Scan(
 			&i.ID,
 			&i.Username,
@@ -1663,6 +1680,7 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 			&i.IsTestAccount,
 			&i.TwoFactorEnabled,
 			&i.TwoFactorSetupAt,
+			&totalBalance, // Scan total_balance but don't use it
 			&i.TotalRows,
 		); err != nil {
 			return nil, err
