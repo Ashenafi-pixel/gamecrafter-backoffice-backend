@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/platform/clickhouse"
@@ -26,11 +27,14 @@ type AnalyticsStorage interface {
 	// Player analytics extensions
 	GetUserRakebackTransactions(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) ([]*dto.RakebackTransaction, int, dto.UserRakebackTotals, error)
 	GetUserTips(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) ([]*dto.TipTransaction, int, error)
+	GetUserWelcomeBonus(ctx context.Context, userID uuid.UUID, filters *dto.WelcomeBonusFilters) ([]*dto.WelcomeBonusTransaction, int, error)
+	GetWelcomeBonusTransactions(ctx context.Context, filters *dto.WelcomeBonusFilters) ([]*dto.WelcomeBonusTransaction, int, error)
 
 	// Totals endpoints
 	GetUserTransactionsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) (*dto.UserTransactionsTotals, error)
 	GetUserRakebackTotals(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) (*dto.UserRakebackTotals, error)
 	GetUserTipsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) (*dto.UserTipsTotals, error)
+	GetUserWelcomeBonusTotals(ctx context.Context, userID uuid.UUID, filters *dto.WelcomeBonusFilters) (*dto.UserWelcomeBonusTotals, error)
 
 	// Analytics methods
 	GetUserAnalytics(ctx context.Context, userID uuid.UUID, dateRange *dto.DateRange) (*dto.UserAnalytics, error)
@@ -55,6 +59,7 @@ type AnalyticsStorage interface {
 
 type AnalyticsStorageImpl struct {
 	clickhouse *clickhouse.ClickHouseClient
+	pgPool     *pgxpool.Pool
 	logger     *zap.Logger
 }
 
@@ -63,6 +68,11 @@ func NewAnalyticsStorage(clickhouse *clickhouse.ClickHouseClient, logger *zap.Lo
 		clickhouse: clickhouse,
 		logger:     logger,
 	}
+}
+
+// SetPostgresPool sets the PostgreSQL pool for welcome bonus queries
+func (s *AnalyticsStorageImpl) SetPostgresPool(pgPool *pgxpool.Pool) {
+	s.pgPool = pgPool
 }
 
 func (s *AnalyticsStorageImpl) InsertTransaction(ctx context.Context, transaction *dto.AnalyticsTransaction) error {
@@ -114,7 +124,7 @@ func (s *AnalyticsStorageImpl) InsertTransaction(ctx context.Context, transactio
 	return nil
 }
 
-// safeDecimalPtr safely converts a *decimal.Decimal to decimal.Decimal, returning decimal.Zero if nil
+// safely converts a *decimal.Decimal to decimal.Decimal, returning decimal.Zero if nil
 func safeDecimalPtr(ptr *decimal.Decimal) decimal.Decimal {
 	if ptr == nil {
 		return decimal.Zero
@@ -670,7 +680,316 @@ func (s *AnalyticsStorageImpl) GetUserTips(ctx context.Context, userID uuid.UUID
 	return tips, int(total), nil
 }
 
-// GetUserTransactionsTotals implements totals for game transactions.
+// implements /analytics/users/{user_id}/welcome_bonus backed by PostgreSQL groove_transactions.
+func (s *AnalyticsStorageImpl) GetUserWelcomeBonus(ctx context.Context, userID uuid.UUID, filters *dto.WelcomeBonusFilters) ([]*dto.WelcomeBonusTransaction, int, error) {
+	if s.pgPool == nil {
+		return nil, 0, fmt.Errorf("PostgreSQL pool not available for welcome bonus queries")
+	}
+
+	// Build WHERE clause for PostgreSQL
+	where := "WHERE ga.user_id = $1 AND gt.type = 'welcome_bonus'"
+	args := []interface{}{userID}
+
+	argIndex := 2
+
+	if filters != nil {
+		if filters.DateFrom != nil {
+			where += fmt.Sprintf(" AND gt.created_at >= $%d", argIndex)
+			args = append(args, *filters.DateFrom)
+			argIndex++
+		}
+		if filters.DateTo != nil {
+			where += fmt.Sprintf(" AND gt.created_at <= $%d", argIndex)
+			args = append(args, *filters.DateTo)
+			argIndex++
+		}
+		if filters.Status != nil && *filters.Status != "" {
+			where += fmt.Sprintf(" AND gt.status = $%d", argIndex)
+			args = append(args, *filters.Status)
+			argIndex++
+		}
+		if filters.BrandID != nil {
+			where += fmt.Sprintf(" AND gt.brand_id = $%d", argIndex)
+			args = append(args, *filters.BrandID)
+			argIndex++
+		}
+	}
+
+	// Count query
+	countQuery := `
+		SELECT COUNT(*)
+		FROM groove_transactions gt
+		JOIN groove_accounts ga ON gt.account_id = ga.account_id
+		JOIN users u ON ga.user_id = u.id
+	` + " " + where + " AND gt.brand_id = u.brand_id"
+
+	s.logger.Debug("Executing GetUserWelcomeBonus count query",
+		zap.String("user_id", userID.String()),
+		zap.String("query", countQuery),
+		zap.Any("args", args))
+
+	var total int
+	if err := s.pgPool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		s.logger.Error("Failed to count user welcome bonus transactions",
+			zap.String("user_id", userID.String()),
+			zap.String("query", countQuery),
+			zap.Any("args", args),
+			zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to count welcome bonus transactions: %w", err)
+	}
+
+	// Data query
+	dataQuery := `
+		SELECT 
+			gt.transaction_id,
+			gt.account_id,
+			gt.amount,
+			gt.currency,
+			gt.status,
+			COALESCE(gt.balance_before, 0) as balance_before,
+			COALESCE(gt.balance_after, 0) as balance_after,
+			gt.account_transaction_id,
+			gt.metadata::text,
+			gt.created_at
+		FROM groove_transactions gt
+		JOIN groove_accounts ga ON gt.account_id = ga.account_id
+		JOIN users u ON ga.user_id = u.id
+	` + " " + where + " AND gt.brand_id = u.brand_id ORDER BY gt.created_at DESC"
+
+	dataArgs := append([]interface{}{}, args...)
+	if filters != nil {
+		if filters.Limit > 0 {
+			dataQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+			dataArgs = append(dataArgs, filters.Limit)
+			argIndex++
+		} else {
+			dataQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+			dataArgs = append(dataArgs, 100)
+			argIndex++
+		}
+		if filters.Offset > 0 {
+			dataQuery += fmt.Sprintf(" OFFSET $%d", argIndex)
+			dataArgs = append(dataArgs, filters.Offset)
+		}
+	} else {
+		dataQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+		dataArgs = append(dataArgs, 100)
+	}
+
+	s.logger.Debug("Executing GetUserWelcomeBonus data query",
+		zap.String("user_id", userID.String()),
+		zap.String("query", dataQuery),
+		zap.Any("args", dataArgs))
+
+	rows, err := s.pgPool.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		s.logger.Error("Failed to query user welcome bonus transactions",
+			zap.String("user_id", userID.String()),
+			zap.String("query", dataQuery),
+			zap.Any("args", dataArgs),
+			zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to query welcome bonus transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var welcomeBonuses []*dto.WelcomeBonusTransaction
+	for rows.Next() {
+		var wb dto.WelcomeBonusTransaction
+		var accountID string
+		var metadataStr *string
+
+		if err := rows.Scan(
+			&wb.ID,
+			&accountID,
+			&wb.Amount,
+			&wb.Currency,
+			&wb.Status,
+			&wb.BalanceBefore,
+			&wb.BalanceAfter,
+			&wb.ExternalTransactionID,
+			&metadataStr,
+			&wb.CreatedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan welcome bonus row: %w", err)
+		}
+
+		wb.UserID = userID
+		wb.TransactionType = "welcome_bonus"
+		if metadataStr != nil {
+			wb.Metadata = metadataStr
+		}
+
+		welcomeBonuses = append(welcomeBonuses, &wb)
+	}
+
+	return welcomeBonuses, total, nil
+}
+
+func (s *AnalyticsStorageImpl) GetWelcomeBonusTransactions(ctx context.Context, filters *dto.WelcomeBonusFilters) ([]*dto.WelcomeBonusTransaction, int, error) {
+	if s.pgPool == nil {
+		return nil, 0, fmt.Errorf("PostgreSQL pool not available for welcome bonus queries")
+	}
+
+	// Build WHERE clause for PostgreSQL
+	where := "WHERE gt.type = 'welcome_bonus'"
+	args := []interface{}{}
+	argIndex := 1
+
+	if filters != nil {
+		if filters.UserID != nil {
+			where += fmt.Sprintf(" AND ga.user_id = $%d", argIndex)
+			args = append(args, *filters.UserID)
+			argIndex++
+		}
+		if filters.DateFrom != nil {
+			where += fmt.Sprintf(" AND gt.created_at >= $%d", argIndex)
+			args = append(args, *filters.DateFrom)
+			argIndex++
+		}
+		if filters.DateTo != nil {
+			where += fmt.Sprintf(" AND gt.created_at <= $%d", argIndex)
+			args = append(args, *filters.DateTo)
+			argIndex++
+		}
+		if filters.Status != nil && *filters.Status != "" {
+			where += fmt.Sprintf(" AND gt.status = $%d", argIndex)
+			args = append(args, *filters.Status)
+			argIndex++
+		}
+		if filters.BrandID != nil {
+			where += fmt.Sprintf(" AND gt.brand_id = $%d", argIndex)
+			args = append(args, *filters.BrandID)
+			argIndex++
+		}
+		if filters.MinAmount != nil {
+			where += fmt.Sprintf(" AND gt.amount >= $%d", argIndex)
+			args = append(args, *filters.MinAmount)
+			argIndex++
+		}
+		if filters.MaxAmount != nil {
+			where += fmt.Sprintf(" AND gt.amount <= $%d", argIndex)
+			args = append(args, *filters.MaxAmount)
+			argIndex++
+		}
+	}
+
+	// Count query
+	countQuery := `
+		SELECT COUNT(*)
+		FROM groove_transactions gt
+		JOIN groove_accounts ga ON gt.account_id = ga.account_id
+		JOIN users u ON ga.user_id = u.id
+	` + " " + where
+	if filters == nil || filters.BrandID == nil {
+		countQuery += " AND gt.brand_id = u.brand_id"
+	}
+
+	s.logger.Debug("Executing welcome bonus count query",
+		zap.String("query", countQuery),
+		zap.Any("args", args))
+
+	var total int
+	if err := s.pgPool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		s.logger.Error("Failed to count welcome bonus transactions",
+			zap.String("query", countQuery),
+			zap.Any("args", args),
+			zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to count welcome bonus transactions: %w", err)
+	}
+
+	// Data query
+	dataQuery := `
+		SELECT 
+			gt.transaction_id,
+			gt.account_id,
+			ga.user_id,
+			gt.amount,
+			gt.currency,
+			gt.status,
+			COALESCE(gt.balance_before, 0) as balance_before,
+			COALESCE(gt.balance_after, 0) as balance_after,
+			gt.account_transaction_id,
+			gt.metadata::text,
+			gt.created_at
+		FROM groove_transactions gt
+		JOIN groove_accounts ga ON gt.account_id = ga.account_id
+		JOIN users u ON ga.user_id = u.id
+	` + " " + where
+	if filters == nil || filters.BrandID == nil {
+		dataQuery += " AND gt.brand_id = u.brand_id"
+	}
+	dataQuery += " ORDER BY gt.created_at DESC"
+
+	dataArgs := append([]interface{}{}, args...)
+	if filters != nil {
+		if filters.Limit > 0 {
+			dataQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+			dataArgs = append(dataArgs, filters.Limit)
+			argIndex++
+		} else {
+			dataQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+			dataArgs = append(dataArgs, 100)
+			argIndex++
+		}
+		if filters.Offset > 0 {
+			dataQuery += fmt.Sprintf(" OFFSET $%d", argIndex)
+			dataArgs = append(dataArgs, filters.Offset)
+		}
+	} else {
+		dataQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+		dataArgs = append(dataArgs, 100)
+	}
+
+	s.logger.Debug("Executing welcome bonus data query",
+		zap.String("query", dataQuery),
+		zap.Any("args", dataArgs))
+
+	rows, err := s.pgPool.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		s.logger.Error("Failed to query welcome bonus transactions",
+			zap.String("query", dataQuery),
+			zap.Any("args", dataArgs),
+			zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to query welcome bonus transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var welcomeBonuses []*dto.WelcomeBonusTransaction
+	for rows.Next() {
+		var wb dto.WelcomeBonusTransaction
+		var accountID string
+		var userIDLocal uuid.UUID
+		var metadataStr *string
+
+		if err := rows.Scan(
+			&wb.ID,
+			&accountID,
+			&userIDLocal,
+			&wb.Amount,
+			&wb.Currency,
+			&wb.Status,
+			&wb.BalanceBefore,
+			&wb.BalanceAfter,
+			&wb.ExternalTransactionID,
+			&metadataStr,
+			&wb.CreatedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan welcome bonus row: %w", err)
+		}
+
+		wb.UserID = userIDLocal
+		wb.TransactionType = "welcome_bonus"
+		if metadataStr != nil {
+			wb.Metadata = metadataStr
+		}
+
+		welcomeBonuses = append(welcomeBonuses, &wb)
+	}
+
+	return welcomeBonuses, total, nil
+}
+
+// implements totals for game transactions.
 func (s *AnalyticsStorageImpl) GetUserTransactionsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) (*dto.UserTransactionsTotals, error) {
 	userIDStr := userID.String()
 
@@ -721,7 +1040,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactionsTotals(ctx context.Context, us
 	return &totals, nil
 }
 
-// GetUserRakebackTotals wraps GetUserRakebackTransactions totals for convenience.
+// wraps GetUserRakebackTransactions totals for convenience.
 func (s *AnalyticsStorageImpl) GetUserRakebackTotals(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) (*dto.UserRakebackTotals, error) {
 	_, _, totals, err := s.GetUserRakebackTransactions(ctx, userID, filters)
 	if err != nil {
@@ -730,7 +1049,7 @@ func (s *AnalyticsStorageImpl) GetUserRakebackTotals(ctx context.Context, userID
 	return &totals, nil
 }
 
-// GetUserTipsTotals implements totals for tips.
+// implements totals for tips.
 func (s *AnalyticsStorageImpl) GetUserTipsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) (*dto.UserTipsTotals, error) {
 	userIDStr := userID.String()
 
@@ -778,6 +1097,64 @@ func (s *AnalyticsStorageImpl) GetUserTipsTotals(ctx context.Context, userID uui
 	}
 
 	totals.NetTips = totals.TotalReceivedAmount.Sub(totals.TotalSentAmount)
+	return &totals, nil
+}
+
+func (s *AnalyticsStorageImpl) GetUserWelcomeBonusTotals(ctx context.Context, userID uuid.UUID, filters *dto.WelcomeBonusFilters) (*dto.UserWelcomeBonusTotals, error) {
+	if s.pgPool == nil {
+		return nil, fmt.Errorf("PostgreSQL pool not available for welcome bonus queries")
+	}
+
+	// Build WHERE clause for PostgreSQL
+	where := "WHERE ga.user_id = $1 AND gt.type = 'welcome_bonus'"
+	args := []interface{}{userID}
+	argIndex := 2
+
+	if filters != nil {
+		if filters.DateFrom != nil {
+			where += fmt.Sprintf(" AND gt.created_at >= $%d", argIndex)
+			args = append(args, *filters.DateFrom)
+			argIndex++
+		}
+		if filters.DateTo != nil {
+			where += fmt.Sprintf(" AND gt.created_at <= $%d", argIndex)
+			args = append(args, *filters.DateTo)
+			argIndex++
+		}
+		if filters.Status != nil && *filters.Status != "" {
+			where += fmt.Sprintf(" AND gt.status = $%d", argIndex)
+			args = append(args, *filters.Status)
+			argIndex++
+		}
+		if filters.BrandID != nil {
+			where += fmt.Sprintf(" AND gt.brand_id = $%d", argIndex)
+			args = append(args, *filters.BrandID)
+			argIndex++
+		}
+	}
+
+	query := `
+		SELECT 
+			COUNT(*) AS total_count,
+			COALESCE(SUM(gt.amount), 0) AS total_amount
+		FROM groove_transactions gt
+		JOIN groove_accounts ga ON gt.account_id = ga.account_id
+		JOIN users u ON ga.user_id = u.id
+	` + " " + where + " AND gt.brand_id = u.brand_id"
+
+	var totals dto.UserWelcomeBonusTotals
+	if err := s.pgPool.QueryRow(ctx, query, args...).Scan(
+		&totals.TotalCount,
+		&totals.TotalAmount,
+	); err != nil {
+		s.logger.Error("Failed to get welcome bonus totals",
+			zap.String("user_id", userID.String()),
+			zap.String("query", query),
+			zap.Any("args", args),
+			zap.Error(err))
+		return nil, fmt.Errorf("failed to get welcome bonus totals: %w", err)
+	}
+
 	return &totals, nil
 }
 

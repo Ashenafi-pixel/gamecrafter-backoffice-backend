@@ -19,6 +19,10 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 		adminAnalyticsGroup.GET("/users/:user_id/rakeback/totals", analyticsHandler.GetUserRakebackTotals)
 		adminAnalyticsGroup.GET("/users/:user_id/tips", analyticsHandler.GetUserTips)
 		adminAnalyticsGroup.GET("/users/:user_id/tips/totals", analyticsHandler.GetUserTipsTotals)
+		adminAnalyticsGroup.GET("/users/:user_id/welcome_bonus", analyticsHandler.GetUserWelcomeBonus)
+		adminAnalyticsGroup.GET("/users/:user_id/welcome_bonus/totals", analyticsHandler.GetUserWelcomeBonusTotals)
+		// Admin endpoint to get all welcome bonuses with filters
+		adminAnalyticsGroup.GET("/welcome_bonus", analyticsHandler.GetWelcomeBonusTransactions)
 
 		// Real-time analytics
 		adminAnalyticsGroup.GET("/realtime/stats", analyticsHandler.GetRealTimeStats)

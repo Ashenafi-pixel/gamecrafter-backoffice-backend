@@ -15,10 +15,10 @@ import (
 	"github.com/tucanbit/internal/storage/balancelogs"
 	"github.com/tucanbit/internal/storage/banner"
 	"github.com/tucanbit/internal/storage/bet"
+	"github.com/tucanbit/internal/storage/brand"
 	"github.com/tucanbit/internal/storage/campaign"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/company"
-	"github.com/tucanbit/internal/storage/brand"
 	"github.com/tucanbit/internal/storage/config"
 	"github.com/tucanbit/internal/storage/departements"
 	"github.com/tucanbit/internal/storage/exchange"
@@ -34,8 +34,8 @@ import (
 	"github.com/tucanbit/internal/storage/otp"
 	"github.com/tucanbit/internal/storage/page"
 	"github.com/tucanbit/internal/storage/passkey"
-	"github.com/tucanbit/internal/storage/rakeback_override"
 	"github.com/tucanbit/internal/storage/performance"
+	"github.com/tucanbit/internal/storage/rakeback_override"
 	"github.com/tucanbit/internal/storage/report"
 	"github.com/tucanbit/internal/storage/risksettings"
 	"github.com/tucanbit/internal/storage/sports"
@@ -98,10 +98,12 @@ type Persistence struct {
 }
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS, clickhouseClient *clickhouse.ClickHouseClient) *Persistence {
-	// Create analytics storage from clickhouse client
 	var analyticsStorageInstance storage.Analytics
 	if clickhouseClient != nil {
 		analyticsStorageInstance = analyticsStorage.NewAnalyticsStorage(clickhouseClient, log)
+		if analyticsStorageImpl, ok := analyticsStorageInstance.(*analyticsStorage.AnalyticsStorageImpl); ok {
+			analyticsStorageImpl.SetPostgresPool(persistencdb.GetPool())
+		}
 	} else {
 		analyticsStorageInstance = nil
 	}
@@ -142,7 +144,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		TwoFactor:            twofactor.Init(persistencdb, log),
 		Passkey:              passkey.NewPasskeyStorage(persistencdb, log),
 		FalconMessage:        falcon_liquidity.NewFalconMessageStorage(log, persistencdb),
-		Analytics:            analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
+		Analytics:            analyticsStorageInstance,
 		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsStorage(*persistencdb, log),
 		Alert:                alert.NewAlertStorage(*persistencdb, log),
 		AlertEmailGroups:     alert.NewAlertEmailGroupStorage(*persistencdb, log),
