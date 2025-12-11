@@ -66,7 +66,20 @@ type TipFilters struct {
 	Offset   int        `json:"offset,omitempty"`
 }
 
-// DateRange for analytics queries
+// for querying welcome bonus transactions
+type WelcomeBonusFilters struct {
+	UserID    *uuid.UUID       `json:"user_id,omitempty"` // Optional: filter by specific user
+	Status    *string          `json:"status,omitempty"`
+	DateFrom  *time.Time       `json:"date_from,omitempty"`
+	DateTo    *time.Time       `json:"date_to,omitempty"`
+	BrandID   *string          `json:"brand_id,omitempty"`
+	MinAmount *decimal.Decimal `json:"min_amount,omitempty"` // Filter by minimum amount
+	MaxAmount *decimal.Decimal `json:"max_amount,omitempty"` // Filter by maximum amount
+	Limit     int              `json:"limit,omitempty"`
+	Offset    int              `json:"offset,omitempty"`
+}
+
+// for analytics queries
 type DateRange struct {
 	From          *time.Time  `json:"from,omitempty"`
 	To            *time.Time  `json:"to,omitempty"`
@@ -74,7 +87,7 @@ type DateRange struct {
 	UserIDs       []uuid.UUID `json:"user_ids,omitempty"`        // Filtered user IDs based on is_test_account
 }
 
-// UserAnalytics represents user analytics data
+// represents user analytics data
 type UserAnalytics struct {
 	UserID            uuid.UUID       `json:"user_id"`
 	TotalDeposits     decimal.Decimal `json:"total_deposits"`
@@ -366,6 +379,21 @@ type TipTransaction struct {
 	ReceiverUsername      *string         `json:"receiver_username,omitempty"` // Populated from users table
 }
 
+// WelcomeBonusTransaction represents a single welcome bonus transaction
+type WelcomeBonusTransaction struct {
+	ID                    string          `json:"id"`
+	UserID                uuid.UUID       `json:"user_id"`
+	TransactionType       string          `json:"transaction_type"` // "welcome_bonus"
+	Amount                decimal.Decimal `json:"amount"`
+	Currency              string          `json:"currency"`
+	Status                string          `json:"status"`
+	BalanceBefore         decimal.Decimal `json:"balance_before"`
+	BalanceAfter          decimal.Decimal `json:"balance_after"`
+	ExternalTransactionID *string         `json:"external_transaction_id,omitempty"`
+	Metadata              *string         `json:"metadata,omitempty"`
+	CreatedAt             time.Time       `json:"created_at"`
+}
+
 // UserTransactionsTotals represents summary totals for game transactions
 type UserTransactionsTotals struct {
 	TotalCount     uint64          `json:"total_count"`
@@ -374,7 +402,7 @@ type UserTransactionsTotals struct {
 	NetResult      decimal.Decimal `json:"net_result"`
 }
 
-// UserRakebackTotals represents summary totals for rakeback
+// represents summary totals for rakeback
 type UserRakebackTotals struct {
 	TotalEarnedCount   uint64          `json:"total_earned_count"`
 	TotalEarnedAmount  decimal.Decimal `json:"total_earned_amount"`
@@ -383,7 +411,7 @@ type UserRakebackTotals struct {
 	AvailableRakeback  decimal.Decimal `json:"available_rakeback"`
 }
 
-// UserTipsTotals represents summary totals for tip transactions
+// represents summary totals for tip transactions
 type UserTipsTotals struct {
 	TotalTipsCount      uint64          `json:"total_tips_count"`
 	TotalSentCount      uint64          `json:"total_sent_count"`
@@ -393,7 +421,13 @@ type UserTipsTotals struct {
 	NetTips             decimal.Decimal `json:"net_tips"`
 }
 
-// BalanceSnapshot represents a balance snapshot at a point in time
+// represents summary totals for welcome bonus transactions
+type UserWelcomeBonusTotals struct {
+	TotalCount  uint64          `json:"total_count"`
+	TotalAmount decimal.Decimal `json:"total_amount"`
+}
+
+// represents a balance snapshot at a point in time
 type BalanceSnapshot struct {
 	UserID          uuid.UUID       `json:"user_id"`
 	Balance         decimal.Decimal `json:"balance"`

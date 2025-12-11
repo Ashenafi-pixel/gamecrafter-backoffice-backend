@@ -88,9 +88,12 @@ type Analytics interface {
 	// Player analytics extensions
 	GetUserRakebackTransactions(c *gin.Context)
 	GetUserTips(c *gin.Context)
+	GetUserWelcomeBonus(c *gin.Context)
+	GetWelcomeBonusTransactions(c *gin.Context)
 	GetUserTransactionsTotals(c *gin.Context)
 	GetUserRakebackTotals(c *gin.Context)
 	GetUserTipsTotals(c *gin.Context)
+	GetUserWelcomeBonusTotals(c *gin.Context)
 }
 
 type OTP interface {

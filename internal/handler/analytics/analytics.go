@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/handler"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
@@ -462,6 +463,200 @@ func (a *analytics) GetUserTips(c *gin.Context) {
 	})
 }
 
+// GetWelcomeBonusTransactions implements GET /api/admin/analytics/welcome_bonus - Admin only endpoint to get all welcome bonuses with filters
+func (a *analytics) GetWelcomeBonusTransactions(c *gin.Context) {
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.WelcomeBonusFilters{}
+
+	// Optional user_id filter
+	if userIDStr := c.Query("user_id"); userIDStr != "" {
+		if userID, err := uuid.Parse(userIDStr); err == nil {
+			filters.UserID = &userID
+		}
+	}
+
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+
+	// Amount filters
+	if minAmountStr := c.Query("min_amount"); minAmountStr != "" {
+		if minAmount, err := decimal.NewFromString(minAmountStr); err == nil {
+			filters.MinAmount = &minAmount
+		}
+	}
+	if maxAmountStr := c.Query("max_amount"); maxAmountStr != "" {
+		if maxAmount, err := decimal.NewFromString(maxAmountStr); err == nil {
+			filters.MaxAmount = &maxAmount
+		}
+	}
+
+	// Brand filter
+	if brandIDStr := c.Query("brand_id"); brandIDStr != "" {
+		filters.BrandID = &brandIDStr
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			filters.Limit = limit
+		}
+	} else {
+		filters.Limit = 100
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			filters.Offset = offset
+		}
+	}
+
+	rows, total, err := a.analyticsStorage.GetWelcomeBonusTransactions(c.Request.Context(), filters)
+	if err != nil {
+		a.logger.Error("Failed to get welcome bonus transactions",
+			zap.Error(err),
+			zap.Any("filters", filters))
+		errorMsg := err.Error()
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   errorMsg,
+		})
+		return
+	}
+
+	pageSize := filters.Limit
+	if pageSize <= 0 {
+		pageSize = total
+	}
+	page := 1
+	if pageSize > 0 {
+		page = (filters.Offset / pageSize) + 1
+	}
+	pages := 1
+	if pageSize > 0 && total > 0 {
+		pages = (total + pageSize - 1) / pageSize
+	}
+
+	meta := &dto.Meta{
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+		Pages:    pages,
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    rows,
+		Meta:    meta,
+	})
+}
+
+// GetUserWelcomeBonus implements GET /api/admin/analytics/users/{user_id}/welcome_bonus - Get welcome bonuses for a specific user
+func (a *analytics) GetUserWelcomeBonus(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.WelcomeBonusFilters{}
+
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			filters.Limit = limit
+		}
+	} else {
+		filters.Limit = 100
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			filters.Offset = offset
+		}
+	}
+
+	// Brand isolation via Postgres
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	rows, total, err := a.analyticsStorage.GetUserWelcomeBonus(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user welcome bonus transactions",
+			zap.String("user_id", userID.String()),
+			zap.Error(err),
+			zap.Any("filters", filters))
+		errorMsg := err.Error()
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   errorMsg,
+		})
+		return
+	}
+
+	pageSize := filters.Limit
+	if pageSize <= 0 {
+		pageSize = total
+	}
+	page := 1
+	if pageSize > 0 {
+		page = (filters.Offset / pageSize) + 1
+	}
+	pages := 1
+	if pageSize > 0 && total > 0 {
+		pages = (total + pageSize - 1) / pageSize
+	}
+
+	meta := &dto.Meta{
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+		Pages:    pages,
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    rows,
+		Meta:    meta,
+	})
+}
+
 // GetUserTransactionsTotals implements /api/admin/analytics/users/{user_id}/transactions/totals
 func (a *analytics) GetUserTransactionsTotals(c *gin.Context) {
 	userIDStr := c.Param("user_id")
@@ -607,6 +802,59 @@ func (a *analytics) GetUserTipsTotals(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
 			Success: false,
 			Error:   "Failed to retrieve tips totals",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    totals,
+	})
+}
+
+// GetUserWelcomeBonusTotals implements /api/admin/analytics/users/{user_id}/welcome_bonus/totals
+func (a *analytics) GetUserWelcomeBonusTotals(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid user ID format",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	filters := &dto.WelcomeBonusFilters{}
+	if status := c.Query("status"); status != "" {
+		filters.Status = &status
+	}
+	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+			filters.DateFrom = &dateFrom
+		}
+	}
+	if dateToStr := c.Query("date_to"); dateToStr != "" {
+		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+			filters.DateTo = &dateTo
+		}
+	}
+
+	if brandID, err := a.getUserBrandID(c.Request.Context(), userID); err == nil && brandID != nil {
+		filters.BrandID = brandID
+	}
+
+	totals, err := a.analyticsStorage.GetUserWelcomeBonusTotals(c.Request.Context(), userID, filters)
+	if err != nil {
+		a.logger.Error("Failed to get user welcome bonus totals",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve welcome bonus totals",
 		})
 		return
 	}

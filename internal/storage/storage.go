@@ -92,11 +92,14 @@ type Analytics interface {
 	// Player analytics extensions
 	GetUserRakebackTransactions(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) ([]*dto.RakebackTransaction, int, dto.UserRakebackTotals, error)
 	GetUserTips(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) ([]*dto.TipTransaction, int, error)
+	GetUserWelcomeBonus(ctx context.Context, userID uuid.UUID, filters *dto.WelcomeBonusFilters) ([]*dto.WelcomeBonusTransaction, int, error)
+	GetWelcomeBonusTransactions(ctx context.Context, filters *dto.WelcomeBonusFilters) ([]*dto.WelcomeBonusTransaction, int, error)
 
 	// Totals endpoints
 	GetUserTransactionsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) (*dto.UserTransactionsTotals, error)
 	GetUserRakebackTotals(ctx context.Context, userID uuid.UUID, filters *dto.RakebackFilters) (*dto.UserRakebackTotals, error)
 	GetUserTipsTotals(ctx context.Context, userID uuid.UUID, filters *dto.TipFilters) (*dto.UserTipsTotals, error)
+	GetUserWelcomeBonusTotals(ctx context.Context, userID uuid.UUID, filters *dto.WelcomeBonusFilters) (*dto.UserWelcomeBonusTotals, error)
 	GetGameTransactions(ctx context.Context, gameID string, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 	GetTransactionReport(ctx context.Context, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, error)
 
