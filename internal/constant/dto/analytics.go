@@ -418,6 +418,8 @@ type Meta struct {
 	PageSize           int     `json:"page_size"`
 	Pages              int     `json:"pages"`
 	TotalClaimedAmount *string `json:"total_claimed_amount,omitempty"` // Only for rakeback endpoints
+	TotalBetAmount     *string `json:"total_bet_amount,omitempty"`     // Only for transactions endpoints
+	TotalWinAmount     *string `json:"total_win_amount,omitempty"`     // Only for transactions endpoints
 }
 
 // TransactionSummaryStats represents transaction summary statistics from ClickHouse

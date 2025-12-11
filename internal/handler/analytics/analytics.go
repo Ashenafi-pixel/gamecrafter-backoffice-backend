@@ -202,6 +202,16 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 		return
 	}
 
+	// Get transaction totals (total_bet_amount and total_win_amount) for meta
+	var totalBetAmountStr, totalWinAmountStr *string
+	totals, totalsErr := a.analyticsStorage.GetUserTransactionsTotals(c.Request.Context(), userID, filters)
+	if totalsErr == nil && totals != nil {
+		totalBetStr := totals.TotalBetAmount.String()
+		totalWinStr := totals.TotalWinAmount.String()
+		totalBetAmountStr = &totalBetStr
+		totalWinAmountStr = &totalWinStr
+	}
+
 	// Calculate pagination meta to match BACKOFFICE_PLAYER_ANALYTICS_ENDPOINTS.md
 	pageSize := filters.Limit
 	if pageSize <= 0 {
@@ -220,10 +230,12 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 		Success: true,
 		Data:    transactions,
 		Meta: &dto.Meta{
-			Total:    total,
-			Page:     page,
-			PageSize: pageSize,
-			Pages:    pages,
+			Total:          total,
+			Page:           page,
+			PageSize:       pageSize,
+			Pages:          pages,
+			TotalBetAmount: totalBetAmountStr,
+			TotalWinAmount: totalWinAmountStr,
 		},
 	})
 }
