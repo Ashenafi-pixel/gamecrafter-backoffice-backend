@@ -12,7 +12,6 @@
 #      Format: postgres://username:password@host:port/database?options
 # idle_conn_timeout: Maximum time a database connection can remain idle before being closed
 db:
-  # Matches docker-compose db service: host localhost, external port 5433 -> container 5432
   url: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@localhost:5433/tucanbit?sslmode=disable&connect_timeout=10"
   idle_conn_timeout: "4m"
 
@@ -25,11 +24,8 @@ db:
 # timeout: Maximum time for request handling before timeout
 app:
   host: "0.0.0.0"
-  # Use a different port so this backend can run alongside your other 8080 service
-  port: 8095
+  port: 8094
   timeout: "30m"
-  environment: "production"
-  frontend_url: "https://tucanbit.io"
 
 # ============================================================================
 # Debug Configuration
@@ -227,8 +223,7 @@ kafka:
 # min_idle_conns: Minimum number of idle connections to maintain
 redis:
   enabled: true
-  # Redis container is exposed on localhost:63790 by docker-compose
-  addr: "localhost:63790"
+  addr: "172.31.36.46:63790"
   password: "tucanbit_redis_password"
   db: 0
   key_prefix: "tucanbit:"
@@ -248,8 +243,7 @@ redis:
 # password: ClickHouse password
 # timeout: Connection and query timeout duration
 clickhouse:
-  # ClickHouse HTTP interface exposed on localhost:8123 by docker-compose
-  host: "localhost"
+  host: "172.31.36.46"
   port: 8123
   database: "tucanbit_analytics"
   username: "tucanbit"

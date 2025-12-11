@@ -59,13 +59,13 @@ func (u *user) CreateUser(ctx context.Context, userRequest dto.User) (dto.User, 
 	defaultCurrency := strings.TrimSpace(userRequest.DefaultCurrency)
 	if len(defaultCurrency) > 3 {
 		defaultCurrency = defaultCurrency[:3]
-		u.log.Warn("default_currency truncated to 3 characters", 
-			zap.String("original", userRequest.DefaultCurrency), 
+		u.log.Warn("default_currency truncated to 3 characters",
+			zap.String("original", userRequest.DefaultCurrency),
 			zap.String("truncated", defaultCurrency))
 	}
 	// Log the final value being inserted for debugging
-	u.log.Debug("default_currency value for insert", 
-		zap.String("value", defaultCurrency), 
+	u.log.Debug("default_currency value for insert",
+		zap.String("value", defaultCurrency),
 		zap.Int("length", len(defaultCurrency)),
 		zap.Bool("valid", defaultCurrency != ""))
 
@@ -712,6 +712,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 	var err error
 	var totalCount int64
 	var totalPages int
+	var params db.GetAllUsersWithFiltersParams
 
 	// Always use filtered query for consistency, even when no filters are applied
 	if true { // hasFilters {
@@ -757,12 +758,24 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			}
 		}
 
-		params := db.GetAllUsersWithFiltersParams{
+		params = db.GetAllUsersWithFiltersParams{
 			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
 			Status:        normalizedStatus,
 			KycStatus:     normalizedKycStatus,
 			IsTestAccount: sql.NullBool{Bool: req.Filter.IsTestAccount != nil && *req.Filter.IsTestAccount, Valid: req.Filter.IsTestAccount != nil},
 			BrandID:       brandIDs,
+			SortBy:        sql.NullString{String: "", Valid: false},
+			SortOrder:     sql.NullString{String: "", Valid: false},
+		}
+
+		// Set sort parameters if provided
+		if req.SortBy != nil && *req.SortBy != "" {
+			params.SortBy = sql.NullString{String: *req.SortBy, Valid: true}
+			if req.SortOrder != nil && (*req.SortOrder == "asc" || *req.SortOrder == "desc") {
+				params.SortOrder = sql.NullString{String: *req.SortOrder, Valid: true}
+			} else {
+				params.SortOrder = sql.NullString{String: "asc", Valid: true}
+			}
 		}
 
 		// Use normal pagination for all searches (removed special handling for user_id length)
@@ -850,6 +863,33 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		totalPages = int(int(usrs[0].TotalRows) / req.PerPage)
 		if int(usrs[0].TotalRows)%req.PerPage != 0 {
 			totalPages++
+		}
+	} else {
+		// If no rows returned, we need to get the count separately
+		// This happens when LIMIT/OFFSET excludes all matching rows but count > 0
+		// Run a count query with the same filters to get totalCount
+		countParams := db.GetAllUsersWithFiltersParams{
+			SearchTerm:    params.SearchTerm,
+			Status:        params.Status,
+			KycStatus:     params.KycStatus,
+			IsTestAccount: params.IsTestAccount,
+			BrandID:       params.BrandID,
+			SortBy:        sql.NullString{Valid: false},
+			SortOrder:     sql.NullString{Valid: false},
+			Limit:         1, // Just need one row to get the count
+			Offset:        0,
+		}
+		countUsrs, countErr := u.db.Queries.GetAllUsersWithFilters(ctx, countParams)
+		if countErr == nil && len(countUsrs) > 0 {
+			totalCount = countUsrs[0].TotalRows
+			totalPages = int(int(countUsrs[0].TotalRows) / req.PerPage)
+			if int(countUsrs[0].TotalRows)%req.PerPage != 0 {
+				totalPages++
+			}
+		} else {
+			// If count query also fails or returns 0, set to 0
+			totalCount = 0
+			totalPages = 0
 		}
 	}
 

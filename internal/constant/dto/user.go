@@ -363,9 +363,11 @@ type GetPlayersFilter struct {
 	BrandID       []string `json:"brand_id,omitempty"`
 }
 type GetPlayersReq struct {
-	Page    int              `json:"page"`
-	PerPage int              `json:"per_page"`
-	Filter  GetPlayersFilter `json:"filter"`
+	Page      int              `json:"page"`
+	PerPage   int              `json:"per_page"`
+	Filter    GetPlayersFilter `json:"filter"`
+	SortBy    *string          `json:"sort_by,omitempty"`    // "username", "email", "balance", "created_at"
+	SortOrder *string          `json:"sort_order,omitempty"` // "asc", "desc"
 }
 
 type GetPlayersRes struct {
