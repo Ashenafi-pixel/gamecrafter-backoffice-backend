@@ -84,8 +84,14 @@ type TipSettings struct {
 }
 
 type WelcomeBonusSettings struct {
-	Type               string  `json:"type"`                 // "fixed" or "percentage"
-	Enabled            bool    `json:"enabled"`              // true if this bonus type is enabled
+	// Legacy fields for backward compatibility (deprecated, use fixed_enabled and percentage_enabled instead)
+	Type    string `json:"type,omitempty"`    // "fixed" or "percentage" (deprecated)
+	Enabled bool   `json:"enabled,omitempty"` // true if this bonus type is enabled (deprecated)
+	
+	// New fields: separate toggles for fixed and percentage bonuses
+	FixedEnabled      bool    `json:"fixed_enabled"`       // true if fixed amount bonus is enabled
+	PercentageEnabled bool    `json:"percentage_enabled"`  // true if percentage-based bonus is enabled
+	
 	FixedAmount        float64 `json:"fixed_amount"`         // fixed bonus amount (for fixed type)
 	Percentage         float64 `json:"percentage"`           // percentage value e.g., 50 for 50% (for percentage type)
 	MinDepositAmount   float64 `json:"min_deposit_amount"`   // minimum deposit required (for percentage type)
@@ -639,8 +645,8 @@ func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uui
 			s.log.Info("No welcome bonus settings found, returning defaults", zap.Any("brand_id", brandID))
 			// Return default values when no configuration exists
 			return WelcomeBonusSettings{
-				Type:               "fixed",
-				Enabled:            false,
+				FixedEnabled:       false,
+				PercentageEnabled:  false,
 				FixedAmount:        0.0,
 				Percentage:         0.0,
 				MinDepositAmount:   0.0,
@@ -658,6 +664,15 @@ func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uui
 		return WelcomeBonusSettings{}, errors.ErrInternalServerError.Wrap(err, "failed to parse welcome bonus settings")
 	}
 
+	// Backward compatibility: migrate old type/enabled to new fixed_enabled/percentage_enabled
+	if settings.Type != "" && !settings.FixedEnabled && !settings.PercentageEnabled {
+		if settings.Type == "fixed" && settings.Enabled {
+			settings.FixedEnabled = true
+		} else if settings.Type == "percentage" && settings.Enabled {
+			settings.PercentageEnabled = true
+		}
+	}
+
 	return settings, nil
 }
 
@@ -671,8 +686,17 @@ func (s *SystemConfig) UpdateWelcomeBonusSettings(ctx context.Context, settings 
 
 	s.log.Info("Updating welcome bonus settings", zap.Any("brand_id", brandID))
 
+	// Backward compatibility: migrate old type/enabled to new fixed_enabled/percentage_enabled
+	if settings.Type != "" {
+		if settings.Type == "fixed" && settings.Enabled {
+			settings.FixedEnabled = true
+		} else if settings.Type == "percentage" && settings.Enabled {
+			settings.PercentageEnabled = true
+		}
+	}
+
 	// Validate that max_bonus_percentage < 100 for percentage type
-	if settings.Type == "percentage" && settings.Enabled {
+	if settings.PercentageEnabled {
 		if settings.MaxBonusPercentage >= 100 {
 			s.log.Error("max_bonus_percentage must be less than 100 to prevent bonus from equaling deposit")
 			return errors.ErrInvalidUserInput.Wrap(nil, "max_bonus_percentage must be less than 100")

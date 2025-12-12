@@ -1196,29 +1196,30 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 	// Parse the WelcomeBonusSettings from JSON body
 	var req system_config.WelcomeBonusSettings
 
-	// Parse type
+	// Parse new fields: fixed_enabled and percentage_enabled
+	if fixedEnabledVal, exists := jsonBody["fixed_enabled"]; exists {
+		if fixedEnabled, ok := fixedEnabledVal.(bool); ok {
+			req.FixedEnabled = fixedEnabled
+		}
+	}
+
+	if percentageEnabledVal, exists := jsonBody["percentage_enabled"]; exists {
+		if percentageEnabled, ok := percentageEnabledVal.(bool); ok {
+			req.PercentageEnabled = percentageEnabled
+		}
+	}
+
+	// Backward compatibility: parse old type and enabled fields
 	if typeVal, ok := jsonBody["type"].(string); ok && typeVal != "" {
 		if typeVal == "fixed" || typeVal == "percentage" {
 			req.Type = typeVal
-		} else {
-			h.log.Warn("Invalid type, using default 'fixed'")
-			req.Type = "fixed"
 		}
-	} else {
-		h.log.Warn("type missing or invalid, using default 'fixed'")
-		req.Type = "fixed"
 	}
 
-	// Parse enabled
 	if enabledVal, exists := jsonBody["enabled"]; exists {
 		if enabled, ok := enabledVal.(bool); ok {
 			req.Enabled = enabled
-		} else {
-			h.log.Warn("enabled missing or invalid, using default false")
-			req.Enabled = false
 		}
-	} else {
-		req.Enabled = false
 	}
 
 	// Helper function to parse float64 from JSON (handles int, int64, float32, float64)
@@ -1253,9 +1254,8 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 	// Parse max_bonus_percentage
 	req.MaxBonusPercentage = parseFloat("max_bonus_percentage", 90.0)
 
-	// Validate: only one type can be enabled at a time
-	// This validation is done at the storage layer, but we can add a check here too
-	if req.Enabled && req.Type == "percentage" {
+	// Validate: max_bonus_percentage must be < 100 if percentage is enabled
+	if req.PercentageEnabled {
 		if req.MaxBonusPercentage >= 100 {
 			h.log.Error("max_bonus_percentage must be less than 100")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "max_bonus_percentage must be less than 100 to prevent bonus from equaling deposit"})
@@ -1264,8 +1264,8 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 	}
 
 	h.log.Info("Parsed welcome bonus settings",
-		zap.String("type", req.Type),
-		zap.Bool("enabled", req.Enabled),
+		zap.Bool("fixed_enabled", req.FixedEnabled),
+		zap.Bool("percentage_enabled", req.PercentageEnabled),
 		zap.Float64("fixed_amount", req.FixedAmount),
 		zap.Float64("percentage", req.Percentage),
 		zap.Float64("min_deposit_amount", req.MinDepositAmount),
@@ -1295,8 +1295,8 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 
 	// Log admin activity
 	h.logAdminActivity(ctx, "update", "welcome_bonus_settings", "Updated welcome bonus settings", map[string]interface{}{
-		"type":                req.Type,
-		"enabled":             req.Enabled,
+		"fixed_enabled":       req.FixedEnabled,
+		"percentage_enabled":   req.PercentageEnabled,
 		"fixed_amount":        req.FixedAmount,
 		"percentage":          req.Percentage,
 		"min_deposit_amount":  req.MinDepositAmount,
