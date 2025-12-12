@@ -1023,7 +1023,7 @@ func (s *AnalyticsStorageImpl) GetUserTransactionsTotals(ctx context.Context, us
 		SELECT 
 			COUNT(*) AS total_count,
 			COALESCE(SUMIf(bet_amount, transaction_type IN ('groove_bet','bet')), 0) AS total_bet_amount,
-			COALESCE(SUMIf(win_amount, transaction_type IN ('groove_win','win')), 0) AS total_win_amount
+			COALESCE(SUMIf(win_amount, transaction_type IN ('groove_bet','bet','groove_win','win')), 0) AS total_win_amount
 		FROM tucanbit_analytics.transactions
 	` + " " + where
 
