@@ -75,6 +75,34 @@ INSERT INTO system_config (config_key, brand_id, config_value) VALUES
 ('withdrawal_margin_percent', NULL, '{"percent": 10}')
 ON CONFLICT (config_key, brand_id) DO NOTHING;
 
+INSERT INTO system_config (config_key, brand_id, config_value, description) VALUES
+('welcome_bonus_channel_settings', '00000000-0000-0000-0000-000000000001', '{"channels":[]}', 'Welcome bonus channel settings'),
+('welcome_bonus_channel_settings', '00000000-0000-0000-0000-000000000002', '{"channels":[]}', 'Welcome bonus channel settings'),
+('welcome_bonus_channel_settings', '00000000-0000-0000-0000-000000000003', '{"channels":[]}', 'Welcome bonus channel settings'),
+('welcome_bonus_channel_settings', '00000000-0000-0000-0000-000000000004', '{"channels":[]}', 'Welcome bonus channel settings')
+ON CONFLICT (config_key, brand_id) DO NOTHING;
+
+-- Welcome bonus settings per brand (with anti-abuse IP configuration)
+INSERT INTO system_config (config_key, brand_id, config_value, description) VALUES
+('welcome_bonus_settings',
+ '00000000-0000-0000-0000-000000000001',
+ '{"type":"fixed","enabled":false,"fixed_enabled":false,"percentage_enabled":false,"ip_restriction_enabled":true,"allow_multiple_bonuses_per_ip":false,"fixed_amount":0.0,"percentage":0.0,"max_deposit_amount":0.0,"max_bonus_percentage":90.0}',
+ 'Welcome bonus settings'),
+('welcome_bonus_settings',
+ '00000000-0000-0000-0000-000000000002',
+ '{"type":"fixed","enabled":false,"fixed_enabled":false,"percentage_enabled":false,"ip_restriction_enabled":true,"allow_multiple_bonuses_per_ip":false,"fixed_amount":0.0,"percentage":0.0,"max_deposit_amount":0.0,"max_bonus_percentage":90.0}',
+ 'Welcome bonus settings'),
+('welcome_bonus_settings',
+ '00000000-0000-0000-0000-000000000003',
+ '{"type":"fixed","enabled":false,"fixed_enabled":false,"percentage_enabled":false,"ip_restriction_enabled":true,"allow_multiple_bonuses_per_ip":false,"fixed_amount":0.0,"percentage":0.0,"max_deposit_amount":0.0,"max_bonus_percentage":90.0}',
+ 'Welcome bonus settings'),
+('welcome_bonus_settings',
+ '00000000-0000-0000-0000-000000000004',
+ '{"type":"fixed","enabled":false,"fixed_enabled":false,"percentage_enabled":false,"ip_restriction_enabled":true,"allow_multiple_bonuses_per_ip":false,"fixed_amount":0.0,"percentage":0.0,"max_deposit_amount":0.0,"max_bonus_percentage":90.0}',
+ 'Welcome bonus settings')
+ON CONFLICT (config_key, brand_id) DO UPDATE
+SET config_value = EXCLUDED.config_value;
+
 -- ============================================================================
 -- 7. CASHBACK TIERS
 -- ============================================================================

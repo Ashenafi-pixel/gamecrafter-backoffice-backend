@@ -198,6 +198,38 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 		},
 		{
 			Method:  "GET",
+			Path:    "/api/admin/settings/welcome-bonus/channels",
+			Handler: systemConfigHandler.GetWelcomeBonusChannels,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "POST",
+			Path:    "/api/admin/settings/welcome-bonus/channels",
+			Handler: systemConfigHandler.CreateWelcomeBonusChannel,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+			Path:    "/api/admin/settings/welcome-bonus/channels/:id",
+			Handler: systemConfigHandler.UpdateWelcomeBonusChannel,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "DELETE",
+			Path:    "/api/admin/settings/welcome-bonus/channels/:id",
+			Handler: systemConfigHandler.DeleteWelcomeBonusChannel,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "GET",
 			Path:    "/api/admin/settings/security",
 			Handler: systemConfigHandler.GetSecuritySettings,
 			Middleware: []gin.HandlerFunc{

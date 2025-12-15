@@ -34,6 +34,23 @@ DELETE FROM system_config WHERE config_key IN (
     'withdrawal_margin_percent'
 ) AND brand_id IS NULL;
 
+DELETE FROM system_config WHERE config_key = 'welcome_bonus_channel_settings' AND brand_id IN (
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000004'
+);
+
+-- Remove welcome bonus settings per brand
+DELETE FROM system_config
+WHERE config_key = 'welcome_bonus_settings'
+  AND brand_id IN (
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+      '00000000-0000-0000-0000-000000000003',
+      '00000000-0000-0000-0000-000000000004'
+  );
+
 -- Remove admin activity categories
 DELETE FROM admin_activity_categories WHERE id IN (
     '22a33143-2c9c-4eb4-8225-109913318385',

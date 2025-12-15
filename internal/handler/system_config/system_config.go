@@ -1209,6 +1209,18 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 		}
 	}
 
+	// Parse IP based restriction anti-abuse settings
+	if ipRestrictionEnabledVal, exists := jsonBody["ip_restriction_enabled"]; exists {
+		if ipRestrictionEnabled, ok := ipRestrictionEnabledVal.(bool); ok {
+			req.IPRestrictionEnabled = ipRestrictionEnabled
+		}
+	}
+	if allowMultiplePerIPVal, exists := jsonBody["allow_multiple_bonuses_per_ip"]; exists {
+		if allowMultiplePerIP, ok := allowMultiplePerIPVal.(bool); ok {
+			req.AllowMultipleBonusesPerIP = allowMultiplePerIP
+		}
+	}
+
 	// Backward compatibility: parse old type and enabled fields
 	if typeVal, ok := jsonBody["type"].(string); ok && typeVal != "" {
 		if typeVal == "fixed" || typeVal == "percentage" {
@@ -1274,6 +1286,8 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 	h.log.Info("Parsed welcome bonus settings",
 		zap.Bool("fixed_enabled", req.FixedEnabled),
 		zap.Bool("percentage_enabled", req.PercentageEnabled),
+		zap.Bool("ip_restriction_enabled", req.IPRestrictionEnabled),
+		zap.Bool("allow_multiple_bonuses_per_ip", req.AllowMultipleBonusesPerIP),
 		zap.Float64("fixed_amount", req.FixedAmount),
 		zap.Float64("percentage", req.Percentage),
 		zap.Float64("max_deposit_amount", req.MaxDepositAmount),
@@ -1303,18 +1317,443 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 
 	// Log admin activity
 	h.logAdminActivity(ctx, "update", "welcome_bonus_settings", "Updated welcome bonus settings", map[string]interface{}{
-		"fixed_enabled":       req.FixedEnabled,
-		"percentage_enabled":   req.PercentageEnabled,
-		"fixed_amount":        req.FixedAmount,
-		"percentage":          req.Percentage,
-		"max_deposit_amount":  req.MaxDepositAmount,
-		"max_bonus_percentage": req.MaxBonusPercentage,
+		"fixed_enabled":                 req.FixedEnabled,
+		"percentage_enabled":            req.PercentageEnabled,
+		"ip_restriction_enabled":        req.IPRestrictionEnabled,
+		"allow_multiple_bonuses_per_ip": req.AllowMultipleBonusesPerIP,
+		"fixed_amount":                  req.FixedAmount,
+		"percentage":                    req.Percentage,
+		"max_deposit_amount":            req.MaxDepositAmount,
+		"max_bonus_percentage":          req.MaxBonusPercentage,
 	})
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    req,
 		"message": "Welcome bonus settings updated successfully",
+	})
+}
+
+func (h *SystemConfigHandler) GetWelcomeBonusChannels(ctx *gin.Context) {
+	h.log.Info("Getting welcome bonus channel settings")
+
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	if brandID == nil {
+		h.log.Error("brand_id is required for welcome bonus channel settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for welcome bonus channel settings"})
+		return
+	}
+
+	settings, err := h.systemConfigStorage.GetWelcomeBonusChannelSettings(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Failed to get welcome bonus channel settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    settings,
+		"message": "Welcome bonus channel settings retrieved successfully",
+	})
+}
+
+func (h *SystemConfigHandler) CreateWelcomeBonusChannel(ctx *gin.Context) {
+	var jsonBody map[string]interface{}
+	if err := ctx.ShouldBindJSON(&jsonBody); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	var brandID *uuid.UUID
+	if brandIDVal, exists := jsonBody["brand_id"]; exists {
+		if brandIDStr, ok := brandIDVal.(string); ok && brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	if brandID == nil {
+		if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	if brandID == nil {
+		h.log.Error("brand_id is required for welcome bonus channel settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for welcome bonus channel settings"})
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	currentSettings, err := h.systemConfigStorage.GetWelcomeBonusChannelSettings(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Failed to get current channel settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	var newChannel system_config.WelcomeBonusChannelRule
+	if channelVal, exists := jsonBody["channel"]; exists {
+		if channel, ok := channelVal.(string); ok {
+			newChannel.Channel = channel
+		}
+	}
+
+	if patternsVal, exists := jsonBody["referrer_patterns"]; exists {
+		if patterns, ok := patternsVal.([]interface{}); ok {
+			newChannel.ReferrerPatterns = make([]string, 0, len(patterns))
+			for _, p := range patterns {
+				if pattern, ok := p.(string); ok {
+					newChannel.ReferrerPatterns = append(newChannel.ReferrerPatterns, pattern)
+				}
+			}
+		}
+	}
+
+	if enabledVal, exists := jsonBody["enabled"]; exists {
+		if enabled, ok := enabledVal.(bool); ok {
+			newChannel.Enabled = enabled
+		}
+	}
+
+	if bonusTypeVal, exists := jsonBody["bonus_type"]; exists {
+		if bonusType, ok := bonusTypeVal.(string); ok {
+			newChannel.BonusType = bonusType
+		}
+	}
+
+	if fixedAmountVal, exists := jsonBody["fixed_amount"]; exists {
+		if fixedAmount, ok := fixedAmountVal.(float64); ok {
+			newChannel.FixedAmount = fixedAmount
+		}
+	}
+
+	if percentageVal, exists := jsonBody["percentage"]; exists {
+		if percentage, ok := percentageVal.(float64); ok {
+			newChannel.Percentage = percentage
+		}
+	}
+
+	if maxBonusPercentageVal, exists := jsonBody["max_bonus_percentage"]; exists {
+		if maxBonusPercentage, ok := maxBonusPercentageVal.(float64); ok {
+			newChannel.MaxBonusPercentage = maxBonusPercentage
+		}
+	}
+
+	if maxDepositAmountVal, exists := jsonBody["max_deposit_amount"]; exists {
+		if maxDepositAmount, ok := maxDepositAmountVal.(float64); ok {
+			newChannel.MaxDepositAmount = maxDepositAmount
+		}
+	}
+
+	if inheritIPPolicyVal, exists := jsonBody["inherit_ip_policy"]; exists {
+		if inheritIPPolicy, ok := inheritIPPolicyVal.(bool); ok {
+			newChannel.InheritIPPolicy = inheritIPPolicy
+		}
+	} else {
+		newChannel.InheritIPPolicy = true
+	}
+
+	if ipRestrictionEnabledVal, exists := jsonBody["ip_restriction_enabled"]; exists {
+		if ipRestrictionEnabled, ok := ipRestrictionEnabledVal.(bool); ok {
+			newChannel.IPRestrictionEnabled = ipRestrictionEnabled
+		}
+	}
+
+	if allowMultipleBonusesPerIPVal, exists := jsonBody["allow_multiple_bonuses_per_ip"]; exists {
+		if allowMultipleBonusesPerIP, ok := allowMultipleBonusesPerIPVal.(bool); ok {
+			newChannel.AllowMultipleBonusesPerIP = allowMultipleBonusesPerIP
+		}
+	}
+
+	newChannel.ID = uuid.New().String()
+
+	currentSettings.Channels = append(currentSettings.Channels, newChannel)
+
+	err = h.systemConfigStorage.UpdateWelcomeBonusChannelSettings(ctx.Request.Context(), currentSettings, adminUUID, brandID)
+	if err != nil {
+		h.log.Error("Failed to create welcome bonus channel", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	h.logAdminActivity(ctx, "create", "welcome_bonus_channel", "Created welcome bonus channel", map[string]interface{}{
+		"channel_id": newChannel.ID,
+		"channel":    newChannel.Channel,
+		"brand_id":   brandID.String(),
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    newChannel,
+		"message": "Welcome bonus channel created successfully",
+	})
+}
+
+func (h *SystemConfigHandler) UpdateWelcomeBonusChannel(ctx *gin.Context) {
+	channelID := ctx.Param("id")
+	if channelID == "" {
+		h.log.Error("channel id is required")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "channel id is required"})
+		return
+	}
+
+	var jsonBody map[string]interface{}
+	if err := ctx.ShouldBindJSON(&jsonBody); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	var brandID *uuid.UUID
+	if brandIDVal, exists := jsonBody["brand_id"]; exists {
+		if brandIDStr, ok := brandIDVal.(string); ok && brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	if brandID == nil {
+		if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+			if parsed, err := uuid.Parse(brandIDStr); err == nil {
+				brandID = &parsed
+			}
+		}
+	}
+
+	if brandID == nil {
+		h.log.Error("brand_id is required for welcome bonus channel settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for welcome bonus channel settings"})
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	currentSettings, err := h.systemConfigStorage.GetWelcomeBonusChannelSettings(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Failed to get current channel settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	var foundIndex = -1
+	for i, channel := range currentSettings.Channels {
+		if channel.ID == channelID {
+			foundIndex = i
+			break
+		}
+	}
+
+	if foundIndex == -1 {
+		h.log.Error("Channel not found", zap.String("channel_id", channelID))
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Channel not found"})
+		return
+	}
+
+	updatedChannel := currentSettings.Channels[foundIndex]
+
+	if channelVal, exists := jsonBody["channel"]; exists {
+		if channel, ok := channelVal.(string); ok {
+			updatedChannel.Channel = channel
+		}
+	}
+
+	if patternsVal, exists := jsonBody["referrer_patterns"]; exists {
+		if patterns, ok := patternsVal.([]interface{}); ok {
+			updatedChannel.ReferrerPatterns = make([]string, 0, len(patterns))
+			for _, p := range patterns {
+				if pattern, ok := p.(string); ok {
+					updatedChannel.ReferrerPatterns = append(updatedChannel.ReferrerPatterns, pattern)
+				}
+			}
+		}
+	}
+
+	if enabledVal, exists := jsonBody["enabled"]; exists {
+		if enabled, ok := enabledVal.(bool); ok {
+			updatedChannel.Enabled = enabled
+		}
+	}
+
+	if bonusTypeVal, exists := jsonBody["bonus_type"]; exists {
+		if bonusType, ok := bonusTypeVal.(string); ok {
+			updatedChannel.BonusType = bonusType
+		}
+	}
+
+	if fixedAmountVal, exists := jsonBody["fixed_amount"]; exists {
+		if fixedAmount, ok := fixedAmountVal.(float64); ok {
+			updatedChannel.FixedAmount = fixedAmount
+		}
+	}
+
+	if percentageVal, exists := jsonBody["percentage"]; exists {
+		if percentage, ok := percentageVal.(float64); ok {
+			updatedChannel.Percentage = percentage
+		}
+	}
+
+	if maxBonusPercentageVal, exists := jsonBody["max_bonus_percentage"]; exists {
+		if maxBonusPercentage, ok := maxBonusPercentageVal.(float64); ok {
+			updatedChannel.MaxBonusPercentage = maxBonusPercentage
+		}
+	}
+
+	if maxDepositAmountVal, exists := jsonBody["max_deposit_amount"]; exists {
+		if maxDepositAmount, ok := maxDepositAmountVal.(float64); ok {
+			updatedChannel.MaxDepositAmount = maxDepositAmount
+		}
+	}
+
+	if inheritIPPolicyVal, exists := jsonBody["inherit_ip_policy"]; exists {
+		if inheritIPPolicy, ok := inheritIPPolicyVal.(bool); ok {
+			updatedChannel.InheritIPPolicy = inheritIPPolicy
+		}
+	}
+
+	if ipRestrictionEnabledVal, exists := jsonBody["ip_restriction_enabled"]; exists {
+		if ipRestrictionEnabled, ok := ipRestrictionEnabledVal.(bool); ok {
+			updatedChannel.IPRestrictionEnabled = ipRestrictionEnabled
+		}
+	}
+
+	if allowMultipleBonusesPerIPVal, exists := jsonBody["allow_multiple_bonuses_per_ip"]; exists {
+		if allowMultipleBonusesPerIP, ok := allowMultipleBonusesPerIPVal.(bool); ok {
+			updatedChannel.AllowMultipleBonusesPerIP = allowMultipleBonusesPerIP
+		}
+	}
+
+	currentSettings.Channels[foundIndex] = updatedChannel
+
+	err = h.systemConfigStorage.UpdateWelcomeBonusChannelSettings(ctx.Request.Context(), currentSettings, adminUUID, brandID)
+	if err != nil {
+		h.log.Error("Failed to update welcome bonus channel", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	h.logAdminActivity(ctx, "update", "welcome_bonus_channel", "Updated welcome bonus channel", map[string]interface{}{
+		"channel_id": channelID,
+		"brand_id":   brandID.String(),
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    updatedChannel,
+		"message": "Welcome bonus channel updated successfully",
+	})
+}
+
+func (h *SystemConfigHandler) DeleteWelcomeBonusChannel(ctx *gin.Context) {
+	channelID := ctx.Param("id")
+	if channelID == "" {
+		h.log.Error("channel id is required")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "channel id is required"})
+		return
+	}
+
+	var brandID *uuid.UUID
+	if brandIDStr := ctx.Query("brand_id"); brandIDStr != "" {
+		if parsed, err := uuid.Parse(brandIDStr); err == nil {
+			brandID = &parsed
+		}
+	}
+
+	if brandID == nil {
+		h.log.Error("brand_id is required for welcome bonus channel settings")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "brand_id is required for welcome bonus channel settings"})
+		return
+	}
+
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		h.log.Error("No user_id found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		h.log.Error("Invalid user_id type in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	currentSettings, err := h.systemConfigStorage.GetWelcomeBonusChannelSettings(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Failed to get current channel settings", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	var foundIndex = -1
+	for i, channel := range currentSettings.Channels {
+		if channel.ID == channelID {
+			foundIndex = i
+			break
+		}
+	}
+
+	if foundIndex == -1 {
+		h.log.Error("Channel not found", zap.String("channel_id", channelID))
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Channel not found"})
+		return
+	}
+
+	currentSettings.Channels = append(currentSettings.Channels[:foundIndex], currentSettings.Channels[foundIndex+1:]...)
+
+	err = h.systemConfigStorage.UpdateWelcomeBonusChannelSettings(ctx.Request.Context(), currentSettings, adminUUID, brandID)
+	if err != nil {
+		h.log.Error("Failed to delete welcome bonus channel", zap.Error(err))
+		_ = ctx.Error(err)
+		return
+	}
+
+	h.logAdminActivity(ctx, "delete", "welcome_bonus_channel", "Deleted welcome bonus channel", map[string]interface{}{
+		"channel_id": channelID,
+		"brand_id":   brandID.String(),
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Welcome bonus channel deleted successfully",
 	})
 }
 

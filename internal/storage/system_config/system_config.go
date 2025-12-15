@@ -87,15 +87,41 @@ type WelcomeBonusSettings struct {
 	// Legacy fields for backward compatibility (deprecated, use fixed_enabled and percentage_enabled instead)
 	Type    string `json:"type,omitempty"`    // "fixed" or "percentage" (deprecated)
 	Enabled bool   `json:"enabled,omitempty"` // true if this bonus type is enabled (deprecated)
-	
+
 	// New fields: separate toggles for fixed and percentage bonuses
-	FixedEnabled      bool    `json:"fixed_enabled"`       // true if fixed amount bonus is enabled
-	PercentageEnabled bool    `json:"percentage_enabled"`  // true if percentage-based bonus is enabled
-	
+	FixedEnabled      bool `json:"fixed_enabled"`      // true if fixed amount bonus is enabled
+	PercentageEnabled bool `json:"percentage_enabled"` // true if percentage-based bonus is enabled
+
+	// Anti-abuse / IP based protection
+	// When ip_restriction_enabled = true and allow_multiple_bonuses_per_ip = false,
+	// only the first account created from a given IP should receive a welcome bonus.
+	// Enforcement is done by the signup backend; this struct only exposes configuration.
+	IPRestrictionEnabled      bool `json:"ip_restriction_enabled"`        // enable/disable IP based restriction
+	AllowMultipleBonusesPerIP bool `json:"allow_multiple_bonuses_per_ip"` // if false, only one welcome bonus per IP
+
 	FixedAmount        float64 `json:"fixed_amount"`         // fixed bonus amount (for fixed type)
 	Percentage         float64 `json:"percentage"`           // percentage value e.g., 50 for 50% (for percentage type)
 	MaxDepositAmount   float64 `json:"max_deposit_amount"`   // maximum deposit amount for bonus calculation (for percentage type)
 	MaxBonusPercentage float64 `json:"max_bonus_percentage"` // max bonus as % of deposit, default 90% to prevent 100% match
+}
+
+type WelcomeBonusChannelRule struct {
+	ID                        string   `json:"id"`
+	Channel                   string   `json:"channel"`
+	ReferrerPatterns          []string `json:"referrer_patterns"`
+	Enabled                   bool     `json:"enabled"`
+	BonusType                 string   `json:"bonus_type"`
+	FixedAmount               float64  `json:"fixed_amount"`
+	Percentage                float64  `json:"percentage"`
+	MaxBonusPercentage        float64  `json:"max_bonus_percentage"`
+	MaxDepositAmount          float64  `json:"max_deposit_amount"`
+	InheritIPPolicy           bool     `json:"inherit_ip_policy"`
+	IPRestrictionEnabled      bool     `json:"ip_restriction_enabled"`
+	AllowMultipleBonusesPerIP bool     `json:"allow_multiple_bonuses_per_ip"`
+}
+
+type WelcomeBonusChannelSettings struct {
+	Channels []WelcomeBonusChannelRule `json:"channels"`
 }
 
 type GeoBlockingSettings struct {
@@ -645,12 +671,14 @@ func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uui
 			s.log.Info("No welcome bonus settings found, returning defaults", zap.Any("brand_id", brandID))
 			// Return default values when no configuration exists
 			return WelcomeBonusSettings{
-				FixedEnabled:       false,
-				PercentageEnabled:  false,
-				FixedAmount:        0.0,
-				Percentage:         0.0,
-				MaxDepositAmount:   0.0,
-				MaxBonusPercentage: 90.0,
+				FixedEnabled:              false,
+				PercentageEnabled:         false,
+				IPRestrictionEnabled:      true,  // by default, enable IP restriction
+				AllowMultipleBonusesPerIP: false, // by default, only one bonus per IP
+				FixedAmount:               0.0,
+				Percentage:                0.0,
+				MaxDepositAmount:          0.0,
+				MaxBonusPercentage:        90.0,
 			}, nil
 		}
 		s.log.Error("Failed to get welcome bonus settings from database", zap.Error(err))
@@ -726,12 +754,14 @@ func (s *SystemConfig) UpdateWelcomeBonusSettings(ctx context.Context, settings 
 	// Ensure we're using max_deposit_amount (not min_deposit_amount) in the saved JSON
 	// Create a clean map to ensure old field names are not included
 	cleanSettings := map[string]interface{}{
-		"fixed_enabled":       settings.FixedEnabled,
-		"percentage_enabled": settings.PercentageEnabled,
-		"fixed_amount":       settings.FixedAmount,
-		"percentage":          settings.Percentage,
-		"max_deposit_amount": settings.MaxDepositAmount, // Always use max_deposit_amount
-		"max_bonus_percentage": settings.MaxBonusPercentage,
+		"fixed_enabled":                 settings.FixedEnabled,
+		"percentage_enabled":            settings.PercentageEnabled,
+		"ip_restriction_enabled":        settings.IPRestrictionEnabled,
+		"allow_multiple_bonuses_per_ip": settings.AllowMultipleBonusesPerIP,
+		"fixed_amount":                  settings.FixedAmount,
+		"percentage":                    settings.Percentage,
+		"max_deposit_amount":            settings.MaxDepositAmount, // Always use max_deposit_amount
+		"max_bonus_percentage":          settings.MaxBonusPercentage,
 	}
 	// Include legacy fields for backward compatibility if they exist
 	if settings.Type != "" {
@@ -809,6 +839,111 @@ func (s *SystemConfig) UpdateWelcomeBonusSettings(ctx context.Context, settings 
 		s.log.Info("Welcome bonus settings created for brand", zap.Any("brand_id", brandID))
 	}
 
+	return nil
+}
+
+func (s *SystemConfig) GetWelcomeBonusChannelSettings(ctx context.Context, brandID *uuid.UUID) (WelcomeBonusChannelSettings, error) {
+	s.log.Info("Getting welcome bonus channel settings from system config", zap.Any("brand_id", brandID))
+
+	if brandID == nil {
+		s.log.Error("brand_id is required for getting channel settings")
+		return WelcomeBonusChannelSettings{}, errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required")
+	}
+
+	var configValue json.RawMessage
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT config_value FROM system_config 
+		WHERE config_key = $1 AND brand_id = $2
+	`, "welcome_bonus_channel_settings", brandID).Scan(&configValue)
+
+	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No welcome bonus channel settings found, returning empty channels", zap.Any("brand_id", brandID))
+			return WelcomeBonusChannelSettings{
+				Channels: []WelcomeBonusChannelRule{},
+			}, nil
+		}
+		s.log.Error("Failed to get welcome bonus channel settings", zap.Error(err))
+		return WelcomeBonusChannelSettings{}, errors.ErrUnableToGet.Wrap(err, "failed to get welcome bonus channel settings")
+	}
+
+	var settings WelcomeBonusChannelSettings
+	if err := json.Unmarshal(configValue, &settings); err != nil {
+		s.log.Error("Failed to unmarshal welcome bonus channel settings", zap.Error(err))
+		return WelcomeBonusChannelSettings{}, errors.ErrUnableToGet.Wrap(err, "failed to unmarshal welcome bonus channel settings")
+	}
+
+	if settings.Channels == nil {
+		settings.Channels = []WelcomeBonusChannelRule{}
+	}
+
+	return settings, nil
+}
+
+func (s *SystemConfig) UpdateWelcomeBonusChannelSettings(ctx context.Context, settings WelcomeBonusChannelSettings, adminID uuid.UUID, brandID *uuid.UUID) error {
+	if brandID == nil {
+		s.log.Error("brand_id is required for welcome bonus channel settings")
+		return errors.ErrInvalidUserInput.Wrap(nil, "brand_id is required for welcome bonus channel settings")
+	}
+
+	s.log.Info("Updating welcome bonus channel settings", zap.Any("brand_id", brandID))
+
+	if settings.Channels == nil {
+		settings.Channels = []WelcomeBonusChannelRule{}
+	}
+
+	for i := range settings.Channels {
+		if settings.Channels[i].BonusType == "percentage" && settings.Channels[i].MaxBonusPercentage >= 100 {
+			s.log.Error("max_bonus_percentage must be less than 100", zap.String("channel_id", settings.Channels[i].ID))
+			return errors.ErrInvalidUserInput.Wrap(nil, "max_bonus_percentage must be less than 100")
+		}
+	}
+
+	configValue, err := json.Marshal(settings)
+	if err != nil {
+		s.log.Error("Failed to marshal welcome bonus channel settings", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to marshal welcome bonus channel settings")
+	}
+
+	var userExists bool
+	err = s.db.GetPool().QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
+	`, adminID).Scan(&userExists)
+
+	if err != nil {
+		s.log.Warn("Failed to check if admin user exists, proceeding with NULL updated_by", zap.Error(err), zap.Any("admin_id", adminID))
+		userExists = false
+	}
+
+	if userExists {
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = EXCLUDED.updated_by,
+				updated_at = NOW()
+		`, "welcome_bonus_channel_settings", configValue, "Welcome bonus channel settings", brandID, adminID)
+	} else {
+		s.log.Warn("Admin user not found in database, setting updated_by to NULL", zap.Any("admin_id", adminID))
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO system_config (config_key, config_value, description, brand_id, updated_by, updated_at)
+			VALUES ($1, $2, $3, $4, NULL, NOW())
+			ON CONFLICT (brand_id, config_key) 
+			DO UPDATE SET 
+				config_value = EXCLUDED.config_value,
+				updated_by = system_config.updated_by,
+				updated_at = NOW()
+		`, "welcome_bonus_channel_settings", configValue, "Welcome bonus channel settings", brandID)
+	}
+
+	if err != nil {
+		s.log.Error("Failed to update welcome bonus channel settings for brand", zap.Error(err), zap.Any("brand_id", brandID))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update welcome bonus channel settings")
+	}
+
+	s.log.Info("Welcome bonus channel settings updated for brand", zap.Any("brand_id", brandID))
 	return nil
 }
 
