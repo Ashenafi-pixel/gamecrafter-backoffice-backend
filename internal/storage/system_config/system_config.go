@@ -674,12 +674,21 @@ func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uui
 	}
 
 	// Backward compatibility: migrate old min_deposit_amount to max_deposit_amount
+	// When JSON has min_deposit_amount, it won't populate MaxDepositAmount (different JSON tag)
+	// So we need to check the raw JSON and copy the value
 	var rawSettings map[string]interface{}
 	if err := json.Unmarshal(configValue, &rawSettings); err == nil {
-		if minDepositVal, exists := rawSettings["min_deposit_amount"]; exists && settings.MaxDepositAmount == 0.0 {
+		if minDepositVal, exists := rawSettings["min_deposit_amount"]; exists {
 			if minDeposit, ok := minDepositVal.(float64); ok {
+				// Always migrate if min_deposit_amount exists (even if max_deposit_amount was also set)
 				settings.MaxDepositAmount = minDeposit
 				s.log.Info("Migrated min_deposit_amount to max_deposit_amount", zap.Float64("value", minDeposit))
+			}
+		}
+		// Also check if max_deposit_amount exists in raw JSON (in case it was set directly)
+		if maxDepositVal, exists := rawSettings["max_deposit_amount"]; exists {
+			if maxDeposit, ok := maxDepositVal.(float64); ok {
+				settings.MaxDepositAmount = maxDeposit
 			}
 		}
 	}
@@ -714,7 +723,25 @@ func (s *SystemConfig) UpdateWelcomeBonusSettings(ctx context.Context, settings 
 		}
 	}
 
-	configValue, err := json.Marshal(settings)
+	// Ensure we're using max_deposit_amount (not min_deposit_amount) in the saved JSON
+	// Create a clean map to ensure old field names are not included
+	cleanSettings := map[string]interface{}{
+		"fixed_enabled":       settings.FixedEnabled,
+		"percentage_enabled": settings.PercentageEnabled,
+		"fixed_amount":       settings.FixedAmount,
+		"percentage":          settings.Percentage,
+		"max_deposit_amount": settings.MaxDepositAmount, // Always use max_deposit_amount
+		"max_bonus_percentage": settings.MaxBonusPercentage,
+	}
+	// Include legacy fields for backward compatibility if they exist
+	if settings.Type != "" {
+		cleanSettings["type"] = settings.Type
+	}
+	if settings.Enabled {
+		cleanSettings["enabled"] = settings.Enabled
+	}
+
+	configValue, err := json.Marshal(cleanSettings)
 	if err != nil {
 		s.log.Error("Failed to marshal welcome bonus settings", zap.Error(err))
 		return errors.ErrInternalServerError.Wrap(err, "failed to marshal welcome bonus settings")

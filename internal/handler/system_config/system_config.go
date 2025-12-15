@@ -1248,8 +1248,16 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 	// Parse percentage
 	req.Percentage = parseFloat("percentage", 0.0)
 
-	// Parse max_deposit_amount
-	req.MaxDepositAmount = parseFloat("max_deposit_amount", 0.0)
+	// Parse max_deposit_amount (with backward compatibility for min_deposit_amount)
+	if maxDepositVal, exists := jsonBody["max_deposit_amount"]; exists {
+		req.MaxDepositAmount = parseFloat("max_deposit_amount", 0.0)
+	} else if minDepositVal, exists := jsonBody["min_deposit_amount"]; exists {
+		// Backward compatibility: accept min_deposit_amount and convert to max_deposit_amount
+		req.MaxDepositAmount = parseFloat("min_deposit_amount", 0.0)
+		h.log.Info("Migrated min_deposit_amount to max_deposit_amount in request", zap.Float64("value", req.MaxDepositAmount))
+	} else {
+		req.MaxDepositAmount = 0.0
+	}
 
 	// Parse max_bonus_percentage
 	req.MaxBonusPercentage = parseFloat("max_bonus_percentage", 90.0)
