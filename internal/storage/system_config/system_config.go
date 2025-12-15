@@ -94,7 +94,7 @@ type WelcomeBonusSettings struct {
 	
 	FixedAmount        float64 `json:"fixed_amount"`         // fixed bonus amount (for fixed type)
 	Percentage         float64 `json:"percentage"`           // percentage value e.g., 50 for 50% (for percentage type)
-	MinDepositAmount   float64 `json:"min_deposit_amount"`   // minimum deposit required (for percentage type)
+	MaxDepositAmount   float64 `json:"max_deposit_amount"`   // maximum deposit amount for bonus calculation (for percentage type)
 	MaxBonusPercentage float64 `json:"max_bonus_percentage"` // max bonus as % of deposit, default 90% to prevent 100% match
 }
 
@@ -649,7 +649,7 @@ func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uui
 				PercentageEnabled:  false,
 				FixedAmount:        0.0,
 				Percentage:         0.0,
-				MinDepositAmount:   0.0,
+				MaxDepositAmount:   0.0,
 				MaxBonusPercentage: 90.0,
 			}, nil
 		}
@@ -670,6 +670,17 @@ func (s *SystemConfig) GetWelcomeBonusSettings(ctx context.Context, brandID *uui
 			settings.FixedEnabled = true
 		} else if settings.Type == "percentage" && settings.Enabled {
 			settings.PercentageEnabled = true
+		}
+	}
+
+	// Backward compatibility: migrate old min_deposit_amount to max_deposit_amount
+	var rawSettings map[string]interface{}
+	if err := json.Unmarshal(configValue, &rawSettings); err == nil {
+		if minDepositVal, exists := rawSettings["min_deposit_amount"]; exists && settings.MaxDepositAmount == 0.0 {
+			if minDeposit, ok := minDepositVal.(float64); ok {
+				settings.MaxDepositAmount = minDeposit
+				s.log.Info("Migrated min_deposit_amount to max_deposit_amount", zap.Float64("value", minDeposit))
+			}
 		}
 	}
 

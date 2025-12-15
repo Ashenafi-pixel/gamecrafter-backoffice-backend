@@ -1248,8 +1248,8 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 	// Parse percentage
 	req.Percentage = parseFloat("percentage", 0.0)
 
-	// Parse min_deposit_amount
-	req.MinDepositAmount = parseFloat("min_deposit_amount", 0.0)
+	// Parse max_deposit_amount
+	req.MaxDepositAmount = parseFloat("max_deposit_amount", 0.0)
 
 	// Parse max_bonus_percentage
 	req.MaxBonusPercentage = parseFloat("max_bonus_percentage", 90.0)
@@ -1268,7 +1268,7 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 		zap.Bool("percentage_enabled", req.PercentageEnabled),
 		zap.Float64("fixed_amount", req.FixedAmount),
 		zap.Float64("percentage", req.Percentage),
-		zap.Float64("min_deposit_amount", req.MinDepositAmount),
+		zap.Float64("max_deposit_amount", req.MaxDepositAmount),
 		zap.Float64("max_bonus_percentage", req.MaxBonusPercentage),
 		zap.Any("brand_id", brandID))
 
@@ -1299,7 +1299,7 @@ func (h *SystemConfigHandler) UpdateWelcomeBonusSettings(ctx *gin.Context) {
 		"percentage_enabled":   req.PercentageEnabled,
 		"fixed_amount":        req.FixedAmount,
 		"percentage":          req.Percentage,
-		"min_deposit_amount":  req.MinDepositAmount,
+		"max_deposit_amount":  req.MaxDepositAmount,
 		"max_bonus_percentage": req.MaxBonusPercentage,
 	})
 
