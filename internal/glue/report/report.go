@@ -42,6 +42,17 @@ func Init(
 			},
 		},
 		{
+			Method:  "POST",
+			Path:    "/api/admin/report/duplicate-ip-accounts/suspend",
+			Handler: report.SuspendAccountsByIP,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "suspend accounts by ip", http.MethodPost),
+				middleware.SystemLogs("Suspend Accounts By IP", &log, systemLogs),
+			},
+		},
+		{
 			Method:  "GET",
 			Path:    "/api/admin/report/big-winners",
 			Handler: report.GetBigWinners,

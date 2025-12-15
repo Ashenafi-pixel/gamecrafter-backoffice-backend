@@ -381,6 +381,7 @@ type Brand interface {
 type Report interface {
 	DailyReport(ctx context.Context, req dto.DailyReportReq) (dto.DailyReportRes, error)
 	GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPAccountsReport, error)
+	SuspendAccountsByIP(ctx context.Context, ipAddress string) ([]uuid.UUID, error)
 	GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq, userBrandIDs []uuid.UUID) (dto.BigWinnersReportRes, error)
 	GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsReportReq, userBrandIDs []uuid.UUID) (dto.PlayerMetricsReportRes, error)
 	GetPlayerTransactions(ctx context.Context, req dto.PlayerTransactionsReq) (dto.PlayerTransactionsRes, error)

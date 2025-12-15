@@ -171,6 +171,7 @@ var PermissionsList = map[string]PermissionsToRoute{
 	"update game status":               {EndPoint: "/api/admin/games/status", Method: http.MethodPut, Name: "update game status", Description: "allow admin to update game status"},
 	"get daily report":                 {EndPoint: "/api/admin/report/daily", Method: http.MethodGet, Name: "get daily report", Description: "allow user to get daily report"},
 	"get duplicate ip accounts report": {EndPoint: "/api/admin/report/duplicate-ip-accounts", Method: http.MethodGet, Name: "get duplicate ip accounts report", Description: "allow user to get duplicate IP accounts report"},
+	"suspend accounts by ip":           {EndPoint: "/api/admin/report/duplicate-ip-accounts/suspend", Method: http.MethodPost, Name: "suspend accounts by ip", Description: "allow user to suspend all accounts from an IP address"},
 	"get big winners report":           {EndPoint: "/api/admin/report/big-winners", Method: http.MethodGet, Name: "get big winners report", Description: "allow user to get big winners report"},
 	"get player metrics report":        {EndPoint: "/api/admin/report/player-metrics", Method: http.MethodGet, Name: "get player metrics report", Description: "allow user to get player metrics report"},
 	"get player transactions report":   {EndPoint: "/api/admin/report/player-metrics/:player_id/transactions", Method: http.MethodGet, Name: "get player transactions report", Description: "allow user to get player transactions for drill-down"},

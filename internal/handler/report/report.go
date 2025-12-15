@@ -18,12 +18,14 @@ import (
 type report struct {
 	log          *zap.Logger
 	reportModule module.Report
+	userModule   module.User
 }
 
-func Init(reportModule module.Report, log *zap.Logger) handler.Report {
+func Init(reportModule module.Report, userModule module.User, log *zap.Logger) handler.Report {
 	return &report{
 		log:          log,
 		reportModule: reportModule,
+		userModule:   userModule,
 	}
 }
 
@@ -74,6 +76,98 @@ func (r *report) GetDuplicateIPAccounts(ctx *gin.Context) {
 	}
 
 	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
+}
+
+// SuspendAccountsByIP suspends all accounts created from a specific IP address.
+//
+//	@Summary		SuspendAccountsByIP
+//	@Description	Suspends all accounts that were created from the specified IP address
+//	@Tags			Report
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string					true	"Bearer <token>"
+//	@Param			request			body		dto.SuspendAccountsByIPReq	true	"Suspend accounts request"
+//	@Success		200				{object}	dto.SuspendAccountsByIPRes
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		401				{object}	response.ErrorResponse
+//	@Router			/api/admin/report/duplicate-ip-accounts/suspend [post]
+func (r *report) SuspendAccountsByIP(ctx *gin.Context) {
+	var req dto.SuspendAccountsByIPReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Get admin user ID
+	userIDStr := ctx.GetString("user-id")
+	adminID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		r.log.Warn("Failed to parse admin user ID", zap.Error(err), zap.String("userID", userIDStr))
+		err = errors.ErrInvalidUserInput.Wrap(err, "invalid admin user ID")
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Get user IDs from IP
+	userIDs, err := r.reportModule.SuspendAccountsByIP(ctx.Request.Context(), req, adminID)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	if len(userIDs) == 0 {
+		response.SendSuccessResponse(ctx, http.StatusOK, dto.SuspendAccountsByIPRes{
+			Message:          "No accounts found for this IP address",
+			IPAddress:        req.IPAddress,
+			AccountsSuspended: 0,
+			UserIDs:          []string{},
+		})
+		return
+	}
+
+	// Suspend each account
+	suspendedCount := 0
+	failedCount := 0
+	userIDStrings := make([]string, 0, len(userIDs))
+	
+	for _, userID := range userIDs {
+		// Block account with COMPLETE type and PERMANENT duration
+		blockReq := dto.AccountBlockReq{
+			UserID:    userID,
+			BlockedBy: adminID,
+			Type:      constant.BLOCK_TYPE_COMPLETE, // Block all access
+			Duration:  constant.BLOCK_DURATION_PERMANENT,
+			Reason:    func() string {
+				if req.Reason != "" {
+					return req.Reason
+				}
+				return fmt.Sprintf("Suspended due to duplicate IP address: %s", req.IPAddress)
+			}(),
+			Note: req.Note,
+		}
+		
+		_, err := r.userModule.BlockUser(ctx.Request.Context(), blockReq)
+		if err != nil {
+			r.log.Error("Failed to suspend account", 
+				zap.Error(err), 
+				zap.String("user_id", userID.String()),
+				zap.String("ip_address", req.IPAddress))
+			failedCount++
+		} else {
+			suspendedCount++
+			userIDStrings = append(userIDStrings, userID.String())
+		}
+	}
+
+	res := dto.SuspendAccountsByIPRes{
+		Message:          fmt.Sprintf("Suspended %d accounts (failed: %d)", suspendedCount, failedCount),
+		IPAddress:        req.IPAddress,
+		AccountsSuspended: suspendedCount,
+		UserIDs:          userIDStrings,
+	}
+
+	response.SendSuccessResponse(ctx, http.StatusOK, res)
 }
 
 // GetBigWinners Get Big Winners Report.

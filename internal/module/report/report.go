@@ -36,6 +36,17 @@ func (r *report) GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPA
 	return r.reportStorage.GetDuplicateIPAccounts(ctx)
 }
 
+func (r *report) SuspendAccountsByIP(ctx context.Context, req dto.SuspendAccountsByIPReq, adminID uuid.UUID) ([]uuid.UUID, error) {
+	// Get all user IDs from the IP address
+	userIDs, err := r.reportStorage.SuspendAccountsByIP(ctx, req.IPAddress)
+	if err != nil {
+		r.log.Error("Failed to get user IDs from IP", zap.Error(err), zap.String("ip_address", req.IPAddress))
+		return nil, err
+	}
+
+	return userIDs, nil
+}
+
 func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq, userBrandIDs []uuid.UUID) (dto.BigWinnersReportRes, error) {
 	return r.reportStorage.GetBigWinners(ctx, req, userBrandIDs)
 }

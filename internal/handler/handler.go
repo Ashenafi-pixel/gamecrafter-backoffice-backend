@@ -292,6 +292,7 @@ type Brand interface {
 type Report interface {
 	GetDailyReport(c *gin.Context)
 	GetDuplicateIPAccounts(c *gin.Context)
+	SuspendAccountsByIP(c *gin.Context)
 	GetBigWinners(c *gin.Context)
 	ExportBigWinners(c *gin.Context)
 	GetPlayerMetrics(c *gin.Context)

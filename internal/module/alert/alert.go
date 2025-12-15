@@ -18,6 +18,7 @@ type AlertService interface {
 	CheckDepositAlerts(ctx context.Context, skipDuplicateCheck bool) error
 	CheckWithdrawalAlerts(ctx context.Context) error
 	CheckGGRAlerts(ctx context.Context) error
+	CheckMultipleAccountsSameIP(ctx context.Context) error
 }
 
 type alertService struct {
@@ -94,6 +95,10 @@ func (s *alertService) CheckAllAlerts(ctx context.Context) error {
 		s.log.Error("Failed to check GGR alerts", zap.Error(err))
 	}
 
+	if err := s.CheckMultipleAccountsSameIP(ctx); err != nil {
+		s.log.Error("Failed to check multiple accounts same IP alerts", zap.Error(err))
+	}
+
 	s.log.Info("Completed comprehensive alert check")
 	return nil
 }
@@ -115,7 +120,8 @@ func (s *alertService) checkAndTriggerAlert(
 	case dto.AlertTypeBetsCountMore, dto.AlertTypeBetsAmountMore,
 		dto.AlertTypeDepositsTotalMore, dto.AlertTypeDepositsTypeMore,
 		dto.AlertTypeWithdrawalsTotalMore, dto.AlertTypeWithdrawalsTypeMore,
-		dto.AlertTypeGGRTotalMore, dto.AlertTypeGGRSingleMore:
+		dto.AlertTypeGGRTotalMore, dto.AlertTypeGGRSingleMore,
+		dto.AlertTypeMultipleAccountsSameIP:
 		shouldTrigger = triggerValue >= config.ThresholdAmount
 	case dto.AlertTypeBetsCountLess, dto.AlertTypeBetsAmountLess,
 		dto.AlertTypeDepositsTotalLess, dto.AlertTypeDepositsTypeLess,
@@ -384,6 +390,34 @@ func (s *alertService) CheckGGRAlerts(ctx context.Context) error {
 	}
 
 	err := s.alertStorage.CheckGGRAlerts(ctx, maxTimeWindow)
+	if err != nil {
+		return err
+	}
+
+	return s.sendEmailsForNewTriggers(ctx, checkStartTime)
+}
+
+// CheckMultipleAccountsSameIP checks multiple accounts same IP alerts and sends emails
+func (s *alertService) CheckMultipleAccountsSameIP(ctx context.Context) error {
+	checkStartTime := time.Now()
+	maxTimeWindow := time.Hour * 24
+	
+	req := &dto.GetAlertConfigurationsRequest{
+		Page:    1,
+		PerPage: 100,
+		Status:  func() *dto.AlertStatus { status := dto.AlertStatusActive; return &status }(),
+	}
+	configs, _, _ := s.alertStorage.GetAlertConfigurations(ctx, req)
+	for _, config := range configs {
+		if config.AlertType == dto.AlertTypeMultipleAccountsSameIP {
+			window := time.Duration(config.TimeWindowMinutes) * time.Minute
+			if window > maxTimeWindow {
+				maxTimeWindow = window
+			}
+		}
+	}
+
+	err := s.alertStorage.CheckMultipleAccountsSameIP(ctx, maxTimeWindow)
 	if err != nil {
 		return err
 	}

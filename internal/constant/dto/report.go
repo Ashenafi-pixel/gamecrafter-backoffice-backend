@@ -63,6 +63,21 @@ type DuplicateIPAccountsReport struct {
 	Accounts  []DuplicateIPAccount `json:"accounts"`
 }
 
+// SuspendAccountsByIPReq represents the request to suspend all accounts from an IP
+type SuspendAccountsByIPReq struct {
+	IPAddress string `json:"ip_address" binding:"required"`
+	Reason    string `json:"reason"`
+	Note      string `json:"note"`
+}
+
+// SuspendAccountsByIPRes represents the response for suspending accounts by IP
+type SuspendAccountsByIPRes struct {
+	Message        string   `json:"message"`
+	IPAddress      string   `json:"ip_address"`
+	AccountsSuspended int   `json:"accounts_suspended"`
+	UserIDs        []string `json:"user_ids"`
+}
+
 // BigWinnersReportReq represents the request for Big Winners report
 type BigWinnersReportReq struct {
 	Page            int        `form:"page" json:"page"`

@@ -140,7 +140,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		SystemLogs:            logs.Init(log, module.SystemLogs),
 		Company:               company.Init(module.Company, log),
 		Brand:                 brand.Init(module.Brand, log),
-		Report:                report.Init(module.Report, log),
+		Report:                report.Init(module.Report, module.User, log),
 		Squads:                squads.Init(log, module.Squads),
 		Notification:          notification.Init(log, module.Notification),
 		Adds:                  adds.Init(module.Adds, log),

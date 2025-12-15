@@ -25,6 +25,7 @@ const (
 	AlertTypeGGRTotalLess         AlertType = "ggr_total_less"
 	AlertTypeGGRTotalMore         AlertType = "ggr_total_more"
 	AlertTypeGGRSingleMore        AlertType = "ggr_single_more"
+	AlertTypeMultipleAccountsSameIP AlertType = "multiple_accounts_same_ip"
 )
 
 // AlertStatus represents the status of an alert

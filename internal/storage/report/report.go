@@ -137,3 +137,45 @@ func (r *report) GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPA
 
 	return reports, nil
 }
+
+func (r *report) SuspendAccountsByIP(ctx context.Context, ipAddress string) ([]uuid.UUID, error) {
+	// Get all user IDs that have the first session from this IP address
+	query := `
+		WITH first_sessions AS (
+			SELECT DISTINCT ON (us.user_id)
+				us.user_id
+			FROM user_sessions us
+			INNER JOIN users u ON us.user_id = u.id
+			WHERE us.ip_address = $1
+				AND us.ip_address IS NOT NULL 
+				AND us.ip_address != ''
+				AND u.is_admin = false
+			ORDER BY us.user_id, us.created_at ASC
+		)
+		SELECT user_id FROM first_sessions
+	`
+
+	rows, err := r.db.GetPool().Query(ctx, query, ipAddress)
+	if err != nil {
+		r.log.Error("failed to get user IDs from IP", zap.Error(err), zap.String("ip_address", ipAddress))
+		return nil, errors.ErrUnableToGet.Wrap(err, "failed to get user IDs from IP")
+	}
+	defer rows.Close()
+
+	var userIDs []uuid.UUID
+	for rows.Next() {
+		var userID uuid.UUID
+		if err := rows.Scan(&userID); err != nil {
+			r.log.Error("failed to scan user ID", zap.Error(err))
+			continue
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	if err := rows.Err(); err != nil {
+		r.log.Error("error iterating user IDs", zap.Error(err))
+		return nil, errors.ErrUnableToGet.Wrap(err, "error iterating user IDs")
+	}
+
+	return userIDs, nil
+}
