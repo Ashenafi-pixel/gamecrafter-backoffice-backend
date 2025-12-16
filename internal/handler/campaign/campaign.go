@@ -38,10 +38,10 @@ func Init(campaignModule module.Campaign, log *zap.Logger) *Campaign {
 func (c *Campaign) CreateCampaign(ctx *gin.Context) {
 	var req dto.CreateCampaignRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		c.log.Error("failed to bind create campaign request", zap.Error(err))
+		c.log.Error("failed to bind create campaign request", zap.Error(err), zap.Any("error_details", err.Error()))
 		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Code:    http.StatusBadRequest,
-			Message: "Invalid request format",
+			Message: "Invalid request format: " + err.Error(),
 		})
 		return
 	}

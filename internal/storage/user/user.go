@@ -1017,6 +1017,35 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 		// Add IsTestAccount field
 		user.IsTestAccount = usr.IsTestAccount.Bool
 
+		// Load withdrawal limit from user_limits table (if exists)
+		var withdrawalLimit *decimal.Decimal
+		var withdrawalLimitEnabled bool
+		var withdrawalAllTimeLimit *decimal.Decimal
+		var dailyLimitCents sql.NullInt64
+		var allTimeLimitCents sql.NullInt64
+		var limitEnabled sql.NullBool
+		errLimit := u.db.GetPool().QueryRow(ctx, `
+			SELECT daily_limit_cents, all_time_limit_cents, withdrawal_limit_enabled
+			FROM user_limits 
+			WHERE user_id = $1 AND limit_type = 'withdrawal'
+		`, usr.ID).Scan(&dailyLimitCents, &allTimeLimitCents, &limitEnabled)
+		if errLimit == nil && (dailyLimitCents.Valid || allTimeLimitCents.Valid) {
+			if dailyLimitCents.Valid {
+				// Convert cents to decimal (divide by 100)
+				limit := decimal.NewFromInt(dailyLimitCents.Int64).Div(decimal.NewFromInt(100))
+				withdrawalLimit = &limit
+			}
+			if allTimeLimitCents.Valid {
+				// Convert cents to decimal (divide by 100)
+				limit := decimal.NewFromInt(allTimeLimitCents.Int64).Div(decimal.NewFromInt(100))
+				withdrawalAllTimeLimit = &limit
+			}
+			withdrawalLimitEnabled = limitEnabled.Valid && limitEnabled.Bool
+		}
+		user.WithdrawalLimit = withdrawalLimit
+		user.WithdrawalLimitEnabled = withdrawalLimitEnabled
+		user.WithdrawalAllTimeLimit = withdrawalAllTimeLimit
+
 		// Note: All search fields (username, email, phone_number, user_id) are now handled
 		// in the SQL query using ILIKE, so no additional client-side filtering needed here.
 

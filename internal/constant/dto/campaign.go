@@ -42,7 +42,7 @@ type CreateCampaignRequest struct {
 	MessageType NotificationType       `json:"message_type" validate:"required,oneof=promotional kyc bonus welcome system alert payments security general"`
 	Subject     string                 `json:"subject" validate:"required,min=1,max=255"`
 	Content     string                 `json:"content" validate:"required,min=1,max=5000"`
-	ScheduledAt *time.Time             `json:"scheduled_at,omitempty"`
+	ScheduledAt *FlexibleTime          `json:"scheduled_at,omitempty"`
 	Segments    []CreateSegmentRequest `json:"segments" validate:"required,min=1"`
 }
 

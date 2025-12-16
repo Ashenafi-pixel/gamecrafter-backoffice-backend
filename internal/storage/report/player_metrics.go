@@ -643,7 +643,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 				b.id,
 				b.client_transaction_id as transaction_id,
 				CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				COALESCE(b.timestamp, b.created_at, NOW()) as transaction_date,
+				COALESCE(b.timestamp, NOW()) as transaction_date,
 				COALESCE(b.payout, b.amount) as amount,
 				b.currency,
 				COALESCE(b.status, 'completed') as status,
@@ -969,7 +969,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			WHERE ga.user_id = $1 AND gt.type IN ('wager', 'result')
 			%s
 			UNION ALL
-			SELECT COALESCE(b.timestamp, b.created_at, NOW()) as transaction_date, 'bet' as type
+			SELECT COALESCE(b.timestamp, NOW()) as transaction_date, 'bet' as type
 			FROM bets b WHERE b.user_id = $1 %s
 			UNION ALL
 			SELECT sb.created_at as transaction_date, 'bet' as type

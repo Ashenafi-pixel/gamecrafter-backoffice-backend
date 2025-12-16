@@ -57,7 +57,12 @@ func (c *Campaign) CreateCampaign(ctx context.Context, req dto.CreateCampaignReq
 		CreatedAt       time.Time
 		UpdatedAt       time.Time
 	}
-	err = tx.QueryRow(ctx, query, req.Title, string(req.MessageType), req.Subject, req.Content, createdBy, req.ScheduledAt).Scan(
+	// Convert FlexibleTime to *time.Time if provided
+	var scheduledAt *time.Time
+	if req.ScheduledAt != nil {
+		scheduledAt = &req.ScheduledAt.Time
+	}
+	err = tx.QueryRow(ctx, query, req.Title, string(req.MessageType), req.Subject, req.Content, createdBy, scheduledAt).Scan(
 		&campaignRes.ID,
 		&campaignRes.Title,
 		&campaignRes.MessageType,

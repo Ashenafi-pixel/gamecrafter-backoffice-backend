@@ -919,7 +919,7 @@ func (s *alertStorage) CheckBetAmountAlerts(ctx context.Context, timeWindow time
 				-- Bets table: handle NULL timestamps by using created_at as fallback
 				SELECT COALESCE(b.amount, 0) as amount_usd
 				FROM bets b
-				WHERE (COALESCE(b.timestamp, b.created_at, NOW()) >= $1 AND COALESCE(b.timestamp, b.created_at, NOW()) <= $2)
+				WHERE (COALESCE(b.timestamp, NOW()) >= $1 AND COALESCE(b.timestamp, NOW()) <= $2)
 					AND b.amount > 0
 				UNION ALL
 				-- GrooveTech transactions: only wager type with negative amount (bets)

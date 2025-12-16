@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -423,9 +424,103 @@ func (r *report) ExportPlayerMetrics(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Header("Content-Type", "application/json")
-	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=player-metrics-%s.json", time.Now().Format("2006-01-02")))
-	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
+	// Generate CSV
+	var csvBuilder strings.Builder
+	
+	// Write CSV header
+	csvBuilder.WriteString("Player ID,Username,Email,Brand ID,Brand Name,Country,Registration Date,Last Activity,Main Balance,Currency,Total Deposits,Total Withdrawals,Net Deposits,Total Wagered,Total Won,Rakeback Earned,Rakeback Claimed,Net Gaming Result,Number of Sessions,Number of Bets,Account Status,Device Type,KYC Status,First Deposit Date,Last Deposit Date\n")
+	
+	// Write data rows
+	for _, metric := range reportRes.Data {
+		// Helper function to safely format CSV field
+		formatCSVField := func(value interface{}) string {
+			if value == nil {
+				return ""
+			}
+			str := fmt.Sprintf("%v", value)
+			// Escape quotes and wrap in quotes if contains comma, newline, or quote
+			if strings.Contains(str, ",") || strings.Contains(str, "\n") || strings.Contains(str, `"`) {
+				str = strings.ReplaceAll(str, `"`, `""`)
+				return `"` + str + `"`
+			}
+			return str
+		}
+		
+		// Format nullable fields
+		email := ""
+		if metric.Email != nil {
+			email = *metric.Email
+		}
+		brandID := ""
+		if metric.BrandID != nil {
+			brandID = metric.BrandID.String()
+		}
+		brandName := ""
+		if metric.BrandName != nil {
+			brandName = *metric.BrandName
+		}
+		country := ""
+		if metric.Country != nil {
+			country = *metric.Country
+		}
+		lastActivity := ""
+		if metric.LastActivity != nil {
+			lastActivity = metric.LastActivity.Format("2006-01-02 15:04:05")
+		}
+		deviceType := ""
+		if metric.DeviceType != nil {
+			deviceType = *metric.DeviceType
+		}
+		kycStatus := ""
+		if metric.KYCStatus != nil {
+			kycStatus = *metric.KYCStatus
+		}
+		firstDepositDate := ""
+		if metric.FirstDepositDate != nil {
+			firstDepositDate = metric.FirstDepositDate.Format("2006-01-02 15:04:05")
+		}
+		lastDepositDate := ""
+		if metric.LastDepositDate != nil {
+			lastDepositDate = metric.LastDepositDate.Format("2006-01-02 15:04:05")
+		}
+		
+		// Write row
+		csvBuilder.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s,%s,%s,%s\n",
+			formatCSVField(metric.PlayerID.String()),
+			formatCSVField(metric.Username),
+			formatCSVField(email),
+			formatCSVField(brandID),
+			formatCSVField(brandName),
+			formatCSVField(country),
+			formatCSVField(metric.RegistrationDate.Format("2006-01-02 15:04:05")),
+			formatCSVField(lastActivity),
+			formatCSVField(metric.MainBalance.String()),
+			formatCSVField(metric.Currency),
+			formatCSVField(metric.TotalDeposits.String()),
+			formatCSVField(metric.TotalWithdrawals.String()),
+			formatCSVField(metric.NetDeposits.String()),
+			formatCSVField(metric.TotalWagered.String()),
+			formatCSVField(metric.TotalWon.String()),
+			formatCSVField(metric.RakebackEarned.String()),
+			formatCSVField(metric.RakebackClaimed.String()),
+			formatCSVField(metric.NetGamingResult.String()),
+			metric.NumberOfSessions,
+			metric.NumberOfBets,
+			formatCSVField(metric.AccountStatus),
+			formatCSVField(deviceType),
+			formatCSVField(kycStatus),
+			formatCSVField(firstDepositDate),
+			formatCSVField(lastDepositDate),
+		))
+	}
+	
+	// Set headers for CSV download
+	ctx.Header("Content-Type", "text/csv; charset=utf-8")
+	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=player-metrics-%s.csv", time.Now().Format("2006-01-02")))
+	ctx.Header("Content-Transfer-Encoding", "binary")
+	
+	// Write CSV content
+	ctx.Data(http.StatusOK, "text/csv; charset=utf-8", []byte(csvBuilder.String()))
 }
 
 // ExportPlayerTransactions Export Player Transactions.
