@@ -190,7 +190,7 @@ type AlertEmailGroup struct {
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 	UpdatedBy   *uuid.UUID `json:"updated_by" db:"updated_by"`
-	Emails      []string   `json:"emails,omitempty"` // Populated when fetching with members
+	Emails      []string   `json:"emails"` // Populated when fetching with members (always include, even if empty)
 }
 
 // AlertEmailGroupMember represents an email member in a group

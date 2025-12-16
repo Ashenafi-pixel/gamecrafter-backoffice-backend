@@ -178,23 +178,30 @@ func (s *alertEmailGroupStorage) GetAllEmailGroups(ctx context.Context) ([]dto.A
 			SELECT group_id, email
 			FROM alert_email_group_members
 			WHERE group_id = ANY($1)
-			ORDER BY created_at
+			ORDER BY group_id, created_at
 		`
 
 		memberRows, err := s.db.GetPool().Query(ctx, membersQuery, pq.Array(groupIDs))
 		if err != nil {
-			s.log.Error("Failed to get email members", zap.Error(err))
+			s.log.Error("Failed to get email members", zap.Error(err), zap.Any("group_ids", groupIDs))
+			// Return groups with empty email arrays rather than failing completely
+			// This ensures the API still returns groups even if email fetching fails
 		} else {
 			defer memberRows.Close()
 			for memberRows.Next() {
 				var groupID uuid.UUID
 				var email string
 				if err := memberRows.Scan(&groupID, &email); err != nil {
-					s.log.Error("Failed to scan email member", zap.Error(err))
+					s.log.Error("Failed to scan email member", zap.Error(err), zap.String("group_id", groupID.String()))
 					continue
 				}
 				if group, ok := groupMap[groupID]; ok {
+					if group.Emails == nil {
+						group.Emails = []string{}
+					}
 					group.Emails = append(group.Emails, email)
+				} else {
+					s.log.Warn("Email member found for unknown group", zap.String("group_id", groupID.String()), zap.String("email", email))
 				}
 			}
 		}
