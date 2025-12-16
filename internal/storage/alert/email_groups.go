@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -136,10 +137,20 @@ func (s *alertEmailGroupStorage) GetEmailGroupByID(ctx context.Context, id uuid.
 
 // GetAllEmailGroups gets all email groups with their members
 func (s *alertEmailGroupStorage) GetAllEmailGroups(ctx context.Context) ([]dto.AlertEmailGroup, error) {
+	// Use a LEFT JOIN to get all groups and their emails in a single query
 	query := `
-		SELECT id, name, description, created_by, created_at, updated_at, updated_by
-		FROM alert_email_groups
-		ORDER BY created_at DESC
+		SELECT 
+			g.id, 
+			g.name, 
+			g.description, 
+			g.created_by, 
+			g.created_at, 
+			g.updated_at, 
+			g.updated_by,
+			m.email
+		FROM alert_email_groups g
+		LEFT JOIN alert_email_group_members m ON g.id = m.group_id
+		ORDER BY g.created_at DESC, m.created_at ASC
 	`
 
 	rows, err := s.db.GetPool().Query(ctx, query)
@@ -153,60 +164,55 @@ func (s *alertEmailGroupStorage) GetAllEmailGroups(ctx context.Context) ([]dto.A
 	groupMap := make(map[uuid.UUID]*dto.AlertEmailGroup)
 
 	for rows.Next() {
-		var group dto.AlertEmailGroup
+		var groupID uuid.UUID
+		var name string
+		var description *string
+		var createdBy *uuid.UUID
+		var createdAt time.Time
+		var updatedAt time.Time
+		var updatedBy *uuid.UUID
+		var email sql.NullString
+
 		err := rows.Scan(
-			&group.ID, &group.Name, &group.Description, &group.CreatedBy,
-			&group.CreatedAt, &group.UpdatedAt, &group.UpdatedBy,
+			&groupID, &name, &description, &createdBy,
+			&createdAt, &updatedAt, &updatedBy, &email,
 		)
 		if err != nil {
-			s.log.Error("Failed to scan email group", zap.Error(err))
+			s.log.Error("Failed to scan email group row", zap.Error(err))
 			continue
 		}
-		group.Emails = []string{}
-		groups = append(groups, group)
-		groupMap[group.ID] = &groups[len(groups)-1]
-	}
 
-	// Fetch emails for all groups
-	if len(groups) > 0 {
-		groupIDs := make([]uuid.UUID, 0, len(groups))
-		for _, g := range groups {
-			groupIDs = append(groupIDs, g.ID)
-		}
-
-		membersQuery := `
-			SELECT group_id, email
-			FROM alert_email_group_members
-			WHERE group_id = ANY($1)
-			ORDER BY group_id, created_at
-		`
-
-		memberRows, err := s.db.GetPool().Query(ctx, membersQuery, pq.Array(groupIDs))
-		if err != nil {
-			s.log.Error("Failed to get email members", zap.Error(err), zap.Any("group_ids", groupIDs))
-			// Return groups with empty email arrays rather than failing completely
-			// This ensures the API still returns groups even if email fetching fails
-		} else {
-			defer memberRows.Close()
-			for memberRows.Next() {
-				var groupID uuid.UUID
-				var email string
-				if err := memberRows.Scan(&groupID, &email); err != nil {
-					s.log.Error("Failed to scan email member", zap.Error(err), zap.String("group_id", groupID.String()))
-					continue
-				}
-				if group, ok := groupMap[groupID]; ok {
-					if group.Emails == nil {
-						group.Emails = []string{}
-					}
-					group.Emails = append(group.Emails, email)
-				} else {
-					s.log.Warn("Email member found for unknown group", zap.String("group_id", groupID.String()), zap.String("email", email))
-				}
+		// Check if we've seen this group before
+		group, exists := groupMap[groupID]
+		if !exists {
+			// Create new group
+			group = &dto.AlertEmailGroup{
+				ID:          groupID,
+				Name:        name,
+				Description: description,
+				CreatedBy:   createdBy,
+				CreatedAt:   createdAt,
+				UpdatedAt:   updatedAt,
+				UpdatedBy:   updatedBy,
+				Emails:      []string{},
 			}
+			groups = append(groups, *group)
+			groupMap[groupID] = &groups[len(groups)-1]
+		}
+
+		// Add email if it exists (LEFT JOIN can return NULL)
+		if email.Valid && email.String != "" {
+			groupMap[groupID].Emails = append(groupMap[groupID].Emails, email.String)
 		}
 	}
 
+	// Check for errors that occurred during iteration
+	if err := rows.Err(); err != nil {
+		s.log.Error("Error occurred while iterating email groups", zap.Error(err))
+		return nil, err
+	}
+
+	s.log.Debug("Successfully fetched email groups", zap.Int("total_groups", len(groups)))
 	return groups, nil
 }
 
