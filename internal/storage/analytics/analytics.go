@@ -186,12 +186,22 @@ func (s *AnalyticsStorageImpl) InsertTransactions(ctx context.Context, transacti
 }
 
 func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID uuid.UUID, filters *dto.TransactionFilters) ([]*dto.AnalyticsTransaction, int, error) {
-	// Base WHERE clause and args that we reuse for both count and data queries
-	where := "WHERE user_id = ?"
-	args := []interface{}{userID.String()}
+	userIDStr := userID.String()
 
-	// Add filters (date range, type, game, status) to match BACKOFFICE_PLAYER_ANALYTICS_ENDPOINTS.md
-	if filters != nil {
+	isGroove := false
+	if filters != nil && filters.TransactionType != nil {
+		if *filters.TransactionType == "groove_bet" || *filters.TransactionType == "groove_win" {
+			isGroove = true
+		}
+	}
+
+	var where string
+	var args []interface{}
+
+	if isGroove {
+		where = "WHERE user_id = ? AND transaction_type = ? AND bet_amount IS NOT NULL AND (status = 'completed' OR status = 'pending')"
+		args = []interface{}{userIDStr, *filters.TransactionType}
+
 		if filters.DateFrom != nil {
 			where += " AND created_at >= ?"
 			args = append(args, *filters.DateFrom)
@@ -200,27 +210,60 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			where += " AND created_at <= ?"
 			args = append(args, *filters.DateTo)
 		}
-		if filters.TransactionType != nil {
-			where += " AND transaction_type = ?"
-			args = append(args, *filters.TransactionType)
-		}
 		if filters.GameID != nil {
 			where += " AND game_id = ?"
 			args = append(args, *filters.GameID)
 		}
-		if filters.Status != nil {
-			where += " AND status = ?"
-			args = append(args, *filters.Status)
-		}
-		if filters.BrandID != nil {
-			where += " AND brand_id = ?"
-			args = append(args, *filters.BrandID)
+	} else {
+		where = "WHERE user_id = ?"
+		args = []interface{}{userIDStr}
+
+		if filters != nil {
+			if filters.DateFrom != nil {
+				where += " AND created_at >= ?"
+				args = append(args, *filters.DateFrom)
+			}
+			if filters.DateTo != nil {
+				where += " AND created_at <= ?"
+				args = append(args, *filters.DateTo)
+			}
+			if filters.TransactionType != nil {
+				where += " AND transaction_type = ?"
+				args = append(args, *filters.TransactionType)
+			}
+			if filters.GameID != nil {
+				where += " AND game_id = ?"
+				args = append(args, *filters.GameID)
+			}
+			if filters.Status != nil {
+				where += " AND status = ?"
+				args = append(args, *filters.Status)
+			}
 		}
 	}
 
-	// Count query for pagination meta - count distinct transaction IDs after deduplication
-	// We need to deduplicate by id, preferring "completed" status
-	countQuery := `
+	var countQuery string
+	if isGroove {
+		countQuery = `
+		SELECT COUNT(*)
+		FROM (
+			SELECT 
+				id,
+				ROW_NUMBER() OVER (
+					PARTITION BY id
+					ORDER BY 
+						(status = 'completed') DESC,
+						updated_at DESC,
+						created_at DESC
+				) AS rn,
+				status
+			FROM tucanbit_analytics.transactions
+			` + " " + where + `
+		) deduped
+		WHERE rn = 1 AND status = 'completed'
+	`
+	} else {
+		countQuery = `
 		SELECT COUNT(DISTINCT id)
 		FROM (
 			SELECT id,
@@ -236,15 +279,14 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 		) deduped
 		WHERE rn = 1
 	`
+	}
 
-	// ClickHouse COUNT() returns UInt64; scan into uint64 then cast to int for our API
 	var total64 uint64
 	if err := s.clickhouse.QueryRow(ctx, countQuery, args...).Scan(&total64); err != nil {
 		return nil, 0, fmt.Errorf("failed to count user transactions: %w", err)
 	}
 	total := int(total64)
 
-	//  Main data query - deduplicate by id, preferring "completed" status
 	dataQuery := `
 		SELECT 
 			id, user_id, transaction_type, amount, currency, status,
@@ -257,19 +299,25 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 				game_id, game_name, provider, session_id, round_id,
 				bet_amount, win_amount, net_result, balance_before, balance_after,
 				payment_method, external_transaction_id, metadata, created_at, updated_at,
-				ROW_NUMBER() OVER (PARTITION BY id ORDER BY 
-					CASE status 
-						WHEN 'completed' THEN 1 
-						ELSE 2 
-					END,
-					created_at DESC
+				ROW_NUMBER() OVER (
+					PARTITION BY id
+					ORDER BY 
+						(status = 'completed') DESC,
+						updated_at DESC,
+						created_at DESC
 				) as rn
 			FROM tucanbit_analytics.transactions
 			` + " " + where + `
 		) deduped
-		WHERE rn = 1
-		ORDER BY created_at DESC
 	`
+
+	if isGroove {
+		dataQuery += " WHERE rn = 1 AND status = 'completed'"
+	} else {
+		dataQuery += " WHERE rn = 1"
+	}
+
+	dataQuery += " ORDER BY created_at DESC"
 
 	dataArgs := append([]interface{}{}, args...)
 	if filters != nil && filters.Limit > 0 {
@@ -996,6 +1044,21 @@ func (s *AnalyticsStorageImpl) GetUserTransactionsTotals(ctx context.Context, us
 	where := "WHERE user_id = ?"
 	args := []interface{}{userIDStr}
 
+	isGroove := false
+	if filters != nil && filters.TransactionType != nil {
+		if *filters.TransactionType == "groove_bet" || *filters.TransactionType == "groove_win" {
+			isGroove = true
+		}
+	}
+
+	if isGroove {
+		where += " AND transaction_type = ? AND bet_amount IS NOT NULL AND (status = 'completed' OR status = 'pending')"
+		args = append(args, *filters.TransactionType)
+	} else if filters != nil && filters.TransactionType != nil {
+		where += " AND transaction_type = ?"
+		args = append(args, *filters.TransactionType)
+	}
+
 	if filters != nil {
 		if filters.DateFrom != nil {
 			where += " AND created_at >= ?"
@@ -1005,17 +1068,9 @@ func (s *AnalyticsStorageImpl) GetUserTransactionsTotals(ctx context.Context, us
 			where += " AND created_at <= ?"
 			args = append(args, *filters.DateTo)
 		}
-		if filters.TransactionType != nil {
-			where += " AND transaction_type = ?"
-			args = append(args, *filters.TransactionType)
-		}
 		if filters.Status != nil {
 			where += " AND status = ?"
 			args = append(args, *filters.Status)
-		}
-		if filters.BrandID != nil {
-			where += " AND brand_id = ?"
-			args = append(args, *filters.BrandID)
 		}
 	}
 
