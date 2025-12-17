@@ -79,10 +79,11 @@ type GetCampaignsRequest struct {
 }
 
 type GetCampaignsResponse struct {
-	Campaigns []CampaignResponse `json:"campaigns"`
-	Total     int                `json:"total"`
-	Page      int                `json:"page"`
-	PerPage   int                `json:"per_page"`
+	Campaigns  []CampaignResponse `json:"campaigns"`
+	Total      int                `json:"total"`
+	TotalPages int                `json:"total_pages"`
+	Page       int                `json:"page"`
+	PerPage    int                `json:"per_page"`
 }
 
 type UpdateCampaignRequest struct {

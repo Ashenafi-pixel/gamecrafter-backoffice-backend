@@ -352,9 +352,18 @@ func (c *Campaign) GetCampaigns(ctx context.Context, req dto.GetCampaignsRequest
 		campaigns = append(campaigns, campaign)
 	}
 
+	// Calculate total pages
+	totalPages := int(total) / req.PerPage
+	if int(total)%req.PerPage > 0 {
+		totalPages++
+	}
+
 	return dto.GetCampaignsResponse{
-		Campaigns: campaigns,
-		Total:     int(total),
+		Campaigns:  campaigns,
+		Total:      int(total),
+		TotalPages: totalPages,
+		Page:       req.Page,
+		PerPage:    req.PerPage,
 	}, nil
 }
 
