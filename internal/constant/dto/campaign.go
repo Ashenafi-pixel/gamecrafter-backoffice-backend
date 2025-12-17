@@ -174,6 +174,7 @@ type CampaignNotificationDashboardItem struct {
 type CampaignNotificationsDashboardResponse struct {
 	Notifications []CampaignNotificationDashboardItem `json:"notifications"`
 	Total         int                                 `json:"total"`
+	TotalPages    int                                 `json:"total_pages"`
 	Page          int                                 `json:"page"`
 	PerPage       int                                 `json:"per_page"`
 	Stats         CampaignNotificationStats           `json:"stats"`

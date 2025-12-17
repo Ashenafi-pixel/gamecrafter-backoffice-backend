@@ -67,6 +67,9 @@ type GetNotificationsResponse struct {
 	Message             string             `json:"message"`
 	Notifications       []UserNotification `json:"notifications"`
 	Total               int                `json:"total"`
+	TotalPages          int                `json:"total_pages"`
+	Page                int                `json:"page"`
+	PerPage             int                `json:"per_page"`
 	UnreadCount         int                `json:"unread_count"`
 	DeliveredCount      int                `json:"delivered_count"`
 	ReadCount           int                `json:"read_count"`

@@ -125,10 +125,20 @@ func (n *Notification) GetUserNotifications(ctx context.Context, req dto.GetNoti
 			CreatedAt: r.CreatedAt,
 		}
 	}
+
+	// Calculate total pages
+	totalPages := int(total) / req.PerPage
+	if int(total)%req.PerPage > 0 {
+		totalPages++
+	}
+
 	return dto.GetNotificationsResponse{
 		Message:       "Notifications retrieved successfully",
 		Notifications: result,
 		Total:         int(total),
+		TotalPages:    totalPages,
+		Page:          req.Page,
+		PerPage:       req.PerPage,
 		UnreadCount:   int(unreadCount),
 	}, nil
 }
@@ -201,10 +211,20 @@ func (n *Notification) GetAllNotifications(ctx context.Context, req dto.GetNotif
 			CreatedAt: r.CreatedAt,
 		}
 	}
+
+	// Calculate total pages
+	totalPages := int(total) / req.PerPage
+	if int(total)%req.PerPage > 0 {
+		totalPages++
+	}
+
 	return dto.GetNotificationsResponse{
 		Message:        "All notifications retrieved successfully",
 		Notifications:  result,
 		Total:          int(total),
+		TotalPages:     totalPages,
+		Page:           req.Page,
+		PerPage:        req.PerPage,
 		UnreadCount:    int(unreadCount),
 		DeliveredCount: int(deliveredCount),
 		ReadCount:      int(readCount),

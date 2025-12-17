@@ -508,7 +508,7 @@ type Campaign interface {
 	UpdateRecipientStatus(ctx context.Context, recipientID uuid.UUID, status dto.RecipientStatus, errorMessage string) error
 	UpdateRecipientNotificationID(ctx context.Context, recipientID uuid.UUID, notificationID uuid.UUID) error
 	MarkCampaignAsSent(ctx context.Context, campaignID uuid.UUID) error
-	GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, error)
+	GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, int64, error)
 	GetCampaignNotificationStats(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) (dto.CampaignNotificationStats, error)
 }
 

@@ -688,14 +688,15 @@ func (c *Campaign) createCampaignRecipients(ctx context.Context, tx pgx.Tx, camp
 	}
 }
 
-func (c *Campaign) GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, error) {
+func (c *Campaign) GetCampaignNotificationsDashboard(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) ([]dto.CampaignNotificationDashboardItem, int64, error) {
 	c.log.Info("Getting campaign notifications dashboard", zap.Int("page", req.Page), zap.Int("per_page", req.PerPage))
 
 	query := `
 		SELECT 
 			un.id, un.user_id, u.username, u.email, un.title, un.content, un.type,
 			un.read, un.delivered, un.read_at, un.created_at,
-			cr.campaign_id, mc.title as campaign_title
+			cr.campaign_id, mc.title as campaign_title,
+			COUNT(*) OVER() AS total
 		FROM user_notifications un
 		LEFT JOIN users u ON un.user_id = u.id
 		LEFT JOIN campaign_recipients cr ON un.id = cr.notification_id
@@ -711,11 +712,13 @@ func (c *Campaign) GetCampaignNotificationsDashboard(ctx context.Context, req dt
 	rows, err := c.db.GetPool().Query(ctx, query, req.NotificationType, req.UserID, req.Status, req.PerPage, (req.Page-1)*req.PerPage)
 	if err != nil {
 		c.log.Error("failed to get campaign notifications dashboard", zap.Error(err))
-		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to get campaign notifications dashboard")
+		return nil, 0, errors.ErrUnableTocreate.Wrap(err, "failed to get campaign notifications dashboard")
 	}
 	defer rows.Close()
 
 	var notifications []dto.CampaignNotificationDashboardItem
+	var total int64
+
 	for rows.Next() {
 		var notification dto.CampaignNotificationDashboardItem
 		err := rows.Scan(
@@ -732,15 +735,16 @@ func (c *Campaign) GetCampaignNotificationsDashboard(ctx context.Context, req dt
 			&notification.CreatedAt,
 			&notification.CampaignID,
 			&notification.CampaignTitle,
+			&total,
 		)
 		if err != nil {
 			c.log.Error("failed to scan campaign notification", zap.Error(err))
-			return nil, errors.ErrUnableTocreate.Wrap(err, "failed to scan campaign notification")
+			return nil, 0, errors.ErrUnableTocreate.Wrap(err, "failed to scan campaign notification")
 		}
 		notifications = append(notifications, notification)
 	}
 
-	return notifications, nil
+	return notifications, total, nil
 }
 
 func (c *Campaign) GetCampaignNotificationStats(ctx context.Context, req dto.GetCampaignNotificationsDashboardRequest) (dto.CampaignNotificationStats, error) {

@@ -188,7 +188,7 @@ func (c *Campaign) GetCampaignNotificationsDashboard(ctx context.Context, req dt
 	c.log.Info("Getting campaign notifications dashboard", zap.Int("page", req.Page), zap.Int("per_page", req.PerPage))
 
 	// Get notifications with campaign information
-	notifications, err := c.campaignStorage.GetCampaignNotificationsDashboard(ctx, req)
+	notifications, total, err := c.campaignStorage.GetCampaignNotificationsDashboard(ctx, req)
 	if err != nil {
 		c.log.Error("Failed to get campaign notifications dashboard", zap.Error(err))
 		return dto.CampaignNotificationsDashboardResponse{}, err
@@ -201,9 +201,16 @@ func (c *Campaign) GetCampaignNotificationsDashboard(ctx context.Context, req dt
 		return dto.CampaignNotificationsDashboardResponse{}, err
 	}
 
+	// Calculate total pages
+	totalPages := int(total) / req.PerPage
+	if int(total)%req.PerPage > 0 {
+		totalPages++
+	}
+
 	return dto.CampaignNotificationsDashboardResponse{
 		Notifications: notifications,
-		Total:         len(notifications),
+		Total:         int(total),
+		TotalPages:    totalPages,
 		Page:          req.Page,
 		PerPage:       req.PerPage,
 		Stats:         stats,
