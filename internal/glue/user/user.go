@@ -443,7 +443,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get admin users", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view admin users", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -461,7 +462,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update admin user", http.MethodPut),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "edit admin user", http.MethodPut),
 			},
 		}, {
 			Method:  http.MethodDelete,

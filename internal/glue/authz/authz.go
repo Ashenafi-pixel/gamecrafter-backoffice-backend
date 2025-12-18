@@ -27,7 +27,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get permissions", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view permissions", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPost,
@@ -46,7 +47,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get roles", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view roles", http.MethodGet),
 				middleware.SystemLogs("get roles", &log, systemLog),
 			},
 		}, {
@@ -56,7 +58,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update role permissions", http.MethodPatch),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "edit role", http.MethodPatch),
 				middleware.SystemLogs("update role permissions", &log, systemLog),
 			},
 		}, {
@@ -66,7 +69,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "remove role", http.MethodDelete),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "delete role", http.MethodDelete),
 				middleware.SystemLogs("remove role", &log, systemLog),
 			},
 		}, {
@@ -96,7 +100,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get role users", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view roles", http.MethodGet),
 				middleware.SystemLogs("get role users", &log, systemLog),
 			},
 		}, {
@@ -106,7 +111,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get user roles", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view roles", http.MethodGet),
 				middleware.SystemLogs("get user roles", &log, systemLog),
 			},
 		}, {
@@ -116,7 +122,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get permissions", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view admin users", http.MethodGet),
 				middleware.SystemLogs("search admin users", &log, systemLog),
 			},
 		},
