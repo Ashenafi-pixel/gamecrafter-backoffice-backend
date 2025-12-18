@@ -159,7 +159,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get kyc settings", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc settings", http.MethodGet),
 				middleware.SystemLogs("Get KYC Settings", &log, systemLogs),
 			},
 		},
@@ -171,7 +172,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update kyc settings", http.MethodPut),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "edit kyc settings", http.MethodPut),
 				middleware.SystemLogs("Update KYC Settings", &log, systemLogs),
 			},
 		},

@@ -27,7 +27,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Create Admin Activity Log", http.MethodPost),
+				// Align with seeded permissions list (treat as management/export-level action)
+				middleware.Authz(authModule, "export activity logs", http.MethodPost),
 			},
 		},
 		{
@@ -37,7 +38,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Get Admin Activity Logs", http.MethodGet),
+				middleware.Authz(authModule, "view activity logs", http.MethodGet),
 			},
 		},
 		{
@@ -47,7 +48,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Get Admin Activity Log By ID", http.MethodGet),
+				middleware.Authz(authModule, "view activity logs", http.MethodGet),
 			},
 		},
 		{
@@ -57,7 +58,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Get Admin Activity Stats", http.MethodGet),
+				middleware.Authz(authModule, "view activity logs", http.MethodGet),
 			},
 		},
 		{
@@ -67,7 +68,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Get Admin Activity Categories", http.MethodGet),
+				middleware.Authz(authModule, "view activity logs", http.MethodGet),
 			},
 		},
 		{
@@ -77,7 +78,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Get Admin Activity Actions", http.MethodGet),
+				middleware.Authz(authModule, "view activity logs", http.MethodGet),
 			},
 		},
 		{
@@ -87,7 +88,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Get Admin Activity Actions By Category", http.MethodGet),
+				middleware.Authz(authModule, "view activity logs", http.MethodGet),
 			},
 		},
 		{
@@ -97,7 +98,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Delete Admin Activity Log", http.MethodDelete),
+				middleware.Authz(authModule, "export activity logs", http.MethodDelete),
 			},
 		},
 		{
@@ -107,7 +108,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Delete Admin Activity Logs By Admin", http.MethodDelete),
+				middleware.Authz(authModule, "export activity logs", http.MethodDelete),
 			},
 		},
 		{
@@ -117,7 +118,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "Delete Old Admin Activity Logs", http.MethodDelete),
+				middleware.Authz(authModule, "export activity logs", http.MethodDelete),
 			},
 		},
 	}
