@@ -233,7 +233,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "block user account", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "block player", http.MethodPost),
 				middleware.SystemLogs("block user account", &log, systemLog),
 			},
 		}, {
@@ -243,7 +244,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get blocked account", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view players", http.MethodPost),
 				middleware.SystemLogs("get blocked account", &log, systemLog),
 			},
 		}, {
@@ -263,7 +265,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get ip filters", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view ip filters", http.MethodGet),
 				middleware.SystemLogs("get ip filters", &log, systemLog),
 			},
 		}, {
@@ -273,7 +276,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update user profile", http.MethodPatch),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "edit player", http.MethodPatch),
 				middleware.SystemLogs("update user profile", &log, systemLog),
 			},
 		}, {
@@ -283,7 +287,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get users", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view players", http.MethodPost),
 				middleware.SystemLogs("get users", &log, systemLog),
 			},
 		}, {
@@ -293,7 +298,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get users", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view players", http.MethodPost),
 				middleware.SystemLogs("get users", &log, systemLog),
 			},
 		}, {
@@ -323,7 +329,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player details", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view player details", http.MethodGet),
 				middleware.SystemLogs("get player details", &log, systemLog),
 			},
 		}, {
@@ -333,7 +340,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player manual funds", http.MethodGet),
+				// Align with seeded permissions list (manual funding is value-based permission)
+				middleware.Authz(authModule, "manual fund player", http.MethodGet),
 				middleware.SystemLogs("get player manual funds", &log, systemLog),
 			},
 		}, {

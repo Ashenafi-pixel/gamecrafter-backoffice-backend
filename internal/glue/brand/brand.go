@@ -37,7 +37,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get brands", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
 				middleware.SystemLogs("Get All Brands", &log, systemLogs),
 			},
 		},
@@ -48,7 +49,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get brand", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
 				middleware.SystemLogs("Get Brand", &log, systemLogs),
 			},
 		},
@@ -59,7 +61,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update brand", http.MethodPatch),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "edit brand", http.MethodPatch),
 				middleware.SystemLogs("Update Brand", &log, systemLogs),
 			},
 		},

@@ -39,7 +39,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get kyc documents", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("Get KYC Documents", &log, systemLogs),
 			},
 		},
@@ -51,7 +52,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update kyc document status", http.MethodPut),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "approve kyc", http.MethodPut),
 				middleware.SystemLogs("Update KYC Document Status", &log, systemLogs),
 			},
 		},
@@ -63,7 +65,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update user kyc status", http.MethodPut),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "approve kyc", http.MethodPut),
 				middleware.SystemLogs("Update User KYC Status", &log, systemLogs),
 			},
 		},
@@ -75,7 +78,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get user kyc status", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("Get User KYC Status", &log, systemLogs),
 			},
 		},
@@ -87,7 +91,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "block user withdrawals", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "update kyc risk settings", http.MethodPost),
 				middleware.SystemLogs("Block User Withdrawals", &log, systemLogs),
 			},
 		},
@@ -99,7 +104,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "unblock user withdrawals", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "update kyc risk settings", http.MethodPost),
 				middleware.SystemLogs("Unblock User Withdrawals", &log, systemLogs),
 			},
 		},
@@ -111,7 +117,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get kyc submissions", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("Get KYC Submissions", &log, systemLogs),
 			},
 		},
@@ -123,7 +130,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get kyc status changes", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("Get KYC Status Changes", &log, systemLogs),
 			},
 		},
@@ -135,7 +143,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get user withdrawal block status", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("Get Withdrawal Block Status", &log, systemLogs),
 			},
 		},
@@ -147,7 +156,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get kyc submissions", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("List KYC Submissions", &log, systemLogs),
 			},
 		},

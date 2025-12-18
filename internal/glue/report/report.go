@@ -26,7 +26,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get daily report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view daily report", http.MethodGet),
 				middleware.SystemLogs("Get daily Report", &log, systemLogs),
 			},
 		},
@@ -37,7 +38,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get duplicate ip accounts report", http.MethodGet),
+				// Align with seeded permissions list (risk-focused report)
+				middleware.Authz(authModule, "view kyc risk", http.MethodGet),
 				middleware.SystemLogs("Get Duplicate IP Accounts Report", &log, systemLogs),
 			},
 		},
@@ -48,7 +50,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "suspend accounts by ip", http.MethodPost),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "suspend player", http.MethodPost),
 				middleware.SystemLogs("Suspend Accounts By IP", &log, systemLogs),
 			},
 		},
@@ -59,7 +62,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get big winners report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view big winners report", http.MethodGet),
 				middleware.SystemLogs("Get Big Winners Report", &log, systemLogs),
 			},
 		},
@@ -70,7 +74,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get big winners report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Big Winners Report", &log, systemLogs),
 			},
 		},
@@ -81,7 +86,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player metrics report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view player metrics report", http.MethodGet),
 				middleware.SystemLogs("Get Player Metrics Report", &log, systemLogs),
 			},
 		},
@@ -92,7 +98,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player transactions report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view player metrics report", http.MethodGet),
 				middleware.SystemLogs("Get Player Transactions", &log, systemLogs),
 			},
 		},
@@ -103,7 +110,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player metrics report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Player Metrics Report", &log, systemLogs),
 			},
 		},
@@ -114,7 +122,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player transactions report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Player Transactions", &log, systemLogs),
 			},
 		},
@@ -125,7 +134,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get country report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view country report", http.MethodGet),
 				middleware.SystemLogs("Get Country Report", &log, systemLogs),
 			},
 		},
@@ -136,7 +146,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get country report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view country report", http.MethodGet),
 				middleware.SystemLogs("Get Country Players", &log, systemLogs),
 			},
 		},
@@ -147,7 +158,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get country report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Country Report", &log, systemLogs),
 			},
 		},
@@ -158,7 +170,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get country report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Country Players", &log, systemLogs),
 			},
 		},
@@ -169,7 +182,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get game performance report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view game performance report", http.MethodGet),
 				middleware.SystemLogs("Get Game Performance Report", &log, systemLogs),
 			},
 		},
@@ -180,7 +194,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get player transactions report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view game performance report", http.MethodGet),
 				middleware.SystemLogs("Get Game Players", &log, systemLogs),
 			},
 		},
@@ -191,7 +206,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get game performance report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Game Performance Report", &log, systemLogs),
 			},
 		},
@@ -202,7 +218,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get game players report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Game Players", &log, systemLogs),
 			},
 		},
@@ -213,7 +230,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get provider performance report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view provider performance report", http.MethodGet),
 				middleware.SystemLogs("Get Provider Performance Report", &log, systemLogs),
 			},
 		},
@@ -224,7 +242,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "get provider performance report", http.MethodGet),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "export reports", http.MethodGet),
 				middleware.SystemLogs("Export Provider Performance Report", &log, systemLogs),
 			},
 		},

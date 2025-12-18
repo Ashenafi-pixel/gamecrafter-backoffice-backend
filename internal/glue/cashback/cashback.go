@@ -3,6 +3,7 @@ package cashback
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -79,7 +80,19 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		}
 
 		// Check permission directly from database
-		hasPermission, err := authz.CheckUserHasPermission(context.Background(), userIDParsed, "cashback")
+		// Align with seeded permissions list:
+		// - GET requests require "view cashback"
+		// - non-GET requests require "edit cashback"
+		requiredPermission := "view cashback"
+		if c.Request.Method != http.MethodGet {
+			requiredPermission = "edit cashback"
+		}
+		// For any non-idempotent operation, also treat POST/PUT/PATCH/DELETE under /dashboard as edit
+		if strings.Contains(c.Request.URL.Path, "/dashboard") && c.Request.Method != http.MethodGet {
+			requiredPermission = "edit cashback"
+		}
+
+		hasPermission, err := authz.CheckUserHasPermission(context.Background(), userIDParsed, requiredPermission)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
 			c.Abort()
@@ -87,7 +100,7 @@ func Init(r *gin.RouterGroup, log zap.Logger, handler *cashback.CashbackHandler,
 		}
 
 		if !hasPermission {
-			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden", "message": "User does not have permission: cashback"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden", "message": "User does not have permission: " + requiredPermission})
 			c.Abort()
 			return
 		}
