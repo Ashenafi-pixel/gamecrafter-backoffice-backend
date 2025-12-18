@@ -39,7 +39,7 @@ func (a *authz) CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role
 
 	if exist {
 		err := fmt.Errorf("role already exist with this role name")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return dto.Role{}, err
 	}
 
@@ -61,7 +61,7 @@ func (a *authz) CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role
 			if !exist {
 				err := fmt.Errorf("permission not found with id %s", p.PermissionID.String())
 				a.Log.Error(err.Error(), zap.Any("role_req", req))
-				err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+				err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 				continue
 			}
 			if rpm.Name == "super" {
@@ -69,8 +69,8 @@ func (a *authz) CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role
 				a.Log.Error(err.Error(), zap.Any("role_req", req))
 				continue
 			}
-			//assign permssion to the role with value
-			_, err = a.authzStorage.AssignPermissionToRole(ctx, p.PermissionID, r.ID, p.Value)
+			// assign permission to the role with value + limits
+			_, err = a.authzStorage.AssignPermissionToRole(ctx, p.PermissionID, r.ID, p.Value, p.LimitType, p.LimitPeriod)
 			permissions = append(permissions, rpm)
 			if err != nil {
 				a.authzStorage.RemoveRolePermissionsByRoleID(ctx, r.ID)
@@ -138,7 +138,7 @@ func (a *authz) UpdatePermissionsOfRole(ctx context.Context, req dto.UpdatePermi
 
 	if !exist {
 		err := fmt.Errorf("role not found")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return dto.UpdatePermissionToRoleRes{}, err
 	}
 
@@ -165,7 +165,7 @@ func (a *authz) UpdatePermissionsOfRole(ctx context.Context, req dto.UpdatePermi
 		}
 		// check if the permissions already exist or not
 
-		_, err = a.authzStorage.AssignPermissionToRole(ctx, pr.PermissionID, req.RoleID, pr.Value)
+		_, err = a.authzStorage.AssignPermissionToRole(ctx, pr.PermissionID, req.RoleID, pr.Value, pr.LimitType, pr.LimitPeriod)
 		permissions = append(permissions, rpm)
 		if err != nil {
 			a.authzStorage.RemoveRolePermissionsByRoleID(ctx, req.RoleID)
@@ -194,12 +194,12 @@ func (a *authz) RemoveRole(ctx context.Context, roleID uuid.UUID) error {
 
 	if !exist {
 		err := fmt.Errorf("role not found")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return err
 	}
 	if rl.Name == "super" {
 		err := fmt.Errorf("super admin role can not be removed")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return err
 	}
 	a.authzStorage.RemoveRoleFromUserRoles(ctx, roleID)
@@ -220,12 +220,12 @@ func (a *authz) AssignRoleToUser(ctx context.Context, req dto.AssignRoleToUserRe
 	if !exist {
 		a.Log.Error("role dose not exist", zap.Any("assingRoleReq", req))
 		err := fmt.Errorf("role dose not exist with this id")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return dto.AssignRoleToUserRes{}, err
 	}
 	if r.Name == "super" {
 		err := fmt.Errorf("can not assign super admin role")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return dto.AssignRoleToUserRes{}, err
 	}
 
@@ -235,7 +235,7 @@ func (a *authz) AssignRoleToUser(ctx context.Context, req dto.AssignRoleToUserRe
 		err = a.authzStorage.RemoveAllUserRolesExceptSuper(ctx, req.UserID)
 		if err != nil {
 			a.Log.Error("failed to remove existing roles", zap.Error(err), zap.Any("userID", req.UserID))
-			err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+			err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 			return dto.AssignRoleToUserRes{}, err
 		}
 	} else {
@@ -247,7 +247,7 @@ func (a *authz) AssignRoleToUser(ctx context.Context, req dto.AssignRoleToUserRe
 
 		if exist {
 			err := fmt.Errorf("role already assigned to the user")
-			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+			err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 			return dto.AssignRoleToUserRes{}, err
 		}
 	}
@@ -264,7 +264,7 @@ func (a *authz) AssignRoleToUser(ctx context.Context, req dto.AssignRoleToUserRe
 	}
 	if !exist {
 		err := fmt.Errorf("unable to assign role to the user")
-		err = errors.ErrInternalServerError.Wrap(err, err.Error())
+		err = errors.ErrInternalServerError.Wrap(err, "%s", err.Error())
 		return dto.AssignRoleToUserRes{}, err
 	}
 	for _, rl := range usrRoles {
@@ -294,7 +294,7 @@ func (a *authz) RevokeUserRole(ctx context.Context, req dto.UserRole) error {
 	}
 	if !exist {
 		err := fmt.Errorf("user dose not have requested role")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return err
 	}
 
@@ -305,13 +305,13 @@ func (a *authz) RevokeUserRole(ctx context.Context, req dto.UserRole) error {
 	}
 	if !exist {
 		err := fmt.Errorf("role dose not exist")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return err
 	}
 
 	if rl.Name == "super" {
 		err := fmt.Errorf("super admin role can not be removed")
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return a.authzStorage.RevokeUserRole(ctx, req.UserID, req.RoleID)

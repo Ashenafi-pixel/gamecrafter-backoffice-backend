@@ -118,7 +118,7 @@ func (a *authz) CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role
 	res, err := a.pdb.Queries.CreateRole(ctx, req.Name)
 	if err != nil {
 		a.log.Error(err.Error(), zap.Any("create_role_req", req))
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return dto.Role{}, err
 	}
 	return dto.Role{
@@ -127,59 +127,99 @@ func (a *authz) CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role
 	}, nil
 }
 
+// GetPermissionByID returns a permission including requires_value
 func (a *authz) GetPermissionByID(ctx context.Context, permissionID uuid.UUID) (dto.Permissions, bool, error) {
-	res, err := a.pdb.Queries.GetPermissionByID(ctx, permissionID)
-	if err != nil && err.Error() != dto.ErrNoRows {
+	query := `
+		SELECT id, name, description, COALESCE(requires_value, FALSE) as requires_value
+		FROM permissions
+		WHERE id = $1
+	`
+
+	var (
+		id           uuid.UUID
+		name         string
+		description  sql.NullString
+		requiresValue bool
+	)
+
+	err := a.pdb.GetPool().QueryRow(ctx, query, permissionID).Scan(&id, &name, &description, &requiresValue)
+	if err != nil {
+		if err.Error() == dto.ErrNoRows {
+			return dto.Permissions{}, false, nil
+		}
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.Permissions{}, false, err
 	}
 
-	if err != nil {
-		return dto.Permissions{}, false, nil
-	}
-
 	return dto.Permissions{
-		ID:          res.ID,
-		Name:        res.Name,
-		Description: res.Description.String,
+		ID:            id,
+		Name:          name,
+		Description:   description.String,
+		RequiresValue: requiresValue,
 	}, true, nil
 }
 
-func (a *authz) AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID, value *float64) (dto.AssignPermissionToRoleRes, error) {
-	// Convert *float64 to *decimal.Decimal for SQLC
-	var valueDecimal *decimal.Decimal
+func (a *authz) AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID, value *float64, limitType *string, limitPeriod *int) (dto.AssignPermissionToRoleRes, error) {
+	// Convert *float64 to *decimal.Decimal-ish value for query (NUMERIC)
+	var valueParam interface{}
 	if value != nil {
-		dec := decimal.NewFromFloat(*value)
-		valueDecimal = &dec
+		valueParam = *value
+	} else {
+		valueParam = nil
 	}
 
-	resp, err := a.pdb.Queries.AssignPermissionToRole(ctx, db.AssignPermissionToRoleParams{
-		RoleID:       roleID,
-		PermissionID: permissionID,
-		Value:        valueDecimal,
-	})
+	// Insert directly (sqlc models are stale vs new columns)
+	query := `
+		INSERT INTO role_permissions (role_id, permission_id, value, limit_type, limit_period)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, role_id, permission_id, value, limit_type, limit_period
+	`
 
+	var (
+		id  uuid.UUID
+		rid uuid.UUID
+		pid uuid.UUID
+		val decimal.NullDecimal
+		lt  sql.NullString
+		lp  sql.NullInt32
+	)
+
+	err := a.pdb.GetPool().QueryRow(ctx, query, roleID, permissionID, valueParam, limitType, limitPeriod).Scan(&id, &rid, &pid, &val, &lt, &lp)
 	if err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.AssignPermissionToRoleRes{}, err
 	}
 
 	// Convert decimal back to float64 for response
 	var valueFloat *float64
-	if resp.Value.Valid {
-		f, _ := resp.Value.Decimal.Float64()
+	if val.Valid {
+		f, _ := val.Decimal.Float64()
 		valueFloat = &f
+	}
+
+	var limitTypeOut *string
+	if lt.Valid {
+		s := lt.String
+		limitTypeOut = &s
+	}
+
+	var limitPeriodOut *int
+	if lp.Valid {
+		i := int(lp.Int32)
+		limitPeriodOut = &i
 	}
 
 	return dto.AssignPermissionToRoleRes{
 		Message: constant.SUCCESS,
 		Data: dto.AssignPermissionToRoleData{
-			ID:           resp.ID,
-			RoleID:       resp.RoleID,
-			PermissionID: resp.PermissionID,
+			ID:           id,
+			RoleID:       rid,
+			PermissionID: pid,
 			Value:        valueFloat,
+			LimitType:    limitTypeOut,
+			LimitPeriod:  limitPeriodOut,
 		},
 	}, nil
 }
@@ -188,7 +228,7 @@ func (a *authz) GetRoleByName(ctx context.Context, name string) (dto.Role, bool,
 	r, err := a.pdb.Queries.GetRoleByName(ctx, name)
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.Role{}, false, err
 	}
 	if err != nil {
@@ -203,7 +243,7 @@ func (a *authz) GetRoleByName(ctx context.Context, name string) (dto.Role, bool,
 func (a *authz) RemoveRoleByID(ctx context.Context, roleID uuid.UUID) error {
 	if err := a.pdb.Queries.RemoveRole(ctx, roleID); err != nil {
 		a.log.Error(err.Error(), zap.Any("roleID", roleID.String()))
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
@@ -212,7 +252,7 @@ func (a *authz) RemoveRoleByID(ctx context.Context, roleID uuid.UUID) error {
 func (a *authz) RemoveRolePermissions(ctx context.Context, id uuid.UUID) error {
 	if err := a.pdb.Queries.RemoveRolesPermissions(ctx, id); err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
@@ -221,35 +261,53 @@ func (a *authz) RemoveRolePermissions(ctx context.Context, id uuid.UUID) error {
 func (a *authz) RemoveRolePermissionsByRoleID(ctx context.Context, id uuid.UUID) error {
 	if err := a.pdb.Queries.RemoveRolesPermissionByRoleID(ctx, id); err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
 }
 
 func (a *authz) GetPermissions(ctx context.Context, req dto.GetPermissionReq) ([]dto.Permissions, error) {
-	var res []dto.Permissions
-	resp, err := a.pdb.Queries.GetPermissions(ctx, db.GetPermissionsParams{
-		Limit:  int32(req.PerPage),
-		Offset: int32(req.Page),
-	})
+	query := `
+		SELECT id, name, description, COALESCE(requires_value, FALSE) as requires_value
+		FROM permissions
+		ORDER BY name ASC
+		LIMIT $1 OFFSET $2
+	`
 
-	if err != nil && err.Error() != dto.ErrNoRows {
+	rows, err := a.pdb.GetPool().Query(ctx, query, req.PerPage, req.Page)
+	if err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return []dto.Permissions{}, err
 	}
+	defer rows.Close()
 
-	if err != nil {
-		return []dto.Permissions{}, nil
-	}
+	var res []dto.Permissions
+	for rows.Next() {
+		var (
+			id           uuid.UUID
+			name         string
+			description  sql.NullString
+			requiresValue bool
+		)
+		if err := rows.Scan(&id, &name, &description, &requiresValue); err != nil {
+			a.log.Error(err.Error())
+			err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
+			return []dto.Permissions{}, err
+		}
 
-	for _, p := range resp {
 		res = append(res, dto.Permissions{
-			ID:          p.ID,
-			Name:        p.Name,
-			Description: p.Description.String,
+			ID:            id,
+			Name:          name,
+			Description:   description.String,
+			RequiresValue: requiresValue,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		a.log.Error(err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
+		return []dto.Permissions{}, err
 	}
 
 	return res, nil
@@ -263,7 +321,7 @@ func (a *authz) GetRoles(ctx context.Context, getRoleReq dto.GetRoleReq) ([]dto.
 	})
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return []dto.Role{}, false, err
 	}
 
@@ -274,23 +332,85 @@ func (a *authz) GetRoles(ctx context.Context, getRoleReq dto.GetRoleReq) ([]dto.
 	// getPermissionForRoles
 	for _, r := range roles {
 		var permissions []dto.Permissions
-		ps, err := a.pdb.Queries.GetRolePermissions(ctx, r.ID)
-		if err != nil && err.Error() != dto.ErrNoRows {
+		var permissionsWithValue []dto.PermissionWithValue
+
+		// Load role permissions including requires_value and limit fields
+		query := `
+			SELECT
+				p.id,
+				p.name,
+				p.description,
+				COALESCE(p.requires_value, FALSE) as requires_value,
+				rp.value,
+				rp.limit_type,
+				rp.limit_period
+			FROM role_permissions rp
+			JOIN permissions p ON p.id = rp.permission_id
+			WHERE rp.role_id = $1
+			ORDER BY p.name ASC
+		`
+		rows, err := a.pdb.GetPool().Query(ctx, query, r.ID)
+		if err != nil {
 			a.log.Error(err.Error())
-			err = errors.ErrUnableToGet.Wrap(err, err.Error())
+			err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 			return []dto.Role{}, false, err
 		}
-		for _, pr := range ps {
+		for rows.Next() {
+			var (
+				pid           uuid.UUID
+				name          string
+				description   sql.NullString
+				requiresValue bool
+				val           decimal.NullDecimal
+				lt            sql.NullString
+				lp            sql.NullInt32
+			)
+			if err := rows.Scan(&pid, &name, &description, &requiresValue, &val, &lt, &lp); err != nil {
+				rows.Close()
+				a.log.Error(err.Error())
+				err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
+				return []dto.Role{}, false, err
+			}
+
 			permissions = append(permissions, dto.Permissions{
-				ID:          pr.ID,
-				Name:        pr.Name,
-				Description: pr.Description.String,
+				ID:            pid,
+				Name:          name,
+				Description:   description.String,
+				RequiresValue: requiresValue,
+			})
+
+			var valueFloat *float64
+			if val.Valid {
+				f, _ := val.Decimal.Float64()
+				valueFloat = &f
+			}
+
+			var limitTypeOut *string
+			if lt.Valid {
+				s := lt.String
+				limitTypeOut = &s
+			}
+
+			var limitPeriodOut *int
+			if lp.Valid {
+				i := int(lp.Int32)
+				limitPeriodOut = &i
+			}
+
+			permissionsWithValue = append(permissionsWithValue, dto.PermissionWithValue{
+				PermissionID: pid,
+				Value:        valueFloat,
+				LimitType:    limitTypeOut,
+				LimitPeriod:  limitPeriodOut,
 			})
 		}
+		rows.Close()
+
 		rolesRes = append(rolesRes, dto.Role{
-			ID:          r.ID,
-			Name:        r.Name,
-			Permissions: permissions,
+			ID:                   r.ID,
+			Name:                 r.Name,
+			Permissions:          permissions,
+			PermissionsWithValue: permissionsWithValue,
 		})
 
 	}
@@ -299,10 +419,11 @@ func (a *authz) GetRoles(ctx context.Context, getRoleReq dto.GetRoleReq) ([]dto.
 
 func (a *authz) GetRoleByID(ctx context.Context, roleID uuid.UUID) (dto.Role, bool, error) {
 	var permissions []dto.Permissions
+	var permissionsWithValue []dto.PermissionWithValue
 	rl, err := a.pdb.Queries.GetRoleByID(ctx, roleID)
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.Role{}, false, err
 	}
 
@@ -310,31 +431,94 @@ func (a *authz) GetRoleByID(ctx context.Context, roleID uuid.UUID) (dto.Role, bo
 		return dto.Role{}, false, nil
 	}
 
-	ps, err := a.pdb.Queries.GetRolePermissions(ctx, roleID)
-	if err != nil && err.Error() != dto.ErrNoRows {
+	query := `
+		SELECT
+			p.id,
+			p.name,
+			p.description,
+			COALESCE(p.requires_value, FALSE) as requires_value,
+			rp.value,
+			rp.limit_type,
+			rp.limit_period
+		FROM role_permissions rp
+		JOIN permissions p ON p.id = rp.permission_id
+		WHERE rp.role_id = $1
+		ORDER BY p.name ASC
+	`
+	rows, err := a.pdb.GetPool().Query(ctx, query, roleID)
+	if err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.Role{}, false, err
 	}
-	for _, pr := range ps {
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			pid           uuid.UUID
+			name          string
+			description   sql.NullString
+			requiresValue bool
+			val           decimal.NullDecimal
+			lt            sql.NullString
+			lp            sql.NullInt32
+		)
+		if err := rows.Scan(&pid, &name, &description, &requiresValue, &val, &lt, &lp); err != nil {
+			a.log.Error(err.Error())
+			err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
+			return dto.Role{}, false, err
+		}
+
 		permissions = append(permissions, dto.Permissions{
-			ID:          pr.ID,
-			Name:        pr.Name,
-			Description: pr.Description.String,
+			ID:            pid,
+			Name:          name,
+			Description:   description.String,
+			RequiresValue: requiresValue,
 		})
+
+		var valueFloat *float64
+		if val.Valid {
+			f, _ := val.Decimal.Float64()
+			valueFloat = &f
+		}
+
+		var limitTypeOut *string
+		if lt.Valid {
+			s := lt.String
+			limitTypeOut = &s
+		}
+
+		var limitPeriodOut *int
+		if lp.Valid {
+			i := int(lp.Int32)
+			limitPeriodOut = &i
+		}
+
+		permissionsWithValue = append(permissionsWithValue, dto.PermissionWithValue{
+			PermissionID: pid,
+			Value:        valueFloat,
+			LimitType:    limitTypeOut,
+			LimitPeriod:  limitPeriodOut,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		a.log.Error(err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
+		return dto.Role{}, false, err
 	}
 
 	return dto.Role{
-		ID:          rl.ID,
-		Name:        rl.Name,
-		Permissions: permissions,
+		ID:                   rl.ID,
+		Name:                 rl.Name,
+		Permissions:          permissions,
+		PermissionsWithValue: permissionsWithValue,
 	}, true, nil
 }
 
 func (a *authz) RemoveRolePermissionFromCasbinRule(ctx context.Context, roleID uuid.UUID) error {
 	if err := a.pdb.RemoveFromCasbinRule(ctx, roleID); err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
@@ -345,7 +529,7 @@ func (a *authz) GetRolePermissionsByRoleID(ctx context.Context, roleID uuid.UUID
 	rp, err := a.pdb.Queries.GetRolePermissionsForRole(ctx, roleID)
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.RolePermissions{}, false, err
 	}
 	if err != nil {
@@ -367,7 +551,7 @@ func (a *authz) AddRoleToUser(ctx context.Context, roleID, userID uuid.UUID) (dt
 	})
 	if err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableTocreate.Wrap(err, err.Error())
+		err = errors.ErrUnableTocreate.Wrap(err, "%s", err.Error())
 		return dto.AssignRoleToUserReq{}, err
 	}
 	return dto.AssignRoleToUserReq{
@@ -382,7 +566,7 @@ func (a *authz) GetUserRoles(ctx context.Context, userID uuid.UUID) ([]uuid.UUID
 
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return []uuid.UUID{}, false, err
 	}
 
@@ -404,7 +588,7 @@ func (a *authz) GetUserRoleUsingUserIDandRole(ctx context.Context, userID, roleI
 
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error(), zap.Any("getRoleReqUserID", userID.String()), zap.Any("getRoleReqRoleID", roleID.String()))
-		err = errors.ErrUnableToGet.Wrap(err, err.Error())
+		err = errors.ErrUnableToGet.Wrap(err, "%s", err.Error())
 		return dto.UserRole{}, false, err
 	}
 
@@ -420,7 +604,7 @@ func (a *authz) GetUserRoleUsingUserIDandRole(ctx context.Context, userID, roleI
 func (a *authz) RemoveRoleFromUserRoles(ctx context.Context, roleID uuid.UUID) error {
 	if err := a.pdb.Queries.RemoveRoleFromUserRoles(ctx, roleID); err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
@@ -432,7 +616,7 @@ func (a *authz) RevokeUserRole(ctx context.Context, userID, roleID uuid.UUID) er
 		RoleID: roleID,
 	}); err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
@@ -442,7 +626,7 @@ func (a *authz) RevokeUserRole(ctx context.Context, userID, roleID uuid.UUID) er
 func (a *authz) RemoveAllUserRolesExceptSuper(ctx context.Context, userID uuid.UUID) error {
 	if err := a.pdb.Queries.RemoveAllUserRolesExceptSuper(ctx, userID); err != nil {
 		a.log.Error(err.Error())
-		err = errors.ErrUnableToUpdate.Wrap(err, err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 		return err
 	}
 	return nil
@@ -473,7 +657,7 @@ func (a *authz) GetRoleUsers(ctx context.Context, roleID uuid.UUID) ([]dto.User,
 
 	if err != nil && err.Error() != dto.ErrNoRows {
 		a.log.Error(err.Error())
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
 		return []dto.User{}, err
 	}
 

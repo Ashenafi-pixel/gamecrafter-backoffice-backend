@@ -1,8 +1,6 @@
 package dto
 
 import (
-	"net/http"
-
 	"github.com/google/uuid"
 )
 
@@ -17,6 +15,9 @@ type Role struct {
 	ID          uuid.UUID     `gorm:"primary_key" json:"id"`
 	Name        string        `json:"name"`
 	Permissions []Permissions `json:"permissions,omitempty"`
+	// PermissionsWithValue is used for role create/edit screens so we can persist and re-load
+	// per-permission limits (value/limit_type/limit_period).
+	PermissionsWithValue []PermissionWithValue `json:"permissions_with_value,omitempty"`
 }
 
 type PermissionWithValue struct {
