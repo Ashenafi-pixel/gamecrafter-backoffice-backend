@@ -317,6 +317,10 @@ type Performance interface {
 type Authz interface {
 	CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role, error)
 	GetPermissionByID(ctx context.Context, permissionID uuid.UUID) (dto.Permissions, bool, error)
+	CreatePermission(ctx context.Context, permission dto.Permissions) (dto.Permissions, error)
+	UpdatePermission(ctx context.Context, permission dto.Permissions) (dto.Permissions, error)
+	DeletePermission(ctx context.Context, permissionID uuid.UUID) error
+	BulkUpdatePermissionsRequiresValue(ctx context.Context, permissionIDs []uuid.UUID, requiresValue bool) (int, error)
 	AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID, value *float64, limitType *string, limitPeriod *int) (dto.AssignPermissionToRoleRes, error)
 	GetRoleByName(ctx context.Context, name string) (dto.Role, bool, error)
 	RemoveRoleByID(ctx context.Context, roleID uuid.UUID) error

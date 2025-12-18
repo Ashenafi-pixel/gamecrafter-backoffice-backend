@@ -248,6 +248,10 @@ type Performance interface {
 
 type Authz interface {
 	GetPermissions(c *gin.Context)
+	CreatePermission(c *gin.Context)
+	UpdatePermission(c *gin.Context)
+	DeletePermission(c *gin.Context)
+	BulkUpdatePermissionsRequiresValue(c *gin.Context)
 	CreateRole(c *gin.Context)
 	GetRoles(c *gin.Context)
 	UpdateRolePermissions(c *gin.Context)

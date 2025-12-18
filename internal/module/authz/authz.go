@@ -105,6 +105,87 @@ func (a *authz) GetPermissions(ctx context.Context, req dto.GetPermissionReq) ([
 	return response, nil
 }
 
+func (a *authz) CreatePermission(ctx context.Context, req dto.CreatePermissionReq) (dto.Permissions, error) {
+	name := req.Name
+	if name == "" {
+		err := fmt.Errorf("permission name is required")
+		return dto.Permissions{}, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+	if name == "super" {
+		err := fmt.Errorf("cannot create super permission")
+		return dto.Permissions{}, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+
+	p := dto.Permissions{
+		ID:            uuid.New(),
+		Name:          name,
+		Description:   req.Description,
+		RequiresValue: req.RequiresValue,
+	}
+	created, err := a.authzStorage.CreatePermission(ctx, p)
+	if err != nil {
+		return dto.Permissions{}, err
+	}
+	return created, nil
+}
+
+func (a *authz) UpdatePermission(ctx context.Context, permissionID uuid.UUID, req dto.UpdatePermissionReq) (dto.Permissions, error) {
+	perm, exist, err := a.authzStorage.GetPermissionByID(ctx, permissionID)
+	if err != nil {
+		return dto.Permissions{}, err
+	}
+	if !exist {
+		err := fmt.Errorf("permission not found")
+		return dto.Permissions{}, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+	if perm.Name == "super" {
+		err := fmt.Errorf("cannot update super permission")
+		return dto.Permissions{}, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+	if req.Name == "" {
+		err := fmt.Errorf("permission name is required")
+		return dto.Permissions{}, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+
+	perm.Name = req.Name
+	perm.Description = req.Description
+	perm.RequiresValue = req.RequiresValue
+
+	updated, err := a.authzStorage.UpdatePermission(ctx, perm)
+	if err != nil {
+		return dto.Permissions{}, err
+	}
+	return updated, nil
+}
+
+func (a *authz) DeletePermission(ctx context.Context, permissionID uuid.UUID) error {
+	perm, exist, err := a.authzStorage.GetPermissionByID(ctx, permissionID)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		err := fmt.Errorf("permission not found")
+		return errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+	if perm.Name == "super" {
+		err := fmt.Errorf("cannot delete super permission")
+		return errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+	return a.authzStorage.DeletePermission(ctx, permissionID)
+}
+
+func (a *authz) BulkUpdatePermissionsRequiresValue(ctx context.Context, req dto.BulkUpdatePermissionsRequiresValueReq) (dto.BulkUpdatePermissionsRequiresValueRes, error) {
+	if len(req.PermissionIDs) == 0 {
+		err := fmt.Errorf("permission_ids is required")
+		return dto.BulkUpdatePermissionsRequiresValueRes{}, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	}
+	updated, err := a.authzStorage.BulkUpdatePermissionsRequiresValue(ctx, req.PermissionIDs, req.RequiresValue)
+	if err != nil {
+		return dto.BulkUpdatePermissionsRequiresValueRes{}, err
+	}
+	return dto.BulkUpdatePermissionsRequiresValueRes{UpdatedCount: updated}, nil
+}
+
 func (a *authz) GetRoles(ctx context.Context, req dto.GetRoleReq) ([]dto.Role, error) {
 	var rolesResponse []dto.Role
 	offset := (req.Page - 1) * req.PerPage

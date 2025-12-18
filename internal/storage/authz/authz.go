@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -158,6 +160,126 @@ func (a *authz) GetPermissionByID(ctx context.Context, permissionID uuid.UUID) (
 		Description:   description.String,
 		RequiresValue: requiresValue,
 	}, true, nil
+}
+
+func (a *authz) CreatePermission(ctx context.Context, permission dto.Permissions) (dto.Permissions, error) {
+	query := `
+		INSERT INTO permissions (id, name, description, requires_value)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, description, COALESCE(requires_value, FALSE) as requires_value
+	`
+
+	var (
+		id            uuid.UUID
+		name          string
+		description   sql.NullString
+		requiresValue bool
+	)
+	err := a.pdb.GetPool().QueryRow(ctx, query, permission.ID, permission.Name, permission.Description, permission.RequiresValue).
+		Scan(&id, &name, &description, &requiresValue)
+	if err != nil {
+		a.log.Error(err.Error(), zap.Any("permission", permission))
+		err = errors.ErrUnableTocreate.Wrap(err, "%s", err.Error())
+		return dto.Permissions{}, err
+	}
+
+	return dto.Permissions{
+		ID:            id,
+		Name:          name,
+		Description:   description.String,
+		RequiresValue: requiresValue,
+	}, nil
+}
+
+func (a *authz) UpdatePermission(ctx context.Context, permission dto.Permissions) (dto.Permissions, error) {
+	query := `
+		UPDATE permissions
+		SET name = $2,
+		    description = $3,
+		    requires_value = $4
+		WHERE id = $1
+		RETURNING id, name, description, COALESCE(requires_value, FALSE) as requires_value
+	`
+
+	var (
+		id            uuid.UUID
+		name          string
+		description   sql.NullString
+		requiresValue bool
+	)
+	err := a.pdb.GetPool().QueryRow(ctx, query, permission.ID, permission.Name, permission.Description, permission.RequiresValue).
+		Scan(&id, &name, &description, &requiresValue)
+	if err != nil {
+		a.log.Error(err.Error(), zap.Any("permission", permission))
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
+		return dto.Permissions{}, err
+	}
+
+	return dto.Permissions{
+		ID:            id,
+		Name:          name,
+		Description:   description.String,
+		RequiresValue: requiresValue,
+	}, nil
+}
+
+func (a *authz) DeletePermission(ctx context.Context, permissionID uuid.UUID) error {
+	tx, err := a.pdb.GetPool().Begin(ctx)
+	if err != nil {
+		a.log.Error(err.Error())
+		return errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Remove role_permission references first
+	if _, err := tx.Exec(ctx, `DELETE FROM role_permissions WHERE permission_id = $1`, permissionID); err != nil {
+		a.log.Error(err.Error(), zap.Any("permission_id", permissionID.String()))
+		err = errors.ErrUnableToDelete.Wrap(err, "%s", err.Error())
+		return err
+	}
+
+	ct, err := tx.Exec(ctx, `DELETE FROM permissions WHERE id = $1`, permissionID)
+	if err != nil {
+		a.log.Error(err.Error(), zap.Any("permission_id", permissionID.String()))
+		err = errors.ErrUnableToDelete.Wrap(err, "%s", err.Error())
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		// treat as not found
+		err := errors.ErrUnableToGet.Wrap(sql.ErrNoRows, "%s", "permission not found")
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		a.log.Error(err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (a *authz) BulkUpdatePermissionsRequiresValue(ctx context.Context, permissionIDs []uuid.UUID, requiresValue bool) (int, error) {
+	if len(permissionIDs) == 0 {
+		return 0, nil
+	}
+
+	// Build: UPDATE permissions SET requires_value=$1 WHERE id IN ($2,$3,...) AND name <> 'super'
+	args := make([]interface{}, 0, len(permissionIDs)+1)
+	args = append(args, requiresValue)
+	placeholders := make([]string, 0, len(permissionIDs))
+	for i, id := range permissionIDs {
+		args = append(args, id)
+		placeholders = append(placeholders, "$"+strconv.Itoa(i+2))
+	}
+	query := `UPDATE permissions SET requires_value = $1 WHERE id IN (` + strings.Join(placeholders, ",") + `) AND name <> 'super'`
+
+	ct, err := a.pdb.GetPool().Exec(ctx, query, args...)
+	if err != nil {
+		a.log.Error(err.Error())
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
+		return 0, err
+	}
+	return int(ct.RowsAffected()), nil
 }
 
 func (a *authz) AssignPermissionToRole(ctx context.Context, permissionID, roleID uuid.UUID, value *float64, limitType *string, limitPeriod *int) (dto.AssignPermissionToRoleRes, error) {

@@ -229,6 +229,10 @@ type Performance interface {
 type Authz interface {
 	CheckUserHasPermission(ctx context.Context, userID uuid.UUID, permissionName string) (bool, error)
 	GetPermissions(ctx context.Context, req dto.GetPermissionReq) ([]dto.Permissions, error)
+	CreatePermission(ctx context.Context, req dto.CreatePermissionReq) (dto.Permissions, error)
+	UpdatePermission(ctx context.Context, permissionID uuid.UUID, req dto.UpdatePermissionReq) (dto.Permissions, error)
+	DeletePermission(ctx context.Context, permissionID uuid.UUID) error
+	BulkUpdatePermissionsRequiresValue(ctx context.Context, req dto.BulkUpdatePermissionsRequiresValueReq) (dto.BulkUpdatePermissionsRequiresValueRes, error)
 	CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role, error)
 	GetRoles(ctx context.Context, req dto.GetRoleReq) ([]dto.Role, error)
 	UpdatePermissionsOfRole(ctx context.Context, req dto.UpdatePermissionToRoleReq) (dto.UpdatePermissionToRoleRes, error)

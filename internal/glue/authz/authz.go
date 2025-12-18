@@ -32,6 +32,50 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodPost,
+			Path:    "/api/admin/permissions",
+			Handler: authzModule.CreatePermission,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// For now: if user can view permissions, allow create/edit/delete too.
+				middleware.Authz(authModule, "view permissions", http.MethodPost),
+				middleware.SystemLogs("create permission", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPatch,
+			Path:    "/api/admin/permissions/:id",
+			Handler: authzModule.UpdatePermission,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// For now: if user can view permissions, allow create/edit/delete too.
+				middleware.Authz(authModule, "view permissions", http.MethodPatch),
+				middleware.SystemLogs("update permission", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodDelete,
+			Path:    "/api/admin/permissions/:id",
+			Handler: authzModule.DeletePermission,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// For now: if user can view permissions, allow create/edit/delete too.
+				middleware.Authz(authModule, "view permissions", http.MethodDelete),
+				middleware.SystemLogs("delete permission", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPatch,
+			Path:    "/api/admin/permissions/requires-value",
+			Handler: authzModule.BulkUpdatePermissionsRequiresValue,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// For now: if user can view permissions, allow create/edit/delete too.
+				middleware.Authz(authModule, "view permissions", http.MethodPatch),
+				middleware.SystemLogs("bulk update permissions requires_value", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
 			Path:    "/api/admin/roles",
 			Handler: authzModule.CreateRole,
 			Middleware: []gin.HandlerFunc{

@@ -76,6 +76,81 @@ func (a *authz) GetPermissions(c *gin.Context) {
 
 }
 
+// CreatePermission creates a new permission (admin).
+func (a *authz) CreatePermission(c *gin.Context) {
+	var req dto.CreatePermissionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := a.authzModule.CreatePermission(c, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusCreated, resp)
+}
+
+// UpdatePermission updates an existing permission (admin).
+func (a *authz) UpdatePermission(c *gin.Context) {
+	idStr := c.Param("id")
+	permissionID, err := uuid.Parse(idStr)
+	if err != nil {
+		err := fmt.Errorf("invalid permission id")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
+	var req dto.UpdatePermissionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
+	resp, err := a.authzModule.UpdatePermission(c, permissionID, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// DeletePermission deletes a permission (admin).
+func (a *authz) DeletePermission(c *gin.Context) {
+	idStr := c.Param("id")
+	permissionID, err := uuid.Parse(idStr)
+	if err != nil {
+		err := fmt.Errorf("invalid permission id")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	if err := a.authzModule.DeletePermission(c, permissionID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, nil)
+}
+
+// BulkUpdatePermissionsRequiresValue bulk updates requires_value for permissions.
+func (a *authz) BulkUpdatePermissionsRequiresValue(c *gin.Context) {
+	var req dto.BulkUpdatePermissionsRequiresValueReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := a.authzModule.BulkUpdatePermissionsRequiresValue(c, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
 // CreateRole allow user to create role.
 //
 //	@Summary		CreateRole

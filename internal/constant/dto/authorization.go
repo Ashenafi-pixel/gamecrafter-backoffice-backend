@@ -60,6 +60,28 @@ type GetPermissionReq struct {
 	Page    int `json:"page"`
 	PerPage int `json:"per_page"`
 }
+
+// Permission management (admin)
+type CreatePermissionReq struct {
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	RequiresValue bool   `json:"requires_value"`
+}
+
+type UpdatePermissionReq struct {
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	RequiresValue bool   `json:"requires_value"`
+}
+
+type BulkUpdatePermissionsRequiresValueReq struct {
+	PermissionIDs []uuid.UUID `json:"permission_ids"`
+	RequiresValue bool        `json:"requires_value"`
+}
+
+type BulkUpdatePermissionsRequiresValueRes struct {
+	UpdatedCount int `json:"updated_count"`
+}
 type GetPermissionData struct {
 	Permissions Permissions `json:"permission"`
 	Roles       []Role      `json:"roles"`
