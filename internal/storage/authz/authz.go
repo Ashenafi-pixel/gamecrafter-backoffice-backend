@@ -41,24 +41,30 @@ func Init(db *gorm.DB, log *zap.Logger, pdb *persistencedb.PersistenceDB) storag
 }
 
 func (a *authz) InitPermissions() {
+	// Permissions are now managed via database migrations
+	// Only initialize the "super" permission for super admin role
+	// All other permissions come from: migrations/20250117000001_seed_page_permissions.up.sql
 	for _, permission := range dto.PermissionsList {
-		var existingPermission dto.Permissions
-		if err := a.db.Where("name = ?", permission.Name).First(&existingPermission).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				id := uuid.New()
-				p := dto.Permissions{
-					ID:          id,
-					Name:        permission.Name,
-					Description: permission.Description,
+		// Only handle "super" permission - all others come from migrations
+		if permission.Name == "super" {
+			var existingPermission dto.Permissions
+			if err := a.db.Where("name = ?", permission.Name).First(&existingPermission).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					id := uuid.New()
+					p := dto.Permissions{
+						ID:          id,
+						Name:        permission.Name,
+						Description: permission.Description,
+						RequiresValue: false,
+					}
+					if err := a.db.Create(&p).Error; err != nil {
+						a.log.Error("Error creating permission", zap.Error(err))
+						a.log.Fatal(err.Error())
+					}
+				} else {
+					a.log.Error("Error checking permission existence", zap.Error(err))
+					a.log.Error("Continuing without permissions table - this is expected for new installations")
 				}
-				if err := a.db.Create(&p).Error; err != nil {
-					a.log.Error("Error creating permission", zap.Error(err))
-					a.log.Fatal(err.Error())
-				}
-
-			} else {
-				a.log.Error("Error checking permission existence", zap.Error(err))
-				a.log.Error("Continuing without permissions table - this is expected for new installations")
 			}
 		}
 	}
