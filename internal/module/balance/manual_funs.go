@@ -382,24 +382,110 @@ func (b *balance) ValidateFundReq(ctx context.Context, fund dto.ManualFundReq) e
 		return err
 	}
 
-	// Check admin's funding limit from role_permissions
-	maxLimit, err := b.balanceStorage.GetAdminFundingLimit(ctx, fund.AdminID)
+	// Check admin's funding limit from role_permissions (with period support)
+	limit, limitType, limitPeriod, err := b.balanceStorage.GetAdminFundingLimitWithPeriod(ctx, fund.AdminID)
 	if err != nil {
-		b.log.Error("Failed to get admin funding limit", zap.Error(err), zap.String("adminID", fund.AdminID.String()))
+		b.log.Error("Failed to get admin funding limit with period", zap.Error(err), zap.String("adminID", fund.AdminID.String()))
 		// Don't fail validation if we can't get the limit, just log it and allow
-	} else if maxLimit != nil {
+	} else if limit != nil {
 		// Admin has a funding limit set
-		if fund.Amount.GreaterThan(*maxLimit) {
-			err = fmt.Errorf("funding amount %s exceeds admin's limit of %s", fund.Amount.String(), maxLimit.String())
+		now := time.Now()
+		var periodStart, periodEnd time.Time
+
+		// Calculate period start and end based on limit_type and limit_period
+		if limitType != nil && *limitType != "" {
+			switch *limitType {
+			case "daily":
+				// Daily limit: check from start of today
+				periodStart = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+				periodEnd = time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, now.Location())
+				if limitPeriod != nil && *limitPeriod > 1 {
+					// If period_count > 1, extend the period (e.g., 2 days)
+					periodEnd = periodStart.AddDate(0, 0, *limitPeriod-1)
+					periodEnd = time.Date(periodEnd.Year(), periodEnd.Month(), periodEnd.Day(), 23, 59, 59, 999999999, periodEnd.Location())
+				}
+			case "weekly":
+				// Weekly limit: check from start of current week (Monday)
+				weekday := int(now.Weekday())
+				if weekday == 0 {
+					weekday = 7 // Sunday = 7
+				}
+				daysFromMonday := weekday - 1
+				periodStart = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -daysFromMonday)
+				periodEnd = periodStart.AddDate(0, 0, 6)
+				periodEnd = time.Date(periodEnd.Year(), periodEnd.Month(), periodEnd.Day(), 23, 59, 59, 999999999, periodEnd.Location())
+				if limitPeriod != nil && *limitPeriod > 1 {
+					// If period_count > 1, extend the period (e.g., 2 weeks)
+					periodEnd = periodStart.AddDate(0, 0, 7*(*limitPeriod)-1)
+					periodEnd = time.Date(periodEnd.Year(), periodEnd.Month(), periodEnd.Day(), 23, 59, 59, 999999999, periodEnd.Location())
+				}
+			case "monthly":
+				// Monthly limit: check from start of current month
+				periodStart = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+				// Get last day of month
+				nextMonth := periodStart.AddDate(0, 1, 0)
+				periodEnd = nextMonth.AddDate(0, 0, -1)
+				periodEnd = time.Date(periodEnd.Year(), periodEnd.Month(), periodEnd.Day(), 23, 59, 59, 999999999, periodEnd.Location())
+				if limitPeriod != nil && *limitPeriod > 1 {
+					// If period_count > 1, extend the period (e.g., 2 months)
+					periodEnd = periodStart.AddDate(0, *limitPeriod, 0).AddDate(0, 0, -1)
+					periodEnd = time.Date(periodEnd.Year(), periodEnd.Month(), periodEnd.Day(), 23, 59, 59, 999999999, periodEnd.Location())
+				}
+			default:
+				// Unknown limit type, fall back to single transaction limit check
+				if fund.Amount.GreaterThan(*limit) {
+					err = fmt.Errorf("funding amount %s exceeds admin's limit of %s", fund.Amount.String(), limit.String())
+					b.log.Warn("Funding limit exceeded",
+						zap.String("adminID", fund.AdminID.String()),
+						zap.String("requestedAmount", fund.Amount.String()),
+						zap.String("limit", limit.String()))
+					err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+					return err
+				}
+				return nil
+			}
+
+			// Get total funding usage in the period
+			usageInPeriod, err := b.balanceStorage.GetAdminFundingUsageInPeriod(ctx, fund.AdminID, periodStart, periodEnd)
+			if err != nil {
+				b.log.Error("Failed to get admin funding usage in period", zap.Error(err), zap.String("adminID", fund.AdminID.String()))
+				// Don't fail validation if we can't get usage, just log it and allow
+			} else {
+				// Check if adding this amount would exceed the limit
+				newTotal := usageInPeriod.Add(fund.Amount)
+				if newTotal.GreaterThan(*limit) {
+					periodDesc := *limitType
+					if limitPeriod != nil && *limitPeriod > 1 {
+						periodDesc = fmt.Sprintf("%d %s", *limitPeriod, *limitType)
+					}
+					err = fmt.Errorf("funding amount %s would exceed admin's %s limit of %s (current usage: %s)", 
+						fund.Amount.String(), periodDesc, limit.String(), usageInPeriod.String())
+					b.log.Warn("Period funding limit exceeded",
+						zap.String("adminID", fund.AdminID.String()),
+						zap.String("requestedAmount", fund.Amount.String()),
+						zap.String("limit", limit.String()),
+						zap.String("limitType", *limitType),
+						zap.Int("limitPeriod", *limitPeriod),
+						zap.String("usageInPeriod", usageInPeriod.String()),
+						zap.String("newTotal", newTotal.String()))
+					err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+					return err
+				}
+			}
+		} else {
+			// No limit type specified, check single transaction limit
+			if fund.Amount.GreaterThan(*limit) {
+				err = fmt.Errorf("funding amount %s exceeds admin's limit of %s", fund.Amount.String(), limit.String())
 			b.log.Warn("Funding limit exceeded",
 				zap.String("adminID", fund.AdminID.String()),
 				zap.String("requestedAmount", fund.Amount.String()),
-				zap.String("limit", maxLimit.String()))
+					zap.String("limit", limit.String()))
 			err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
 			return err
 		}
 	}
-	// If maxLimit is nil, admin has unlimited funding (no limit)
+	}
+	// If limit is nil, admin has unlimited funding (no limit)
 
 	return nil
 }

@@ -46,7 +46,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "manual funding", http.MethodPost),
+				middleware.Authz(authModule, "manual fund player", http.MethodPost),
 			},
 		}, {
 			Method:  http.MethodGet,

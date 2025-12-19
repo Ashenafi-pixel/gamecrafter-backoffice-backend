@@ -1360,3 +1360,82 @@ func (b *balance) GetAdminFundingLimit(ctx context.Context, adminID uuid.UUID) (
 	limit := result.MaxFundingLimit.Decimal
 	return &limit, nil
 }
+
+// GetAdminFundingLimitWithPeriod retrieves the funding limit with period info (value, limit_type, limit_period) for an admin
+func (b *balance) GetAdminFundingLimitWithPeriod(ctx context.Context, adminID uuid.UUID) (*decimal.Decimal, *string, *int, error) {
+	query := `
+		SELECT 
+			rp.value,
+			rp.limit_type,
+			rp.limit_period
+		FROM user_roles ur
+		JOIN role_permissions rp ON ur.role_id = rp.role_id
+		JOIN permissions p ON rp.permission_id = p.id
+		WHERE ur.user_id = $1 AND p.name = 'manual fund player'
+		ORDER BY rp.value DESC NULLS LAST
+		LIMIT 1
+	`
+
+	var value sql.NullString
+	var limitType sql.NullString
+	var limitPeriod sql.NullInt32
+
+	err := b.db.GetPool().QueryRow(ctx, query, adminID).Scan(&value, &limitType, &limitPeriod)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// No funding limit set (unlimited)
+			return nil, nil, nil, nil
+		}
+		b.log.Error("Failed to get admin funding limit with period", zap.Error(err), zap.String("adminID", adminID.String()))
+		return nil, nil, nil, err
+	}
+
+	var limit *decimal.Decimal
+	if value.Valid && value.String != "" {
+		dec, err := decimal.NewFromString(value.String)
+		if err != nil {
+			b.log.Error("Failed to parse funding limit value", zap.Error(err), zap.String("value", value.String))
+			return nil, nil, nil, err
+		}
+		limit = &dec
+	}
+
+	var lt *string
+	if limitType.Valid {
+		s := limitType.String
+		lt = &s
+	}
+
+	var lp *int
+	if limitPeriod.Valid {
+		i := int(limitPeriod.Int32)
+		lp = &i
+	}
+
+	return limit, lt, lp, nil
+}
+
+// GetAdminFundingUsageInPeriod retrieves the total funding amount for an admin within a specific period
+func (b *balance) GetAdminFundingUsageInPeriod(ctx context.Context, adminID uuid.UUID, periodStart time.Time, periodEnd time.Time) (decimal.Decimal, error) {
+	query := `
+		SELECT COALESCE(SUM(amount_cents), 0)
+		FROM manual_funds
+		WHERE admin_id = $1 
+			AND type = 'add_fund'
+			AND created_at >= $2 
+			AND created_at <= $3
+	`
+
+	var totalCents int64
+	err := b.db.GetPool().QueryRow(ctx, query, adminID, periodStart, periodEnd).Scan(&totalCents)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return decimal.Zero, nil
+		}
+		b.log.Error("Failed to get admin funding usage in period", zap.Error(err), zap.String("adminID", adminID.String()))
+		return decimal.Zero, err
+	}
+
+	// Convert cents to decimal
+	return decimal.NewFromInt(totalCents).Div(decimal.NewFromInt(100)), nil
+}

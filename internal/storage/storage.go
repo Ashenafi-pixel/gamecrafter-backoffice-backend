@@ -136,6 +136,8 @@ type Balance interface {
 	GetManualFundsByUserIDPaginated(ctx context.Context, userID uuid.UUID, page, perPage int) ([]dto.ManualFundResData, int64, error)
 	GetAllManualFunds(ctx context.Context, filter dto.GetAllManualFundsFilter) (dto.GetAllManualFundsRes, error)
 	GetAdminFundingLimit(ctx context.Context, adminID uuid.UUID) (*decimal.Decimal, error)
+	GetAdminFundingLimitWithPeriod(ctx context.Context, adminID uuid.UUID) (*decimal.Decimal, *string, *int, error)
+	GetAdminFundingUsageInPeriod(ctx context.Context, adminID uuid.UUID, periodStart time.Time, periodEnd time.Time) (decimal.Decimal, error)
 }
 
 type OperationalGroup interface {
