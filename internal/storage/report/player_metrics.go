@@ -144,29 +144,29 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 	// Has deposited filter
 	if req.HasDeposited != nil {
 		if *req.HasDeposited {
-			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) > 0")
+			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) > 0")
 		} else {
-			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) = 0")
+			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) = 0")
 		}
 	}
 
 	// Has withdrawn filter
 	if req.HasWithdrawn != nil {
 		if *req.HasWithdrawn {
-			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN t.transaction_type = 'withdrawal' THEN t.amount ELSE 0 END), 0) > 0")
+			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) > 0")
 		} else {
-			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN t.transaction_type = 'withdrawal' THEN t.amount ELSE 0 END), 0) = 0")
+			havingConditions = append(havingConditions, "COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) = 0")
 		}
 	}
 
 	// Total deposits range
 	if req.MinTotalDeposits != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) >= $%d", argIndex))
+		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) >= $%d", argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MinTotalDeposits))
 		argIndex++
 	}
 	if req.MaxTotalDeposits != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) <= $%d", argIndex))
+		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) <= $%d", argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MaxTotalDeposits))
 		argIndex++
 	}
@@ -186,20 +186,20 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 	// Net result range (deposits - withdrawals - net gaming result)
 	if req.MinNetResult != nil {
 		havingConditions = append(havingConditions, fmt.Sprintf(
-			"(COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN t.transaction_type = 'withdrawal' THEN t.amount ELSE 0 END), 0) - "+
-				"(COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN t.transaction_type IN ('win', 'groove_win') THEN t.amount ELSE 0 END), 0))) >= $%d",
+			"(COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) - "+
+				"COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) - "+
+				"(COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) - "+
+				"COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0))) >= $%d",
 			argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MinNetResult))
 		argIndex++
 	}
 	if req.MaxNetResult != nil {
 		havingConditions = append(havingConditions, fmt.Sprintf(
-			"(COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN t.transaction_type = 'withdrawal' THEN t.amount ELSE 0 END), 0) - "+
-				"(COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN t.transaction_type IN ('win', 'groove_win') THEN t.amount ELSE 0 END), 0))) <= $%d",
+			"(COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) - "+
+				"COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) - "+
+				"(COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) - "+
+				"COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0))) <= $%d",
 			argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MaxNetResult))
 		argIndex++
@@ -234,9 +234,112 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		}
 	}
 
-	// Main query - aggregates player metrics from transactions
+	// Main query - aggregates player metrics from all transaction sources
 	query := fmt.Sprintf(`
-		WITH player_transactions AS (
+		WITH all_bet_transactions AS (
+			-- GrooveTech transactions (wagers and results)
+			SELECT 
+				ga.user_id,
+				gt.created_at as transaction_date,
+				'wager' as transaction_type,
+				ABS(gt.amount) as amount
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE gt.type = 'wager' AND gt.amount < 0
+
+			UNION ALL
+
+			SELECT 
+				ga.user_id,
+				gt.created_at as transaction_date,
+				'win' as transaction_type,
+				gt.amount as amount
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE gt.type = 'result' AND gt.amount > 0
+
+			UNION ALL
+
+			-- General bets (crash game)
+			SELECT 
+				b.user_id,
+				COALESCE(b.timestamp, NOW()) as transaction_date,
+				'bet' as transaction_type,
+				b.amount as amount
+			FROM bets b
+			WHERE b.amount > 0
+
+			UNION ALL
+
+			SELECT 
+				b.user_id,
+				COALESCE(b.timestamp, NOW()) as transaction_date,
+				'win' as transaction_type,
+				COALESCE(b.payout, 0) as amount
+			FROM bets b
+			WHERE COALESCE(b.payout, 0) > 0
+
+			UNION ALL
+
+			-- Sport bets
+			SELECT 
+				sb.user_id,
+				sb.created_at as transaction_date,
+				'bet' as transaction_type,
+				sb.bet_amount as amount
+			FROM sport_bets sb
+			WHERE sb.bet_amount > 0
+
+			UNION ALL
+
+			SELECT 
+				sb.user_id,
+				sb.created_at as transaction_date,
+				'win' as transaction_type,
+				COALESCE(sb.actual_win, 0) as amount
+			FROM sport_bets sb
+			WHERE COALESCE(sb.actual_win, 0) > 0
+
+			UNION ALL
+
+			-- Plinko bets
+			SELECT 
+				p.user_id,
+				p.timestamp as transaction_date,
+				'bet' as transaction_type,
+				p.bet_amount as amount
+			FROM plinko p
+			WHERE p.bet_amount > 0
+
+			UNION ALL
+
+			SELECT 
+				p.user_id,
+				p.timestamp as transaction_date,
+				'win' as transaction_type,
+				p.win_amount as amount
+			FROM plinko p
+			WHERE p.win_amount > 0
+
+			UNION ALL
+
+			-- Transactions table (for any bets/wins stored there)
+			SELECT 
+				t.user_id,
+				t.created_at as transaction_date,
+				CASE 
+					WHEN t.transaction_type IN ('bet', 'groove_bet') THEN 'bet'
+					WHEN t.transaction_type IN ('win', 'groove_win') THEN 'win'
+					ELSE t.transaction_type
+				END as transaction_type,
+				CASE 
+					WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount)
+					ELSE t.amount
+				END as amount
+			FROM transactions t
+			WHERE t.transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
+		),
+		player_transactions AS (
 			SELECT 
 				u.id as user_id,
 				u.username,
@@ -256,34 +359,44 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 			LEFT JOIN brands b ON u.brand_id = b.id
 			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
 			LEFT JOIN transactions t ON u.id = t.user_id
+				AND t.transaction_type IN ('deposit', 'withdrawal', 'rakeback_earned', 'rakeback_claimed')
 			%s
 		),
 		player_metrics AS (
 			SELECT 
-				user_id,
-				username,
-				email,
-				brand_id,
-				brand_name,
-				country,
-				registration_date,
-				COALESCE(MAX(transaction_date), registration_date) as last_activity,
-				MAX(main_balance) as main_balance,
-				MAX(currency) as currency,
-				MAX(account_status) as account_status,
-				MAX(kyc_status) as kyc_status,
-				COALESCE(SUM(CASE WHEN transaction_type = 'deposit' THEN amount ELSE 0 END), 0) as total_deposits,
-				COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' THEN amount ELSE 0 END), 0) as total_withdrawals,
-				COALESCE(SUM(CASE WHEN transaction_type IN ('bet', 'groove_bet') THEN ABS(amount) ELSE 0 END), 0) as total_wagered,
-				COALESCE(SUM(CASE WHEN transaction_type IN ('win', 'groove_win') THEN amount ELSE 0 END), 0) as total_won,
-				COALESCE(SUM(CASE WHEN transaction_type = 'rakeback_earned' THEN amount ELSE 0 END), 0) as rakeback_earned,
-				COALESCE(SUM(CASE WHEN transaction_type = 'rakeback_claimed' THEN amount ELSE 0 END), 0) as rakeback_claimed,
-				MIN(CASE WHEN transaction_type = 'deposit' THEN transaction_date ELSE NULL END) as first_deposit_date,
-				MAX(CASE WHEN transaction_type = 'deposit' THEN transaction_date ELSE NULL END) as last_deposit_date,
-				COUNT(DISTINCT CASE WHEN transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win') THEN transaction_date::date ELSE NULL END) as number_of_sessions,
-				COUNT(CASE WHEN transaction_type IN ('bet', 'groove_bet') THEN 1 ELSE NULL END) as number_of_bets
-			FROM player_transactions
-			GROUP BY user_id, username, email, brand_id, brand_name, country, registration_date
+				u.id as user_id,
+				u.username,
+				u.email,
+				u.brand_id,
+				b.name as brand_name,
+				u.country,
+				u.created_at as registration_date,
+				u.status as account_status,
+				u.kyc_status,
+				COALESCE(u.default_currency, 'USD') as currency,
+				COALESCE(bal.amount_units, 0) as main_balance,
+				COALESCE(
+					MAX(abt.transaction_date),
+					MAX(pt.transaction_date),
+					u.created_at
+				) as last_activity,
+				COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) as total_deposits,
+				COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) as total_withdrawals,
+				COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) as total_wagered,
+				COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0) as total_won,
+				COALESCE(SUM(CASE WHEN pt.transaction_type = 'rakeback_earned' THEN pt.amount ELSE 0 END), 0) as rakeback_earned,
+				COALESCE(SUM(CASE WHEN pt.transaction_type = 'rakeback_claimed' THEN pt.amount ELSE 0 END), 0) as rakeback_claimed,
+				MIN(CASE WHEN pt.transaction_type = 'deposit' THEN pt.transaction_date ELSE NULL END) as first_deposit_date,
+				MAX(CASE WHEN pt.transaction_type = 'deposit' THEN pt.transaction_date ELSE NULL END) as last_deposit_date,
+				COUNT(DISTINCT COALESCE(abt.transaction_date, pt.transaction_date)::date) as number_of_sessions,
+				COUNT(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN 1 ELSE NULL END) as number_of_bets
+			FROM users u
+			LEFT JOIN brands b ON u.brand_id = b.id
+			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
+			LEFT JOIN player_transactions pt ON u.id = pt.user_id
+			LEFT JOIN all_bet_transactions abt ON u.id = abt.user_id
+			%s
+			GROUP BY u.id, u.username, u.email, u.brand_id, b.name, u.country, u.created_at, u.status, u.kyc_status, u.default_currency, bal.amount_units
 			%s
 		)
 		SELECT 
@@ -315,7 +428,7 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		FROM player_metrics
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, whereClause, havingClause, orderBy, argIndex, argIndex+1)
+	`, whereClause, whereClause, havingClause, orderBy, argIndex, argIndex+1)
 
 	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
@@ -411,29 +524,73 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 
 	// Get total count (simplified - using same query without pagination)
 	countQuery := fmt.Sprintf(`
-		WITH player_transactions AS (
-			SELECT 
-				u.id as user_id,
-				t.transaction_type,
-				t.amount
+		WITH all_bet_transactions AS (
+			SELECT ga.user_id, 'wager' as transaction_type, ABS(gt.amount) as amount
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE gt.type = 'wager' AND gt.amount < 0
+			UNION ALL
+			SELECT ga.user_id, 'win' as transaction_type, gt.amount as amount
+			FROM groove_transactions gt
+			JOIN groove_accounts ga ON gt.account_id = ga.account_id
+			WHERE gt.type = 'result' AND gt.amount > 0
+			UNION ALL
+			SELECT b.user_id, 'bet' as transaction_type, b.amount as amount
+			FROM bets b
+			WHERE b.amount > 0
+			UNION ALL
+			SELECT b.user_id, 'win' as transaction_type, COALESCE(b.payout, 0) as amount
+			FROM bets b
+			WHERE COALESCE(b.payout, 0) > 0
+			UNION ALL
+			SELECT sb.user_id, 'bet' as transaction_type, sb.bet_amount as amount
+			FROM sport_bets sb
+			WHERE sb.bet_amount > 0
+			UNION ALL
+			SELECT sb.user_id, 'win' as transaction_type, COALESCE(sb.actual_win, 0) as amount
+			FROM sport_bets sb
+			WHERE COALESCE(sb.actual_win, 0) > 0
+			UNION ALL
+			SELECT p.user_id, 'bet' as transaction_type, p.bet_amount as amount
+			FROM plinko p
+			WHERE p.bet_amount > 0
+			UNION ALL
+			SELECT p.user_id, 'win' as transaction_type, p.win_amount as amount
+			FROM plinko p
+			WHERE p.win_amount > 0
+			UNION ALL
+			SELECT t.user_id,
+				CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN 'bet'
+					WHEN t.transaction_type IN ('win', 'groove_win') THEN 'win'
+					ELSE t.transaction_type END as transaction_type,
+				CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE t.amount END as amount
+			FROM transactions t
+			WHERE t.transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
+		),
+		player_transactions AS (
+			SELECT u.id as user_id, t.transaction_type, t.amount
 			FROM users u
 			LEFT JOIN transactions t ON u.id = t.user_id
+				AND t.transaction_type IN ('deposit', 'withdrawal', 'rakeback_earned', 'rakeback_claimed')
 			%s
 		),
 		player_metrics AS (
 			SELECT 
-				user_id,
-				COALESCE(SUM(CASE WHEN transaction_type = 'deposit' THEN amount ELSE 0 END), 0) as total_deposits,
-				COALESCE(SUM(CASE WHEN transaction_type = 'withdrawal' THEN amount ELSE 0 END), 0) as total_withdrawals,
-				COALESCE(SUM(CASE WHEN transaction_type IN ('bet', 'groove_bet') THEN ABS(amount) ELSE 0 END), 0) as total_wagered,
-				COALESCE(SUM(CASE WHEN transaction_type IN ('win', 'groove_win') THEN amount ELSE 0 END), 0) as total_won
-			FROM player_transactions
-			GROUP BY user_id
+				u.id as user_id,
+				COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) as total_deposits,
+				COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) as total_withdrawals,
+				COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) as total_wagered,
+				COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0) as total_won
+			FROM users u
+			LEFT JOIN player_transactions pt ON u.id = pt.user_id
+			LEFT JOIN all_bet_transactions abt ON u.id = abt.user_id
+			%s
+			GROUP BY u.id
 			%s
 		)
 		SELECT COUNT(*) as total
 		FROM player_metrics
-	`, whereClause, havingClause)
+	`, whereClause, whereClause, havingClause)
 
 	var total int64
 	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
@@ -689,7 +846,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 				NULL::text as game_id,
 				NULL::text as game_name,
 				sb.transaction_id as bet_id,
-				sb.round_id::text as round_id,
+				NULL::text as round_id,
 				sb.bet_amount as bet_amount,
 				COALESCE(sb.actual_win, 0) as win_amount,
 				NULL::decimal as rakeback_earned,

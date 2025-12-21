@@ -514,3 +514,43 @@ type ProviderPerformanceReportRes struct {
 	PerPage   int                       `json:"per_page"`
 	Summary   GamePerformanceSummary    `json:"summary"`
 }
+
+// AffiliateReportReq represents the request for Affiliate Report
+type AffiliateReportReq struct {
+	DateFrom     *string `form:"date_from" json:"date_from"`         // YYYY-MM-DD format
+	DateTo       *string `form:"date_to" json:"date_to"`             // YYYY-MM-DD format
+	ReferralCode *string `form:"referral_code" json:"referral_code"` // Optional filter by referral code
+}
+
+// AffiliateReportRow represents a single day's metrics for an affiliate
+type AffiliateReportRow struct {
+	Date              string          `json:"date" db:"date"`
+	ReferralCode      string          `json:"referral_code" db:"referral_code"`
+	Registrations     int64           `json:"registrations" db:"registrations"`
+	UniqueDepositors  int64           `json:"unique_depositors" db:"unique_depositors"`
+	ActiveCustomers   int64           `json:"active_customers" db:"active_customers"`
+	TotalBets         int64           `json:"total_bets" db:"total_bets"`
+	GGR               decimal.Decimal `json:"ggr" db:"ggr"`
+	NGR               decimal.Decimal `json:"ngr" db:"ngr"`
+	DepositsUSD       decimal.Decimal `json:"deposits_usd" db:"deposits_usd"`
+	WithdrawalsUSD    decimal.Decimal `json:"withdrawals_usd" db:"withdrawals_usd"`
+}
+
+// AffiliateReportRes represents the response for Affiliate Report
+type AffiliateReportRes struct {
+	Message string              `json:"message"`
+	Data    []AffiliateReportRow `json:"data"`
+	Summary AffiliateReportSummary `json:"summary"`
+}
+
+// AffiliateReportSummary represents summary statistics for the report
+type AffiliateReportSummary struct {
+	TotalRegistrations    int64           `json:"total_registrations"`
+	TotalUniqueDepositors int64           `json:"total_unique_depositors"`
+	TotalActiveCustomers  int64           `json:"total_active_customers"`
+	TotalBets             int64           `json:"total_bets"`
+	TotalGGR              decimal.Decimal `json:"total_ggr"`
+	TotalNGR              decimal.Decimal `json:"total_ngr"`
+	TotalDepositsUSD      decimal.Decimal `json:"total_deposits_usd"`
+	TotalWithdrawalsUSD   decimal.Decimal `json:"total_withdrawals_usd"`
+}

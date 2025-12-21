@@ -1049,3 +1049,47 @@ func (r *report) ExportProviderPerformance(ctx *gin.Context) {
 	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=provider-performance-%s.json", time.Now().Format("2006-01-02")))
 	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
 }
+
+// GetAffiliateReport Get Affiliate Report.
+//
+//	@Summary		GetAffiliateReport
+//	@Description	Returns affiliate report with daily metrics grouped by referral code
+//	@Tags			Report
+//	@Accept			json
+//	@Produce		json
+//	@Param			date_from		query		string	false	"Start date (YYYY-MM-DD)"
+//	@Param			date_to			query		string	false	"End date (YYYY-MM-DD)"
+//	@Param			referral_code	query		string	false	"Filter by referral code"
+//	@Success		200				{object}	dto.AffiliateReportRes
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Router			/api/admin/report/affiliate [get]
+func (r *report) GetAffiliateReport(ctx *gin.Context) {
+	var req dto.AffiliateReportReq
+
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = ctx.Error(err)
+		return
+	}
+
+	// Get admin ID from context (set by Auth middleware)
+	adminID, exists := ctx.Get("user_id")
+	if !exists {
+		_ = ctx.Error(errors.ErrUnauthorized.Wrap(nil, "user not authenticated"))
+		return
+	}
+
+	adminUUID, ok := adminID.(uuid.UUID)
+	if !ok {
+		_ = ctx.Error(errors.ErrUnauthorized.Wrap(nil, "invalid user ID"))
+		return
+	}
+
+	reportRes, err := r.reportModule.GetAffiliateReport(ctx.Request.Context(), req, adminUUID)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
+}
