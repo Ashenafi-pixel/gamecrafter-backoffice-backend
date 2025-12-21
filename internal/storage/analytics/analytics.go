@@ -2178,14 +2178,14 @@ func (s *AnalyticsStorageImpl) GetTopGames(ctx context.Context, limit int, dateR
 			game_name,
 			provider,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
-			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
+			toDecimal64(sumIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8) as total_wins,
+			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
 			toUInt64(uniqExact(user_id)) as player_count,
 			toUInt64(uniqExact(session_id)) as session_count,
 			if(countIf(transaction_type IN ('bet', 'groove_bet')) > 0, avgIf(amount, transaction_type IN ('bet', 'groove_bet')), 0) as avg_bet_amount,
 			CASE 
 				WHEN sumIf(amount, transaction_type IN ('bet', 'groove_bet')) > 0 
-				THEN (sumIf(amount, transaction_type IN ('win', 'groove_win')) / sumIf(amount, transaction_type IN ('bet', 'groove_bet'))) * 100
+				THEN (sumIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')) / sumIf(amount, transaction_type IN ('bet', 'groove_bet'))) * 100
 				ELSE 0 
 			END as rtp
 		FROM tucanbit_analytics.transactions

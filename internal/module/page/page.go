@@ -63,6 +63,7 @@ func (p *pageModule) SeedPages(ctx context.Context) error {
 		// {"/reports/game", "Game Report", "/reports"},
 		{"/reports/big-winners", "Big Winners", "/reports"},
 		{"/reports/player-metrics", "Player Metrics", "/reports"},
+		{"/reports/affiliate", "Affiliate Report", "/reports"},
 		{"/reports/country", "Country Report", "/reports"},
 		{"/reports/game-performance", "Game Performance", "/reports"},
 		{"/reports/provider-performance", "Provider Performance", "/reports"},

@@ -879,7 +879,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 				w.created_at as transaction_date,
 				(w.usd_amount_cents::decimal / 100) as amount,
 				w.currency_code as currency,
-				w.status,
+				w.status::text,
 				NULL::text as game_provider,
 				NULL::text as game_id,
 				NULL::text as game_name,
