@@ -1072,20 +1072,12 @@ func (r *report) GetAffiliateReport(ctx *gin.Context) {
 		return
 	}
 
-	// Get admin ID from context (set by Auth middleware)
-	adminID, exists := ctx.Get("user_id")
-	if !exists {
-		_ = ctx.Error(errors.ErrUnauthorized.Wrap(nil, "user not authenticated"))
-		return
-	}
+	// TODO: Get allowed referral codes based on admin's RBAC permissions
+	// For now, pass empty slice to allow all referral codes
+	// This should be populated based on the admin's role permissions
+	allowedReferralCodes := []string{}
 
-	adminUUID, ok := adminID.(uuid.UUID)
-	if !ok {
-		_ = ctx.Error(errors.ErrUnauthorized.Wrap(nil, "invalid user ID"))
-		return
-	}
-
-	reportRes, err := r.reportModule.GetAffiliateReport(ctx.Request.Context(), req, adminUUID)
+	reportRes, err := r.reportModule.GetAffiliateReport(ctx.Request.Context(), req, allowedReferralCodes)
 	if err != nil {
 		_ = ctx.Error(err)
 		return

@@ -79,10 +79,6 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 	return r.reportStorage.GetProviderPerformance(ctx, req, userBrandIDs)
 }
 
-func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReportReq, adminID uuid.UUID) (dto.AffiliateReportRes, error) {
-	// TODO: Get allowed referral codes for this admin from RBAC
-	// For now, allow all referral codes (empty slice means no restriction)
-	allowedReferralCodes := []string{}
-	
+func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReportReq, allowedReferralCodes []string) (dto.AffiliateReportRes, error) {
 	return r.reportStorage.GetAffiliateReport(ctx, req, allowedReferralCodes)
 }
