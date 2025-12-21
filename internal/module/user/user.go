@@ -780,6 +780,14 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 			u.log.Error(err.Error())
 			return dto.UserLoginRes{}, "", errors.ErrInvalidUserInput.Wrap(err, err.Error())
 		}
+		// Check if admin user is suspended
+		if usr.Status == "SUSPENDED" {
+			err = fmt.Errorf("admin account is suspended and cannot login")
+			u.log.Warn("Suspended admin attempted login", zap.String("user_id", usr.ID.String()), zap.String("username", usr.Username))
+			loginLogs.Success = false
+			u.logsStorage.CreateLoginAttempts(ctx, loginLogs)
+			return dto.UserLoginRes{}, "", errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		}
 	}
 	//check password
 	if ok := utils.ComparePasswords(usr.Password, loginRequest.Password); !ok {
@@ -2364,6 +2372,104 @@ func (u *User) DeleteAdminUser(ctx context.Context, userID string) error {
 
 	// Delete user
 	return u.userStorage.DeleteUser(ctx, userUUID)
+}
+
+func (u *User) SuspendAdminUser(ctx context.Context, userID string, req dto.SuspendAdminUserReq) (dto.SuspendAdminUserRes, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Check if user exists and is admin
+	existingUser, exists, err := u.userStorage.GetUserByID(ctx, userUUID)
+	if err != nil {
+		return dto.SuspendAdminUserRes{}, err
+	}
+	if !exists {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("user not found")
+	}
+	if !existingUser.IsAdmin {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("user is not an admin")
+	}
+
+	// Check if already suspended
+	if existingUser.Status == "SUSPENDED" {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("admin user is already suspended")
+	}
+
+	// Update status to SUSPENDED
+	status := "SUSPENDED"
+	updateReq := dto.UpdateAdminUserReq{
+		Status: &status,
+	}
+
+	updatedUser, err := u.UpdateAdminUser(ctx, userID, updateReq)
+	if err != nil {
+		return dto.SuspendAdminUserRes{}, err
+	}
+
+	u.log.Info("Admin user suspended",
+		zap.String("user_id", userID),
+		zap.String("username", updatedUser.Username),
+		zap.String("reason", func() string {
+			if req.Reason != nil {
+				return *req.Reason
+			}
+			return "No reason provided"
+		}()),
+	)
+
+	return dto.SuspendAdminUserRes{
+		Message: "Admin user suspended successfully",
+		UserID:  userID,
+		Status:   "SUSPENDED",
+	}, nil
+}
+
+func (u *User) UnsuspendAdminUser(ctx context.Context, userID string) (dto.SuspendAdminUserRes, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Check if user exists and is admin
+	existingUser, exists, err := u.userStorage.GetUserByID(ctx, userUUID)
+	if err != nil {
+		return dto.SuspendAdminUserRes{}, err
+	}
+	if !exists {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("user not found")
+	}
+	if !existingUser.IsAdmin {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("user is not an admin")
+	}
+
+	// Check if already active
+	if existingUser.Status != "SUSPENDED" {
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("admin user is not suspended")
+	}
+
+	// Update status to ACTIVE
+	status := "ACTIVE"
+	updateReq := dto.UpdateAdminUserReq{
+		Status: &status,
+	}
+
+	updatedUser, err := u.UpdateAdminUser(ctx, userID, updateReq)
+	if err != nil {
+		return dto.SuspendAdminUserRes{}, err
+	}
+
+	u.log.Info("Admin user unsuspended",
+		zap.String("user_id", userID),
+		zap.String("username", updatedUser.Username),
+	)
+
+	return dto.SuspendAdminUserRes{
+		Message: "Admin user unsuspended successfully",
+		UserID:  userID,
+		Status:   "ACTIVE",
+	}, nil
 }
 
 func (u *User) UpdateSignupBonus(ctx context.Context, req dto.SignUpBonusReq) (dto.SignUpBonusRes, error) {

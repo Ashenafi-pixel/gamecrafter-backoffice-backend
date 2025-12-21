@@ -60,6 +60,8 @@ type UserHandler interface {
 	CreateAdminUser(c *gin.Context)
 	UpdateAdminUser(c *gin.Context)
 	DeleteAdminUser(c *gin.Context)
+	SuspendAdminUser(c *gin.Context)
+	UnsuspendAdminUser(c *gin.Context)
 	// Enterprise Registration Methods
 	InitiateEnterpriseRegistration(c *gin.Context)
 	CompleteEnterpriseRegistration(c *gin.Context)
@@ -481,6 +483,24 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				middleware.Authz(authModule, "delete admin user", http.MethodDelete),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/users_admin/:id/suspend",
+			Handler: user.SuspendAdminUser,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "suspend admin user", http.MethodPost),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/users_admin/:id/unsuspend",
+			Handler: user.UnsuspendAdminUser,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "unsuspend admin user", http.MethodPost),
 			},
 		},
 		{

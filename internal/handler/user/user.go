@@ -70,6 +70,8 @@ type UserHandler interface {
 	CreateAdminUser(c *gin.Context)
 	UpdateAdminUser(c *gin.Context)
 	DeleteAdminUser(c *gin.Context)
+	SuspendAdminUser(c *gin.Context)
+	UnsuspendAdminUser(c *gin.Context)
 	// Enterprise Registration Methods
 	InitiateEnterpriseRegistration(c *gin.Context)
 	CompleteEnterpriseRegistration(c *gin.Context)
@@ -1345,6 +1347,57 @@ func (u *user) DeleteAdminUser(c *gin.Context) {
 		return
 	}
 	response.SendSuccessResponse(c, http.StatusOK, map[string]string{"message": "Admin user deleted successfully"})
+}
+
+// SuspendAdminUser suspends an admin user
+//
+//	@Summary		SuspendAdminUser
+//	@Description	Suspend an admin user to prevent login
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"User ID"
+//	@Param			request	body		dto.SuspendAdminUserReq	true	"Suspend admin user request"
+//	@Success		200		{object}	dto.SuspendAdminUserRes
+//	@Failure		400		{object}	response.ErrorResponse
+//	@Failure		401		{object}	response.ErrorResponse
+//	@Router			/api/admin/users_admin/{id}/suspend [post]
+func (u *user) SuspendAdminUser(c *gin.Context) {
+	userID := c.Param("id")
+	var req dto.SuspendAdminUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	resp, err := u.userModule.SuspendAdminUser(c, userID, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// UnsuspendAdminUser unsuspends an admin user
+//
+//	@Summary		UnsuspendAdminUser
+//	@Description	Unsuspend an admin user to allow login
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"User ID"
+//	@Success		200	{object}	dto.SuspendAdminUserRes
+//	@Failure		400	{object}	response.ErrorResponse
+//	@Failure		401	{object}	response.ErrorResponse
+//	@Router			/api/admin/users_admin/{id}/unsuspend [post]
+func (u *user) UnsuspendAdminUser(c *gin.Context) {
+	userID := c.Param("id")
+	resp, err := u.userModule.UnsuspendAdminUser(c, userID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
 }
 
 // UpdateSignupBonus updates the signup bonus for users.

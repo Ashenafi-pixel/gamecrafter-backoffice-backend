@@ -453,9 +453,20 @@ type UpdateAdminUserReq struct {
 	FirstName *string `json:"first_name,omitempty" validate:"omitempty,min=2,max=50"`
 	LastName  *string `json:"last_name,omitempty" validate:"omitempty,min=2,max=50"`
 	Phone     *string `json:"phone,omitempty"`
-	Status    *string `json:"status,omitempty" validate:"omitempty,oneof=ACTIVE INACTIVE"`
+	Status    *string `json:"status,omitempty" validate:"omitempty,oneof=ACTIVE INACTIVE SUSPENDED"`
 	IsAdmin   *bool   `json:"is_admin,omitempty"`
 	UserType  *string `json:"user_type,omitempty"`
+}
+
+type SuspendAdminUserReq struct {
+	Reason *string `json:"reason,omitempty"`
+	Note   *string `json:"note,omitempty"`
+}
+
+type SuspendAdminUserRes struct {
+	Message string `json:"message"`
+	UserID  string `json:"user_id"`
+	Status  string `json:"status"`
 }
 
 type SignUpBonusReq struct {

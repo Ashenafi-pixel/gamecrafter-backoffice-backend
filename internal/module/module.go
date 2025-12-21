@@ -51,6 +51,8 @@ type User interface {
 	CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) (dto.Admin, error)
 	UpdateAdminUser(ctx context.Context, userID string, req dto.UpdateAdminUserReq) (dto.Admin, error)
 	DeleteAdminUser(ctx context.Context, userID string) error
+	SuspendAdminUser(ctx context.Context, userID string, req dto.SuspendAdminUserReq) (dto.SuspendAdminUserRes, error)
+	UnsuspendAdminUser(ctx context.Context, userID string) (dto.SuspendAdminUserRes, error)
 	UpdateSignupBonus(ctx context.Context, req dto.SignUpBonusReq) (dto.SignUpBonusRes, error)
 	GetSignupBonusConfig(ctx context.Context) (dto.SignUpBonusRes, error)
 	UpdateReferralBonus(ctx context.Context, req dto.ReferralBonusReq) (dto.ReferralBonusRes, error)
