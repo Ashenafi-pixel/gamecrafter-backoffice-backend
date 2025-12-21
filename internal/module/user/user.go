@@ -2397,20 +2397,16 @@ func (u *User) SuspendAdminUser(ctx context.Context, userID string, req dto.Susp
 		return dto.SuspendAdminUserRes{}, fmt.Errorf("admin user is already suspended")
 	}
 
-	// Update status to SUSPENDED
-	status := "SUSPENDED"
-	updateReq := dto.UpdateAdminUserReq{
-		Status: &status,
-	}
-
-	updatedUser, err := u.UpdateAdminUser(ctx, userID, updateReq)
+	// Update status to SUSPENDED using UpdateUserStatus for direct status update
+	_, err = u.userStorage.UpdateUserStatus(ctx, userUUID, "SUSPENDED")
 	if err != nil {
-		return dto.SuspendAdminUserRes{}, err
+		u.log.Error("Failed to suspend admin user", zap.Error(err), zap.String("userID", userID))
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("failed to suspend admin user: %w", err)
 	}
 
 	u.log.Info("Admin user suspended",
 		zap.String("user_id", userID),
-		zap.String("username", updatedUser.Username),
+		zap.String("username", existingUser.Username),
 		zap.String("reason", func() string {
 			if req.Reason != nil {
 				return *req.Reason
@@ -2449,20 +2445,16 @@ func (u *User) UnsuspendAdminUser(ctx context.Context, userID string) (dto.Suspe
 		return dto.SuspendAdminUserRes{}, fmt.Errorf("admin user is not suspended")
 	}
 
-	// Update status to ACTIVE
-	status := "ACTIVE"
-	updateReq := dto.UpdateAdminUserReq{
-		Status: &status,
-	}
-
-	updatedUser, err := u.UpdateAdminUser(ctx, userID, updateReq)
+	// Update status to ACTIVE using UpdateUserStatus for direct status update
+	_, err = u.userStorage.UpdateUserStatus(ctx, userUUID, "ACTIVE")
 	if err != nil {
-		return dto.SuspendAdminUserRes{}, err
+		u.log.Error("Failed to unsuspend admin user", zap.Error(err), zap.String("userID", userID))
+		return dto.SuspendAdminUserRes{}, fmt.Errorf("failed to unsuspend admin user: %w", err)
 	}
 
 	u.log.Info("Admin user unsuspended",
 		zap.String("user_id", userID),
-		zap.String("username", updatedUser.Username),
+		zap.String("username", existingUser.Username),
 	)
 
 	return dto.SuspendAdminUserRes{

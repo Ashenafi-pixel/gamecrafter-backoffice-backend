@@ -39,7 +39,19 @@ SELECT COALESCE(MAX(rp.value), NULL) as max_funding_limit
 FROM user_roles ur
 JOIN role_permissions rp ON ur.role_id = rp.role_id
 JOIN permissions p ON rp.permission_id = p.id
-WHERE ur.user_id = $1 AND p.name = 'manual funding';
+WHERE ur.user_id = $1 AND p.name = 'manual fund player';
+
+-- name: GetAdminFundingLimitWithPeriod :one
+SELECT 
+    rp.value,
+    rp.limit_type,
+    rp.limit_period
+FROM user_roles ur
+JOIN role_permissions rp ON ur.role_id = rp.role_id
+JOIN permissions p ON rp.permission_id = p.id
+WHERE ur.user_id = $1 AND p.name = 'manual fund player'
+ORDER BY rp.value DESC NULLS LAST
+LIMIT 1;
 
 -- name: AddRoleToUser :one
 INSERT INTO user_roles (user_id,role_id) VALUES ( $1,$2) RETURNING *;
