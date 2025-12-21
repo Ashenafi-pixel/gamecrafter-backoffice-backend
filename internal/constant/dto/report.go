@@ -92,6 +92,7 @@ type BigWinnersReportReq struct {
 	BetType         *string    `form:"bet_type" json:"bet_type"`     // "cash", "bonus", "both"
 	SortBy          *string    `form:"sort_by" json:"sort_by"`       // "win_amount", "net_win", "multiplier", "date"
 	SortOrder       *string    `form:"sort_order" json:"sort_order"` // "asc", "desc"
+	IsTestAccount   *bool      `form:"is_test_account" json:"is_test_account"` // Filter by test account (false = real accounts only, true = test accounts only)
 }
 
 // BigWinner represents a single big winner entry
@@ -162,6 +163,7 @@ type PlayerMetricsReportReq struct {
 	MaxNetResult     *float64   `form:"max_net_result" json:"max_net_result"`
 	SortBy           *string    `form:"sort_by" json:"sort_by"`       // "deposits", "wagering", "net_loss", "activity", "registration"
 	SortOrder        *string    `form:"sort_order" json:"sort_order"` // "asc", "desc"
+	IsTestAccount    *bool      `form:"is_test_account" json:"is_test_account"` // Filter by test account (false = real accounts only, true = test accounts only)
 }
 
 // PlayerMetric represents a single player's metrics
@@ -286,6 +288,7 @@ type CountryReportReq struct {
 	SortBy            *string   `form:"sort_by" json:"sort_by"` // "deposits", "ngr", "active_users", "alphabetical"
 	SortOrder         *string   `form:"sort_order" json:"sort_order"` // "asc", "desc"
 	ConvertToBaseCurrency *bool `form:"convert_to_base_currency" json:"convert_to_base_currency"`
+	IsTestAccount     *bool     `form:"is_test_account" json:"is_test_account"` // Filter by test account (false = real accounts only, true = test accounts only)
 }
 
 // CountryMetric represents aggregated metrics for a single country
@@ -386,6 +389,7 @@ type GamePerformanceReportReq struct {
 	Category      *string   `form:"category" json:"category"`
 	SortBy        *string   `form:"sort_by" json:"sort_by"` // "ggr", "ngr", "most_played", "rtp", "bet_volume"
 	SortOrder     *string   `form:"sort_order" json:"sort_order"` // "asc", "desc"
+	IsTestAccount *bool     `form:"is_test_account" json:"is_test_account"` // Filter by test account (false = real accounts only, true = test accounts only)
 }
 
 // GamePerformanceMetric represents aggregated metrics for a single game
@@ -483,6 +487,7 @@ type ProviderPerformanceReportReq struct {
 	Category      *string   `form:"category" json:"category"`
 	SortBy        *string   `form:"sort_by" json:"sort_by"` // "ggr", "ngr", "most_played", "rtp", "bet_volume"
 	SortOrder     *string   `form:"sort_order" json:"sort_order"` // "asc", "desc"
+	IsTestAccount *bool     `form:"is_test_account" json:"is_test_account"` // Filter by test account (false = real accounts only, true = test accounts only)
 }
 
 // ProviderPerformanceMetric represents aggregated metrics for a single provider
@@ -520,6 +525,7 @@ type AffiliateReportReq struct {
 	DateFrom     *string `form:"date_from" json:"date_from"`         // YYYY-MM-DD format
 	DateTo       *string `form:"date_to" json:"date_to"`             // YYYY-MM-DD format
 	ReferralCode *string `form:"referral_code" json:"referral_code"` // Optional filter by referral code
+	IsTestAccount *bool  `form:"is_test_account" json:"is_test_account"` // Filter by test account (false = real accounts only, true = test accounts only)
 }
 
 // AffiliateReportRow represents a single day's metrics for an affiliate
