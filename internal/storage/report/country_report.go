@@ -67,6 +67,9 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 	args := []interface{}{}
 	argIndex := 1
 
+	// Filter out admin users - only include players
+	whereConditions = append(whereConditions, "u.is_admin = false")
+
 	// Brand filter - respect user's brand access
 	if len(userBrandIDs) > 0 {
 		brandPlaceholders := []string{}
@@ -427,6 +430,9 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 	whereConditions := []string{fmt.Sprintf("u.country = $1")}
 	args := []interface{}{req.Country}
 	argIndex := 2
+
+	// Filter out admin users - only include players
+	whereConditions = append(whereConditions, "u.is_admin = false")
 
 	// Brand filter
 	if len(userBrandIDs) > 0 {
