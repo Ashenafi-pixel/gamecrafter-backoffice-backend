@@ -423,4 +423,7 @@ type Page interface {
 	AssignPagesToUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
 	ReplaceUserPages(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
 	GetAllPages(ctx context.Context) ([]dto.Page, error)
+	// Role-based page access methods
+	GetRoleAllowedPages(ctx context.Context, roleID uuid.UUID) ([]dto.Page, error)
+	ReplaceRolePages(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
 }

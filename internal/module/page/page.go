@@ -189,3 +189,11 @@ func (p *pageModule) ReplaceUserPages(ctx context.Context, userID uuid.UUID, pag
 	return p.pageStorage.ReplaceUserPages(ctx, userID, pageIDs)
 }
 
+func (p *pageModule) GetRoleAllowedPages(ctx context.Context, roleID uuid.UUID) ([]dto.Page, error) {
+	return p.pageStorage.GetRoleAllowedPages(ctx, roleID)
+}
+
+func (p *pageModule) ReplaceRolePages(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error {
+	return p.pageStorage.ReplaceRolePages(ctx, roleID, pageIDs)
+}
+

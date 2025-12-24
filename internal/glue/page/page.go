@@ -40,6 +40,24 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, pageHandler page.PageHandler, p
 				middleware.Auth(),
 			},
 		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/roles/:id/pages",
+			Handler: pageHandler.GetRoleAllowedPages,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  http.MethodPut,
+			Path:    "/api/admin/roles/:id/pages",
+			Handler: pageHandler.UpdateRoleAllowedPages,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
 	}
 
 	routing.RegisterRoute(grp, pageRoutes, *log)

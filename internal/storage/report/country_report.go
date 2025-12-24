@@ -415,13 +415,13 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 	} else {
 		// Use the summary from all data
 		if totalRegistrations.Valid {
-			summary.TotalRegistrations = int(totalRegistrations.Int64)
+			summary.TotalRegistrations = totalRegistrations.Int64
 		}
 		if totalActiveUsers.Valid {
-			summary.TotalActiveUsers = int(totalActiveUsers.Int64)
+			summary.TotalActiveUsers = totalActiveUsers.Int64
 		}
 		if totalDepositors.Valid {
-			summary.TotalDepositors = int(totalDepositors.Int64)
+			summary.TotalDepositors = totalDepositors.Int64
 		}
 		if totalDeposits.Valid {
 			deposits, err := decimal.NewFromString(totalDeposits.String)

@@ -529,4 +529,9 @@ type Page interface {
 	RemovePagesFromUser(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
 	ReplaceUserPages(ctx context.Context, userID uuid.UUID, pageIDs []uuid.UUID) error
 	GetAllPagesForUser(ctx context.Context, userID uuid.UUID) ([]dto.Page, error)
+	// Role-based page access methods
+	GetRoleAllowedPages(ctx context.Context, roleID uuid.UUID) ([]dto.Page, error)
+	AssignPagesToRole(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
+	RemovePagesFromRole(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
+	ReplaceRolePages(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
 }

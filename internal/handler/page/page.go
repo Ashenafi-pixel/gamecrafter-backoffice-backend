@@ -28,6 +28,8 @@ type PageHandler interface {
 	GetAllPages(c *gin.Context)
 	GetUserAllowedPages(c *gin.Context)
 	UpdateUserAllowedPages(c *gin.Context)
+	GetRoleAllowedPages(c *gin.Context)
+	UpdateRoleAllowedPages(c *gin.Context)
 }
 
 // GetAllPages gets all available pages
@@ -127,6 +129,83 @@ func (p *pageHandler) UpdateUserAllowedPages(c *gin.Context) {
 
 	response.SendSuccessResponse(c, http.StatusOK, map[string]string{
 		"message": "User pages updated successfully",
+	})
+}
+
+// GetRoleAllowedPages gets allowed pages for a specific role
+//
+//	@Summary		GetRoleAllowedPages
+//	@Description	Get all allowed pages for a specific role
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Role ID"
+//	@Success		200		{object}	map[string]interface{}	"pages"
+//	@Failure		400		{object}	response.ErrorResponse
+//	@Failure		401		{object}	response.ErrorResponse
+//	@Router			/api/admin/roles/{id}/pages [get]
+func (p *pageHandler) GetRoleAllowedPages(c *gin.Context) {
+	roleIDStr := c.Param("id")
+	roleID, err := uuid.Parse(roleIDStr)
+	if err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, "invalid role ID")
+		_ = c.Error(err)
+		return
+	}
+
+	pages, err := p.pageModule.GetRoleAllowedPages(c, roleID)
+	if err != nil {
+		p.log.Error("failed to get role allowed pages", zap.Error(err), zap.String("role_id", roleID.String()))
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, map[string]interface{}{
+		"pages": pages,
+	})
+}
+
+// UpdateRoleAllowedPages updates allowed pages for a specific role
+//
+//	@Summary		UpdateRoleAllowedPages
+//	@Description	Update allowed pages for a specific role
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string						true	"Role ID"
+//	@Param			request	body		dto.AssignPagesToRoleReq	true	"Update pages request"
+//	@Success		200		{object}	response.SuccessResponse
+//	@Failure		400		{object}	response.ErrorResponse
+//	@Failure		401		{object}	response.ErrorResponse
+//	@Router			/api/admin/roles/{id}/pages [put]
+func (p *pageHandler) UpdateRoleAllowedPages(c *gin.Context) {
+	roleIDStr := c.Param("id")
+	roleID, err := uuid.Parse(roleIDStr)
+	if err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, "invalid role ID")
+		_ = c.Error(err)
+		return
+	}
+
+	var req dto.AssignPagesToRoleReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
+	// Ensure roleID in request matches path parameter
+	req.RoleID = roleID
+
+	// Replace all pages for the role (removes old ones and adds new ones)
+	err = p.pageModule.ReplaceRolePages(c, roleID, req.PageIDs)
+	if err != nil {
+		p.log.Error("failed to update role allowed pages", zap.Error(err), zap.String("role_id", roleID.String()))
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, map[string]string{
+		"message": "Role pages updated successfully",
 	})
 }
 

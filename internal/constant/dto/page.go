@@ -39,3 +39,15 @@ type GetUserAllowedPagesRes struct {
 	Pages  []Page    `json:"pages"`
 }
 
+// AssignPagesToRoleReq represents a request to assign pages to a role
+type AssignPagesToRoleReq struct {
+	RoleID  uuid.UUID   `json:"role_id" validate:"required"`
+	PageIDs []uuid.UUID `json:"page_ids" validate:"required,min=1"`
+}
+
+// GetRoleAllowedPagesRes represents the response for getting role's allowed pages
+type GetRoleAllowedPagesRes struct {
+	RoleID uuid.UUID `json:"role_id"`
+	Pages  []Page    `json:"pages"`
+}
+
