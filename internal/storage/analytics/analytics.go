@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -951,6 +952,8 @@ func (s *AnalyticsStorageImpl) GetWelcomeBonusTransactions(ctx context.Context, 
 			gt.transaction_id,
 			gt.account_id,
 			ga.user_id,
+			u.username,
+			u.email,
 			gt.amount,
 			gt.currency,
 			gt.status,
@@ -1007,12 +1010,16 @@ func (s *AnalyticsStorageImpl) GetWelcomeBonusTransactions(ctx context.Context, 
 		var wb dto.WelcomeBonusTransaction
 		var accountID string
 		var userIDLocal uuid.UUID
+		var username sql.NullString
+		var email sql.NullString
 		var metadataStr *string
 
 		if err := rows.Scan(
 			&wb.ID,
 			&accountID,
 			&userIDLocal,
+			&username,
+			&email,
 			&wb.Amount,
 			&wb.Currency,
 			&wb.Status,
@@ -1026,6 +1033,12 @@ func (s *AnalyticsStorageImpl) GetWelcomeBonusTransactions(ctx context.Context, 
 		}
 
 		wb.UserID = userIDLocal
+		if username.Valid {
+			wb.Username = &username.String
+		}
+		if email.Valid {
+			wb.Email = &email.String
+		}
 		wb.TransactionType = "welcome_bonus"
 		if metadataStr != nil {
 			wb.Metadata = metadataStr

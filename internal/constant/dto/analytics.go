@@ -383,6 +383,8 @@ type TipTransaction struct {
 type WelcomeBonusTransaction struct {
 	ID                    string          `json:"id"`
 	UserID                uuid.UUID       `json:"user_id"`
+	Username              *string         `json:"username,omitempty"`
+	Email                 *string         `json:"email,omitempty"`
 	TransactionType       string          `json:"transaction_type"` // "welcome_bonus"
 	Amount                decimal.Decimal `json:"amount"`
 	Currency              string          `json:"currency"`
