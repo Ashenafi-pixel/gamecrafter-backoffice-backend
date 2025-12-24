@@ -522,14 +522,18 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 		whereConditions = append(whereConditions, fmt.Sprintf("(u.brand_id IS NULL OR u.brand_id IN (%s))", strings.Join(brandPlaceholders, ",")))
 	}
 
-	// Date range for transactions
-	if dateFrom != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("t.created_at >= $%d", argIndex))
+	// Date range for transactions - add to JOIN condition instead of WHERE to avoid filtering out users with no transactions
+	transactionDateFilter := ""
+	if dateFrom != nil && dateTo != nil {
+		transactionDateFilter = fmt.Sprintf("AND t.created_at >= $%d AND t.created_at <= $%d", argIndex, argIndex+1)
+		args = append(args, *dateFrom, *dateTo)
+		argIndex += 2
+	} else if dateFrom != nil {
+		transactionDateFilter = fmt.Sprintf("AND t.created_at >= $%d", argIndex)
 		args = append(args, *dateFrom)
 		argIndex++
-	}
-	if dateTo != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("t.created_at <= $%d", argIndex))
+	} else if dateTo != nil {
+		transactionDateFilter = fmt.Sprintf("AND t.created_at <= $%d", argIndex)
 		args = append(args, *dateTo)
 		argIndex++
 	}
@@ -624,7 +628,7 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 				COALESCE(MAX(t.created_at), u.created_at) as last_activity
 			FROM users u
 			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
-			LEFT JOIN transactions t ON u.id = t.user_id
+			LEFT JOIN transactions t ON u.id = t.user_id %s
 			%s
 			GROUP BY u.id, u.username, u.email, u.country, u.created_at, bal.amount_units, u.default_currency
 		)
@@ -645,7 +649,7 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 		%s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, whereClause, havingClause, orderBy, argIndex+1, argIndex+2)
+	`, transactionDateFilter, whereClause, havingClause, orderBy, argIndex+1, argIndex+2)
 
 	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
@@ -707,14 +711,14 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 				COALESCE(bal.amount_units, 0) as balance
 			FROM users u
 			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
-			LEFT JOIN transactions t ON u.id = t.user_id
+			LEFT JOIN transactions t ON u.id = t.user_id %s
 			%s
 			GROUP BY u.id, bal.amount_units
 			%s
 		)
 		SELECT COUNT(*) as total
 		FROM player_metrics
-	`, whereClause, havingClause)
+	`, transactionDateFilter, whereClause, havingClause)
 
 	var total int64
 	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
