@@ -350,14 +350,91 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 		total = int64(len(metrics))
 	}
 
-	// Calculate summary
+	// Calculate summary from ALL data (not just paginated results)
+	// We need to run a separate query to get the total summary
+	summaryQuery := fmt.Sprintf(`
+		WITH country_metrics AS (
+			SELECT 
+				COALESCE(u.country, 'Unknown') as country,
+				COUNT(DISTINCT u.id) as total_registrations,
+				COUNT(DISTINCT CASE 
+					WHEN COALESCE((SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id), u.created_at) >= $%d 
+					AND COALESCE((SELECT MAX(t3.created_at) FROM transactions t3 WHERE t3.user_id = u.id), u.created_at) <= $%d 
+					THEN u.id 
+					ELSE NULL 
+				END) as active_players,
+				COUNT(DISTINCT CASE 
+					WHEN EXISTS (
+						SELECT 1 FROM transactions t 
+						WHERE t.user_id = u.id 
+						AND t.transaction_type = 'deposit'
+					) 
+					THEN u.id 
+					ELSE NULL 
+				END) as total_depositors,
+				COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) as total_deposits,
+				COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) as total_wagered,
+				COALESCE(SUM(CASE WHEN t.transaction_type IN ('win', 'groove_win') THEN t.amount ELSE 0 END), 0) as total_won,
+				COALESCE(SUM(CASE WHEN t.transaction_type = 'rakeback_earned' THEN t.amount ELSE 0 END), 0) as rakeback_earned
+			FROM users u
+			LEFT JOIN transactions t ON u.id = t.user_id %s
+			%s
+			GROUP BY COALESCE(u.country, 'Unknown')
+			%s
+		)
+		SELECT 
+			SUM(total_registrations) as total_registrations,
+			SUM(active_players) as total_active_users,
+			SUM(total_depositors) as total_depositors,
+			SUM(total_deposits) as total_deposits,
+			SUM(total_wagered - total_won - rakeback_earned) as total_ngr
+		FROM country_metrics
+	`, dateFromParam2, dateToParam2, transactionDateFilter, whereClause, havingClause)
+
 	var summary dto.CountryReportSummary
-	for _, metric := range metrics {
-		summary.TotalDeposits = summary.TotalDeposits.Add(metric.TotalDeposits)
-		summary.TotalNGR = summary.TotalNGR.Add(metric.NGR)
-		summary.TotalActiveUsers += metric.ActivePlayers
-		summary.TotalDepositors += metric.TotalDepositors
-		summary.TotalRegistrations += metric.TotalRegistrations
+	var totalRegistrations, totalActiveUsers, totalDepositors sql.NullInt64
+	var totalDeposits, totalNGR sql.NullString
+
+	err = r.db.GetPool().QueryRow(ctx, summaryQuery, args[:len(args)-2]...).Scan(
+		&totalRegistrations,
+		&totalActiveUsers,
+		&totalDepositors,
+		&totalDeposits,
+		&totalNGR,
+	)
+	if err != nil {
+		r.log.Error("failed to get country metrics summary", zap.Error(err))
+		// Fallback to calculating from paginated results
+		for _, metric := range metrics {
+			summary.TotalDeposits = summary.TotalDeposits.Add(metric.TotalDeposits)
+			summary.TotalNGR = summary.TotalNGR.Add(metric.NGR)
+			summary.TotalActiveUsers += metric.ActivePlayers
+			summary.TotalDepositors += metric.TotalDepositors
+			summary.TotalRegistrations += metric.TotalRegistrations
+		}
+	} else {
+		// Use the summary from all data
+		if totalRegistrations.Valid {
+			summary.TotalRegistrations = int(totalRegistrations.Int64)
+		}
+		if totalActiveUsers.Valid {
+			summary.TotalActiveUsers = int(totalActiveUsers.Int64)
+		}
+		if totalDepositors.Valid {
+			summary.TotalDepositors = int(totalDepositors.Int64)
+		}
+		if totalDeposits.Valid {
+			deposits, err := decimal.NewFromString(totalDeposits.String)
+			if err == nil {
+				summary.TotalDeposits = deposits
+			}
+		}
+		if totalNGR.Valid {
+			ngr, err := decimal.NewFromString(totalNGR.String)
+			if err == nil {
+				summary.TotalNGR = ngr
+			}
+		}
 	}
 
 	// Calculate total pages
@@ -481,23 +558,23 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 	// Build HAVING clause for deposit and balance filters
 	havingConditions := []string{}
 	if req.MinDeposits != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("total_deposits >= $%d", argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MinDeposits))
+		havingConditions = append(havingConditions, fmt.Sprintf("total_deposits >= $%d::numeric", argIndex))
+		args = append(args, decimal.NewFromFloat(*req.MinDeposits).String())
 		argIndex++
 	}
 	if req.MaxDeposits != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("total_deposits <= $%d", argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MaxDeposits))
+		havingConditions = append(havingConditions, fmt.Sprintf("total_deposits <= $%d::numeric", argIndex))
+		args = append(args, decimal.NewFromFloat(*req.MaxDeposits).String())
 		argIndex++
 	}
 	if req.MinBalance != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("balance >= $%d", argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MinBalance))
+		havingConditions = append(havingConditions, fmt.Sprintf("balance >= $%d::numeric", argIndex))
+		args = append(args, decimal.NewFromFloat(*req.MinBalance).String())
 		argIndex++
 	}
 	if req.MaxBalance != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("balance <= $%d", argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MaxBalance))
+		havingConditions = append(havingConditions, fmt.Sprintf("balance <= $%d::numeric", argIndex))
+		args = append(args, decimal.NewFromFloat(*req.MaxBalance).String())
 		argIndex++
 	}
 
