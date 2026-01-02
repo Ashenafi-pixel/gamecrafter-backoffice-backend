@@ -405,12 +405,12 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 	if err != nil {
 		r.log.Error("failed to get country metrics summary", zap.Error(err))
 		// Fallback to calculating from paginated results
-		for _, metric := range metrics {
-			summary.TotalDeposits = summary.TotalDeposits.Add(metric.TotalDeposits)
-			summary.TotalNGR = summary.TotalNGR.Add(metric.NGR)
-			summary.TotalActiveUsers += metric.ActivePlayers
-			summary.TotalDepositors += metric.TotalDepositors
-			summary.TotalRegistrations += metric.TotalRegistrations
+	for _, metric := range metrics {
+		summary.TotalDeposits = summary.TotalDeposits.Add(metric.TotalDeposits)
+		summary.TotalNGR = summary.TotalNGR.Add(metric.NGR)
+		summary.TotalActiveUsers += metric.ActivePlayers
+		summary.TotalDepositors += metric.TotalDepositors
+		summary.TotalRegistrations += metric.TotalRegistrations
 		}
 	} else {
 		// Use the summary from all data
