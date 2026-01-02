@@ -30,7 +30,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "create game", http.MethodPost),
+				middleware.Authz(authModule, "add game", http.MethodPost),
 				middleware.SystemLogs("create game", &log, logsModule),
 			},
 		}, {
