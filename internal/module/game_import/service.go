@@ -2,6 +2,7 @@ package game_import
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -128,6 +129,11 @@ func (s *GameImportService) FetchGamesFromDirectus(ctx context.Context, directus
 
 	client := &http.Client{
 		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // Skip TLS verification for Directus API
+			},
+		},
 	}
 
 	resp, err := client.Do(req)
