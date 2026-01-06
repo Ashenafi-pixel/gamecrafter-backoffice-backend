@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -1159,4 +1160,244 @@ func (s *SystemConfig) UpdateGeoBlockingSettings(ctx context.Context, settings G
 	}
 
 	return nil
+}
+
+type GameImportConfig struct {
+	ID                    uuid.UUID  `json:"id"`
+	BrandID               uuid.UUID  `json:"brand_id"`
+	ScheduleType          string     `json:"schedule_type"` // daily, weekly, monthly, custom
+	ScheduleCron          *string    `json:"schedule_cron,omitempty"`
+	Providers             []string   `json:"providers,omitempty"` // null or array of provider names
+	DirectusURL           *string    `json:"directus_url,omitempty"`
+	CheckFrequencyMinutes *int       `json:"check_frequency_minutes,omitempty"`
+	IsActive              bool       `json:"is_active"`
+	LastRunAt             *time.Time `json:"last_run_at,omitempty"`
+	NextRunAt             *time.Time `json:"next_run_at,omitempty"`
+	LastCheckAt           *time.Time `json:"last_check_at,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
+}
+
+func (s *SystemConfig) GetGameImportConfig(ctx context.Context, brandID uuid.UUID) (*GameImportConfig, error) {
+	s.log.Info("Getting game import config", zap.String("brand_id", brandID.String()))
+
+	var config GameImportConfig
+	var providersJSON []byte
+	var checkFreqMinutes *int
+
+	err := s.db.GetPool().QueryRow(ctx, `
+		SELECT id, brand_id, schedule_type, schedule_cron, providers, directus_url, 
+		       check_frequency_minutes, is_active, last_run_at, next_run_at, 
+		       last_check_at, created_at, updated_at
+		FROM game_import_config
+		WHERE brand_id = $1
+	`, brandID).Scan(
+		&config.ID, &config.BrandID, &config.ScheduleType, &config.ScheduleCron,
+		&providersJSON, &config.DirectusURL, &checkFreqMinutes, &config.IsActive,
+		&config.LastRunAt, &config.NextRunAt, &config.LastCheckAt,
+		&config.CreatedAt, &config.UpdatedAt,
+	)
+
+	// Default check_frequency_minutes to 15 if NULL
+	if checkFreqMinutes == nil {
+		defaultFreq := 15
+		config.CheckFrequencyMinutes = &defaultFreq
+	} else {
+		config.CheckFrequencyMinutes = checkFreqMinutes
+	}
+
+	if err != nil {
+		if err == sql.ErrNoRows || err == pgx.ErrNoRows || strings.Contains(err.Error(), "no rows in result set") {
+			s.log.Info("No game import config found, returning defaults", zap.String("brand_id", brandID.String()))
+			// Return default configuration
+			defaultFreq := 15
+			return &GameImportConfig{
+				ID:                    uuid.Nil,
+				BrandID:               brandID,
+				ScheduleType:          "daily",
+				IsActive:              false,
+				Providers:             nil, // nil means all providers
+				CheckFrequencyMinutes: &defaultFreq,
+			}, nil
+		}
+		s.log.Error("Failed to get game import config", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get game import config")
+	}
+
+	// Parse providers JSON
+	if len(providersJSON) > 0 && string(providersJSON) != "null" {
+		if err := json.Unmarshal(providersJSON, &config.Providers); err != nil {
+			s.log.Warn("Failed to parse providers JSON, using empty array", zap.Error(err))
+			config.Providers = nil
+		}
+	}
+
+	return &config, nil
+}
+
+// updates or creates game import configuration
+func (s *SystemConfig) UpdateGameImportConfig(ctx context.Context, config GameImportConfig) error {
+	s.log.Info("Updating game import config", zap.String("brand_id", config.BrandID.String()))
+
+	// Validate schedule_type
+	validScheduleTypes := map[string]bool{
+		"daily":   true,
+		"weekly":  true,
+		"monthly": true,
+		"custom":  true,
+	}
+	if !validScheduleTypes[config.ScheduleType] {
+		return errors.ErrInvalidUserInput.Wrap(nil, "invalid schedule_type, must be: daily, weekly, monthly, or custom")
+	}
+
+	// Validate custom cron if schedule_type is custom
+	if config.ScheduleType == "custom" && (config.ScheduleCron == nil || *config.ScheduleCron == "") {
+		return errors.ErrInvalidUserInput.Wrap(nil, "schedule_cron is required when schedule_type is custom")
+	}
+
+	// Validate check_frequency_minutes
+	if config.CheckFrequencyMinutes != nil {
+		if *config.CheckFrequencyMinutes < 1 {
+			return errors.ErrInvalidUserInput.Wrap(nil, "check_frequency_minutes must be at least 1")
+		}
+		if *config.CheckFrequencyMinutes > 10080 {
+			return errors.ErrInvalidUserInput.Wrap(nil, "check_frequency_minutes cannot exceed 10080 (7 days)")
+		}
+	}
+
+	// Marshal providers to JSON
+	var providersJSON []byte
+	var err error
+	if len(config.Providers) == 0 {
+		providersJSON = []byte("null")
+	} else {
+		providersJSON, err = json.Marshal(config.Providers)
+		if err != nil {
+			s.log.Error("Failed to marshal providers", zap.Error(err))
+			return errors.ErrInternalServerError.Wrap(err, "failed to marshal providers")
+		}
+	}
+
+	// Default check_frequency_minutes to 15 if not provided
+	checkFreq := config.CheckFrequencyMinutes
+	if checkFreq == nil {
+		defaultFreq := 15
+		checkFreq = &defaultFreq
+	}
+
+	_, err = s.db.GetPool().Exec(ctx, `
+		INSERT INTO game_import_config (brand_id, schedule_type, schedule_cron, providers, directus_url, check_frequency_minutes, is_active, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		ON CONFLICT (brand_id)
+		DO UPDATE SET
+			schedule_type = EXCLUDED.schedule_type,
+			schedule_cron = EXCLUDED.schedule_cron,
+			providers = EXCLUDED.providers,
+			directus_url = EXCLUDED.directus_url,
+			check_frequency_minutes = EXCLUDED.check_frequency_minutes,
+			is_active = EXCLUDED.is_active,
+			updated_at = NOW()
+	`, config.BrandID, config.ScheduleType, config.ScheduleCron, providersJSON, config.DirectusURL, checkFreq, config.IsActive)
+
+	if err != nil {
+		s.log.Error("Failed to update game import config", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update game import config")
+	}
+
+	s.log.Info("Game import config updated successfully", zap.String("brand_id", config.BrandID.String()))
+	return nil
+}
+
+// updates the last_run_at and next_run_at timestamps
+func (s *SystemConfig) UpdateGameImportLastRun(ctx context.Context, brandID uuid.UUID, lastRunAt time.Time, nextRunAt *time.Time) error {
+	_, err := s.db.GetPool().Exec(ctx, `
+		UPDATE game_import_config
+		SET last_run_at = $1, next_run_at = $2, updated_at = NOW()
+		WHERE brand_id = $3
+	`, lastRunAt, nextRunAt, brandID)
+
+	if err != nil {
+		s.log.Error("Failed to update game import last run", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update game import last run")
+	}
+
+	return nil
+}
+
+// UpdateGameImportLastCheck updates the last_check_at timestamp for a brand
+func (s *SystemConfig) UpdateGameImportLastCheck(ctx context.Context, brandID uuid.UUID, lastCheckAt time.Time) error {
+	_, err := s.db.GetPool().Exec(ctx, `
+		UPDATE game_import_config
+		SET last_check_at = $1, updated_at = NOW()
+		WHERE brand_id = $2
+	`, lastCheckAt, brandID)
+
+	if err != nil {
+		s.log.Error("Failed to update game import last check", zap.Error(err))
+		return errors.ErrInternalServerError.Wrap(err, "failed to update game import last check")
+	}
+
+	return nil
+}
+
+// GetAllActiveGameImportConfigs retrieves all active game import configurations
+func (s *SystemConfig) GetAllActiveGameImportConfigs(ctx context.Context) ([]GameImportConfig, error) {
+	s.log.Info("Getting all active game import configs")
+
+	rows, err := s.db.GetPool().Query(ctx, `
+		SELECT id, brand_id, schedule_type, schedule_cron, providers, directus_url, 
+		       check_frequency_minutes, is_active, last_run_at, next_run_at, 
+		       last_check_at, created_at, updated_at
+		FROM game_import_config
+		WHERE is_active = true
+	`)
+	if err != nil {
+		s.log.Error("Failed to get active game import configs", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get active game import configs")
+	}
+	defer rows.Close()
+
+	var configs []GameImportConfig
+	for rows.Next() {
+		var config GameImportConfig
+		var providersJSON []byte
+		var checkFreqMinutes *int
+
+		err := rows.Scan(
+			&config.ID, &config.BrandID, &config.ScheduleType, &config.ScheduleCron,
+			&providersJSON, &config.DirectusURL, &checkFreqMinutes, &config.IsActive,
+			&config.LastRunAt, &config.NextRunAt, &config.LastCheckAt,
+			&config.CreatedAt, &config.UpdatedAt,
+		)
+		if err != nil {
+			s.log.Error("Failed to scan game import config", zap.Error(err))
+			continue
+		}
+
+		// Default check_frequency_minutes to 15 if NULL
+		if checkFreqMinutes == nil {
+			defaultFreq := 15
+			config.CheckFrequencyMinutes = &defaultFreq
+		} else {
+			config.CheckFrequencyMinutes = checkFreqMinutes
+		}
+
+		// Parse providers JSON
+		if len(providersJSON) > 0 && string(providersJSON) != "null" {
+			if err := json.Unmarshal(providersJSON, &config.Providers); err != nil {
+				s.log.Warn("Failed to parse providers JSON", zap.Error(err))
+				config.Providers = nil
+			}
+		}
+
+		configs = append(configs, config)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.log.Error("Error iterating game import configs", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "error iterating game import configs")
+	}
+
+	s.log.Info("Retrieved active game import configs", zap.Int("count", len(configs)))
+	return configs, nil
 }

@@ -1,585 +1,196 @@
-# TucanBIT Online Casino
+[![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/golang-migrate/migrate/ci.yaml?branch=master)](https://github.com/golang-migrate/migrate/actions/workflows/ci.yaml?query=branch%3Amaster)
+[![GoDoc](https://pkg.go.dev/badge/github.com/golang-migrate/migrate)](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)
+[![Coverage Status](https://img.shields.io/coveralls/github/golang-migrate/migrate/master.svg)](https://coveralls.io/github/golang-migrate/migrate?branch=master)
+[![packagecloud.io](https://img.shields.io/badge/deb-packagecloud.io-844fec.svg)](https://packagecloud.io/golang-migrate/migrate?filter=debs)
+[![Docker Pulls](https://img.shields.io/docker/pulls/migrate/migrate.svg)](https://hub.docker.com/r/migrate/migrate/)
+![Supported Go Versions](https://img.shields.io/badge/Go-1.24%2C%201.25-lightgrey.svg)
+[![GitHub Release](https://img.shields.io/github/release/golang-migrate/migrate.svg)](https://github.com/golang-migrate/migrate/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/golang-migrate/migrate/v4)](https://goreportcard.com/report/github.com/golang-migrate/migrate/v4)
 
-A dynamic platform for TucanBIT online casino, offering robust user registration, authentication, and operational group management.
+# migrate
 
-**This is API documentation for TucanBIT online casino**
+__Database migrations written in Go. Use as [CLI](#cli-usage) or import as [library](#use-in-your-go-project).__
 
----
+* Migrate reads migrations from [sources](#migration-sources)
+   and applies them in correct order to a [database](#databases).
+* Drivers are "dumb", migrate glues everything together and makes sure the logic is bulletproof.
+   (Keeps the drivers lightweight, too.)
+* Database drivers don't assume things or try to correct user input. When in doubt, fail.
 
-## Table of Contents
-- [Endpoints](#endpoints)
-  - [User Management](#user-management)
-  - [Operational Group](#operational-group)
-  - [Operational Group Type](#operational-group-type)
-- [API Documentation](#api-documentation)
-- [Contributing](#contributing)
-- [License](#license)
+Forked from [mattes/migrate](https://github.com/mattes/migrate)
 
----
+## Databases
 
-## Endpoints
+Database drivers run migrations. [Add a new database?](database/driver.go)
 
-### User Management
+* [PostgreSQL](database/postgres)
+* [PGX v4](database/pgx)
+* [PGX v5](database/pgx/v5)
+* [Redshift](database/redshift)
+* [Ql](database/ql)
+* [Cassandra / ScyllaDB](database/cassandra)
+* [SQLite](database/sqlite)
+* [SQLite3](database/sqlite3) ([todo #165](https://github.com/mattes/migrate/issues/165))
+* [SQLCipher](database/sqlcipher)
+* [MySQL / MariaDB](database/mysql)
+* [Neo4j](database/neo4j)
+* [MongoDB](database/mongodb)
+* [CrateDB](database/crate) ([todo #170](https://github.com/mattes/migrate/issues/170))
+* [Shell](database/shell) ([todo #171](https://github.com/mattes/migrate/issues/171))
+* [Google Cloud Spanner](database/spanner)
+* [CockroachDB](database/cockroachdb)
+* [YugabyteDB](database/yugabytedb)
+* [ClickHouse](database/clickhouse)
+* [Firebird](database/firebird)
+* [MS SQL Server](database/sqlserver)
+* [rqlite](database/rqlite)
 
-#### **User Registration**
-- **Endpoint:** `/register`
-- **Method:** `POST`
-- **Description:** Register a new user on the platform.
+### Database URLs
 
-**Validation Rules:**
-- **Username:**
-  - Required.
-  - 3–20 characters.
-  - Alphanumeric (optional: allow underscores or hyphens).
-  - Must be unique.
-- **Phone Number:**
-  - Required.
-  - Must follow valid E.164 phone number format.
-  - Must be unique.
-- **Password:**
-  - Required.
-  - Minimum 8 characters.
-  - Must include:
-    - At least one uppercase letter.
-    - At least one lowercase letter.
-    - At least one digit.
-    - At least one special character.
+Database connection strings are specified via URLs. The URL format is driver dependent but generally has the form: `dbdriver://username:password@host:port/dbname?param1=true&param2=false`
 
-#### **User Login**
-- **Endpoint:** `/login`
-- **Method:** `POST`
-- **Description:** Authenticate and log in users to access the platform.
+Any [reserved URL characters](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_reserved_characters) need to be escaped. Note, the `%` character also [needs to be escaped](https://en.wikipedia.org/wiki/Percent-encoding#Percent-encoding_the_percent_character)
 
----
+Explicitly, the following characters need to be escaped:
+`!`, `#`, `$`, `%`, `&`, `'`, `(`, `)`, `*`, `+`, `,`, `/`, `:`, `;`, `=`, `?`, `@`, `[`, `]`
 
-### Operational Group
+It's easiest to always run the URL parts of your DB connection URL (e.g. username, password, etc) through an URL encoder. See the example Python snippets below:
 
-#### **Create Operational Group**
-- **Endpoint:** `/operationalgroup`
-- **Method:** `POST`
-- **Description:** Allow admins to create a new operational group.
+```bash
+$ python3 -c 'import urllib.parse; print(urllib.parse.quote(input("String to encode: "), ""))'
+String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
+FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
+$ python2 -c 'import urllib; print urllib.quote(raw_input("String to encode: "), "")'
+String to encode: FAKEpassword!#$%&'()*+,/:;=?@[]
+FAKEpassword%21%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D
+$
+```
 
-#### **Get Operational Groups**
-- **Endpoint:** `/operationalgroup`
-- **Method:** `GET`
-- **Description:** Retrieve a list of all operational groups.
+## Migration Sources
 
----
+Source drivers read migrations from local or remote sources. [Add a new source?](source/driver.go)
 
-### Operational Group Type
+* [Filesystem](source/file) - read from filesystem
+* [io/fs](source/iofs) - read from a Go [io/fs](https://pkg.go.dev/io/fs#FS)
+* [Go-Bindata](source/go_bindata) - read from embedded binary data ([jteeuwen/go-bindata](https://github.com/jteeuwen/go-bindata))
+* [pkger](source/pkger) - read from embedded binary data ([markbates/pkger](https://github.com/markbates/pkger))
+* [GitHub](source/github) - read from remote GitHub repositories
+* [GitHub Enterprise](source/github_ee) - read from remote GitHub Enterprise repositories
+* [Bitbucket](source/bitbucket) - read from remote Bitbucket repositories
+* [Gitlab](source/gitlab) - read from remote Gitlab repositories
+* [AWS S3](source/aws_s3) - read from Amazon Web Services S3
+* [Google Cloud Storage](source/google_cloud_storage) - read from Google Cloud Platform Storage
 
-#### **Create Operational Group Type**
-- **Endpoint:** `/operationalgrouptype`
-- **Method:** `POST`
-- **Description:** Allow admins to define new operational group types.
+## CLI usage
 
-#### **Get Operational Group Type**
-- **Endpoint:** `/operationalgrouptype/:groupID`
-- **Method:** `GET`
-- **Description:** Retrieve operational group types associated with a specific `groupID`.
+* Simple wrapper around this library.
+* Handles ctrl+c (SIGINT) gracefully.
+* No config search paths, no config files, no magic ENV var injections.
 
----
+[CLI Documentation](cmd/migrate) (includes CLI install instructions)
 
-### balance 
+### Basic usage
 
-#### **update balance**
-- **Endpoint:** `/api/balance/update`
-- **Method:** `POST`
-- **Description:** Allow users and admins to update balance. it should be protected by role.
+```bash
+$ migrate -source file://path/to/migrations -database postgres://localhost:5432/database up 2
+```
 
+### Docker usage
 
-#### **Get balance**
-- **Endpoint:** `/api/balance`
-- **Method:** `GET`
-- **Description:** Retrieve user balance. user must also provide authorization header, which is Bearer token
+```bash
+$ docker run -v {{ migration dir }}:/migrations --network host migrate/migrate
+    -path=/migrations/ -database postgres://localhost:5432/database up 2
+```
 
----
+## Use in your Go project
 
-### balancelogs 
+* API is stable and frozen for this release (v3 & v4).
+* Uses [Go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to manage dependencies.
+* To help prevent database corruptions, it supports graceful stops via `GracefulStop chan bool`.
+* Bring your own logger.
+* Uses `io.Reader` streams internally for low memory overhead.
+* Thread-safe and no goroutine leaks.
 
-#### **Get balance logs**
-- **Endpoint:** `/api/balance/logs`
-- **Method:** `GET`
-- **Description:** Retrieve balance logs
+__[Go Documentation](https://pkg.go.dev/github.com/golang-migrate/migrate/v4)__
 
-**Query Parameters:**
-- **user-id:**
-  - Optional.
-  - uuid.
-- **operation_group_id**
-  - Optional.
-  - uuid.- 
- **operation_type_id**
-  - Optional.
-  - uuid.
- **start-date**
-  - Optional.
-  - format: YYYY-MM-DD.
- **end-date**
-  - Optional.
-  - format: YYYY-MM-DD.
- **page**
-  - Required.
-  - number.
- **per-page**
-  - Required.
-  - number.
----
+```go
+import (
+    "github.com/golang-migrate/migrate/v4"
+    _ "github.com/golang-migrate/migrate/v4/database/postgres"
+    _ "github.com/golang-migrate/migrate/v4/source/github"
+)
 
-### exchange 
+func main() {
+    m, err := migrate.New(
+        "github://mattes:personal-access-token@mattes/migrate_test",
+        "postgres://localhost:5432/database?sslmode=enable")
+    m.Steps(2)
+}
+```
 
-#### **Get Conversion rate**
-- **Endpoint:** `api/conversion/rate`
-- **Method:** `POST`
-- **Description:** Retrieve exchange rate
+Want to use an existing database client?
 
-**Parameters:**
-- **currency_from:**
-  - Required.
-  - ISO 4217 currency code
-- **currency_to**
-  - Required.
-  - ISO 4217 currency code
+```go
+import (
+    "database/sql"
+    _ "github.com/lib/pq"
+    "github.com/golang-migrate/migrate/v4"
+    "github.com/golang-migrate/migrate/v4/database/postgres"
+    _ "github.com/golang-migrate/migrate/v4/source/file"
+)
 
+func main() {
+    db, err := sql.Open("postgres", "postgres://localhost:5432/database?sslmode=enable")
+    driver, err := postgres.WithInstance(db, &postgres.Config{})
+    m, err := migrate.NewWithDatabaseInstance(
+        "file:///migrations",
+        "postgres", driver)
+    m.Up() // or m.Steps(2) if you want to explicitly set the number of migrations to run
+}
+```
 
-#### **Exchange**
-- **Endpoint:** `api/conversion/rate`
-- **Method:** `POST`
-- **Description:** exchange currency from one currency to another
+## Getting started
 
-**Parameters:**
-- **currency_from:**
-  - Required.
-  - ISO 4217 currency code
-- **currency_to**
-  - Required.
-  - ISO 4217 currency code
-- **amount**
-  - Required
-  - Decimal  
----
+Go to [getting started](GETTING_STARTED.md)
 
-#### **HandleWS**
-- **Endpoint:** `/ws`
-- **Method:** `GET`
-- **Description:** HandleWS sets up a WebSocket connection for a user to interact with the game in real time
+## Tutorials
 
-**body:**
-after getting initial connection the user has to send auth access token 
-- **access_token:**
-  - Required.
-  - string  
----
+* [CockroachDB](database/cockroachdb/TUTORIAL.md)
+* [PostgreSQL](database/postgres/TUTORIAL.md)
 
-#### **GetOpenRound**
-- **Endpoint:** `/api/game/round`
-- **Method:** `GET`
-- **Description:** Get allow users to get open round
+(more tutorials to come)
 
----
+## Migration files
 
-#### **PlaceBet**
-- **Endpoint:** `/api/game/place-bet`
-- **Method:** `POST`
-- **Description:** PlaceBet allow user to bet for open round
-**body:**
-- **round_id:**
-  - Required.
-  - uuid  
-- **currency:**
-  - Required.
-  - string  
-- **amount:**
-  - Required.
-  - decimal (min 1 max 1000)  
-  
----
+Each migration has an up and down migration. [Why?](FAQ.md#why-two-separate-files-up-and-down-for-a-migration)
 
-#### **CashOut**
-- **Endpoint:** `/api/game/cash-out`
-- **Method:** `POST`
-- **Description:** CashOut allow user to cashout in progress bets
-**body:**
-- **round_id:**
-  - Required.
-  - uuid  
+```bash
+1481574547_create_users_table.up.sql
+1481574547_create_users_table.down.sql
+```
+
+[Best practices: How to write migrations.](MIGRATIONS.md)
+
+## Coming from another db migration tool?
+
+Check out [migradaptor](https://github.com/musinit/migradaptor/).
+*Note: migradaptor is not affiliated or supported by this project*
+
+## Versions
+
+Version | Supported? | Import | Notes
+--------|------------|--------|------
+**master** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | New features and bug fixes arrive here first |
+**v4** | :white_check_mark: | `import "github.com/golang-migrate/migrate/v4"` | Used for stable releases |
+**v3** | :x: | `import "github.com/golang-migrate/migrate"` (with package manager) or `import "gopkg.in/golang-migrate/migrate.v3"` (not recommended) | **DO NOT USE** - No longer supported |
+
+## Development and Contributing
+
+Yes, please! [`Makefile`](Makefile) is your friend,
+read the [development guide](CONTRIBUTING.md).
+
+Also have a look at the [FAQ](FAQ.md).
 
 ---
 
-#### **GetBetHistory**
-- **Endpoint:** `/api/admin/game/history`
-- **Method:** `GET`
-- **Description:** Retrieve user bets based on user_id (opetional)
-**parameter:**
-- **user-id:**
-  - Optional.
-  - uuid  
-  
----
-
-#### **GeMytBetHistory**
-- **Endpoint:** `/api/user/game/history`
-- **Method:** `GET`
-- **Description:** Retrieve user to retrieve users bet
-**parameter:**
-- **user-id:**
-  - Optional.
-  - uuid  
-  
----
-
-#### **Cancel Bet**
-- **Endpoint:** `/api/game/cancel`
-- **Method:** `POST`
-- **Description:** Cancel User Bet
-**parameter:**
-- **round_id:**
-  - required.
-  - uuid  
-  
----
-
-
-#### **Change Password**
-- **Endpoint:** `/api/user/password`
-- **Method:** `PATCH`
-- **Description:** change user password
-**parameter:**
-- **old_password:**
-  - required.
-  - string   
- 
-- **old_password:**
-  - required.
-  - string   
-
-- **confirm_password:**
-  - required.
-  - string   
-
-  **Validation Rules:**
-- **new_password:**
-  - Required.
-  - 3–20 characters.
-  - Alphanumeric (optional: allow underscores or hyphens).
-  - Must be unique.
----
-
-#### **Get Leaders**
-- **Endpoint:** `/api/game/leaders`
-- **Method:** `Get`
-- **Description:** Get bet leaders
-  
----
-
-#### **Forget Password**
-- **Endpoint:** `/api/user/password/forget`
-- **Method:** `POST`
-- **Description:** Forget password Request
-**parameter:**
-- **username:**
-  - required.
-  - email,phone, or username (string)
-  
----
-
-#### **Verify OTP For Forget Password**
-- **Endpoint:** `/api/user/password/forget/verify`
-- **Method:** `POST`
-- **Description:** Verify OTP For Forget password Request
-**parameter:**
-- **username:**
-  - required.
-  - email,phone, or username  
- - **otp:**
-  - required.
-  - string
-  
----
-
-#### **Verify OTP For Forget Password**
-- **Endpoint:** `/api/user/password/reset`
-- **Method:** `POST`
-- **Description:** Reset Password
-**parameter:**
-- **token:**
-  - required.
-  - string 
- - **new_password:**
-  - required.
-  - string
- - **confirm_password:**
-  - required.
-  - string  
----
-
-
-#### **Verify OTP For Forget Password**
-- **Endpoint:** `/api/user/password/reset`
-- **Method:** `POST`
-- **Description:** Reset Password
-**parameter:**
-- **token:**
-  - required.
-  - string 
- - **new_password:**
-  - required.
-  - string
- - **confirm_password:**
-  - required.
-  - string  
----
-
-#### **update profile**
-- **Endpoint:** `/api/user/profile`
-- **Method:** `POST`
-- **Description:** update profile
-**parameter:**
-- **token:**
-  - required.
-  - string 
- - **first_name:**
-  - optional.
-  - string
- - **last_name:**
-  - optional.
-  - string  
-- **email:**
-  - optional.
-  - string  
-- **date_of_birth**
-   - optional 
-   - string 
----
-
-
-#### **update profile**
-- **Endpoint:** `/user/oauth/google`
-- **Method:** `GET`
-- **Description:** sigin with google
-
----
-
-#### **update profile**
-- **Endpoint:** `/user/oauth/facebook`
-- **Method:** `GET`
-- **Description:** sigin with facebook
-
----
-#### **update profile**
-- **Endpoint:** `/api/admin/user/block`
-- **Method:** `POST`
-- **Description:** block account
-**parameter:**
-- **token:**
-  - required.
-  - string 
- - **duration:**
-  - required.
-  - string (temporary  or permanent)
- - **type:**
-  - required. (financial, gaming, login, complete)
-  - string  
-- **blocked_from:**
-  - required for duration temporary. (example 2025-01-15T04:03:00Z)
-  - string 
-- **blocked_to:**
-  - required for duration temporary. (example 2025-01-17T05:03:00Z)
-  - string  
-- **note**
-   - optional 
-   - string 
-
-- **reason**
-   - optional 
-   - string 
-
-
----
-
-
-#### **update profile**
-- **Endpoint:** `/api/admin/user/block/accounts`
-- **Method:** `POST`
-- **Description:** get blocked accounts
-**parameter:**
-- **token:**
-  - required.
-  - string 
- - **per_page:**
-  - required.
-  - int
- - **page:**
-  - required
-  - int
-- **user_id:**
-  - optional 
-  - uuid 
-- **duration:**
-  - optional 
-  - string  
-- **type**
-   - optional 
-   - string 
-
----
-
-
-#### **update profile**
-- **Endpoint:** `/api/admin/departments`
-- **Method:** `POST`
-- **Description:** create department
-**parameter:**
-- **name:**
-  - required.
-  - string 
- - **notifications:**
-  - optional.
-  - []string (which are the list of notification department gets by default)
- 
-
----
-
-#### **update profile**
-- **Endpoint:** `/api/admin/departments`
-- **Method:** `GET`
-- **Description:** create department
-**parameter:**
- - **per_page:**
-  - required.
-  - int
- - **page:**
-  - required
-  - int
-
----
-
-#### **update profile**
-- **Endpoint:** `/api/admin/departments`
-- **Method:** `PATCH`
-- **Description:** update department
-**parameter:**
-- **name:**
-  - required.
-  - string 
- - **notifications:**
-  - optional.
-  - []string (which are the list of notification department gets by default)
- 
----
-
-#### **update profile**
-- **Endpoint:** `/api/admin/departments/assign`
-- **Method:** `POST`
-- **Description:** assign department
-**parameter:**
-- **user_id:**
-  - required.
-  - uuid 
- - **department_id:**
-  - required.
-  - uuid
- 
----
-
-#### **add ip filter**
-- **Endpoint:** `/api/admin/ipfilters`
-- **Method:** `POST`
-- **Description:** assign department
-**parameter:**
-- **start_ip:**
-  - required.
-  - string
-- **end_ip:**
-  - optional.
-  - string 
- - **type:**
-  - required.
-  - string (allow or deny)
- 
-#### **get financial metrics**
-- **Endpoint:** `/api/admin/performance/financial`
-- **Method:** `GET`
-- **Description:** get finanicial metrics
-
----
-#### **get game metrics**
-- **Endpoint:** `/api/admin/performance/game`
-- **Method:** `GET`
-- **Description:** get game metrics
-
----
-
-#### **add fund manually**
-- **Endpoint:** `/api/admin/balance/add/fund`
-- **Method:** `POST`
-- **Description:** Add Fund Manually 
-**parameter:**
-- **amount:**
-  - required.
-  - decimal
-- **reason:**
-  - required.
-  - decimal 
- - **Currency:**
-  - optional.
-  - string 
- - **Note:**
-  - optional.
-  - string 
-
----
-
-#### **remove fund manually**
-- **Endpoint:** `/api/admin/balance/remove/fund`
-- **Method:** `POST`
-- **Description:** Remove Fund Manually 
-**parameter:**
-- **amount:**
-  - required.
-  - decimal
-- **reason:**
-  - required.
-  - decimal 
- - **Currency:**
-  - optional.
-  - string 
- - **Note:**
-  - optional.
-  - string 
-
----
-
-
-#### **remove fund manually**
-- **Endpoint:** `/api/admin/balance/remove/fund`
-- **Method:** `POST`
-- **Description:** Remove Fund Manually 
-**parameter:**
-- **amount:**
-  - required.
-  - decimal
-- **reason:**
-  - required.
-  - decimal 
- - **Currency:**
-  - optional.
-  - string 
- - **Note:**
-  - optional.
-  - string 
-
----
-
-## API Documentation
-
-### Swagger UI
-- **URL:** `/swagger/index.html`
-- **Description:** View and test API endpoints using Swagger's interactive interface.
-
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
+Looking for alternatives? [https://awesome-go.com/#database](https://awesome-go.com/#database).

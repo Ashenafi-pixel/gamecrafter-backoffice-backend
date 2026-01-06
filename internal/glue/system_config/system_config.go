@@ -260,6 +260,31 @@ func Init(group *gin.RouterGroup, log *zap.Logger, systemConfigHandler *system_c
 				middleware.Auth(),
 			},
 		},
+		// Game Import Routes
+		{
+			Method:  "GET",
+			Path:    "/api/admin/settings/game-import/config",
+			Handler: systemConfigHandler.GetGameImportConfig,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "PUT",
+			Path:    "/api/admin/settings/game-import/config",
+			Handler: systemConfigHandler.UpdateGameImportConfig,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  "POST",
+			Path:    "/api/admin/settings/game-import/trigger",
+			Handler: systemConfigHandler.TriggerGameImport,
+			Middleware: []gin.HandlerFunc{
+				middleware.Auth(),
+			},
+		},
 	}
 
 	routing.RegisterRoute(group, systemConfigRoutes, *log)

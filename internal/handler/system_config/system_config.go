@@ -2,6 +2,7 @@ package system_config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
+	"github.com/tucanbit/internal/module/game_import"
 	"github.com/tucanbit/internal/storage/admin_activity_logs"
 	"github.com/tucanbit/internal/storage/alert"
 	"github.com/tucanbit/internal/storage/system_config"
@@ -22,14 +24,20 @@ type SystemConfigHandler struct {
 	systemConfigStorage *system_config.SystemConfig
 	adminActivityLogs   admin_activity_logs.AdminActivityLogsStorage
 	alertStorage        alert.AlertStorage
+	gameImportService   GameImportServiceInterface
 	log                 *zap.Logger
 }
 
-func NewSystemConfigHandler(db *persistencedb.PersistenceDB, adminActivityLogs admin_activity_logs.AdminActivityLogsStorage, alertStorage alert.AlertStorage, log *zap.Logger) *SystemConfigHandler {
+type GameImportServiceInterface interface {
+	ImportGames(ctx context.Context, brandID uuid.UUID) (*game_import.ImportResult, error)
+}
+
+func NewSystemConfigHandler(db *persistencedb.PersistenceDB, adminActivityLogs admin_activity_logs.AdminActivityLogsStorage, alertStorage alert.AlertStorage, gameImportService GameImportServiceInterface, log *zap.Logger) *SystemConfigHandler {
 	return &SystemConfigHandler{
 		systemConfigStorage: system_config.NewSystemConfig(db, log),
 		adminActivityLogs:   adminActivityLogs,
 		alertStorage:        alertStorage,
+		gameImportService:   gameImportService,
 		log:                 log,
 	}
 }
@@ -1955,5 +1963,136 @@ func (h *SystemConfigHandler) UpdateGeoBlockingSettings(ctx *gin.Context) {
 		"success": true,
 		"data":    req,
 		"message": "Geo blocking settings updated successfully",
+	})
+}
+
+// retrieves game import configuration for a brand
+func (h *SystemConfigHandler) GetGameImportConfig(ctx *gin.Context) {
+	brandIDStr := ctx.Query("brand_id")
+	if brandIDStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "brand_id is required",
+		})
+		return
+	}
+
+	brandID, err := uuid.Parse(brandIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid brand_id format",
+		})
+		return
+	}
+
+	config, err := h.systemConfigStorage.GetGameImportConfig(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Failed to get game import config", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to get game import config",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    config,
+	})
+}
+
+// updates game import configuration
+func (h *SystemConfigHandler) UpdateGameImportConfig(ctx *gin.Context) {
+	var req system_config.GameImportConfig
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		h.log.Error("Invalid request body", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if err := h.systemConfigStorage.UpdateGameImportConfig(ctx.Request.Context(), req); err != nil {
+		h.log.Error("Failed to update game import config", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update game import config",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	h.logAdminActivity(ctx, "update", "game_import_config", "Updated game import configuration", map[string]interface{}{
+		"brand_id":      req.BrandID.String(),
+		"schedule_type": req.ScheduleType,
+		"is_active":     req.IsActive,
+		"providers":     req.Providers,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    req,
+		"message": "Game import configuration updated successfully",
+	})
+}
+
+// Manually triggers a game import
+func (h *SystemConfigHandler) TriggerGameImport(ctx *gin.Context) {
+	brandIDStr := ctx.Query("brand_id")
+	if brandIDStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "brand_id is required",
+		})
+		return
+	}
+
+	brandID, err := uuid.Parse(brandIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid brand_id format",
+		})
+		return
+	}
+
+	if h.gameImportService == nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Game import service is not configured",
+		})
+		return
+	}
+
+	h.log.Info("Manual game import triggered", zap.String("brand_id", brandID.String()))
+
+	result, err := h.gameImportService.ImportGames(ctx.Request.Context(), brandID)
+	if err != nil {
+		h.log.Error("Game import failed", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Game import failed",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	h.logAdminActivity(ctx, "trigger", "game_import", "Manually triggered game import", map[string]interface{}{
+		"brand_id":             brandID.String(),
+		"games_imported":       result.GamesImported,
+		"house_edges_imported": result.HouseEdgesImported,
+		"total_fetched":        result.TotalFetched,
+		"filtered":             result.Filtered,
+		"duplicates_skipped":   result.DuplicatesSkipped,
+	})
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+		"message": "Game import completed successfully",
 	})
 }

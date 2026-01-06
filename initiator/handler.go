@@ -20,10 +20,10 @@ import (
 	"github.com/tucanbit/internal/handler/balancelogs"
 	"github.com/tucanbit/internal/handler/banner"
 	"github.com/tucanbit/internal/handler/bet"
+	"github.com/tucanbit/internal/handler/brand"
 	"github.com/tucanbit/internal/handler/campaign"
 	"github.com/tucanbit/internal/handler/cashback"
 	"github.com/tucanbit/internal/handler/company"
-	"github.com/tucanbit/internal/handler/brand"
 	"github.com/tucanbit/internal/handler/department"
 	"github.com/tucanbit/internal/handler/exchange"
 	"github.com/tucanbit/internal/handler/game"
@@ -36,6 +36,7 @@ import (
 	"github.com/tucanbit/internal/handler/operationalgrouptype"
 	"github.com/tucanbit/internal/handler/operationsdefinitions"
 	"github.com/tucanbit/internal/handler/otp"
+	"github.com/tucanbit/internal/handler/page"
 	"github.com/tucanbit/internal/handler/performance"
 	"github.com/tucanbit/internal/handler/rakeback_override"
 	"github.com/tucanbit/internal/handler/report"
@@ -46,10 +47,10 @@ import (
 	"github.com/tucanbit/internal/handler/twofactor"
 	"github.com/tucanbit/internal/handler/user"
 	"github.com/tucanbit/internal/handler/withdrawal_management"
-	"github.com/tucanbit/internal/handler/page"
 	"github.com/tucanbit/internal/handler/withdrawals"
 	"github.com/tucanbit/internal/handler/ws"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
+	gameImportModule "github.com/tucanbit/internal/module/game_import"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/platform/redis"
 	"github.com/tucanbit/platform/utils"
@@ -154,77 +155,76 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		Groove:                groove.NewGrooveHandler(module.Groove, persistence.User, persistence.Balance, persistence.Groove, persistence.Database, log),
 		Game:                  game.NewGameHandler(module.Game),
 		HouseEdge:             game.NewHouseEdgeHandler(module.HouseEdge),
-		RakebackOverride:     rakeback_override.NewRakebackOverrideHandler(module.RakebackOverride, log),
+		RakebackOverride:      rakeback_override.NewRakebackOverrideHandler(module.RakebackOverride, log),
 		RegistrationService:   registrationService,
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
 		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService, persistence.Database.GetPool()),
-		SystemConfig:          system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, persistence.Alert, log),
-		Alert:                 alert.NewAlertHandler(persistence.Alert, persistence.AlertEmailGroups, module.Email, log),
-		AlertEmailGroup:       alert.NewAlertEmailGroupHandler(persistence.AlertEmailGroups, log),
-		WithdrawalManagement:  withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
-		Withdrawals:           withdrawals.NewWithdrawalsHandler(persistence.Database, log),
-		AdminActivityLogs:     admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
-		AirtimeProvider:       airtime.Init(log, persistence.AirtimeProvider),
-		KYC:                   kyc.NewKYCHandler(persistence.KYC, persistence.AdminActivityLogs, log),
-		Page:                  page.Init(module.Page, log),
+		SystemConfig: func() *system_config.SystemConfigHandler {
+			directusURL := viper.GetString("directus.api_url")
+			if directusURL == "" {
+				directusURL = "https://tucanbit-prod.directus.app/graphql"
+			}
+			gameImportService := gameImportModule.NewGameImportService(
+				persistence.Database,
+				persistence.Game,
+				persistence.HouseEdge,
+				persistence.SystemConfig,
+				directusURL,
+				log,
+			)
+			return system_config.NewSystemConfigHandler(persistence.Database, persistence.AdminActivityLogs, persistence.Alert, gameImportService, log)
+		}(),
+		Alert:                alert.NewAlertHandler(persistence.Alert, persistence.AlertEmailGroups, module.Email, log),
+		AlertEmailGroup:      alert.NewAlertEmailGroupHandler(persistence.AlertEmailGroups, log),
+		WithdrawalManagement: withdrawal_management.NewWithdrawalManagementHandler(persistence.Database, log),
+		Withdrawals:          withdrawals.NewWithdrawalsHandler(persistence.Database, log),
+		AdminActivityLogs:    admin_activity_logs.NewAdminActivityLogsHandler(module.AdminActivityLogs, log),
+		AirtimeProvider:      airtime.Init(log, persistence.AirtimeProvider),
+		KYC:                  kyc.NewKYCHandler(persistence.KYC, persistence.AdminActivityLogs, log),
+		Page:                 page.Init(module.Page, log),
 	}
 }
 
-// airtimeAdapter adapts storage.Airtime to module.AirtimeProvider interface
 type airtimeAdapter struct {
 	storage storage.Airtime
 }
 
 func (a *airtimeAdapter) RefereshUtilies(c *gin.Context) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
 	return map[string]interface{}{"message": "Airtime utilities refreshed"}, nil
 }
 
 func (a *airtimeAdapter) GetAvailableAirtimeUtilities(c *gin.Context, req dto.GetRequest) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
 	return map[string]interface{}{"data": []interface{}{}, "total": 0}, nil
 }
 
 func (a *airtimeAdapter) UpdateAirtimeStatus(c *gin.Context, req dto.UpdateAirtimeStatusReq) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
 	return map[string]interface{}{"message": "Airtime status updated"}, nil
 }
 
 func (a *airtimeAdapter) UpdateUtilityPrice(c *gin.Context, req dto.UpdateAirtimeUtilityPriceReq) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
 	return map[string]interface{}{"message": "Airtime utility price updated"}, nil
 }
 
 func (a *airtimeAdapter) ClaimPoints(c *gin.Context, req dto.ClaimPointsReq) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
+
 	return map[string]interface{}{"message": "Points claimed successfully"}, nil
 }
 
 func (a *airtimeAdapter) GetActiveAvailableAirtime(c *gin.Context, req dto.GetRequest) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
+
 	return map[string]interface{}{"data": []interface{}{}, "total": 0}, nil
 }
 
 func (a *airtimeAdapter) GetUserAirtimeTransactions(c *gin.Context, req dto.GetRequest, userID uuid.UUID) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
 	return map[string]interface{}{"data": []interface{}{}, "total": 0}, nil
 }
 
 func (a *airtimeAdapter) GetAirtimeUtilitiesStats(c *gin.Context) (interface{}, error) {
-	// Implement the method that the airtime handler expects
-	// For now, return a simple response
+
 	return map[string]interface{}{"total_utilities": 0, "active_utilities": 0}, nil
 }
 
-// redisAdapter adapts the platform Redis client to the RegistrationService interface
 type redisAdapter struct {
 	client *redis.RedisOTP
 }
@@ -242,11 +242,10 @@ func (r *redisAdapter) Delete(ctx context.Context, key string) error {
 }
 
 func (r *redisAdapter) Exists(ctx context.Context, key string) (bool, error) {
-	// Since the platform Redis doesn't have Exists, we'll try to get the key
-	// If it returns an error, the key doesn't exist
+
 	_, err := r.client.Get(ctx, key)
 	if err != nil {
-		return false, nil // Key doesn't exist
+		return false, nil
 	}
-	return true, nil // Key exists
+	return true, nil
 }

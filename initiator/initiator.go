@@ -26,6 +26,7 @@ import (
 	alertModule "github.com/tucanbit/internal/module/alert"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	emailModule "github.com/tucanbit/internal/module/email"
+	gameImportModule "github.com/tucanbit/internal/module/game_import"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/cashback"
 	cashbackModule "github.com/tucanbit/internal/module/cashback"
@@ -319,6 +320,31 @@ func Initiate() {
 			logger.Info("Alert cronjob service started successfully")
 			logger.Info("Alerts will be checked automatically every minute")
 		}
+	}
+
+	// Initialize and start game import cronjob service
+	directusURL := viper.GetString("directus.api_url")
+	if directusURL == "" {
+		directusURL = "https://tucanbit-prod.directus.app/graphql"
+	}
+	gameImportService := gameImportModule.NewGameImportService(
+		persistence.Database,
+		persistence.Game,
+		persistence.HouseEdge,
+		persistence.SystemConfig,
+		directusURL,
+		logger,
+	)
+	gameImportCronjobService := gameImportModule.NewGameImportCronjobService(
+		gameImportService,
+		persistence.SystemConfig,
+		logger,
+	)
+	if err := gameImportCronjobService.StartScheduler(context.Background()); err != nil {
+		logger.Error("Failed to start game import cronjob service", zap.Error(err))
+	} else {
+		logger.Info("Game import cronjob service started successfully")
+		logger.Info("Game imports will be checked automatically every 5 days")
 	}
 
 	logger.Info("done initializing module layer")
