@@ -758,6 +758,12 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			}
 		}
 
+		// Get referral code filter
+		var referedByCode sql.NullString
+		if req.Filter.ReferedByCode != nil && *req.Filter.ReferedByCode != "" {
+			referedByCode = sql.NullString{String: *req.Filter.ReferedByCode, Valid: true}
+		}
+
 		params = db.GetAllUsersWithFiltersParams{
 			SearchTerm:    sql.NullString{String: searchTerm, Valid: true},
 			Status:        normalizedStatus,
@@ -766,6 +772,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			BrandID:       brandIDs,
 			SortBy:        sql.NullString{String: "", Valid: false},
 			SortOrder:     sql.NullString{String: "", Valid: false},
+			ReferedByCode: referedByCode,
 		}
 
 		// Set sort parameters if provided
@@ -876,6 +883,7 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 			BrandID:       params.BrandID,
 			SortBy:        sql.NullString{Valid: false},
 			SortOrder:     sql.NullString{Valid: false},
+			ReferedByCode: params.ReferedByCode,
 			Limit:         1, // Just need one row to get the count
 			Offset:        0,
 		}

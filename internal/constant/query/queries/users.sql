@@ -103,6 +103,7 @@ WITH users_data AS (
     AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR u.kyc_status = ANY($3))
     AND ($4::boolean IS NULL OR u.is_test_account = $4)
     AND ($5::uuid[] IS NULL OR array_length($5, 1) IS NULL OR array_length($5, 1) = 0 OR u.brand_id = ANY($5))
+    AND ($10::text IS NULL OR $10 = '' OR u.refered_by_code = $10)
     GROUP BY u.id
 ),
 row_count AS (
@@ -123,6 +124,7 @@ ORDER BY
   CASE WHEN $6::text = 'created_at' AND $7::text = 'desc' THEN c.created_at END DESC NULLS LAST,
   c.created_at DESC
 LIMIT $8 OFFSET $9;
+-- Note: $10 is used for refered_by_code filter in the WHERE clause above
 
 -- name: GetUserPointsByReferals :one 
 SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;

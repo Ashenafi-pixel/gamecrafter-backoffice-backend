@@ -361,6 +361,7 @@ type GetPlayersFilter struct {
 	VipLevel      []string `json:"vip_level"`
 	IsTestAccount *bool    `json:"is_test_account,omitempty"`
 	BrandID       []string `json:"brand_id,omitempty"`
+	ReferedByCode *string  `json:"refered_by_code,omitempty"`
 }
 type GetPlayersReq struct {
 	Page      int              `json:"page"`
