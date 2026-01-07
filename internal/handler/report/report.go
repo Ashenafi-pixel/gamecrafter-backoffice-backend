@@ -1085,3 +1085,38 @@ func (r *report) GetAffiliateReport(ctx *gin.Context) {
 
 	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
 }
+
+// GetAffiliatePlayersReport
+//	@Summary		Get Affiliate Players Report (Drill-down)
+//	@Description	Get player-level metrics for a specific referral code
+//	@Tags			Reports
+//	@Accept			json
+//	@Produce		json
+//	@Param			referral_code	query		string	true	"Referral code to drill down"
+//	@Param			date_from		query		string	false	"Date from (YYYY-MM-DD)"
+//	@Param			date_to			query		string	false	"Date to (YYYY-MM-DD)"
+//	@Param			is_test_account	query		boolean	false	"Filter by test account"
+//	@Success		200				{object}	dto.AffiliatePlayersReportRes
+//	@Failure		400				{object}	errors.Error
+//	@Failure		500				{object}	errors.Error
+//	@Router			/api/admin/report/affiliate/players [get]
+func (r *report) GetAffiliatePlayersReport(ctx *gin.Context) {
+	var req dto.AffiliatePlayersReportReq
+
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = ctx.Error(err)
+		return
+	}
+
+	// TODO: Get allowed referral codes based on admin's RBAC permissions
+	allowedReferralCodes := []string{}
+
+	reportRes, err := r.reportModule.GetAffiliatePlayersReport(ctx.Request.Context(), req, allowedReferralCodes)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
+}

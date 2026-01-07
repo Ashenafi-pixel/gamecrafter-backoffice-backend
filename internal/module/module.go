@@ -296,6 +296,7 @@ type Report interface {
 	GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, userBrandIDs []uuid.UUID) (dto.GamePlayersRes, error)
 	GetProviderPerformance(ctx context.Context, req dto.ProviderPerformanceReportReq, userBrandIDs []uuid.UUID) (dto.ProviderPerformanceReportRes, error)
 	GetAffiliateReport(ctx context.Context, req dto.AffiliateReportReq, allowedReferralCodes []string) (dto.AffiliateReportRes, error)
+	GetAffiliatePlayersReport(ctx context.Context, req dto.AffiliatePlayersReportReq, allowedReferralCodes []string) (dto.AffiliatePlayersReportRes, error)
 }
 
 type Squads interface {

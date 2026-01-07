@@ -259,6 +259,18 @@ func Init(
 				middleware.SystemLogs("Get Affiliate Report", &log, systemLogs),
 			},
 		},
+		{
+			Method:  "GET",
+			Path:    "/api/admin/report/affiliate/players",
+			Handler: report.GetAffiliatePlayersReport,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view affiliate report", http.MethodGet),
+				middleware.SystemLogs("Get Affiliate Players Report", &log, systemLogs),
+			},
+		},
 	}
 
 	routing.RegisterRoute(group, reportRoutes, log)

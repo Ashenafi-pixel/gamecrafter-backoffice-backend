@@ -82,3 +82,7 @@ func (r *report) GetProviderPerformance(ctx context.Context, req dto.ProviderPer
 func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReportReq, allowedReferralCodes []string) (dto.AffiliateReportRes, error) {
 	return r.reportStorage.GetAffiliateReport(ctx, req, allowedReferralCodes)
 }
+
+func (r *report) GetAffiliatePlayersReport(ctx context.Context, req dto.AffiliatePlayersReportReq, allowedReferralCodes []string) (dto.AffiliatePlayersReportRes, error) {
+	return r.reportStorage.GetAffiliatePlayersReport(ctx, req, allowedReferralCodes)
+}
