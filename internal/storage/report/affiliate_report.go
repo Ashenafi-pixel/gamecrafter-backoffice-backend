@@ -285,6 +285,67 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 		return res, errors.ErrUnableToGet.Wrap(err, "failed to process affiliate report")
 	}
 
+	// Get list of all registrations (without date filtering for default view)
+	var registrationsQuery string
+	var regArgs []interface{}
+	
+	if req.IsTestAccount != nil {
+		registrationsQuery = `
+			SELECT 
+				u.id::text as user_id,
+				COALESCE(u.username, '') as username,
+				COALESCE(u.email, '') as email,
+				COALESCE(u.refered_by_code, 'N/A') as referral_code,
+				u.created_at::text as created_at
+			FROM users u
+			WHERE COALESCE(u.refered_by_code, '') != ''
+				AND u.is_test_account = $1
+			ORDER BY u.created_at DESC
+			LIMIT 1000
+		`
+		regArgs = []interface{}{*req.IsTestAccount}
+	} else {
+		registrationsQuery = `
+			SELECT 
+				u.id::text as user_id,
+				COALESCE(u.username, '') as username,
+				COALESCE(u.email, '') as email,
+				COALESCE(u.refered_by_code, 'N/A') as referral_code,
+				u.created_at::text as created_at
+			FROM users u
+			WHERE COALESCE(u.refered_by_code, '') != ''
+			ORDER BY u.created_at DESC
+			LIMIT 1000
+		`
+		regArgs = []interface{}{}
+	}
+
+	regRows, err := r.db.GetPool().Query(ctx, registrationsQuery, regArgs...)
+	if err != nil {
+		r.log.Error("Failed to execute registrations query", zap.Error(err))
+		// Don't fail the whole request if registrations query fails
+		summary.Registrations = []dto.AffiliateRegistration{}
+	} else {
+		defer regRows.Close()
+		var registrations []dto.AffiliateRegistration
+		for regRows.Next() {
+			var reg dto.AffiliateRegistration
+			err := regRows.Scan(
+				&reg.UserID,
+				&reg.Username,
+				&reg.Email,
+				&reg.ReferralCode,
+				&reg.CreatedAt,
+			)
+			if err != nil {
+				r.log.Error("Failed to scan registration row", zap.Error(err))
+				continue
+			}
+			registrations = append(registrations, reg)
+		}
+		summary.Registrations = registrations
+	}
+
 	res.Data = data
 	res.Summary = summary
 	res.Message = "Affiliate report retrieved successfully"

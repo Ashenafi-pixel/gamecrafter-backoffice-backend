@@ -550,16 +550,26 @@ type AffiliateReportRes struct {
 	Summary AffiliateReportSummary `json:"summary"`
 }
 
+// AffiliateRegistration represents a single registration
+type AffiliateRegistration struct {
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	ReferralCode string `json:"referral_code"`
+	CreatedAt   string `json:"created_at"`
+}
+
 // AffiliateReportSummary represents summary statistics for the report
 type AffiliateReportSummary struct {
-	TotalRegistrations    int64           `json:"total_registrations"`
-	TotalUniqueDepositors int64           `json:"total_unique_depositors"`
-	TotalActiveCustomers  int64           `json:"total_active_customers"`
-	TotalBets             int64           `json:"total_bets"`
-	TotalGGR              decimal.Decimal `json:"total_ggr"`
-	TotalNGR              decimal.Decimal `json:"total_ngr"`
-	TotalDepositsUSD      decimal.Decimal `json:"total_deposits_usd"`
-	TotalWithdrawalsUSD   decimal.Decimal `json:"total_withdrawals_usd"`
+	TotalRegistrations    int64                    `json:"total_registrations"`
+	TotalUniqueDepositors  int64                    `json:"total_unique_depositors"`
+	TotalActiveCustomers   int64                    `json:"total_active_customers"`
+	TotalBets              int64                    `json:"total_bets"`
+	TotalGGR               decimal.Decimal          `json:"total_ggr"`
+	TotalNGR               decimal.Decimal          `json:"total_ngr"`
+	TotalDepositsUSD       decimal.Decimal          `json:"total_deposits_usd"`
+	TotalWithdrawalsUSD    decimal.Decimal          `json:"total_withdrawals_usd"`
+	Registrations          []AffiliateRegistration  `json:"registrations"` // List of all registrations
 }
 
 // AffiliatePlayersReportReq represents the request for Affiliate Players Report (drill-down)
