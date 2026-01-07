@@ -67,6 +67,11 @@ func (a *authz) GetPermissions(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+	// Enforce maximum per-page limit of 400
+	const maxPerPage = 400
+	if perPageParsed > maxPerPage {
+		perPageParsed = maxPerPage
+	}
 	resp, err := a.authzModule.GetPermissions(c, dto.GetPermissionReq{Page: pageParsed, PerPage: perPageParsed})
 	if err != nil {
 		_ = c.Error(err)

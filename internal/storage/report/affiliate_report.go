@@ -45,8 +45,9 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 		dateTo = time.Date(dateTo.Year(), dateTo.Month(), dateTo.Day(), 23, 59, 59, 999999999, dateTo.Location())
 	}
 
-	// Build referral code filter
+	// Build referral code filter and test account filter
 	referralCodeFilter := ""
+	testAccountFilter := ""
 	args := []interface{}{dateFrom, dateTo} // Start with date range for date_range CTE
 	argIndex := 3
 
@@ -67,19 +68,26 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 		argIndex++
 	}
 
-	// Main query - aggregates metrics by date and referral code
+	// Test account filter
+	if req.IsTestAccount != nil {
+		testAccountFilter = fmt.Sprintf(" AND u.is_test_account = $%d", argIndex)
+		args = append(args, *req.IsTestAccount)
+		argIndex++
+	}
+
+	// Main query - aggregates metrics by referral code (grouped, not by date)
 	// Use dateFrom and dateTo multiple times, so we'll reuse $1 and $2
 	query := fmt.Sprintf(`
-		WITH date_range AS (
-			SELECT generate_series(
-				$1::date,
-				$2::date,
-				'1 day'::interval
-			)::date as date
+		WITH affiliate_users AS (
+			SELECT DISTINCT
+				COALESCE(u.referal_code, '') as referral_code,
+				COALESCE(u.username, '') as affiliate_username,
+				COALESCE(u.email, '') as affiliate_email
+			FROM users u
+			WHERE COALESCE(u.referal_code, '') != ''
 		),
 		user_registrations AS (
 			SELECT 
-				DATE(u.created_at) as date,
 				COALESCE(u.refered_by_code, 'N/A') as referral_code,
 				COUNT(DISTINCT u.id) as registrations
 			FROM users u
@@ -87,11 +95,11 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 				AND DATE(u.created_at) <= $2
 				AND COALESCE(u.refered_by_code, '') != ''
 				%s
-			GROUP BY DATE(u.created_at), COALESCE(u.refered_by_code, 'N/A')
+				%s
+			GROUP BY COALESCE(u.refered_by_code, 'N/A')
 		),
 		user_deposits AS (
 			SELECT 
-				DATE(t.created_at) as date,
 				COALESCE(u.refered_by_code, 'N/A') as referral_code,
 				COUNT(DISTINCT CASE WHEN t.transaction_type = 'deposit' THEN u.id ELSE NULL END) as unique_depositors,
 				COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) as deposits_usd
@@ -102,11 +110,11 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 				AND DATE(t.created_at) <= $2
 				AND COALESCE(u.refered_by_code, '') != ''
 				%s
-			GROUP BY DATE(t.created_at), COALESCE(u.refered_by_code, 'N/A')
+				%s
+			GROUP BY COALESCE(u.refered_by_code, 'N/A')
 		),
 		user_withdrawals AS (
 			SELECT 
-				DATE(t.created_at) as date,
 				COALESCE(u.refered_by_code, 'N/A') as referral_code,
 				COALESCE(SUM(CASE WHEN t.transaction_type = 'withdrawal' THEN t.amount ELSE 0 END), 0) as withdrawals_usd
 			FROM transactions t
@@ -116,14 +124,11 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 				AND DATE(t.created_at) <= $2
 				AND COALESCE(u.refered_by_code, '') != ''
 				%s
-			GROUP BY DATE(t.created_at), COALESCE(u.refered_by_code, 'N/A')
+				%s
+			GROUP BY COALESCE(u.refered_by_code, 'N/A')
 		),
 		user_activity AS (
 			SELECT 
-				DATE(COALESCE(
-					(SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id),
-					u.created_at
-				)) as date,
 				COALESCE(u.refered_by_code, 'N/A') as referral_code,
 				COUNT(DISTINCT u.id) as active_customers
 			FROM users u
@@ -137,14 +142,11 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 				) <= $2
 				AND COALESCE(u.refered_by_code, '') != ''
 				%s
-			GROUP BY DATE(COALESCE(
-				(SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id),
-				u.created_at
-			)), COALESCE(u.refered_by_code, 'N/A')
+				%s
+			GROUP BY COALESCE(u.refered_by_code, 'N/A')
 		),
 		bet_metrics AS (
 			SELECT 
-				DATE(COALESCE(gt.created_at, b.timestamp, sb.created_at, p.timestamp, NOW())) as date,
 				COALESCE(u.refered_by_code, 'N/A') as referral_code,
 				COUNT(CASE 
 					WHEN gt.type = 'wager' AND gt.amount < 0 THEN 1
@@ -192,11 +194,26 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 				AND DATE(t.created_at) <= $2
 			WHERE COALESCE(u.refered_by_code, '') != ''
 				%s
-			GROUP BY DATE(COALESCE(gt.created_at, b.timestamp, sb.created_at, p.timestamp, NOW())), COALESCE(u.refered_by_code, 'N/A')
+				%s
+			GROUP BY COALESCE(u.refered_by_code, 'N/A')
+		),
+		all_referral_codes AS (
+			SELECT DISTINCT referral_code
+			FROM (
+				SELECT referral_code FROM user_registrations
+				UNION
+				SELECT referral_code FROM user_deposits
+				UNION
+				SELECT referral_code FROM user_withdrawals
+				UNION
+				SELECT referral_code FROM user_activity
+				UNION
+				SELECT referral_code FROM bet_metrics
+			) combined
 		)
 		SELECT 
-			dr.date::text as date,
-			COALESCE(ur.referral_code, ud.referral_code, uw.referral_code, ua.referral_code, bm.referral_code, 'N/A') as referral_code,
+			arc.referral_code,
+			COALESCE(au.affiliate_username, 'N/A') as affiliate_username,
 			COALESCE(ur.registrations, 0) as registrations,
 			COALESCE(ud.unique_depositors, 0) as unique_depositors,
 			COALESCE(ua.active_customers, 0) as active_customers,
@@ -205,18 +222,19 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 			COALESCE(bm.total_stake, 0) - COALESCE(bm.total_win, 0) - COALESCE(bm.rakeback_earned, 0) as ngr,
 			COALESCE(ud.deposits_usd, 0) as deposits_usd,
 			COALESCE(uw.withdrawals_usd, 0) as withdrawals_usd
-		FROM date_range dr
-		LEFT JOIN user_registrations ur ON dr.date = ur.date
-		LEFT JOIN user_deposits ud ON dr.date = ud.date AND COALESCE(ur.referral_code, 'N/A') = COALESCE(ud.referral_code, 'N/A')
-		LEFT JOIN user_withdrawals uw ON dr.date = uw.date AND COALESCE(ur.referral_code, 'N/A') = COALESCE(uw.referral_code, 'N/A')
-		LEFT JOIN user_activity ua ON dr.date = ua.date AND COALESCE(ur.referral_code, 'N/A') = COALESCE(ua.referral_code, 'N/A')
-		LEFT JOIN bet_metrics bm ON dr.date = bm.date AND COALESCE(ur.referral_code, 'N/A') = COALESCE(bm.referral_code, 'N/A')
+		FROM all_referral_codes arc
+		LEFT JOIN user_registrations ur ON arc.referral_code = ur.referral_code
+		LEFT JOIN user_deposits ud ON arc.referral_code = ud.referral_code
+		LEFT JOIN user_withdrawals uw ON arc.referral_code = uw.referral_code
+		LEFT JOIN user_activity ua ON arc.referral_code = ua.referral_code
+		LEFT JOIN bet_metrics bm ON arc.referral_code = bm.referral_code
+		LEFT JOIN affiliate_users au ON arc.referral_code = au.referral_code
 		WHERE COALESCE(ur.registrations, 0) > 0 
 			OR COALESCE(ud.unique_depositors, 0) > 0
 			OR COALESCE(ua.active_customers, 0) > 0
 			OR COALESCE(bm.total_bets, 0) > 0
-		ORDER BY dr.date DESC, referral_code
-	`, referralCodeFilter, referralCodeFilter, referralCodeFilter, referralCodeFilter, referralCodeFilter)
+		ORDER BY referral_code
+	`, referralCodeFilter, testAccountFilter, referralCodeFilter, testAccountFilter, referralCodeFilter, testAccountFilter, referralCodeFilter, testAccountFilter, referralCodeFilter, testAccountFilter)
 
 	rows, err := r.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
@@ -230,9 +248,11 @@ func (r *report) GetAffiliateReport(ctx context.Context, req dto.AffiliateReport
 
 	for rows.Next() {
 		var row dto.AffiliateReportRow
+		// Set date to empty string since we're grouping by referral code only
+		row.Date = ""
 		err := rows.Scan(
-			&row.Date,
 			&row.ReferralCode,
+			&row.AffiliateUsername,
 			&row.Registrations,
 			&row.UniqueDepositors,
 			&row.ActiveCustomers,

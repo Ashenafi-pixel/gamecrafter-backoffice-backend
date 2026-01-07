@@ -532,6 +532,7 @@ type AffiliateReportReq struct {
 type AffiliateReportRow struct {
 	Date              string          `json:"date" db:"date"`
 	ReferralCode      string          `json:"referral_code" db:"referral_code"`
+	AffiliateUsername string          `json:"affiliate_username" db:"affiliate_username"`
 	Registrations     int64           `json:"registrations" db:"registrations"`
 	UniqueDepositors  int64           `json:"unique_depositors" db:"unique_depositors"`
 	ActiveCustomers   int64           `json:"active_customers" db:"active_customers"`
