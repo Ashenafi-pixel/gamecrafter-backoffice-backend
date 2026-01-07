@@ -105,6 +105,7 @@ func (h *GameHandler) GetGameByID(c *gin.Context) {
 //	@Param			search			query	string	false	"Search by name"
 //	@Param			status			query	string	false	"Filter by status (ACTIVE, INACTIVE, MAINTENANCE)"
 //	@Param			provider		query	string	false	"Filter by provider"
+//	@Param			game_id			query	string	false	"Filter by game ID"
 //	@Param			enabled			query	bool	false	"Filter by enabled status"
 //	@Param			sort_by			query	string	false	"Sort by field (name, status, created_at, updated_at)"
 //	@Param			sort_order		query	string	false	"Sort order (asc, desc)"

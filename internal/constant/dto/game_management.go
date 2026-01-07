@@ -84,6 +84,7 @@ type GameQueryParams struct {
 	Search    string `form:"search"`
 	Status    string `form:"status" validate:"omitempty,oneof=ACTIVE INACTIVE MAINTENANCE"`
 	Provider  string `form:"provider"`
+	GameID    string `form:"game_id"` // Filter by game_id
 	Enabled   *bool  `form:"enabled"`
 	SortBy    string `form:"sort_by" validate:"omitempty,oneof=name status created_at updated_at"`
 	SortOrder string `form:"sort_order" validate:"omitempty,oneof=asc desc"`
