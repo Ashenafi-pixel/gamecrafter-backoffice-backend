@@ -517,4 +517,3 @@ func (r *report) GetAffiliatePlayersReport(ctx context.Context, req dto.Affiliat
 
 	return res, nil
 }
-
