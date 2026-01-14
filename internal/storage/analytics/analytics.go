@@ -215,6 +215,11 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			where += " AND game_id = ?"
 			args = append(args, *filters.GameID)
 		}
+		if filters.Search != nil && *filters.Search != "" {
+			searchPattern := "%" + *filters.Search + "%"
+			where += " AND (id ILIKE ? OR round_id ILIKE ? OR game_name ILIKE ? OR provider ILIKE ? OR external_transaction_id ILIKE ? OR cast(amount as String) ILIKE ?)"
+			args = append(args, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+		}
 	} else {
 		where = "WHERE user_id = ?"
 		args = []interface{}{userIDStr}
@@ -239,6 +244,11 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			if filters.Status != nil {
 				where += " AND status = ?"
 				args = append(args, *filters.Status)
+			}
+			if filters.Search != nil && *filters.Search != "" {
+				searchPattern := "%" + *filters.Search + "%"
+				where += " AND (id ILIKE ? OR round_id ILIKE ? OR game_name ILIKE ? OR provider ILIKE ? OR external_transaction_id ILIKE ? OR cast(amount as String) ILIKE ?)"
+				args = append(args, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
 			}
 		}
 	}

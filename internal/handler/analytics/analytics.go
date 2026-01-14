@@ -172,6 +172,10 @@ func (a *analytics) GetUserTransactions(c *gin.Context) {
 		filters.Status = &statusParam
 	}
 
+	if search := c.Query("search"); search != "" {
+		filters.Search = &search
+	}
+
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
 			filters.Limit = limit
