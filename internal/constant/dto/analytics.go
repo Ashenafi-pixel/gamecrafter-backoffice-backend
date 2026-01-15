@@ -43,6 +43,7 @@ type TransactionFilters struct {
 	BrandID         *string    `json:"brand_id,omitempty"`
 	Limit           int        `json:"limit,omitempty"`
 	Offset          int        `json:"offset,omitempty"`
+	Search          *string    `json:"search,omitempty"`
 }
 
 // RakebackFilters for querying rakeback transactions
