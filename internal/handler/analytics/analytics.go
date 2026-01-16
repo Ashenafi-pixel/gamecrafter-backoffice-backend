@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1363,5 +1364,266 @@ func (a *analytics) GetTransactionReport(c *gin.Context) {
 			Total:    len(transactions),
 			PageSize: filters.Limit,
 		},
+	})
+}
+
+func (a *analytics) GetDashboardOverview(c *gin.Context) {
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	dateFromStr := c.Query("date_from")
+	if dateFromStr == "" {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "date_from parameter is required",
+		})
+		return
+	}
+
+	dateFrom, err := time.Parse("2006-01-02", dateFromStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date_from format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	dateToStr := c.Query("date_to")
+	if dateToStr == "" {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "date_to parameter is required",
+		})
+		return
+	}
+
+	dateTo, err := time.Parse("2006-01-02", dateToStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date_to format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	var userIDs []uuid.UUID
+	if isTestAccountStr := c.Query("is_test_account"); isTestAccountStr != "" {
+		isTestAccount, err := strconv.ParseBool(isTestAccountStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Invalid is_test_account value. Use true or false",
+			})
+			return
+		}
+		userIDs, err = a.getUserIDsByTestAccount(c.Request.Context(), &isTestAccount)
+		if err != nil {
+			a.logger.Error("Failed to get filtered user IDs", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Failed to filter users",
+			})
+			return
+		}
+	}
+
+	includeDailyBreakdown := false
+	if includeStr := c.Query("include_daily_breakdown"); includeStr != "" {
+		includeDailyBreakdown, _ = strconv.ParseBool(includeStr)
+	}
+
+	response, err := a.analyticsStorage.GetDashboardOverview(c.Request.Context(), dateFrom, dateTo, userIDs, includeDailyBreakdown)
+	if err != nil {
+		a.logger.Error("Failed to get dashboard overview",
+			zap.Error(err),
+			zap.Time("date_from", dateFrom),
+			zap.Time("date_to", dateTo))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to retrieve dashboard overview: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    response,
+	})
+}
+
+func (a *analytics) GetPerformanceSummary(c *gin.Context) {
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	rangeType := c.Query("range")
+	var dateFrom, dateTo *time.Time
+
+	if rangeType == "" || rangeType == "custom" {
+		if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+			parsed, err := time.Parse("2006-01-02", dateFromStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+					Success: false,
+					Error:   "Invalid date_from format. Use YYYY-MM-DD",
+				})
+				return
+			}
+			dateFrom = &parsed
+		}
+
+		if dateToStr := c.Query("date_to"); dateToStr != "" {
+			parsed, err := time.Parse("2006-01-02", dateToStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+					Success: false,
+					Error:   "Invalid date_to format. Use YYYY-MM-DD",
+				})
+				return
+			}
+			dateTo = &parsed
+		}
+
+		if dateFrom == nil || dateTo == nil {
+			c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Either range parameter or both date_from and date_to are required",
+			})
+			return
+		}
+		rangeType = "custom"
+	}
+
+	var userIDs []uuid.UUID
+	if isTestAccountStr := c.Query("is_test_account"); isTestAccountStr != "" {
+		isTestAccount, err := strconv.ParseBool(isTestAccountStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Invalid is_test_account value. Use true or false",
+			})
+			return
+		}
+		userIDs, err = a.getUserIDsByTestAccount(c.Request.Context(), &isTestAccount)
+		if err != nil {
+			a.logger.Error("Failed to get filtered user IDs", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Failed to filter users",
+			})
+			return
+		}
+	}
+
+	response, err := a.analyticsStorage.GetPerformanceSummary(c.Request.Context(), rangeType, dateFrom, dateTo, userIDs)
+	if err != nil {
+		a.logger.Error("Failed to get performance summary",
+			zap.Error(err),
+			zap.String("range_type", rangeType))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to retrieve performance summary: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    response,
+	})
+}
+
+func (a *analytics) GetTimeSeriesAnalytics(c *gin.Context) {
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	dateFromStr := c.Query("date_from")
+	if dateFromStr == "" {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "date_from parameter is required",
+		})
+		return
+	}
+
+	dateFrom, err := time.Parse("2006-01-02", dateFromStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date_from format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	dateToStr := c.Query("date_to")
+	if dateToStr == "" {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "date_to parameter is required",
+		})
+		return
+	}
+
+	dateTo, err := time.Parse("2006-01-02", dateToStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date_to format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	granularity := c.DefaultQuery("granularity", "day")
+
+	var userIDs []uuid.UUID
+	if isTestAccountStr := c.Query("is_test_account"); isTestAccountStr != "" {
+		isTestAccount, err := strconv.ParseBool(isTestAccountStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Invalid is_test_account value. Use true or false",
+			})
+			return
+		}
+		userIDs, err = a.getUserIDsByTestAccount(c.Request.Context(), &isTestAccount)
+		if err != nil {
+			a.logger.Error("Failed to get filtered user IDs", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+				Success: false,
+				Error:   "Failed to filter users",
+			})
+			return
+		}
+	}
+
+	metricsStr := c.DefaultQuery("metrics", "")
+	var metrics []string
+	if metricsStr != "" {
+		metrics = strings.Split(metricsStr, ",")
+		for i, m := range metrics {
+			metrics[i] = strings.TrimSpace(m)
+		}
+	}
+
+	response, err := a.analyticsStorage.GetTimeSeriesAnalytics(c.Request.Context(), dateFrom, dateTo, granularity, userIDs, metrics)
+	if err != nil {
+		a.logger.Error("Failed to get time series analytics",
+			zap.Error(err),
+			zap.Time("date_from", dateFrom),
+			zap.Time("date_to", dateTo),
+			zap.String("granularity", granularity))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to retrieve time series analytics: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    response,
 	})
 }

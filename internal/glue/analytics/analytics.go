@@ -42,6 +42,11 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 		adminAnalyticsGroup.POST("/daily-report/last-week", analyticsHandler.SendLastWeekReportEmail)
 		adminAnalyticsGroup.POST("/daily-report/test", analyticsHandler.SendTestDailyReport)
 		adminAnalyticsGroup.GET("/daily-report/cronjob-status", analyticsHandler.GetCronjobStatus)
+
+		// Dashboard APIs
+		adminAnalyticsGroup.GET("/dashboard/overview", analyticsHandler.GetDashboardOverview)
+		adminAnalyticsGroup.GET("/dashboard/performance-summary", analyticsHandler.GetPerformanceSummary)
+		adminAnalyticsGroup.GET("/dashboard/time-series", analyticsHandler.GetTimeSeriesAnalytics)
 	}
 
 	// Public analytics routes (no authentication required)

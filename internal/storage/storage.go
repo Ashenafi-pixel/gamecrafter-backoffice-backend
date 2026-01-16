@@ -122,6 +122,10 @@ type Analytics interface {
 
 	// Summary methods
 	GetTransactionSummary(ctx context.Context) (*dto.TransactionSummaryStats, error)
+
+	GetDashboardOverview(ctx context.Context, dateFrom, dateTo time.Time, userIDs []uuid.UUID, includeDailyBreakdown bool) (*dto.DashboardOverviewResponse, error)
+	GetPerformanceSummary(ctx context.Context, rangeType string, dateFrom, dateTo *time.Time, userIDs []uuid.UUID) (*dto.PerformanceSummaryResponse, error)
+	GetTimeSeriesAnalytics(ctx context.Context, dateFrom, dateTo time.Time, granularity string, userIDs []uuid.UUID, metrics []string) (*dto.TimeSeriesResponse, error)
 }
 
 type Balance interface {

@@ -38,6 +38,11 @@ RUN go build -o tucanbit cmd/main.go
 
 FROM debian:bullseye-slim
 
+# Install PostgreSQL client for database operations in entrypoint script
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -48,6 +53,9 @@ COPY --from=builder /app/config ./config
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
 COPY --from=builder /app/internal/constant/query/schemas ./internal/constant/query/schemas
 
+# Copy and set up entrypoint script
+COPY --from=builder /app/scripts/docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
 
 # Add wait-for-it script
 ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh .
