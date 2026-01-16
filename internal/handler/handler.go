@@ -94,6 +94,11 @@ type Analytics interface {
 	GetUserRakebackTotals(c *gin.Context)
 	GetUserTipsTotals(c *gin.Context)
 	GetUserWelcomeBonusTotals(c *gin.Context)
+
+	// Dashboard APIs
+	GetDashboardOverview(c *gin.Context)
+	GetPerformanceSummary(c *gin.Context)
+	GetTimeSeriesAnalytics(c *gin.Context)
 }
 
 type OTP interface {
