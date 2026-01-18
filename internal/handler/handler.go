@@ -77,13 +77,6 @@ type Analytics interface {
 	GetTopGames(c *gin.Context)
 	GetTopPlayers(c *gin.Context)
 	GetUserBalanceHistory(c *gin.Context)
-	SendDailyReportEmail(c *gin.Context)
-	SendConfiguredDailyReportEmail(c *gin.Context)
-	SendYesterdayReportEmail(c *gin.Context)
-	SendLastWeekReportEmail(c *gin.Context)
-	ScheduleDailyReportCronJob(c *gin.Context)
-	SendTestDailyReport(c *gin.Context)
-	GetCronjobStatus(c *gin.Context)
 
 	// Player analytics extensions
 	GetUserRakebackTransactions(c *gin.Context)

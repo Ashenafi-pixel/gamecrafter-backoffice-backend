@@ -220,8 +220,6 @@ func Initiate() {
 
 	// Update GrooveStorage with the proper userWS and analytics integration
 	var analyticsIntegration *analyticsStorage.AnalyticsIntegration
-	var dailyReportService analyticsModule.DailyReportService
-	var dailyReportCronjobService analyticsModule.DailyReportCronjobService
 	var alertCronjobService alertModule.AlertCronjobService
 	if clickhouseClient != nil {
 		analyticsStorageInstance := analyticsStorage.NewAnalyticsStorage(clickhouseClient, logger)
@@ -229,17 +227,6 @@ func Initiate() {
 		realtimeSyncService := analyticsModule.NewRealtimeSyncService(syncService, analyticsStorageInstance, logger)
 		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(realtimeSyncService, logger)
 
-		// Initialize daily report email service
-		if emailService != nil {
-			dailyReportEmailService := emailModule.NewDailyReportEmailService(emailService, logger)
-			dailyReportService = analyticsModule.NewDailyReportService(analyticsStorageInstance, dailyReportEmailService, logger)
-
-			// Initialize daily report cronjob service
-			dailyReportCronjobService = analyticsModule.NewDailyReportCronjobService(logger, dailyReportService)
-
-			logger.Info("Daily report email service initialized successfully")
-			logger.Info("Daily report cronjob service initialized successfully")
-		}
 
 		logger.Info("Analytics integration initialized successfully")
 	} else {
@@ -300,16 +287,6 @@ func Initiate() {
 		logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
 	}
 
-	// Start daily report cronjob service
-	if dailyReportCronjobService != nil {
-		logger.Info("Starting daily report cronjob service")
-		if err := dailyReportCronjobService.StartScheduler(context.Background()); err != nil {
-			logger.Error("Failed to start daily report cronjob service", zap.Error(err))
-		} else {
-			logger.Info("Daily report cronjob service started successfully")
-			logger.Info("Daily reports will be sent automatically at 23:59 UTC to configured recipients")
-		}
-	}
 
 	// Start alert cronjob service
 	if alertCronjobService != nil {
@@ -352,7 +329,7 @@ func Initiate() {
 	// initializing handler layer
 	// which is the layer responsible to handle http layer and validate user
 	logger.Info("initializing handler layer ")
-	handler := initHandler(module, persistence, logger, userBalanceWs, dailyReportService, dailyReportCronjobService)
+	handler := initHandler(module, persistence, logger, userBalanceWs)
 	logger.Info("done initializing handler layer")
 
 	logger.Info("initializing http server")
