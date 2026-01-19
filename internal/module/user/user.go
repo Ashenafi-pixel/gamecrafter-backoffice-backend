@@ -2247,6 +2247,28 @@ func (u *User) CreateAdminUser(ctx context.Context, req dto.CreateAdminUserReq) 
 		return dto.Admin{}, err
 	}
 
+	// Send welcome email to the new admin
+	if u.email != nil {
+		firstName := req.FirstName
+		if firstName == "" {
+			firstName = createdUser.FirstName
+		}
+		if firstName == "" {
+			firstName = "Admin" // Default fallback
+		}
+		if err := u.email.SendWelcomeEmail(createdUser.Email, firstName); err != nil {
+			u.log.Warn("Failed to send welcome email to new admin",
+				zap.Error(err),
+				zap.String("email", createdUser.Email),
+				zap.String("user_id", createdUser.ID.String()))
+			// Don't fail admin creation if email fails, just log the error
+		} else {
+			u.log.Info("Welcome email sent to new admin",
+				zap.String("email", createdUser.Email),
+				zap.String("user_id", createdUser.ID.String()))
+		}
+	}
+
 	// Convert to Admin DTO
 	var createdAt time.Time
 	if createdUser.CreatedAt != nil {

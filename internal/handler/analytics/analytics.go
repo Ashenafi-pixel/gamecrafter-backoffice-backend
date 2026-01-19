@@ -15,17 +15,14 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/handler"
-	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
 )
 
 type analytics struct {
-	logger                    *zap.Logger
-	analyticsStorage          storage.Analytics
-	dailyReportService        analyticsModule.DailyReportService
-	dailyReportCronjobService analyticsModule.DailyReportCronjobService
-	pgPool                    *pgxpool.Pool
+	logger           *zap.Logger
+	analyticsStorage storage.Analytics
+	pgPool           *pgxpool.Pool
 }
 
 // checkAnalyticsStorage checks if analytics storage is available
@@ -98,13 +95,11 @@ func (a *analytics) getUserIDsByTestAccount(ctx context.Context, isTestAccount *
 	return userIDs, nil
 }
 
-func Init(log *zap.Logger, analyticsStorage storage.Analytics, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService, pgPool *pgxpool.Pool) handler.Analytics {
+func Init(log *zap.Logger, analyticsStorage storage.Analytics, pgPool *pgxpool.Pool) handler.Analytics {
 	return &analytics{
-		logger:                    log,
-		analyticsStorage:          analyticsStorage,
-		dailyReportService:        dailyReportService,
-		dailyReportCronjobService: dailyReportCronjobService,
-		pgPool:                    pgPool,
+		logger:           log,
+		analyticsStorage: analyticsStorage,
+		pgPool:           pgPool,
 	}
 }
 

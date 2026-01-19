@@ -34,14 +34,6 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 		adminAnalyticsGroup.GET("/reports/top-games", analyticsHandler.GetTopGames)
 		adminAnalyticsGroup.GET("/reports/top-players", analyticsHandler.GetTopPlayers)
 
-		// Daily report email endpoints
-		adminAnalyticsGroup.POST("/daily-report/send", analyticsHandler.SendDailyReportEmail)
-		adminAnalyticsGroup.POST("/daily-report/send-configured", analyticsHandler.SendConfiguredDailyReportEmail)
-		adminAnalyticsGroup.POST("/daily-report/yesterday", analyticsHandler.SendYesterdayReportEmail)
-		adminAnalyticsGroup.POST("/daily-report/schedule", analyticsHandler.ScheduleDailyReportCronJob)
-		adminAnalyticsGroup.POST("/daily-report/last-week", analyticsHandler.SendLastWeekReportEmail)
-		adminAnalyticsGroup.POST("/daily-report/test", analyticsHandler.SendTestDailyReport)
-		adminAnalyticsGroup.GET("/daily-report/cronjob-status", analyticsHandler.GetCronjobStatus)
 
 		// Dashboard APIs
 		adminAnalyticsGroup.GET("/dashboard/overview", analyticsHandler.GetDashboardOverview)

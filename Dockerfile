@@ -21,9 +21,10 @@ ENV GOPROXY=direct
 # Download dependencies (this layer will be cached if go.mod/go.sum don't change)
 RUN go mod download
 
-
 # Copy the entire source code
 COPY . .
+
+RUN test -f scripts/docker-entrypoint.sh || (echo "ERROR: docker-entrypoint.sh not found" && exit 1)
 
 
 # Set Go environment variables
@@ -52,6 +53,12 @@ COPY --from=builder /app/tucanbit .
 COPY --from=builder /app/config ./config
 COPY --from=builder /go/bin/migrate /usr/local/bin/migrate
 COPY --from=builder /app/internal/constant/query/schemas ./internal/constant/query/schemas
+
+# Copy migrations directory (needed by entrypoint script)
+COPY --from=builder /app/migrations ./migrations
+
+# Copy email templates directory (needed by email service)
+COPY --from=builder /app/templates ./templates
 
 # Copy and set up entrypoint script
 COPY --from=builder /app/scripts/docker-entrypoint.sh .

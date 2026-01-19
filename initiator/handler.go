@@ -49,7 +49,6 @@ import (
 	"github.com/tucanbit/internal/handler/withdrawal_management"
 	"github.com/tucanbit/internal/handler/withdrawals"
 	"github.com/tucanbit/internal/handler/ws"
-	analyticsModule "github.com/tucanbit/internal/module/analytics"
 	gameImportModule "github.com/tucanbit/internal/module/game_import"
 	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/platform/redis"
@@ -103,7 +102,7 @@ type Handler struct {
 	Page                  page.PageHandler
 }
 
-func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS, dailyReportService analyticsModule.DailyReportService, dailyReportCronjobService analyticsModule.DailyReportCronjobService) *Handler {
+func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS) *Handler {
 	// Create Redis adapter for RegistrationService
 	redisAdapter := &redisAdapter{client: module.Redis}
 
@@ -159,7 +158,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		RegistrationService:   registrationService,
 		Campaign:              campaign.Init(module.Campaign, log),
 		TwoFactor:             twofactor.NewTwoFactorHandler(module.TwoFactor, log),
-		Analytics:             analyticsHandler.Init(log, persistence.Analytics, dailyReportService, dailyReportCronjobService, persistence.Database.GetPool()),
+		Analytics:             analyticsHandler.Init(log, persistence.Analytics, persistence.Database.GetPool()),
 		SystemConfig: func() *system_config.SystemConfigHandler {
 			directusURL := viper.GetString("directus.api_url")
 			if directusURL == "" {
