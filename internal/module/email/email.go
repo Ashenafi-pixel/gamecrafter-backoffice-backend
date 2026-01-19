@@ -49,7 +49,6 @@ type EmailServiceImpl struct {
 	templates *template.Template
 }
 
-// NewEmailService creates a new instance of EmailService
 func NewEmailService(config SMTPConfig, logger *zap.Logger) (EmailService, error) {
 	funcMap := template.FuncMap{
 		"unsubscribe_url": func() string {
