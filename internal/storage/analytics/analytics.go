@@ -3813,6 +3813,11 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 	query := `
 		SELECT 
 			user_id,
+			if(
+				dictGetOrDefault('user_usernames_dict', 'username', toString(user_id), '') = '',
+				concat('Player_', left(toString(user_id), 8)),
+				dictGetOrDefault('user_usernames_dict', 'username', toString(user_id), '')
+			) AS username,
 			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
 			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
 			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
@@ -3846,12 +3851,12 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 				placeholders[i] = "?"
 				args = append(args, dateRange.UserIDs[i].String())
 			}
-			query += " AND user_id IN (" + strings.Join(placeholders, ",") + ")"
+			query += " AND toString(user_id) IN (" + strings.Join(placeholders, ",") + ")"
 		}
 	}
 
 	query += `
-		GROUP BY user_id
+		GROUP BY user_id, username
 		ORDER BY total_bets DESC
 		LIMIT ?
 	`
@@ -3875,6 +3880,7 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 
 		err := rows.Scan(
 			&userIDStr,
+			&player.Username,
 			&player.TotalDeposits,
 			&player.TotalWithdrawals,
 			&player.TotalBets,
@@ -3898,10 +3904,9 @@ func (s *AnalyticsStorageImpl) GetTopPlayers(ctx context.Context, limit int, dat
 			}
 		} else {
 			// For non-UUID IDs (like GrooveTech account_id), create a placeholder UUID
-			player.UserID = uuid.New()
+			player.UserID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(userIDStr))
 		}
 
-		player.Username = "Player_" + userIDStr[:8] // Placeholder username
 		player.Rank = rank
 		rank++
 
