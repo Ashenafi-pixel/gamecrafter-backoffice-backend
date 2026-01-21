@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -45,6 +46,8 @@ type AnalyticsStorage interface {
 	// Reporting methods
 	GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error)
 	GetEnhancedDailyReport(ctx context.Context, date time.Time) (*dto.EnhancedDailyReport, error)
+	GetDailyReportDataTable(ctx context.Context, dateFrom, dateTo time.Time, userIDs []uuid.UUID) (*dto.DailyReportDataTableResponse, error)
+	GetWeeklyReport(ctx context.Context, weekStart time.Time, userIDs []uuid.UUID) (*dto.WeeklyReport, error)
 	GetMonthlyReport(ctx context.Context, year int, month int) (*dto.MonthlyReport, error)
 	GetTopGames(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.GameStats, error)
 	GetTopPlayers(ctx context.Context, limit int, dateRange *dto.DateRange) ([]*dto.PlayerStats, error)
@@ -79,6 +82,10 @@ func NewAnalyticsStorage(clickhouse *clickhouse.ClickHouseClient, logger *zap.Lo
 // SetPostgresPool sets the PostgreSQL pool for welcome bonus queries
 func (s *AnalyticsStorageImpl) SetPostgresPool(pgPool *pgxpool.Pool) {
 	s.pgPool = pgPool
+}
+
+func (s *AnalyticsStorageImpl) GetClickHouseClient() *clickhouse.ClickHouseClient {
+	return s.clickhouse
 }
 
 func (s *AnalyticsStorageImpl) InsertTransaction(ctx context.Context, transaction *dto.AnalyticsTransaction) error {
@@ -130,7 +137,6 @@ func (s *AnalyticsStorageImpl) InsertTransaction(ctx context.Context, transactio
 	return nil
 }
 
-// safely converts a *decimal.Decimal to decimal.Decimal, returning decimal.Zero if nil
 func safeDecimalPtr(ptr *decimal.Decimal) decimal.Decimal {
 	if ptr == nil {
 		return decimal.Zero
@@ -431,6 +437,12 @@ func (s *AnalyticsStorageImpl) GetUserTransactions(ctx context.Context, userID u
 			transaction.Metadata = nil
 		} else {
 			transaction.Metadata = metadata
+		}
+
+		// If net_result is less than or equal to zero, set it to zero
+		if transaction.NetResult != nil && transaction.NetResult.LessThanOrEqual(decimal.Zero) {
+			zero := decimal.Zero
+			transaction.NetResult = &zero
 		}
 
 		transaction.UserID, err = uuid.Parse(userIDStr)
@@ -1693,65 +1705,564 @@ func (s *AnalyticsStorageImpl) GetSessionAnalytics(ctx context.Context, sessionI
 }
 
 func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Time) (*dto.DailyReport, error) {
-	query := `
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	endOfDay := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, time.UTC)
+
+	gamingQuery, gamingArgs := s.buildGamingActivityQueryString(startOfDay, endOfDay, nil)
+
+	gamingMetricsQuery := `
 		SELECT 
-			toUInt64(count()) as total_transactions,
-			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
-			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
-			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt64(uniqExact(user_id)) as active_users,
-			toUInt64(uniqExact(game_id)) as active_games,
-			toUInt64(0) as new_users, -- TODO: Get from users table
-			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
-			toUInt64(countIf(transaction_type = 'deposit')) as deposit_count,
-			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
-			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
-			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
-			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
-		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at + INTERVAL 3 HOUR) = ?
+			toString(ifNull(toUInt64(count()), 0)) as total_transactions,
+			toString(ifNull(toDecimal64(sumIf(
+				CASE 
+					WHEN transaction_type = 'groove_bet' AND bet_amount IS NOT NULL THEN bet_amount
+					ELSE abs(amount)
+				END,
+				transaction_type IN ('bet', 'groove_bet')
+			), 8), toDecimal64(0, 8))) as total_bets,
+			toString(ifNull(toDecimal64(sumIf(
+				CASE 
+					WHEN transaction_type = 'groove_bet' THEN COALESCE(win_amount, 0)
+					ELSE COALESCE(win_amount, amount)
+				END,
+				transaction_type IN ('win', 'groove_win')
+				OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0)
+			), 8), toDecimal64(0, 8))) as total_wins,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as active_users,
+			toString(ifNull(toUInt64(uniqExact(game_id)), 0)) as active_games,
+			toString(ifNull(toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))), 0)) as bet_count,
+			toString(ifNull(toUInt64(countIf(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))), 0)) as win_count,
+			toString(ifNull(toDecimal64(sumIf(amount, transaction_type = 'cashback_earning'), 8), toDecimal64(0, 8))) as cashback_earned,
+			toString(ifNull(toDecimal64(sumIf(amount, transaction_type = 'cashback_claim'), 8), toDecimal64(0, 8))) as cashback_claimed
+		FROM (
+			` + gamingQuery + `
+		) gaming_data
+	`
+
+	var totalTransactionsStr, totalBetsStr, totalWinsStr, activeUsersStr, activeGamesStr, betCountStr, winCountStr, cashbackEarnedStr, cashbackClaimedStr sql.NullString
+
+	var err error
+	if len(gamingArgs) > 0 {
+		err = s.clickhouse.QueryRow(ctx, gamingMetricsQuery, gamingArgs...).Scan(
+			&totalTransactionsStr,
+			&totalBetsStr,
+			&totalWinsStr,
+			&activeUsersStr,
+			&activeGamesStr,
+			&betCountStr,
+			&winCountStr,
+			&cashbackEarnedStr,
+			&cashbackClaimedStr,
+		)
+	} else {
+		err = s.clickhouse.QueryRow(ctx, gamingMetricsQuery).Scan(
+			&totalTransactionsStr,
+			&totalBetsStr,
+			&totalWinsStr,
+			&activeUsersStr,
+			&activeGamesStr,
+			&betCountStr,
+			&winCountStr,
+			&cashbackEarnedStr,
+			&cashbackClaimedStr,
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gaming metrics: %w", err)
+	}
+
+	totalBets := parseDecimalSafely(totalBetsStr.String)
+	totalWins := parseDecimalSafely(totalWinsStr.String)
+	cashbackEarned := parseDecimalSafely(cashbackEarnedStr.String)
+	cashbackClaimed := parseDecimalSafely(cashbackClaimedStr.String)
+
+	depositsQuery := `
+		SELECT 
+			toString(ifNull(toDecimal64(sum(usd_amount), 8), toDecimal64(0, 8))) as total_deposits,
+			toString(ifNull(toUInt64(count()), 0)) as deposit_count,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_depositors
+		FROM tucanbit_financial.deposits
+		WHERE status = 'completed'
+			AND toDate(created_at) = ?
 	`
 
 	dateStr := date.Format("2006-01-02")
-	row := s.clickhouse.QueryRow(ctx, query, dateStr)
-
-	var report dto.DailyReport
-	err := row.Scan(
-		&report.TotalTransactions,
-		&report.TotalDeposits,
-		&report.TotalWithdrawals,
-		&report.TotalBets,
-		&report.TotalWins,
-		&report.NetRevenue,
-		&report.ActiveUsers,
-		&report.ActiveGames,
-		&report.NewUsers,
-		&report.UniqueDepositors,
-		&report.UniqueWithdrawers,
-		&report.DepositCount,
-		&report.WithdrawalCount,
-		&report.BetCount,
-		&report.WinCount,
-		&report.CashbackEarned,
-		&report.CashbackClaimed,
-		&report.AdminCorrections,
+	var totalDepositsStr, depositCountStr, uniqueDepositorsStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, depositsQuery, dateStr).Scan(
+		&totalDepositsStr,
+		&depositCountStr,
+		&uniqueDepositorsStr,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan daily report: %w", err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get deposits from ClickHouse", zap.Error(err))
 	}
 
-	report.Date = date
+	withdrawalsQuery := `
+		SELECT 
+			toString(ifNull(toDecimal64(sum(usd_amount), 8), toDecimal64(0, 8))) as total_withdrawals,
+			toString(ifNull(toUInt64(count()), 0)) as withdrawal_count,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_withdrawers
+		FROM tucanbit_financial.withdrawals
+		WHERE status = 'completed'
+			AND toDate(created_at) = ?
+	`
 
-	// Create date range for the full day
-	startOfDay := date
-	endOfDay := date.Add(24 * time.Hour).Add(-time.Nanosecond) // End of day
+	var totalWithdrawalsStr, withdrawalCountStr, uniqueWithdrawersStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, withdrawalsQuery, dateStr).Scan(
+		&totalWithdrawalsStr,
+		&withdrawalCountStr,
+		&uniqueWithdrawersStr,
+	)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get withdrawals from ClickHouse", zap.Error(err))
+	}
 
-	// Get top games for the day
+	var totalDeposits, totalWithdrawals decimal.Decimal
+	var depositCount, withdrawalCount, uniqueDepositors, uniqueWithdrawers uint64
+
+	totalDeposits = parseDecimalSafely(totalDepositsStr.String)
+	depositCount = parseUint64Safely(depositCountStr.String)
+	uniqueDepositors = parseUint64Safely(uniqueDepositorsStr.String)
+
+	totalWithdrawals = parseDecimalSafely(totalWithdrawalsStr.String)
+	withdrawalCount = parseUint64Safely(withdrawalCountStr.String)
+	uniqueWithdrawers = parseUint64Safely(uniqueWithdrawersStr.String)
+
+	if s.pgPool != nil {
+		pgStartOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+		pgEndOfDay := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, time.UTC)
+
+		chDepositHashesQuery := `
+			SELECT DISTINCT tx_hash
+			FROM tucanbit_financial.deposits
+			WHERE status = 'completed'
+				AND toDate(created_at) = ?
+				AND tx_hash != ''
+		`
+		chDepositHashes := make(map[string]bool)
+		rows, err := s.clickhouse.Query(ctx, chDepositHashesQuery, dateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var txHash string
+				if err := rows.Scan(&txHash); err == nil && txHash != "" {
+					chDepositHashes[txHash] = true
+				}
+			}
+		}
+
+		if len(chDepositHashes) > 0 {
+			hashPlaceholders := make([]string, 0, len(chDepositHashes))
+			hashArgs := make([]interface{}, 0, len(chDepositHashes)+2)
+			hashArgs = append(hashArgs, pgStartOfDay, pgEndOfDay)
+			argIndex := 3
+			for hash := range chDepositHashes {
+				hashPlaceholders = append(hashPlaceholders, fmt.Sprintf("$%d", argIndex))
+				hashArgs = append(hashArgs, hash)
+				argIndex++
+			}
+			hashFilter := fmt.Sprintf("AND tx_hash NOT IN (%s)", strings.Join(hashPlaceholders, ","))
+
+			pgDepositsQuery := fmt.Sprintf(`
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_deposits,
+					COUNT(*) as deposit_count,
+					COUNT(DISTINCT user_id) as unique_depositors
+				FROM transactions
+				WHERE transaction_type = 'deposit'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+					%s
+			`, hashFilter)
+
+			var pgTotalDeposits decimal.Decimal
+			var pgDepositCount, pgUniqueDepositors int64
+			err = s.pgPool.QueryRow(ctx, pgDepositsQuery, hashArgs...).Scan(
+				&pgTotalDeposits,
+				&pgDepositCount,
+				&pgUniqueDepositors,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced deposits from PostgreSQL", zap.Error(err))
+			} else {
+				totalDeposits = totalDeposits.Add(pgTotalDeposits)
+				depositCount += uint64(pgDepositCount)
+
+				chDepositorsMap := make(map[string]bool)
+				chDepositorsQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.deposits
+					WHERE status = 'completed'
+						AND toDate(created_at) = ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chDepositorsMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgDepositorsQuery := fmt.Sprintf(`
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'deposit'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+						%s
+				`, hashFilter)
+				pgRows, err := s.pgPool.Query(ctx, pgDepositorsQuery, hashArgs...)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chDepositorsMap[userIDStr] {
+								uniqueDepositors++
+							}
+						}
+					}
+				}
+			}
+		} else {
+			pgDepositsQuery := `
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_deposits,
+					COUNT(*) as deposit_count,
+					COUNT(DISTINCT user_id) as unique_depositors
+				FROM transactions
+				WHERE transaction_type = 'deposit'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+
+			var pgTotalDeposits decimal.Decimal
+			var pgDepositCount, pgUniqueDepositors int64
+			err = s.pgPool.QueryRow(ctx, pgDepositsQuery, pgStartOfDay, pgEndOfDay).Scan(
+				&pgTotalDeposits,
+				&pgDepositCount,
+				&pgUniqueDepositors,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced deposits from PostgreSQL", zap.Error(err))
+			} else {
+				totalDeposits = totalDeposits.Add(pgTotalDeposits)
+				depositCount += uint64(pgDepositCount)
+
+				chDepositorsMap := make(map[string]bool)
+				chDepositorsQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.deposits
+					WHERE status = 'completed'
+						AND toDate(created_at) = ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chDepositorsMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgDepositorsQuery := `
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'deposit'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+				`
+				pgRows, err := s.pgPool.Query(ctx, pgDepositorsQuery, pgStartOfDay, pgEndOfDay)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chDepositorsMap[userIDStr] {
+								uniqueDepositors++
+							}
+						}
+					}
+				}
+			}
+		}
+
+		chWithdrawalHashesQuery := `
+			SELECT DISTINCT tx_hash
+			FROM tucanbit_financial.withdrawals
+			WHERE status = 'completed'
+				AND toDate(created_at) = ?
+				AND tx_hash != ''
+		`
+		chWithdrawalHashes := make(map[string]bool)
+		rows, err = s.clickhouse.Query(ctx, chWithdrawalHashesQuery, dateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var txHash string
+				if err := rows.Scan(&txHash); err == nil && txHash != "" {
+					chWithdrawalHashes[txHash] = true
+				}
+			}
+		}
+
+		if len(chWithdrawalHashes) > 0 {
+			hashPlaceholders := make([]string, 0, len(chWithdrawalHashes))
+			hashArgs := make([]interface{}, 0, len(chWithdrawalHashes)+2)
+			hashArgs = append(hashArgs, pgStartOfDay, pgEndOfDay)
+			argIndex := 3
+			for hash := range chWithdrawalHashes {
+				hashPlaceholders = append(hashPlaceholders, fmt.Sprintf("$%d", argIndex))
+				hashArgs = append(hashArgs, hash)
+				argIndex++
+			}
+			hashFilter := fmt.Sprintf("AND tx_hash NOT IN (%s)", strings.Join(hashPlaceholders, ","))
+
+			pgWithdrawalsQuery := fmt.Sprintf(`
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_withdrawals,
+					COUNT(*) as withdrawal_count,
+					COUNT(DISTINCT user_id) as unique_withdrawers
+				FROM transactions
+				WHERE transaction_type = 'withdrawal'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+					%s
+			`, hashFilter)
+
+			var pgTotalWithdrawals decimal.Decimal
+			var pgWithdrawalCount, pgUniqueWithdrawers int64
+			err = s.pgPool.QueryRow(ctx, pgWithdrawalsQuery, hashArgs...).Scan(
+				&pgTotalWithdrawals,
+				&pgWithdrawalCount,
+				&pgUniqueWithdrawers,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced withdrawals from PostgreSQL", zap.Error(err))
+			} else {
+				totalWithdrawals = totalWithdrawals.Add(pgTotalWithdrawals)
+				withdrawalCount += uint64(pgWithdrawalCount)
+
+				chWithdrawersMap := make(map[string]bool)
+				chWithdrawersQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.withdrawals
+					WHERE status = 'completed'
+						AND toDate(created_at) = ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chWithdrawersQuery, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chWithdrawersMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgWithdrawersQuery := fmt.Sprintf(`
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'withdrawal'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+						%s
+				`, hashFilter)
+				pgRows, err := s.pgPool.Query(ctx, pgWithdrawersQuery, hashArgs...)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chWithdrawersMap[userIDStr] {
+								uniqueWithdrawers++
+							}
+						}
+					}
+				}
+			}
+		} else {
+			pgWithdrawalsQuery := `
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_withdrawals,
+					COUNT(*) as withdrawal_count,
+					COUNT(DISTINCT user_id) as unique_withdrawers
+				FROM transactions
+				WHERE transaction_type = 'withdrawal'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+
+			var pgTotalWithdrawals decimal.Decimal
+			var pgWithdrawalCount, pgUniqueWithdrawers int64
+			err = s.pgPool.QueryRow(ctx, pgWithdrawalsQuery, pgStartOfDay, pgEndOfDay).Scan(
+				&pgTotalWithdrawals,
+				&pgWithdrawalCount,
+				&pgUniqueWithdrawers,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced withdrawals from PostgreSQL", zap.Error(err))
+			} else {
+				totalWithdrawals = totalWithdrawals.Add(pgTotalWithdrawals)
+				withdrawalCount += uint64(pgWithdrawalCount)
+
+				chWithdrawersMap := make(map[string]bool)
+				chWithdrawersQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.withdrawals
+					WHERE status = 'completed'
+						AND toDate(created_at) = ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chWithdrawersQuery, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chWithdrawersMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgWithdrawersQuery := `
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'withdrawal'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+				`
+				pgRows, err := s.pgPool.Query(ctx, pgWithdrawersQuery, pgStartOfDay, pgEndOfDay)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chWithdrawersMap[userIDStr] {
+								uniqueWithdrawers++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var newUsers uint64
+	chNewUsersQuery := `
+		SELECT toString(ifNull(toUInt64(count()), 0)) as new_users
+		FROM tucanbit_analytics.transactions
+		WHERE transaction_type = 'registration'
+			AND toDate(created_at) = ?
+	`
+	var newUsersStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, chNewUsersQuery, dateStr).Scan(&newUsersStr)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get new users from ClickHouse", zap.Error(err))
+	}
+	newUsers = parseUint64Safely(newUsersStr.String)
+
+	if s.pgPool != nil {
+		chRegisteredUsersQuery := `
+			SELECT DISTINCT user_id
+			FROM tucanbit_analytics.transactions
+			WHERE transaction_type = 'registration'
+				AND toDate(created_at) = ?
+		`
+		chRegisteredUsers := make(map[string]bool)
+		rows, err := s.clickhouse.Query(ctx, chRegisteredUsersQuery, dateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				if err := rows.Scan(&userIDStr); err == nil {
+					chRegisteredUsers[userIDStr] = true
+				}
+			}
+		}
+
+		if len(chRegisteredUsers) > 0 {
+			userPlaceholders := make([]string, 0, len(chRegisteredUsers))
+			userArgs := make([]interface{}, 1)
+			userArgs[0] = date
+			argIndex := 2
+			for userID := range chRegisteredUsers {
+				userPlaceholders = append(userPlaceholders, fmt.Sprintf("$%d", argIndex))
+				userArgs = append(userArgs, userID)
+				argIndex++
+			}
+			userFilter := fmt.Sprintf("AND id::text NOT IN (%s)", strings.Join(userPlaceholders, ","))
+
+			pgNewUsersQuery := fmt.Sprintf(`
+				SELECT COUNT(*) as new_users
+				FROM users
+				WHERE DATE(created_at) = $1
+					%s
+			`, userFilter)
+
+			var pgNewUsers int64
+			err = s.pgPool.QueryRow(ctx, pgNewUsersQuery, userArgs...).Scan(&pgNewUsers)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced new users from PostgreSQL", zap.Error(err))
+			} else {
+				newUsers += uint64(pgNewUsers)
+			}
+		} else {
+			pgNewUsersQuery := `
+				SELECT COUNT(*) as new_users
+				FROM users
+				WHERE DATE(created_at) = $1
+			`
+			var pgNewUsers int64
+			err = s.pgPool.QueryRow(ctx, pgNewUsersQuery, date).Scan(&pgNewUsers)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced new users from PostgreSQL", zap.Error(err))
+			} else {
+				newUsers += uint64(pgNewUsers)
+			}
+		}
+	}
+
+	ggr := totalBets.Sub(totalWins)
+	ngr := ggr.Sub(cashbackClaimed)
+	netRevenue := ngr
+
+	report := &dto.DailyReport{
+		Date:              date,
+		TotalTransactions: parseUint64Safely(totalTransactionsStr.String),
+		TotalDeposits:     totalDeposits,
+		TotalWithdrawals:  totalWithdrawals,
+		TotalBets:         totalBets,
+		TotalWins:         totalWins,
+		NetRevenue:        netRevenue,
+		ActiveUsers:       parseUint64Safely(activeUsersStr.String),
+		ActiveGames:       parseUint64Safely(activeGamesStr.String),
+		NewUsers:          newUsers,
+		UniqueDepositors:  uniqueDepositors,
+		UniqueWithdrawers: uniqueWithdrawers,
+		DepositCount:      depositCount,
+		WithdrawalCount:   withdrawalCount,
+		BetCount:          parseUint64Safely(betCountStr.String),
+		WinCount:          parseUint64Safely(winCountStr.String),
+		CashbackEarned:    cashbackEarned,
+		CashbackClaimed:   cashbackClaimed,
+		AdminCorrections:  decimal.Zero,
+	}
+
 	topGames, err := s.GetTopGames(ctx, 5, &dto.DateRange{
 		From: &startOfDay,
 		To:   &endOfDay,
@@ -1759,14 +2270,12 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 	if err != nil {
 		s.logger.Warn("Failed to get top games for daily report", zap.Error(err))
 	} else {
-		// Convert []*dto.GameStats to []dto.GameStats
 		report.TopGames = make([]dto.GameStats, len(topGames))
 		for i, game := range topGames {
 			report.TopGames[i] = *game
 		}
 	}
 
-	// Get top players for the day
 	topPlayers, err := s.GetTopPlayers(ctx, 5, &dto.DateRange{
 		From: &startOfDay,
 		To:   &endOfDay,
@@ -1774,25 +2283,23 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 	if err != nil {
 		s.logger.Warn("Failed to get top players for daily report", zap.Error(err))
 	} else {
-		// Convert []*dto.PlayerStats to []dto.PlayerStats
 		report.TopPlayers = make([]dto.PlayerStats, len(topPlayers))
 		for i, player := range topPlayers {
 			report.TopPlayers[i] = *player
 		}
 	}
 
-	return &report, nil
+	return report, nil
 }
 
-// GetEnhancedDailyReport returns an enhanced daily report with comparison metrics
 func (s *AnalyticsStorageImpl) GetEnhancedDailyReport(ctx context.Context, date time.Time) (*dto.EnhancedDailyReport, error) {
-	// Get the base daily report
 	baseReport, err := s.GetDailyReport(ctx, date)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get base daily report: %w", err)
 	}
 
-	// Convert base report to enhanced report
+	ggr := baseReport.TotalBets.Sub(baseReport.TotalWins)
+
 	enhancedReport := &dto.EnhancedDailyReport{
 		Date:              baseReport.Date,
 		TotalTransactions: baseReport.TotalTransactions,
@@ -1800,6 +2307,7 @@ func (s *AnalyticsStorageImpl) GetEnhancedDailyReport(ctx context.Context, date 
 		TotalWithdrawals:  baseReport.TotalWithdrawals,
 		TotalBets:         baseReport.TotalBets,
 		TotalWins:         baseReport.TotalWins,
+		GGR:               ggr,
 		NetRevenue:        baseReport.NetRevenue,
 		ActiveUsers:       baseReport.ActiveUsers,
 		ActiveGames:       baseReport.ActiveGames,
@@ -1817,15 +2325,12 @@ func (s *AnalyticsStorageImpl) GetEnhancedDailyReport(ctx context.Context, date 
 		TopPlayers:        baseReport.TopPlayers,
 	}
 
-	// Get previous day's report for comparison
 	previousDay := date.AddDate(0, 0, -1)
 	previousReport, err := s.GetDailyReport(ctx, previousDay)
 	if err != nil {
 		s.logger.Warn("Failed to get previous day report for comparison", zap.Error(err))
-		// Set all changes to 0 if previous day data is not available
 		enhancedReport.PreviousDayChange = dto.DailyReportComparison{}
 	} else {
-		// Calculate percentage changes
 		enhancedReport.PreviousDayChange = s.calculatePercentageChange(baseReport, previousReport)
 	}
 
@@ -1855,8 +2360,10 @@ func (s *AnalyticsStorageImpl) GetEnhancedDailyReport(ctx context.Context, date 
 	return enhancedReport, nil
 }
 
-// calculatePercentageChange calculates percentage change between two daily reports
 func (s *AnalyticsStorageImpl) calculatePercentageChange(current, previous *dto.DailyReport) dto.DailyReportComparison {
+	currentGGR := current.TotalBets.Sub(current.TotalWins)
+	previousGGR := previous.TotalBets.Sub(previous.TotalWins)
+
 	return dto.DailyReportComparison{
 		TotalTransactionsChange: s.calculatePercentageChangeDecimal(
 			decimal.NewFromInt(int64(current.TotalTransactions)),
@@ -1866,6 +2373,7 @@ func (s *AnalyticsStorageImpl) calculatePercentageChange(current, previous *dto.
 		TotalWithdrawalsChange: s.calculatePercentageChangeDecimal(current.TotalWithdrawals, previous.TotalWithdrawals),
 		TotalBetsChange:        s.calculatePercentageChangeDecimal(current.TotalBets, previous.TotalBets),
 		TotalWinsChange:        s.calculatePercentageChangeDecimal(current.TotalWins, previous.TotalWins),
+		GGRChange:              s.calculatePercentageChangeDecimal(currentGGR, previousGGR),
 		NetRevenueChange:       s.calculatePercentageChangeDecimal(current.NetRevenue, previous.NetRevenue),
 		ActiveUsersChange: s.calculatePercentageChangeDecimal(
 			decimal.NewFromInt(int64(current.ActiveUsers)),
@@ -1909,7 +2417,6 @@ func (s *AnalyticsStorageImpl) calculatePercentageChange(current, previous *dto.
 	}
 }
 
-// calculatePercentageChangeDecimal calculates percentage change between two decimal values and returns as string with % sign
 func (s *AnalyticsStorageImpl) calculatePercentageChangeDecimal(current, previous decimal.Decimal) string {
 	if previous.IsZero() {
 		if current.IsZero() {
@@ -1923,150 +2430,1162 @@ func (s *AnalyticsStorageImpl) calculatePercentageChangeDecimal(current, previou
 	return change.StringFixed(2) + "%"
 }
 
-// getMTDData gets Month To Date data for the given date
+// gets Month To Date data for the given date
 func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (*dto.DailyReportMTD, error) {
-	startOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
+	startOfMonth := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, time.UTC)
+	endOfDay := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, time.UTC)
 
-	query := `
+	gamingQuery, gamingArgs := s.buildGamingActivityQueryString(startOfMonth, endOfDay, nil)
+
+	gamingMetricsQuery := `
 		SELECT 
-			toUInt64(count()) as total_transactions,
-			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
-			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
-			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt64(uniqExact(user_id)) as active_users,
-			toUInt64(0) as active_games, -- TODO: Get from games table
-			toUInt64(0) as new_users, -- TODO: Get from users table
-			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
-			toUInt64(countIf(transaction_type = 'deposit')) as deposit_count,
-			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
-			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
-			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
-			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
-		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at + INTERVAL 3 HOUR) >= ? AND toDate(created_at + INTERVAL 3 HOUR) <= ?
+			toString(ifNull(toUInt64(count()), 0)) as total_transactions,
+			toString(ifNull(toDecimal64(sumIf(
+				CASE 
+					WHEN transaction_type = 'groove_bet' AND bet_amount IS NOT NULL THEN bet_amount
+					ELSE abs(amount)
+				END,
+				transaction_type IN ('bet', 'groove_bet')
+			), 8), toDecimal64(0, 8))) as total_bets,
+			toString(ifNull(toDecimal64(sumIf(
+				CASE 
+					WHEN transaction_type = 'groove_bet' THEN COALESCE(win_amount, 0)
+					ELSE COALESCE(win_amount, amount)
+				END,
+				transaction_type IN ('win', 'groove_win')
+				OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0)
+			), 8), toDecimal64(0, 8))) as total_wins,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as active_users,
+			toString(ifNull(toUInt64(uniqExact(game_id)), 0)) as active_games,
+			toString(ifNull(toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))), 0)) as bet_count,
+			toString(ifNull(toUInt64(countIf(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))), 0)) as win_count,
+			toString(ifNull(toDecimal64(sumIf(amount, transaction_type = 'cashback_earning'), 8), toDecimal64(0, 8))) as cashback_earned,
+			toString(ifNull(toDecimal64(sumIf(amount, transaction_type = 'cashback_claim'), 8), toDecimal64(0, 8))) as cashback_claimed
+		FROM (
+			` + gamingQuery + `
+		) gaming_data
 	`
+
+	var totalTransactionsStr, totalBetsStr, totalWinsStr, activeUsersStr, activeGamesStr, betCountStr, winCountStr, cashbackEarnedStr, cashbackClaimedStr sql.NullString
+
+	var err error
+	if len(gamingArgs) > 0 {
+		err = s.clickhouse.QueryRow(ctx, gamingMetricsQuery, gamingArgs...).Scan(
+			&totalTransactionsStr,
+			&totalBetsStr,
+			&totalWinsStr,
+			&activeUsersStr,
+			&activeGamesStr,
+			&betCountStr,
+			&winCountStr,
+			&cashbackEarnedStr,
+			&cashbackClaimedStr,
+		)
+	} else {
+		err = s.clickhouse.QueryRow(ctx, gamingMetricsQuery).Scan(
+			&totalTransactionsStr,
+			&totalBetsStr,
+			&totalWinsStr,
+			&activeUsersStr,
+			&activeGamesStr,
+			&betCountStr,
+			&winCountStr,
+			&cashbackEarnedStr,
+			&cashbackClaimedStr,
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gaming metrics: %w", err)
+	}
+
+	totalBets := parseDecimalSafely(totalBetsStr.String)
+	totalWins := parseDecimalSafely(totalWinsStr.String)
+	cashbackEarned := parseDecimalSafely(cashbackEarnedStr.String)
+	cashbackClaimed := parseDecimalSafely(cashbackClaimedStr.String)
 
 	startOfMonthStr := startOfMonth.Format("2006-01-02")
 	dateStr := date.Format("2006-01-02")
 
-	s.logger.Debug("Executing MTD query",
-		zap.String("start_date", startOfMonthStr),
-		zap.String("end_date", dateStr))
+	depositsQuery := `
+		SELECT 
+			toString(ifNull(toDecimal64(sum(usd_amount), 8), toDecimal64(0, 8))) as total_deposits,
+			toString(ifNull(toUInt64(count()), 0)) as deposit_count,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_depositors
+		FROM tucanbit_financial.deposits
+		WHERE status = 'completed'
+			AND toDate(created_at) >= ?
+			AND toDate(created_at) <= ?
+	`
 
-	row := s.clickhouse.QueryRow(ctx, query, startOfMonthStr, dateStr)
-
-	var mtd dto.DailyReportMTD
-	err := row.Scan(
-		&mtd.TotalTransactions,
-		&mtd.TotalDeposits,
-		&mtd.TotalWithdrawals,
-		&mtd.TotalBets,
-		&mtd.TotalWins,
-		&mtd.NetRevenue,
-		&mtd.ActiveUsers,
-		&mtd.ActiveGames,
-		&mtd.NewUsers,
-		&mtd.UniqueDepositors,
-		&mtd.UniqueWithdrawers,
-		&mtd.DepositCount,
-		&mtd.WithdrawalCount,
-		&mtd.BetCount,
-		&mtd.WinCount,
-		&mtd.CashbackEarned,
-		&mtd.CashbackClaimed,
-		&mtd.AdminCorrections,
+	var totalDepositsStr, depositCountStr, uniqueDepositorsStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, depositsQuery, startOfMonthStr, dateStr).Scan(
+		&totalDepositsStr,
+		&depositCountStr,
+		&uniqueDepositorsStr,
 	)
-	if err != nil {
-		s.logger.Error("Failed to scan MTD data",
-			zap.String("start_date", startOfMonthStr),
-			zap.String("end_date", dateStr),
-			zap.Error(err))
-		return nil, fmt.Errorf("failed to scan MTD data: %w", err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get deposits from ClickHouse", zap.Error(err))
 	}
 
-	return &mtd, nil
+	withdrawalsQuery := `
+		SELECT 
+			toString(ifNull(toDecimal64(sum(usd_amount), 8), toDecimal64(0, 8))) as total_withdrawals,
+			toString(ifNull(toUInt64(count()), 0)) as withdrawal_count,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_withdrawers
+		FROM tucanbit_financial.withdrawals
+		WHERE status = 'completed'
+			AND toDate(created_at) >= ?
+			AND toDate(created_at) <= ?
+	`
+
+	var totalWithdrawalsStr, withdrawalCountStr, uniqueWithdrawersStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, withdrawalsQuery, startOfMonthStr, dateStr).Scan(
+		&totalWithdrawalsStr,
+		&withdrawalCountStr,
+		&uniqueWithdrawersStr,
+	)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get withdrawals from ClickHouse", zap.Error(err))
+	}
+
+	var totalDeposits, totalWithdrawals decimal.Decimal
+	var depositCount, withdrawalCount, uniqueDepositors, uniqueWithdrawers uint64
+
+	totalDeposits = parseDecimalSafely(totalDepositsStr.String)
+	depositCount = parseUint64Safely(depositCountStr.String)
+	uniqueDepositors = parseUint64Safely(uniqueDepositorsStr.String)
+
+	totalWithdrawals = parseDecimalSafely(totalWithdrawalsStr.String)
+	withdrawalCount = parseUint64Safely(withdrawalCountStr.String)
+	uniqueWithdrawers = parseUint64Safely(uniqueWithdrawersStr.String)
+
+	if s.pgPool != nil {
+		chDepositHashesQuery := `
+			SELECT DISTINCT tx_hash
+			FROM tucanbit_financial.deposits
+			WHERE status = 'completed'
+				AND toDate(created_at) >= ?
+				AND toDate(created_at) <= ?
+				AND tx_hash != ''
+		`
+		chDepositHashes := make(map[string]bool)
+		rows, err := s.clickhouse.Query(ctx, chDepositHashesQuery, startOfMonthStr, dateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var txHash string
+				if err := rows.Scan(&txHash); err == nil && txHash != "" {
+					chDepositHashes[txHash] = true
+				}
+			}
+		}
+
+		if len(chDepositHashes) > 0 {
+			hashPlaceholders := make([]string, 0, len(chDepositHashes))
+			hashArgs := make([]interface{}, 0, len(chDepositHashes)+2)
+			hashArgs = append(hashArgs, startOfMonth, endOfDay)
+			argIndex := 3
+			for hash := range chDepositHashes {
+				hashPlaceholders = append(hashPlaceholders, fmt.Sprintf("$%d", argIndex))
+				hashArgs = append(hashArgs, hash)
+				argIndex++
+			}
+			hashFilter := fmt.Sprintf("AND tx_hash NOT IN (%s)", strings.Join(hashPlaceholders, ","))
+
+			pgDepositsQuery := fmt.Sprintf(`
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_deposits,
+					COUNT(*) as deposit_count,
+					COUNT(DISTINCT user_id) as unique_depositors
+				FROM transactions
+				WHERE transaction_type = 'deposit'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+					%s
+			`, hashFilter)
+
+			var pgTotalDeposits decimal.Decimal
+			var pgDepositCount, pgUniqueDepositors int64
+			err = s.pgPool.QueryRow(ctx, pgDepositsQuery, hashArgs...).Scan(
+				&pgTotalDeposits,
+				&pgDepositCount,
+				&pgUniqueDepositors,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced deposits from PostgreSQL", zap.Error(err))
+			} else {
+				totalDeposits = totalDeposits.Add(pgTotalDeposits)
+				depositCount += uint64(pgDepositCount)
+
+				chDepositorsMap := make(map[string]bool)
+				chDepositorsQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.deposits
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, startOfMonthStr, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chDepositorsMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgDepositorsQuery := fmt.Sprintf(`
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'deposit'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+						%s
+				`, hashFilter)
+				pgRows, err := s.pgPool.Query(ctx, pgDepositorsQuery, hashArgs...)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chDepositorsMap[userIDStr] {
+								uniqueDepositors++
+							}
+						}
+					}
+				}
+			}
+		} else {
+			pgDepositsQuery := `
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_deposits,
+					COUNT(*) as deposit_count,
+					COUNT(DISTINCT user_id) as unique_depositors
+				FROM transactions
+				WHERE transaction_type = 'deposit'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+
+			var pgTotalDeposits decimal.Decimal
+			var pgDepositCount, pgUniqueDepositors int64
+			err = s.pgPool.QueryRow(ctx, pgDepositsQuery, startOfMonth, endOfDay).Scan(
+				&pgTotalDeposits,
+				&pgDepositCount,
+				&pgUniqueDepositors,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced deposits from PostgreSQL", zap.Error(err))
+			} else {
+				totalDeposits = totalDeposits.Add(pgTotalDeposits)
+				depositCount += uint64(pgDepositCount)
+
+				chDepositorsMap := make(map[string]bool)
+				chDepositorsQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.deposits
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, startOfMonthStr, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chDepositorsMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgDepositorsQuery := `
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'deposit'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+				`
+				pgRows, err := s.pgPool.Query(ctx, pgDepositorsQuery, startOfMonth, endOfDay)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chDepositorsMap[userIDStr] {
+								uniqueDepositors++
+							}
+						}
+					}
+				}
+			}
+		}
+
+		chWithdrawalHashesQuery := `
+			SELECT DISTINCT tx_hash
+			FROM tucanbit_financial.withdrawals
+			WHERE status = 'completed'
+				AND toDate(created_at) >= ?
+				AND toDate(created_at) <= ?
+				AND tx_hash != ''
+		`
+		chWithdrawalHashes := make(map[string]bool)
+		rows, err = s.clickhouse.Query(ctx, chWithdrawalHashesQuery, startOfMonthStr, dateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var txHash string
+				if err := rows.Scan(&txHash); err == nil && txHash != "" {
+					chWithdrawalHashes[txHash] = true
+				}
+			}
+		}
+
+		if len(chWithdrawalHashes) > 0 {
+			hashPlaceholders := make([]string, 0, len(chWithdrawalHashes))
+			hashArgs := make([]interface{}, 0, len(chWithdrawalHashes)+2)
+			hashArgs = append(hashArgs, startOfMonth, endOfDay)
+			argIndex := 3
+			for hash := range chWithdrawalHashes {
+				hashPlaceholders = append(hashPlaceholders, fmt.Sprintf("$%d", argIndex))
+				hashArgs = append(hashArgs, hash)
+				argIndex++
+			}
+			hashFilter := fmt.Sprintf("AND tx_hash NOT IN (%s)", strings.Join(hashPlaceholders, ","))
+
+			pgWithdrawalsQuery := fmt.Sprintf(`
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_withdrawals,
+					COUNT(*) as withdrawal_count,
+					COUNT(DISTINCT user_id) as unique_withdrawers
+				FROM transactions
+				WHERE transaction_type = 'withdrawal'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+					%s
+			`, hashFilter)
+
+			var pgTotalWithdrawals decimal.Decimal
+			var pgWithdrawalCount, pgUniqueWithdrawers int64
+			err = s.pgPool.QueryRow(ctx, pgWithdrawalsQuery, hashArgs...).Scan(
+				&pgTotalWithdrawals,
+				&pgWithdrawalCount,
+				&pgUniqueWithdrawers,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced withdrawals from PostgreSQL", zap.Error(err))
+			} else {
+				totalWithdrawals = totalWithdrawals.Add(pgTotalWithdrawals)
+				withdrawalCount += uint64(pgWithdrawalCount)
+
+				chWithdrawersMap := make(map[string]bool)
+				chWithdrawersQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.withdrawals
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chWithdrawersQuery, startOfMonthStr, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chWithdrawersMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgWithdrawersQuery := fmt.Sprintf(`
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'withdrawal'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+						%s
+				`, hashFilter)
+				pgRows, err := s.pgPool.Query(ctx, pgWithdrawersQuery, hashArgs...)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chWithdrawersMap[userIDStr] {
+								uniqueWithdrawers++
+							}
+						}
+					}
+				}
+			}
+		} else {
+			pgWithdrawalsQuery := `
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_withdrawals,
+					COUNT(*) as withdrawal_count,
+					COUNT(DISTINCT user_id) as unique_withdrawers
+				FROM transactions
+				WHERE transaction_type = 'withdrawal'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+
+			var pgTotalWithdrawals decimal.Decimal
+			var pgWithdrawalCount, pgUniqueWithdrawers int64
+			err = s.pgPool.QueryRow(ctx, pgWithdrawalsQuery, startOfMonth, endOfDay).Scan(
+				&pgTotalWithdrawals,
+				&pgWithdrawalCount,
+				&pgUniqueWithdrawers,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced withdrawals from PostgreSQL", zap.Error(err))
+			} else {
+				totalWithdrawals = totalWithdrawals.Add(pgTotalWithdrawals)
+				withdrawalCount += uint64(pgWithdrawalCount)
+
+				chWithdrawersMap := make(map[string]bool)
+				chWithdrawersQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.withdrawals
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chWithdrawersQuery, startOfMonthStr, dateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chWithdrawersMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgWithdrawersQuery := `
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'withdrawal'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+				`
+				pgRows, err := s.pgPool.Query(ctx, pgWithdrawersQuery, startOfMonth, endOfDay)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chWithdrawersMap[userIDStr] {
+								uniqueWithdrawers++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var newUsers uint64
+	chNewUsersQuery := `
+		SELECT toString(ifNull(toUInt64(count()), 0)) as new_users
+		FROM tucanbit_analytics.transactions
+		WHERE transaction_type = 'registration'
+			AND toDate(created_at) >= ?
+			AND toDate(created_at) <= ?
+	`
+	var newUsersStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, chNewUsersQuery, startOfMonthStr, dateStr).Scan(&newUsersStr)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get new users from ClickHouse", zap.Error(err))
+	}
+	newUsers = parseUint64Safely(newUsersStr.String)
+
+	if s.pgPool != nil {
+		chRegisteredUsersQuery := `
+			SELECT DISTINCT user_id
+			FROM tucanbit_analytics.transactions
+			WHERE transaction_type = 'registration'
+				AND toDate(created_at) >= ?
+				AND toDate(created_at) <= ?
+		`
+		chRegisteredUsers := make(map[string]bool)
+		rows, err := s.clickhouse.Query(ctx, chRegisteredUsersQuery, startOfMonthStr, dateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				if err := rows.Scan(&userIDStr); err == nil {
+					chRegisteredUsers[userIDStr] = true
+				}
+			}
+		}
+
+		if len(chRegisteredUsers) > 0 {
+			userPlaceholders := make([]string, 0, len(chRegisteredUsers))
+			userArgs := make([]interface{}, 2)
+			userArgs[0] = startOfMonth
+			userArgs[1] = endOfDay
+			argIndex := 3
+			for userID := range chRegisteredUsers {
+				userPlaceholders = append(userPlaceholders, fmt.Sprintf("$%d", argIndex))
+				userArgs = append(userArgs, userID)
+				argIndex++
+			}
+			userFilter := fmt.Sprintf("AND id::text NOT IN (%s)", strings.Join(userPlaceholders, ","))
+
+			pgNewUsersQuery := fmt.Sprintf(`
+				SELECT COUNT(*) as new_users
+				FROM users
+				WHERE created_at >= $1
+					AND created_at <= $2
+					%s
+			`, userFilter)
+
+			var pgNewUsers int64
+			err = s.pgPool.QueryRow(ctx, pgNewUsersQuery, userArgs...).Scan(&pgNewUsers)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced new users from PostgreSQL", zap.Error(err))
+			} else {
+				newUsers += uint64(pgNewUsers)
+			}
+		} else {
+			pgNewUsersQuery := `
+				SELECT COUNT(*) as new_users
+				FROM users
+				WHERE created_at >= $1
+					AND created_at <= $2
+			`
+			var pgNewUsers int64
+			err = s.pgPool.QueryRow(ctx, pgNewUsersQuery, startOfMonth, endOfDay).Scan(&pgNewUsers)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced new users from PostgreSQL", zap.Error(err))
+			} else {
+				newUsers += uint64(pgNewUsers)
+			}
+		}
+	}
+
+	ggr := totalBets.Sub(totalWins)
+	netRevenue := ggr
+
+	mtd := &dto.DailyReportMTD{
+		TotalTransactions: parseUint64Safely(totalTransactionsStr.String),
+		TotalDeposits:     totalDeposits,
+		TotalWithdrawals:  totalWithdrawals,
+		TotalBets:         totalBets,
+		TotalWins:         totalWins,
+		GGR:               ggr,
+		NetRevenue:        netRevenue,
+		ActiveUsers:       parseUint64Safely(activeUsersStr.String),
+		ActiveGames:       parseUint64Safely(activeGamesStr.String),
+		NewUsers:          newUsers,
+		UniqueDepositors:  uniqueDepositors,
+		UniqueWithdrawers: uniqueWithdrawers,
+		DepositCount:      depositCount,
+		WithdrawalCount:   withdrawalCount,
+		BetCount:          parseUint64Safely(betCountStr.String),
+		WinCount:          parseUint64Safely(winCountStr.String),
+		CashbackEarned:    cashbackEarned,
+		CashbackClaimed:   cashbackClaimed,
+		AdminCorrections:  decimal.Zero,
+	}
+
+	return mtd, nil
 }
 
 // getSPLMData gets Same Period Last Month data for the given date
 func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) (*dto.DailyReportSPLM, error) {
-	// Calculate same period last month
 	lastMonth := date.AddDate(0, -1, 0)
-	startOfLastMonth := time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, lastMonth.Location())
+	startOfLastMonth := time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
 	endOfLastMonth := startOfLastMonth.AddDate(0, 1, -1)
 
-	// Use the same day of the month as the current date, but cap at the end of last month
-	splmEndDate := time.Date(lastMonth.Year(), lastMonth.Month(), date.Day(), 0, 0, 0, 0, lastMonth.Location())
+	splmEndDate := time.Date(lastMonth.Year(), lastMonth.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	if splmEndDate.After(endOfLastMonth) {
 		splmEndDate = endOfLastMonth
 	}
+	splmEndOfDay := time.Date(splmEndDate.Year(), splmEndDate.Month(), splmEndDate.Day(), 23, 59, 59, 999999999, time.UTC)
 
-	query := `
+	gamingQuery, gamingArgs := s.buildGamingActivityQueryString(startOfLastMonth, splmEndOfDay, nil)
+
+	gamingMetricsQuery := `
 		SELECT 
-			toUInt64(count()) as total_transactions,
-			toDecimal64(sumIf(amount, transaction_type = 'deposit'), 8) as total_deposits,
-			toDecimal64(sumIf(amount, transaction_type = 'withdrawal'), 8) as total_withdrawals,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_bets,
-			toDecimal64(sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as total_wins,
-			toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')) - sumIf(amount, transaction_type IN ('win', 'groove_win')), 8) as net_revenue,
-			toUInt64(uniqExact(user_id)) as active_users,
-			toUInt64(0) as active_games, -- TODO: Get from games table
-			toUInt64(0) as new_users, -- TODO: Get from users table
-			toUInt64(uniqExactIf(user_id, transaction_type = 'deposit')) as unique_depositors,
-			toUInt64(uniqExactIf(user_id, transaction_type = 'withdrawal')) as unique_withdrawers,
-			toUInt64(countIf(transaction_type = 'deposit')) as deposit_count,
-			toUInt64(countIf(transaction_type = 'withdrawal')) as withdrawal_count,
-			toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as bet_count,
-			toUInt64(countIf(transaction_type IN ('win', 'groove_win'))) as win_count,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_earned,
-			toDecimal64(sumIf(amount, transaction_type = 'cashback'), 8) as cashback_claimed,
-			toDecimal64(0, 8) as admin_corrections -- TODO: Get from balance_logs or admin_fund_movements
-		FROM tucanbit_analytics.transactions
-		WHERE toDate(created_at + INTERVAL 3 HOUR) >= ? AND toDate(created_at + INTERVAL 3 HOUR) <= ?
+			toString(ifNull(toUInt64(count()), 0)) as total_transactions,
+			toString(ifNull(toDecimal64(sumIf(
+				CASE 
+					WHEN transaction_type = 'groove_bet' AND bet_amount IS NOT NULL THEN bet_amount
+					ELSE abs(amount)
+				END,
+				transaction_type IN ('bet', 'groove_bet')
+			), 8), toDecimal64(0, 8))) as total_bets,
+			toString(ifNull(toDecimal64(sumIf(
+				CASE 
+					WHEN transaction_type = 'groove_bet' THEN COALESCE(win_amount, 0)
+					ELSE COALESCE(win_amount, amount)
+				END,
+				transaction_type IN ('win', 'groove_win')
+				OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0)
+			), 8), toDecimal64(0, 8))) as total_wins,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as active_users,
+			toString(ifNull(toUInt64(uniqExact(game_id)), 0)) as active_games,
+			toString(ifNull(toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))), 0)) as bet_count,
+			toString(ifNull(toUInt64(countIf(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))), 0)) as win_count,
+			toString(ifNull(toDecimal64(sumIf(amount, transaction_type = 'cashback_earning'), 8), toDecimal64(0, 8))) as cashback_earned,
+			toString(ifNull(toDecimal64(sumIf(amount, transaction_type = 'cashback_claim'), 8), toDecimal64(0, 8))) as cashback_claimed
+		FROM (
+			` + gamingQuery + `
+		) gaming_data
 	`
+
+	var totalTransactionsStr, totalBetsStr, totalWinsStr, activeUsersStr, activeGamesStr, betCountStr, winCountStr, cashbackEarnedStr, cashbackClaimedStr sql.NullString
+
+	var err error
+	if len(gamingArgs) > 0 {
+		err = s.clickhouse.QueryRow(ctx, gamingMetricsQuery, gamingArgs...).Scan(
+			&totalTransactionsStr,
+			&totalBetsStr,
+			&totalWinsStr,
+			&activeUsersStr,
+			&activeGamesStr,
+			&betCountStr,
+			&winCountStr,
+			&cashbackEarnedStr,
+			&cashbackClaimedStr,
+		)
+	} else {
+		err = s.clickhouse.QueryRow(ctx, gamingMetricsQuery).Scan(
+			&totalTransactionsStr,
+			&totalBetsStr,
+			&totalWinsStr,
+			&activeUsersStr,
+			&activeGamesStr,
+			&betCountStr,
+			&winCountStr,
+			&cashbackEarnedStr,
+			&cashbackClaimedStr,
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gaming metrics: %w", err)
+	}
+
+	totalBets := parseDecimalSafely(totalBetsStr.String)
+	totalWins := parseDecimalSafely(totalWinsStr.String)
+	cashbackEarned := parseDecimalSafely(cashbackEarnedStr.String)
+	cashbackClaimed := parseDecimalSafely(cashbackClaimedStr.String)
 
 	startOfLastMonthStr := startOfLastMonth.Format("2006-01-02")
 	splmEndDateStr := splmEndDate.Format("2006-01-02")
 
-	s.logger.Debug("Executing SPLM query",
-		zap.String("start_date", startOfLastMonthStr),
-		zap.String("end_date", splmEndDateStr))
+	depositsQuery := `
+		SELECT 
+			toString(ifNull(toDecimal64(sum(usd_amount), 8), toDecimal64(0, 8))) as total_deposits,
+			toString(ifNull(toUInt64(count()), 0)) as deposit_count,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_depositors
+		FROM tucanbit_financial.deposits
+		WHERE status = 'completed'
+			AND toDate(created_at) >= ?
+			AND toDate(created_at) <= ?
+	`
 
-	row := s.clickhouse.QueryRow(ctx, query, startOfLastMonthStr, splmEndDateStr)
-
-	var splm dto.DailyReportSPLM
-	err := row.Scan(
-		&splm.TotalTransactions,
-		&splm.TotalDeposits,
-		&splm.TotalWithdrawals,
-		&splm.TotalBets,
-		&splm.TotalWins,
-		&splm.NetRevenue,
-		&splm.ActiveUsers,
-		&splm.ActiveGames,
-		&splm.NewUsers,
-		&splm.UniqueDepositors,
-		&splm.UniqueWithdrawers,
-		&splm.DepositCount,
-		&splm.WithdrawalCount,
-		&splm.BetCount,
-		&splm.WinCount,
-		&splm.CashbackEarned,
-		&splm.CashbackClaimed,
-		&splm.AdminCorrections,
+	var totalDepositsStr, depositCountStr, uniqueDepositorsStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, depositsQuery, startOfLastMonthStr, splmEndDateStr).Scan(
+		&totalDepositsStr,
+		&depositCountStr,
+		&uniqueDepositorsStr,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan SPLM data: %w", err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get deposits from ClickHouse", zap.Error(err))
 	}
 
-	return &splm, nil
+	withdrawalsQuery := `
+		SELECT 
+			toString(ifNull(toDecimal64(sum(usd_amount), 8), toDecimal64(0, 8))) as total_withdrawals,
+			toString(ifNull(toUInt64(count()), 0)) as withdrawal_count,
+			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_withdrawers
+		FROM tucanbit_financial.withdrawals
+		WHERE status = 'completed'
+			AND toDate(created_at) >= ?
+			AND toDate(created_at) <= ?
+	`
+
+	var totalWithdrawalsStr, withdrawalCountStr, uniqueWithdrawersStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, withdrawalsQuery, startOfLastMonthStr, splmEndDateStr).Scan(
+		&totalWithdrawalsStr,
+		&withdrawalCountStr,
+		&uniqueWithdrawersStr,
+	)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get withdrawals from ClickHouse", zap.Error(err))
+	}
+
+	var totalDeposits, totalWithdrawals decimal.Decimal
+	var depositCount, withdrawalCount, uniqueDepositors, uniqueWithdrawers uint64
+
+	totalDeposits = parseDecimalSafely(totalDepositsStr.String)
+	depositCount = parseUint64Safely(depositCountStr.String)
+	uniqueDepositors = parseUint64Safely(uniqueDepositorsStr.String)
+
+	totalWithdrawals = parseDecimalSafely(totalWithdrawalsStr.String)
+	withdrawalCount = parseUint64Safely(withdrawalCountStr.String)
+	uniqueWithdrawers = parseUint64Safely(uniqueWithdrawersStr.String)
+
+	if s.pgPool != nil {
+		chDepositHashesQuery := `
+			SELECT DISTINCT tx_hash
+			FROM tucanbit_financial.deposits
+			WHERE status = 'completed'
+				AND toDate(created_at) >= ?
+				AND toDate(created_at) <= ?
+				AND tx_hash != ''
+		`
+		chDepositHashes := make(map[string]bool)
+		rows, err := s.clickhouse.Query(ctx, chDepositHashesQuery, startOfLastMonthStr, splmEndDateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var txHash string
+				if err := rows.Scan(&txHash); err == nil && txHash != "" {
+					chDepositHashes[txHash] = true
+				}
+			}
+		}
+
+		if len(chDepositHashes) > 0 {
+			hashPlaceholders := make([]string, 0, len(chDepositHashes))
+			hashArgs := make([]interface{}, 0, len(chDepositHashes)+2)
+			hashArgs = append(hashArgs, startOfLastMonth, splmEndOfDay)
+			argIndex := 3
+			for hash := range chDepositHashes {
+				hashPlaceholders = append(hashPlaceholders, fmt.Sprintf("$%d", argIndex))
+				hashArgs = append(hashArgs, hash)
+				argIndex++
+			}
+			hashFilter := fmt.Sprintf("AND tx_hash NOT IN (%s)", strings.Join(hashPlaceholders, ","))
+
+			pgDepositsQuery := fmt.Sprintf(`
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_deposits,
+					COUNT(*) as deposit_count,
+					COUNT(DISTINCT user_id) as unique_depositors
+				FROM transactions
+				WHERE transaction_type = 'deposit'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+					%s
+			`, hashFilter)
+
+			var pgTotalDeposits decimal.Decimal
+			var pgDepositCount, pgUniqueDepositors int64
+			err = s.pgPool.QueryRow(ctx, pgDepositsQuery, hashArgs...).Scan(
+				&pgTotalDeposits,
+				&pgDepositCount,
+				&pgUniqueDepositors,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced deposits from PostgreSQL", zap.Error(err))
+			} else {
+				totalDeposits = totalDeposits.Add(pgTotalDeposits)
+				depositCount += uint64(pgDepositCount)
+
+				chDepositorsMap := make(map[string]bool)
+				chDepositorsQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.deposits
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, startOfLastMonthStr, splmEndDateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chDepositorsMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgDepositorsQuery := fmt.Sprintf(`
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'deposit'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+						%s
+				`, hashFilter)
+				pgRows, err := s.pgPool.Query(ctx, pgDepositorsQuery, hashArgs...)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chDepositorsMap[userIDStr] {
+								uniqueDepositors++
+							}
+						}
+					}
+				}
+			}
+		} else {
+			pgDepositsQuery := `
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_deposits,
+					COUNT(*) as deposit_count,
+					COUNT(DISTINCT user_id) as unique_depositors
+				FROM transactions
+				WHERE transaction_type = 'deposit'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+
+			var pgTotalDeposits decimal.Decimal
+			var pgDepositCount, pgUniqueDepositors int64
+			err = s.pgPool.QueryRow(ctx, pgDepositsQuery, startOfLastMonth, splmEndOfDay).Scan(
+				&pgTotalDeposits,
+				&pgDepositCount,
+				&pgUniqueDepositors,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced deposits from PostgreSQL", zap.Error(err))
+			} else {
+				totalDeposits = totalDeposits.Add(pgTotalDeposits)
+				depositCount += uint64(pgDepositCount)
+
+				chDepositorsMap := make(map[string]bool)
+				chDepositorsQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.deposits
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, startOfLastMonthStr, splmEndDateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chDepositorsMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgDepositorsQuery := `
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'deposit'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+				`
+				pgRows, err := s.pgPool.Query(ctx, pgDepositorsQuery, startOfLastMonth, splmEndOfDay)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chDepositorsMap[userIDStr] {
+								uniqueDepositors++
+							}
+						}
+					}
+				}
+			}
+		}
+
+		chWithdrawalHashesQuery := `
+			SELECT DISTINCT tx_hash
+			FROM tucanbit_financial.withdrawals
+			WHERE status = 'completed'
+				AND toDate(created_at) >= ?
+				AND toDate(created_at) <= ?
+				AND tx_hash != ''
+		`
+		chWithdrawalHashes := make(map[string]bool)
+		rows, err = s.clickhouse.Query(ctx, chWithdrawalHashesQuery, startOfLastMonthStr, splmEndDateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var txHash string
+				if err := rows.Scan(&txHash); err == nil && txHash != "" {
+					chWithdrawalHashes[txHash] = true
+				}
+			}
+		}
+
+		if len(chWithdrawalHashes) > 0 {
+			hashPlaceholders := make([]string, 0, len(chWithdrawalHashes))
+			hashArgs := make([]interface{}, 0, len(chWithdrawalHashes)+2)
+			hashArgs = append(hashArgs, startOfLastMonth, splmEndOfDay)
+			argIndex := 3
+			for hash := range chWithdrawalHashes {
+				hashPlaceholders = append(hashPlaceholders, fmt.Sprintf("$%d", argIndex))
+				hashArgs = append(hashArgs, hash)
+				argIndex++
+			}
+			hashFilter := fmt.Sprintf("AND tx_hash NOT IN (%s)", strings.Join(hashPlaceholders, ","))
+
+			pgWithdrawalsQuery := fmt.Sprintf(`
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_withdrawals,
+					COUNT(*) as withdrawal_count,
+					COUNT(DISTINCT user_id) as unique_withdrawers
+				FROM transactions
+				WHERE transaction_type = 'withdrawal'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+					%s
+			`, hashFilter)
+
+			var pgTotalWithdrawals decimal.Decimal
+			var pgWithdrawalCount, pgUniqueWithdrawers int64
+			err = s.pgPool.QueryRow(ctx, pgWithdrawalsQuery, hashArgs...).Scan(
+				&pgTotalWithdrawals,
+				&pgWithdrawalCount,
+				&pgUniqueWithdrawers,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced withdrawals from PostgreSQL", zap.Error(err))
+			} else {
+				totalWithdrawals = totalWithdrawals.Add(pgTotalWithdrawals)
+				withdrawalCount += uint64(pgWithdrawalCount)
+
+				chWithdrawersMap := make(map[string]bool)
+				chWithdrawersQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.withdrawals
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chWithdrawersQuery, startOfLastMonthStr, splmEndDateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chWithdrawersMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgWithdrawersQuery := fmt.Sprintf(`
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'withdrawal'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+						%s
+				`, hashFilter)
+				pgRows, err := s.pgPool.Query(ctx, pgWithdrawersQuery, hashArgs...)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chWithdrawersMap[userIDStr] {
+								uniqueWithdrawers++
+							}
+						}
+					}
+				}
+			}
+		} else {
+			pgWithdrawalsQuery := `
+				SELECT 
+					COALESCE(SUM(CASE WHEN usd_amount_cents IS NOT NULL THEN usd_amount_cents::decimal / 100 ELSE amount END), 0) as total_withdrawals,
+					COUNT(*) as withdrawal_count,
+					COUNT(DISTINCT user_id) as unique_withdrawers
+				FROM transactions
+				WHERE transaction_type = 'withdrawal'
+					AND status = 'verified'
+					AND created_at >= $1
+					AND created_at <= $2
+			`
+
+			var pgTotalWithdrawals decimal.Decimal
+			var pgWithdrawalCount, pgUniqueWithdrawers int64
+			err = s.pgPool.QueryRow(ctx, pgWithdrawalsQuery, startOfLastMonth, splmEndOfDay).Scan(
+				&pgTotalWithdrawals,
+				&pgWithdrawalCount,
+				&pgUniqueWithdrawers,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced withdrawals from PostgreSQL", zap.Error(err))
+			} else {
+				totalWithdrawals = totalWithdrawals.Add(pgTotalWithdrawals)
+				withdrawalCount += uint64(pgWithdrawalCount)
+
+				chWithdrawersMap := make(map[string]bool)
+				chWithdrawersQuery := `
+					SELECT DISTINCT toString(user_id) as user_id
+					FROM tucanbit_financial.withdrawals
+					WHERE status = 'completed'
+						AND toDate(created_at) >= ?
+						AND toDate(created_at) <= ?
+				`
+				chRows, err := s.clickhouse.Query(ctx, chWithdrawersQuery, startOfLastMonthStr, splmEndDateStr)
+				if err == nil {
+					defer chRows.Close()
+					for chRows.Next() {
+						var userIDStr string
+						if err := chRows.Scan(&userIDStr); err == nil {
+							chWithdrawersMap[userIDStr] = true
+						}
+					}
+				}
+
+				pgWithdrawersQuery := `
+					SELECT DISTINCT user_id::text
+					FROM transactions
+					WHERE transaction_type = 'withdrawal'
+						AND status = 'verified'
+						AND created_at >= $1
+						AND created_at <= $2
+				`
+				pgRows, err := s.pgPool.Query(ctx, pgWithdrawersQuery, startOfLastMonth, splmEndOfDay)
+				if err == nil {
+					defer pgRows.Close()
+					for pgRows.Next() {
+						var userIDStr string
+						if err := pgRows.Scan(&userIDStr); err == nil {
+							if !chWithdrawersMap[userIDStr] {
+								uniqueWithdrawers++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var newUsers uint64
+	chNewUsersQuery := `
+		SELECT toString(ifNull(toUInt64(count()), 0)) as new_users
+		FROM tucanbit_analytics.transactions
+		WHERE transaction_type = 'registration'
+			AND toDate(created_at) >= ?
+			AND toDate(created_at) <= ?
+	`
+	var newUsersStr sql.NullString
+	err = s.clickhouse.QueryRow(ctx, chNewUsersQuery, startOfLastMonthStr, splmEndDateStr).Scan(&newUsersStr)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "no rows") {
+		s.logger.Warn("Failed to get new users from ClickHouse", zap.Error(err))
+	}
+	newUsers = parseUint64Safely(newUsersStr.String)
+
+	if s.pgPool != nil {
+		chRegisteredUsersQuery := `
+			SELECT DISTINCT user_id
+			FROM tucanbit_analytics.transactions
+			WHERE transaction_type = 'registration'
+				AND toDate(created_at) >= ?
+				AND toDate(created_at) <= ?
+		`
+		chRegisteredUsers := make(map[string]bool)
+		rows, err := s.clickhouse.Query(ctx, chRegisteredUsersQuery, startOfLastMonthStr, splmEndDateStr)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				if err := rows.Scan(&userIDStr); err == nil {
+					chRegisteredUsers[userIDStr] = true
+				}
+			}
+		}
+
+		if len(chRegisteredUsers) > 0 {
+			userPlaceholders := make([]string, 0, len(chRegisteredUsers))
+			userArgs := make([]interface{}, 2)
+			userArgs[0] = startOfLastMonth
+			userArgs[1] = splmEndOfDay
+			argIndex := 3
+			for userID := range chRegisteredUsers {
+				userPlaceholders = append(userPlaceholders, fmt.Sprintf("$%d", argIndex))
+				userArgs = append(userArgs, userID)
+				argIndex++
+			}
+			userFilter := fmt.Sprintf("AND id::text NOT IN (%s)", strings.Join(userPlaceholders, ","))
+
+			pgNewUsersQuery := fmt.Sprintf(`
+				SELECT COUNT(*) as new_users
+				FROM users
+				WHERE created_at >= $1
+					AND created_at <= $2
+					%s
+			`, userFilter)
+
+			var pgNewUsers int64
+			err = s.pgPool.QueryRow(ctx, pgNewUsersQuery, userArgs...).Scan(&pgNewUsers)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced new users from PostgreSQL", zap.Error(err))
+			} else {
+				newUsers += uint64(pgNewUsers)
+			}
+		} else {
+			pgNewUsersQuery := `
+				SELECT COUNT(*) as new_users
+				FROM users
+				WHERE created_at >= $1
+					AND created_at <= $2
+			`
+			var pgNewUsers int64
+			err = s.pgPool.QueryRow(ctx, pgNewUsersQuery, startOfLastMonth, splmEndOfDay).Scan(&pgNewUsers)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				s.logger.Warn("Failed to get unsynced new users from PostgreSQL", zap.Error(err))
+			} else {
+				newUsers += uint64(pgNewUsers)
+			}
+		}
+	}
+
+	ggr := totalBets.Sub(totalWins)
+	netRevenue := ggr
+
+	splm := &dto.DailyReportSPLM{
+		TotalTransactions: parseUint64Safely(totalTransactionsStr.String),
+		TotalDeposits:     totalDeposits,
+		TotalWithdrawals:  totalWithdrawals,
+		TotalBets:         totalBets,
+		TotalWins:         totalWins,
+		GGR:               ggr,
+		NetRevenue:        netRevenue,
+		ActiveUsers:       parseUint64Safely(activeUsersStr.String),
+		ActiveGames:       parseUint64Safely(activeGamesStr.String),
+		NewUsers:          newUsers,
+		UniqueDepositors:  uniqueDepositors,
+		UniqueWithdrawers: uniqueWithdrawers,
+		DepositCount:      depositCount,
+		WithdrawalCount:   withdrawalCount,
+		BetCount:          parseUint64Safely(betCountStr.String),
+		WinCount:          parseUint64Safely(winCountStr.String),
+		CashbackEarned:    cashbackEarned,
+		CashbackClaimed:   cashbackClaimed,
+		AdminCorrections:  decimal.Zero,
+	}
+
+	return splm, nil
 }
 
-// calculateMTDvsSPLMChange calculates percentage change between MTD and SPLM
+// calculates percentage change between MTD and SPLM
 func (s *AnalyticsStorageImpl) calculateMTDvsSPLMChange(mtd *dto.DailyReportMTD, splm *dto.DailyReportSPLM) dto.DailyReportComparison {
 	return dto.DailyReportComparison{
 		TotalTransactionsChange: s.calculatePercentageChangeDecimal(
@@ -2077,6 +3596,7 @@ func (s *AnalyticsStorageImpl) calculateMTDvsSPLMChange(mtd *dto.DailyReportMTD,
 		TotalWithdrawalsChange: s.calculatePercentageChangeDecimal(mtd.TotalWithdrawals, splm.TotalWithdrawals),
 		TotalBetsChange:        s.calculatePercentageChangeDecimal(mtd.TotalBets, splm.TotalBets),
 		TotalWinsChange:        s.calculatePercentageChangeDecimal(mtd.TotalWins, splm.TotalWins),
+		GGRChange:              s.calculatePercentageChangeDecimal(mtd.GGR, splm.GGR),
 		NetRevenueChange:       s.calculatePercentageChangeDecimal(mtd.NetRevenue, splm.NetRevenue),
 		ActiveUsersChange: s.calculatePercentageChangeDecimal(
 			decimal.NewFromInt(int64(mtd.ActiveUsers)),
@@ -2525,4 +4045,218 @@ func (s *AnalyticsStorageImpl) GetTransactionSummary(ctx context.Context) (*dto.
 		zap.Int("withdrawalCount", stats.WithdrawalCount))
 
 	return &stats, nil
+}
+
+func (s *AnalyticsStorageImpl) GetDailyReportDataTable(ctx context.Context, dateFrom, dateTo time.Time, userIDs []uuid.UUID) (*dto.DailyReportDataTableResponse, error) {
+	startOfDay := time.Date(dateFrom.Year(), dateFrom.Month(), dateFrom.Day(), 0, 0, 0, 0, time.UTC)
+	endOfDay := time.Date(dateTo.Year(), dateTo.Month(), dateTo.Day(), 23, 59, 59, 999999999, time.UTC)
+
+	var rows []dto.DailyReportDataTableRow
+	currentDate := startOfDay
+
+	for !currentDate.After(endOfDay) {
+		dayReport, err := s.GetDailyReport(ctx, currentDate)
+		if err != nil {
+			s.logger.Warn("Failed to get daily report for data table",
+				zap.Time("date", currentDate),
+				zap.Error(err))
+			currentDate = currentDate.AddDate(0, 0, 1)
+			continue
+		}
+
+		ggr := dayReport.TotalBets.Sub(dayReport.TotalWins)
+
+		row := dto.DailyReportDataTableRow{
+			Date:              currentDate.Format("2006-01-02"),
+			NewUsers:          dayReport.NewUsers,
+			UniqueDepositors:  dayReport.UniqueDepositors,
+			UniqueWithdrawers: dayReport.UniqueWithdrawers,
+			ActiveUsers:       dayReport.ActiveUsers,
+			BetCount:          dayReport.BetCount,
+			BetAmount:         dayReport.TotalBets,
+			WinAmount:         dayReport.TotalWins,
+			GGR:               ggr,
+			CashbackEarned:    dayReport.CashbackEarned,
+			CashbackClaimed:   dayReport.CashbackClaimed,
+			DepositCount:      dayReport.DepositCount,
+			DepositAmount:     dayReport.TotalDeposits,
+			WithdrawalCount:   dayReport.WithdrawalCount,
+			WithdrawalAmount:  dayReport.TotalWithdrawals,
+			AdminCorrections:  dayReport.AdminCorrections,
+		}
+
+		rows = append(rows, row)
+		currentDate = currentDate.AddDate(0, 0, 1)
+	}
+
+	var totals dto.DailyReportDataTableRow
+	totals.Date = "Totals"
+	for _, row := range rows {
+		totals.NewUsers += row.NewUsers
+		totals.UniqueDepositors += row.UniqueDepositors
+		totals.UniqueWithdrawers += row.UniqueWithdrawers
+		totals.ActiveUsers += row.ActiveUsers
+		totals.BetCount += row.BetCount
+		totals.BetAmount = totals.BetAmount.Add(row.BetAmount)
+		totals.WinAmount = totals.WinAmount.Add(row.WinAmount)
+		totals.GGR = totals.GGR.Add(row.GGR)
+		totals.CashbackEarned = totals.CashbackEarned.Add(row.CashbackEarned)
+		totals.CashbackClaimed = totals.CashbackClaimed.Add(row.CashbackClaimed)
+		totals.DepositCount += row.DepositCount
+		totals.DepositAmount = totals.DepositAmount.Add(row.DepositAmount)
+		totals.WithdrawalCount += row.WithdrawalCount
+		totals.WithdrawalAmount = totals.WithdrawalAmount.Add(row.WithdrawalAmount)
+		totals.AdminCorrections = totals.AdminCorrections.Add(row.AdminCorrections)
+	}
+
+	return &dto.DailyReportDataTableResponse{
+		Rows:   rows,
+		Totals: totals,
+	}, nil
+}
+
+func (s *AnalyticsStorageImpl) GetWeeklyReport(ctx context.Context, weekStart time.Time, userIDs []uuid.UUID) (*dto.WeeklyReport, error) {
+	weekStart = time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, time.UTC)
+	weekEnd := weekStart.AddDate(0, 0, 6)
+	weekEnd = time.Date(weekEnd.Year(), weekEnd.Month(), weekEnd.Day(), 23, 59, 59, 999999999, time.UTC)
+
+	dataTable, err := s.GetDailyReportDataTable(ctx, weekStart, weekEnd, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get daily breakdown: %w", err)
+	}
+
+	var weeklySummary dto.DailyReportDataTableRow
+	weeklySummary.Date = "Weekly Total"
+	for _, row := range dataTable.Rows {
+		weeklySummary.NewUsers += row.NewUsers
+		weeklySummary.UniqueDepositors += row.UniqueDepositors
+		weeklySummary.UniqueWithdrawers += row.UniqueWithdrawers
+		weeklySummary.ActiveUsers += row.ActiveUsers
+		weeklySummary.BetCount += row.BetCount
+		weeklySummary.BetAmount = weeklySummary.BetAmount.Add(row.BetAmount)
+		weeklySummary.WinAmount = weeklySummary.WinAmount.Add(row.WinAmount)
+		weeklySummary.GGR = weeklySummary.GGR.Add(row.GGR)
+		weeklySummary.CashbackEarned = weeklySummary.CashbackEarned.Add(row.CashbackEarned)
+		weeklySummary.CashbackClaimed = weeklySummary.CashbackClaimed.Add(row.CashbackClaimed)
+		weeklySummary.DepositCount += row.DepositCount
+		weeklySummary.DepositAmount = weeklySummary.DepositAmount.Add(row.DepositAmount)
+		weeklySummary.WithdrawalCount += row.WithdrawalCount
+		weeklySummary.WithdrawalAmount = weeklySummary.WithdrawalAmount.Add(row.WithdrawalAmount)
+		weeklySummary.AdminCorrections = weeklySummary.AdminCorrections.Add(row.AdminCorrections)
+	}
+
+	uniqueDepositorsMap := make(map[string]bool)
+	uniqueWithdrawersMap := make(map[string]bool)
+	activeUsersMap := make(map[string]bool)
+
+	for _, row := range dataTable.Rows {
+		date, err := time.Parse("2006-01-02", row.Date)
+		if err != nil {
+			continue
+		}
+
+		chDepositorsQuery := `
+			SELECT DISTINCT toString(user_id) as user_id
+			FROM tucanbit_financial.deposits
+			WHERE status = 'completed'
+				AND toDate(created_at) = ?
+		`
+		rows, err := s.clickhouse.Query(ctx, chDepositorsQuery, row.Date)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				if err := rows.Scan(&userIDStr); err == nil {
+					uniqueDepositorsMap[userIDStr] = true
+				}
+			}
+		}
+
+		chWithdrawersQuery := `
+			SELECT DISTINCT toString(user_id) as user_id
+			FROM tucanbit_financial.withdrawals
+			WHERE status = 'completed'
+				AND toDate(created_at) = ?
+		`
+		rows, err = s.clickhouse.Query(ctx, chWithdrawersQuery, row.Date)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				if err := rows.Scan(&userIDStr); err == nil {
+					uniqueWithdrawersMap[userIDStr] = true
+				}
+			}
+		}
+
+		gamingQuery, gamingArgs := s.buildGamingActivityQueryString(
+			time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC),
+			time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999999999, time.UTC),
+			userIDs,
+		)
+
+		activeUsersQuery := `
+			SELECT DISTINCT toString(user_id) as user_id
+			FROM (
+				` + gamingQuery + `
+			) gaming_data
+		`
+		rows, err = s.clickhouse.Query(ctx, activeUsersQuery, gamingArgs...)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				if err := rows.Scan(&userIDStr); err == nil {
+					activeUsersMap[userIDStr] = true
+				}
+			}
+		}
+	}
+
+	weeklySummary.UniqueDepositors = uint64(len(uniqueDepositorsMap))
+	weeklySummary.UniqueWithdrawers = uint64(len(uniqueWithdrawersMap))
+	weeklySummary.ActiveUsers = uint64(len(activeUsersMap))
+
+	mtdData, err := s.getMTDData(ctx, weekEnd)
+	if err != nil {
+		s.logger.Warn("Failed to get MTD data for weekly report", zap.Error(err))
+		mtdData = &dto.DailyReportMTD{}
+	}
+
+	splmData, err := s.getSPLMData(ctx, weekEnd)
+	if err != nil {
+		s.logger.Warn("Failed to get SPLM data for weekly report", zap.Error(err))
+		splmData = &dto.DailyReportSPLM{}
+	}
+
+	var mtdvsSPLMChange dto.DailyReportComparison
+	if mtdData != nil && splmData != nil {
+		mtdvsSPLMChange = s.calculateMTDvsSPLMChange(mtdData, splmData)
+	}
+
+	report := &dto.WeeklyReport{
+		WeekStart:         weekStart,
+		WeekEnd:           weekEnd,
+		NewUsers:          weeklySummary.NewUsers,
+		UniqueDepositors:  weeklySummary.UniqueDepositors,
+		UniqueWithdrawers: weeklySummary.UniqueWithdrawers,
+		ActiveUsers:       weeklySummary.ActiveUsers,
+		BetCount:          weeklySummary.BetCount,
+		BetAmount:         weeklySummary.BetAmount,
+		WinAmount:         weeklySummary.WinAmount,
+		GGR:               weeklySummary.GGR,
+		CashbackEarned:    weeklySummary.CashbackEarned,
+		CashbackClaimed:   weeklySummary.CashbackClaimed,
+		DepositCount:      weeklySummary.DepositCount,
+		DepositAmount:     weeklySummary.DepositAmount,
+		WithdrawalCount:   weeklySummary.WithdrawalCount,
+		WithdrawalAmount:  weeklySummary.WithdrawalAmount,
+		AdminCorrections:  weeklySummary.AdminCorrections,
+		DailyBreakdown:    dataTable.Rows,
+		MTD:               *mtdData,
+		SPLM:              *splmData,
+		MTDvsSPLMChange:   mtdvsSPLMChange,
+	}
+
+	return report, nil
 }

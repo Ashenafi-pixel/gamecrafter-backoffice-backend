@@ -14,14 +14,16 @@ import (
 )
 
 type report struct {
-	db  *persistencedb.PersistenceDB
-	log *zap.Logger
+	db               *persistencedb.PersistenceDB
+	analyticsStorage storage.Analytics
+	log              *zap.Logger
 }
 
-func Init(db *persistencedb.PersistenceDB, log *zap.Logger) storage.Report {
+func Init(db *persistencedb.PersistenceDB, analyticsStorage storage.Analytics, log *zap.Logger) storage.Report {
 	return &report{
-		db:  db,
-		log: log,
+		db:               db,
+		analyticsStorage: analyticsStorage,
+		log:              log,
 	}
 }
 

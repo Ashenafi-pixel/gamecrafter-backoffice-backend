@@ -30,10 +30,11 @@ func Init(grp *gin.RouterGroup, log *zap.Logger, analyticsHandler handler.Analyt
 		// Reporting endpoints
 		adminAnalyticsGroup.GET("/reports/daily", analyticsHandler.GetDailyReport)
 		adminAnalyticsGroup.GET("/reports/daily-enhanced", analyticsHandler.GetEnhancedDailyReport)
+		adminAnalyticsGroup.GET("/reports/daily-enhanced/table", analyticsHandler.GetDailyReportDataTable)
+		adminAnalyticsGroup.GET("/reports/weekly", analyticsHandler.GetWeeklyReport)
 		adminAnalyticsGroup.GET("/reports/transactions", analyticsHandler.GetTransactionReport)
 		adminAnalyticsGroup.GET("/reports/top-games", analyticsHandler.GetTopGames)
 		adminAnalyticsGroup.GET("/reports/top-players", analyticsHandler.GetTopPlayers)
-
 
 		// Dashboard APIs
 		adminAnalyticsGroup.GET("/dashboard/overview", analyticsHandler.GetDashboardOverview)
