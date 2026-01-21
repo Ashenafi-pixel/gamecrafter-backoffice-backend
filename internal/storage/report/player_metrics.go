@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,7 +15,44 @@ import (
 	"go.uber.org/zap"
 )
 
-// GetPlayerMetrics retrieves player metrics report with filters
+func (r *report) sortPlayerMetrics(metrics []dto.PlayerMetric, sortBy *string, sortOrder *string) {
+	if len(metrics) == 0 {
+		return
+	}
+
+	order := "desc"
+	if sortOrder != nil {
+		order = strings.ToLower(*sortOrder)
+	}
+
+	sortField := "deposits"
+	if sortBy != nil {
+		sortField = strings.ToLower(*sortBy)
+	}
+
+	sort.Slice(metrics, func(i, j int) bool {
+		var less bool
+		switch sortField {
+		case "deposits":
+			less = metrics[i].TotalDeposits.LessThan(metrics[j].TotalDeposits)
+		case "wagering":
+			less = metrics[i].TotalWagered.LessThan(metrics[j].TotalWagered)
+		case "net_loss":
+			less = metrics[i].NetGamingResult.LessThan(metrics[j].NetGamingResult)
+		case "activity":
+			less = metrics[i].NumberOfBets < metrics[j].NumberOfBets
+		case "registration":
+			less = metrics[i].RegistrationDate.Before(metrics[j].RegistrationDate)
+		default:
+			less = metrics[i].TotalDeposits.LessThan(metrics[j].TotalDeposits)
+		}
+		if order == "asc" {
+			return less
+		}
+		return !less
+	})
+}
+
 func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsReportReq, userBrandIDs []uuid.UUID) (dto.PlayerMetricsReportRes, error) {
 	var res dto.PlayerMetricsReportRes
 
@@ -45,7 +83,6 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 	if req.RegistrationTo != nil && *req.RegistrationTo != "" {
 		parsed, err := time.Parse("2006-01-02", *req.RegistrationTo)
 		if err == nil {
-			// Set to end of day
 			endOfDay := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 			registrationTo = &endOfDay
 		}
@@ -69,7 +106,6 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 	args := []interface{}{}
 	argIndex := 1
 
-	// Brand filter - respect user's brand access
 	if len(userBrandIDs) > 0 {
 		brandPlaceholders := []string{}
 		for _, brandID := range userBrandIDs {
@@ -133,12 +169,20 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		argIndex++
 	}
 
+	if req.IsTestAccount != nil {
+		if *req.IsTestAccount {
+			whereConditions = append(whereConditions, "u.is_test_account = true")
+		} else {
+			whereConditions = append(whereConditions, "COALESCE(u.is_test_account, false) = false")
+		}
+	}
+
 	whereClause := ""
 	if len(whereConditions) > 0 {
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
-	// Build HAVING clause for aggregated filters
+	// Build HAVING clause for deposit/withdrawal filters (PostgreSQL only)
 	havingConditions := []string{}
 
 	// Has deposited filter
@@ -159,7 +203,7 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		}
 	}
 
-	// Total deposits range
+	// Total deposits range (PostgreSQL only)
 	if req.MinTotalDeposits != nil {
 		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) >= $%d", argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MinTotalDeposits))
@@ -168,40 +212,6 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 	if req.MaxTotalDeposits != nil {
 		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) <= $%d", argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MaxTotalDeposits))
-		argIndex++
-	}
-
-	// Total wagers range
-	if req.MinTotalWagers != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) >= $%d", argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MinTotalWagers))
-		argIndex++
-	}
-	if req.MaxTotalWagers != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) <= $%d", argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MaxTotalWagers))
-		argIndex++
-	}
-
-	// Net result range (deposits - withdrawals - net gaming result)
-	if req.MinNetResult != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf(
-			"(COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) - "+
-				"(COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0))) >= $%d",
-			argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MinNetResult))
-		argIndex++
-	}
-	if req.MaxNetResult != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf(
-			"(COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) - "+
-				"(COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) - "+
-				"COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0))) <= $%d",
-			argIndex))
-		args = append(args, decimal.NewFromFloat(*req.MaxNetResult))
 		argIndex++
 	}
 
@@ -234,110 +244,127 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		}
 	}
 
-	// Main query - aggregates player metrics from all transaction sources
+	chConn, hasClickHouse := r.getClickHouseConn()
+	gamingMetricsMap := make(map[uuid.UUID]struct {
+		TotalWagered     decimal.Decimal
+		TotalWon         decimal.Decimal
+		NumberOfBets     int64
+		LastActivity     *time.Time
+		NumberOfSessions int64
+	})
+	cashbackMetricsMap := make(map[uuid.UUID]struct {
+		RakebackEarned  decimal.Decimal
+		RakebackClaimed decimal.Decimal
+	})
+
+	if hasClickHouse {
+		chQuery := `
+			SELECT 
+				user_id,
+				toDecimal64(sumIf(CASE 
+					WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+					WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+					ELSE 0
+				END, transaction_type IN ('bet', 'groove_bet')), 8) as total_wagered,
+				toDecimal64(sumIf(CASE 
+					WHEN transaction_type IN ('groove_bet', 'groove_win') AND win_amount IS NOT NULL THEN win_amount
+					WHEN transaction_type IN ('win', 'groove_win') THEN abs(amount)
+					ELSE 0
+				END, transaction_type IN ('win', 'groove_win')), 8) as total_won,
+				toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as number_of_bets,
+				max(created_at) as last_activity,
+				toUInt64(uniqExact(session_id)) as number_of_sessions
+			FROM tucanbit_analytics.transactions
+			WHERE transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
+				AND (
+					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
+					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+				)
+			GROUP BY user_id
+		`
+
+		rows, err := chConn.Query(ctx, chQuery)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userIDStr string
+				var totalWageredStr, totalWonStr string
+				var numberOfBets uint64
+				var lastActivity time.Time
+				var numberOfSessions uint64
+
+				if err := rows.Scan(&userIDStr, &totalWageredStr, &totalWonStr, &numberOfBets, &lastActivity, &numberOfSessions); err == nil {
+					userID, err := uuid.Parse(userIDStr)
+					if err == nil {
+						totalWagered, _ := decimal.NewFromString(totalWageredStr)
+						totalWon, _ := decimal.NewFromString(totalWonStr)
+						gamingMetricsMap[userID] = struct {
+							TotalWagered     decimal.Decimal
+							TotalWon         decimal.Decimal
+							NumberOfBets     int64
+							LastActivity     *time.Time
+							NumberOfSessions int64
+						}{
+							TotalWagered:     totalWagered,
+							TotalWon:         totalWon,
+							NumberOfBets:     int64(numberOfBets),
+							LastActivity:     &lastActivity,
+							NumberOfSessions: int64(numberOfSessions),
+						}
+					}
+				}
+			}
+		} else {
+			r.log.Warn("Failed to query ClickHouse for gaming metrics", zap.Error(err))
+		}
+
+		cashbackQuery := `
+			SELECT 
+				user_id,
+				toDecimal64(sumIf(amount, transaction_type = 'cashback_earning'), 8) as rakeback_earned,
+				toDecimal64(sumIf(amount, transaction_type = 'cashback_claim'), 8) as rakeback_claimed
+			FROM tucanbit_analytics.cashback_analytics
+			WHERE transaction_type IN ('cashback_earning', 'cashback_claim')
+			GROUP BY user_id
+		`
+
+		cashbackRows, err := chConn.Query(ctx, cashbackQuery)
+		if err == nil {
+			defer cashbackRows.Close()
+			for cashbackRows.Next() {
+				var userIDStr string
+				var rakebackEarnedStr, rakebackClaimedStr string
+
+				if err := cashbackRows.Scan(&userIDStr, &rakebackEarnedStr, &rakebackClaimedStr); err == nil {
+					userID, err := uuid.Parse(userIDStr)
+					if err == nil {
+						rakebackEarned, _ := decimal.NewFromString(rakebackEarnedStr)
+						rakebackClaimed, _ := decimal.NewFromString(rakebackClaimedStr)
+						cashbackMetricsMap[userID] = struct {
+							RakebackEarned  decimal.Decimal
+							RakebackClaimed decimal.Decimal
+						}{
+							RakebackEarned:  rakebackEarned,
+							RakebackClaimed: rakebackClaimed,
+						}
+					}
+				}
+			}
+		} else {
+			r.log.Warn("Failed to query ClickHouse for cashback metrics", zap.Error(err))
+		}
+	}
+
 	query := fmt.Sprintf(`
 		WITH all_bet_transactions AS (
-			-- GrooveTech transactions (wagers and results)
+			-- All gaming betting data comes from ClickHouse, not PostgreSQL
+			-- This CTE is kept for structure but returns no rows since all data is in ClickHouse
 			SELECT 
-				ga.user_id,
-				gt.created_at as transaction_date,
-				'wager' as transaction_type,
-				ABS(gt.amount) as amount
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			WHERE gt.type = 'wager' AND gt.amount < 0
-
-			UNION ALL
-
-			SELECT 
-				ga.user_id,
-				gt.created_at as transaction_date,
-				'win' as transaction_type,
-				gt.amount as amount
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			WHERE gt.type = 'result' AND gt.amount > 0
-
-			UNION ALL
-
-			-- General bets (crash game)
-			SELECT 
-				b.user_id,
-				COALESCE(b.timestamp, NOW()) as transaction_date,
-				'bet' as transaction_type,
-				b.amount as amount
-			FROM bets b
-			WHERE b.amount > 0
-
-			UNION ALL
-
-			SELECT 
-				b.user_id,
-				COALESCE(b.timestamp, NOW()) as transaction_date,
-				'win' as transaction_type,
-				COALESCE(b.payout, 0) as amount
-			FROM bets b
-			WHERE COALESCE(b.payout, 0) > 0
-
-			UNION ALL
-
-			-- Sport bets
-			SELECT 
-				sb.user_id,
-				sb.created_at as transaction_date,
-				'bet' as transaction_type,
-				sb.bet_amount as amount
-			FROM sport_bets sb
-			WHERE sb.bet_amount > 0
-
-			UNION ALL
-
-			SELECT 
-				sb.user_id,
-				sb.created_at as transaction_date,
-				'win' as transaction_type,
-				COALESCE(sb.actual_win, 0) as amount
-			FROM sport_bets sb
-			WHERE COALESCE(sb.actual_win, 0) > 0
-
-			UNION ALL
-
-			-- Plinko bets
-			SELECT 
-				p.user_id,
-				p.timestamp as transaction_date,
-				'bet' as transaction_type,
-				p.bet_amount as amount
-			FROM plinko p
-			WHERE p.bet_amount > 0
-
-			UNION ALL
-
-			SELECT 
-				p.user_id,
-				p.timestamp as transaction_date,
-				'win' as transaction_type,
-				p.win_amount as amount
-			FROM plinko p
-			WHERE p.win_amount > 0
-
-			UNION ALL
-
-			-- Transactions table (for any bets/wins stored there)
-			SELECT 
-				t.user_id,
-				t.created_at as transaction_date,
-				CASE 
-					WHEN t.transaction_type IN ('bet', 'groove_bet') THEN 'bet'
-					WHEN t.transaction_type IN ('win', 'groove_win') THEN 'win'
-					ELSE t.transaction_type
-				END as transaction_type,
-				CASE 
-					WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount)
-					ELSE t.amount
-				END as amount
-			FROM transactions t
-			WHERE t.transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
+				NULL::uuid as user_id,
+				NULL::timestamp as transaction_date,
+				NULL::text as transaction_type,
+				NULL::decimal as amount
+			WHERE false
 		),
 		player_transactions AS (
 			SELECT 
@@ -353,14 +380,26 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 				COALESCE(u.default_currency, 'USD') as currency,
 				COALESCE(bal.amount_units, 0) as main_balance,
 				t.transaction_type,
-				t.amount,
+				CASE 
+					WHEN t.transaction_type = 'deposit' THEN COALESCE(t.usd_amount_cents, 0) / 100.0
+					WHEN t.transaction_type = 'withdrawal' THEN COALESCE(t.usd_amount_cents, 0) / 100.0
+					ELSE t.amount
+				END as amount,
 				t.created_at as transaction_date
 			FROM users u
 			LEFT JOIN brands b ON u.brand_id = b.id
 			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
 			LEFT JOIN transactions t ON u.id = t.user_id
-				AND t.transaction_type IN ('deposit', 'withdrawal', 'rakeback_earned', 'rakeback_claimed')
+				AND t.transaction_type IN ('deposit', 'withdrawal')
+				AND t.status = 'verified'
 			%s
+		),
+		game_sessions_activity AS (
+			SELECT 
+				gs.user_id,
+				MAX(gs.last_activity) as last_activity
+			FROM game_sessions gs
+			GROUP BY gs.user_id
 		),
 		player_metrics AS (
 			SELECT 
@@ -376,62 +415,59 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 				COALESCE(u.default_currency, 'USD') as currency,
 				COALESCE(bal.amount_units, 0) as main_balance,
 				COALESCE(
+					gsa.last_activity,
 					MAX(abt.transaction_date),
 					MAX(pt.transaction_date),
 					u.created_at
 				) as last_activity,
 				COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) as total_deposits,
 				COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) as total_withdrawals,
-				COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) as total_wagered,
-				COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0) as total_won,
-				COALESCE(SUM(CASE WHEN pt.transaction_type = 'rakeback_earned' THEN pt.amount ELSE 0 END), 0) as rakeback_earned,
-				COALESCE(SUM(CASE WHEN pt.transaction_type = 'rakeback_claimed' THEN pt.amount ELSE 0 END), 0) as rakeback_claimed,
+				COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) as non_gaming_wagered,
+				COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0) as non_gaming_won,
+				0::numeric as rakeback_earned,
+				0::numeric as rakeback_claimed,
 				MIN(CASE WHEN pt.transaction_type = 'deposit' THEN pt.transaction_date ELSE NULL END) as first_deposit_date,
 				MAX(CASE WHEN pt.transaction_type = 'deposit' THEN pt.transaction_date ELSE NULL END) as last_deposit_date,
-				COUNT(DISTINCT COALESCE(abt.transaction_date, pt.transaction_date)::date) as number_of_sessions,
-				COUNT(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN 1 ELSE NULL END) as number_of_bets
+				COUNT(DISTINCT COALESCE(abt.transaction_date, pt.transaction_date)::date) as non_gaming_sessions,
+				COUNT(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN 1 ELSE NULL END) as non_gaming_bets
 			FROM users u
 			LEFT JOIN brands b ON u.brand_id = b.id
 			LEFT JOIN balances bal ON u.id = bal.user_id AND bal.currency_code = COALESCE(u.default_currency, 'USD')
+			LEFT JOIN game_sessions_activity gsa ON u.id = gsa.user_id
 			LEFT JOIN player_transactions pt ON u.id = pt.user_id
 			LEFT JOIN all_bet_transactions abt ON u.id = abt.user_id
 			%s
-			GROUP BY u.id, u.username, u.email, u.brand_id, b.name, u.country, u.created_at, u.status, u.kyc_status, u.default_currency, bal.amount_units
+			GROUP BY u.id, u.username, u.email, u.brand_id, b.name, u.country, u.created_at, u.status, u.kyc_status, u.default_currency, bal.amount_units, gsa.last_activity
 			%s
 		)
 		SELECT 
-			user_id as player_id,
-			username,
-			email,
-			brand_id,
-			brand_name,
-			country,
-			registration_date,
-			last_activity,
-			main_balance,
-			currency,
-			total_deposits,
-			total_withdrawals,
-			total_deposits - total_withdrawals as net_deposits,
-			total_wagered,
-			total_won,
-			rakeback_earned,
-			rakeback_claimed,
-			total_wagered - total_won - rakeback_earned as net_gaming_result,
-			number_of_sessions,
-			number_of_bets,
-			account_status,
+			pm.user_id as player_id,
+			pm.username,
+			pm.email,
+			pm.brand_id,
+			pm.brand_name,
+			pm.country,
+			pm.registration_date,
+			pm.last_activity,
+			pm.main_balance,
+			pm.currency,
+			pm.total_deposits,
+			pm.total_withdrawals,
+			pm.total_deposits - pm.total_withdrawals as net_deposits,
+			pm.non_gaming_wagered as total_wagered,
+			pm.non_gaming_won as total_won,
+			pm.rakeback_earned,
+			pm.rakeback_claimed,
+			pm.non_gaming_wagered - pm.non_gaming_won - pm.rakeback_earned as net_gaming_result,
+			pm.non_gaming_sessions as number_of_sessions,
+			pm.non_gaming_bets as number_of_bets,
+			pm.account_status,
 			NULL::text as device_type,
-			kyc_status,
-			first_deposit_date,
-			last_deposit_date
-		FROM player_metrics
-		ORDER BY %s
-		LIMIT $%d OFFSET $%d
-	`, whereClause, whereClause, havingClause, orderBy, argIndex, argIndex+1)
-
-	// Add pagination args
-	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
+			pm.kyc_status,
+			pm.first_deposit_date,
+			pm.last_deposit_date
+		FROM player_metrics pm
+		`, whereClause, whereClause, havingClause)
 
 	// Execute query
 	rows, err := r.db.GetPool().Query(ctx, query, args...)
@@ -514,6 +550,53 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 			metric.DeviceType = &deviceType.String
 		}
 
+		if gamingMetrics, exists := gamingMetricsMap[metric.PlayerID]; exists {
+			metric.TotalWagered = metric.TotalWagered.Add(gamingMetrics.TotalWagered)
+			metric.TotalWon = metric.TotalWon.Add(gamingMetrics.TotalWon)
+			metric.NumberOfBets = metric.NumberOfBets + gamingMetrics.NumberOfBets
+			metric.NumberOfSessions = metric.NumberOfSessions + gamingMetrics.NumberOfSessions
+			if gamingMetrics.LastActivity != nil {
+				if metric.LastActivity == nil || gamingMetrics.LastActivity.After(*metric.LastActivity) {
+					metric.LastActivity = gamingMetrics.LastActivity
+				}
+			}
+		}
+
+		if cashbackMetrics, exists := cashbackMetricsMap[metric.PlayerID]; exists {
+			metric.RakebackEarned = metric.RakebackEarned.Add(cashbackMetrics.RakebackEarned)
+			metric.RakebackClaimed = metric.RakebackClaimed.Add(cashbackMetrics.RakebackClaimed)
+		}
+
+		metric.NetGamingResult = metric.TotalWagered.Sub(metric.TotalWon).Sub(metric.RakebackEarned)
+
+		if req.MinTotalWagers != nil {
+			minWagers := decimal.NewFromFloat(*req.MinTotalWagers)
+			if metric.TotalWagered.LessThan(minWagers) {
+				continue
+			}
+		}
+		if req.MaxTotalWagers != nil {
+			maxWagers := decimal.NewFromFloat(*req.MaxTotalWagers)
+			if metric.TotalWagered.GreaterThan(maxWagers) {
+				continue
+			}
+		}
+
+		// Net result filter (deposits - withdrawals - net gaming result)
+		netResult := metric.TotalDeposits.Sub(metric.TotalWithdrawals).Sub(metric.NetGamingResult)
+		if req.MinNetResult != nil {
+			minNetResult := decimal.NewFromFloat(*req.MinNetResult)
+			if netResult.LessThan(minNetResult) {
+				continue
+			}
+		}
+		if req.MaxNetResult != nil {
+			maxNetResult := decimal.NewFromFloat(*req.MaxNetResult)
+			if netResult.GreaterThan(maxNetResult) {
+				continue
+			}
+		}
+
 		metrics = append(metrics, metric)
 	}
 
@@ -522,81 +605,21 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		return res, errors.ErrUnableToGet.Wrap(err, "error iterating player metrics rows")
 	}
 
-	// Get total count (simplified - using same query without pagination)
-	countQuery := fmt.Sprintf(`
-		WITH all_bet_transactions AS (
-			SELECT ga.user_id, 'wager' as transaction_type, ABS(gt.amount) as amount
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			WHERE gt.type = 'wager' AND gt.amount < 0
-			UNION ALL
-			SELECT ga.user_id, 'win' as transaction_type, gt.amount as amount
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			WHERE gt.type = 'result' AND gt.amount > 0
-			UNION ALL
-			SELECT b.user_id, 'bet' as transaction_type, b.amount as amount
-			FROM bets b
-			WHERE b.amount > 0
-			UNION ALL
-			SELECT b.user_id, 'win' as transaction_type, COALESCE(b.payout, 0) as amount
-			FROM bets b
-			WHERE COALESCE(b.payout, 0) > 0
-			UNION ALL
-			SELECT sb.user_id, 'bet' as transaction_type, sb.bet_amount as amount
-			FROM sport_bets sb
-			WHERE sb.bet_amount > 0
-			UNION ALL
-			SELECT sb.user_id, 'win' as transaction_type, COALESCE(sb.actual_win, 0) as amount
-			FROM sport_bets sb
-			WHERE COALESCE(sb.actual_win, 0) > 0
-			UNION ALL
-			SELECT p.user_id, 'bet' as transaction_type, p.bet_amount as amount
-			FROM plinko p
-			WHERE p.bet_amount > 0
-			UNION ALL
-			SELECT p.user_id, 'win' as transaction_type, p.win_amount as amount
-			FROM plinko p
-			WHERE p.win_amount > 0
-			UNION ALL
-			SELECT t.user_id,
-				CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN 'bet'
-					WHEN t.transaction_type IN ('win', 'groove_win') THEN 'win'
-					ELSE t.transaction_type END as transaction_type,
-				CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE t.amount END as amount
-			FROM transactions t
-			WHERE t.transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
-		),
-		player_transactions AS (
-			SELECT u.id as user_id, t.transaction_type, t.amount
-			FROM users u
-			LEFT JOIN transactions t ON u.id = t.user_id
-				AND t.transaction_type IN ('deposit', 'withdrawal', 'rakeback_earned', 'rakeback_claimed')
-			%s
-		),
-		player_metrics AS (
-			SELECT 
-				u.id as user_id,
-				COALESCE(SUM(CASE WHEN pt.transaction_type = 'deposit' THEN pt.amount ELSE 0 END), 0) as total_deposits,
-				COALESCE(SUM(CASE WHEN pt.transaction_type = 'withdrawal' THEN pt.amount ELSE 0 END), 0) as total_withdrawals,
-				COALESCE(SUM(CASE WHEN abt.transaction_type IN ('bet', 'wager') THEN abt.amount ELSE 0 END), 0) as total_wagered,
-				COALESCE(SUM(CASE WHEN abt.transaction_type = 'win' THEN abt.amount ELSE 0 END), 0) as total_won
-			FROM users u
-			LEFT JOIN player_transactions pt ON u.id = pt.user_id
-			LEFT JOIN all_bet_transactions abt ON u.id = abt.user_id
-			%s
-			GROUP BY u.id
-			%s
-		)
-		SELECT COUNT(*) as total
-		FROM player_metrics
-	`, whereClause, whereClause, havingClause)
+	// Store total before pagination
+	total := int64(len(metrics))
 
-	var total int64
-	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
-	if err != nil {
-		r.log.Error("failed to get player metrics count", zap.Error(err))
-		total = int64(len(metrics)) // Fallback
+	// Apply sorting (since we filtered after merge, we need to sort here)
+	r.sortPlayerMetrics(metrics, req.SortBy, req.SortOrder)
+
+	// Apply pagination
+	startIdx := (req.Page - 1) * req.PerPage
+	endIdx := startIdx + req.PerPage
+	if startIdx > len(metrics) {
+		metrics = []dto.PlayerMetric{}
+	} else if endIdx > len(metrics) {
+		metrics = metrics[startIdx:]
+	} else {
+		metrics = metrics[startIdx:endIdx]
 	}
 
 	// Calculate summary
@@ -745,57 +768,190 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 		}
 	}
 
-	// Query combines transactions from multiple sources
-	query := fmt.Sprintf(`
-		WITH all_transactions AS (
-			-- GrooveTech transactions
+	var allTransactions []dto.PlayerTransactionDetail
+	chConn, hasClickHouse := r.getClickHouseConn()
+
+	if hasClickHouse {
+		userIDStr := req.PlayerID.String()
+		chWhereConditions := []string{"user_id = ?"}
+		chArgs := []interface{}{userIDStr}
+
+		if dateFrom != nil {
+			chWhereConditions = append(chWhereConditions, "created_at >= ?")
+			chArgs = append(chArgs, dateFrom.Format("2006-01-02 15:04:05"))
+		}
+		if dateTo != nil {
+			chWhereConditions = append(chWhereConditions, "created_at <= ?")
+			chArgs = append(chArgs, dateTo.Format("2006-01-02 15:04:05"))
+		}
+
+		if req.TransactionType != nil && *req.TransactionType != "" {
+			if *req.TransactionType == "bet" {
+				chWhereConditions = append(chWhereConditions, "transaction_type IN ('bet', 'groove_bet')")
+			} else if *req.TransactionType == "win" {
+				chWhereConditions = append(chWhereConditions, "(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))")
+			}
+		} else {
+			chWhereConditions = append(chWhereConditions, "transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')")
+		}
+
+		if req.GameProvider != nil && *req.GameProvider != "" {
+			chWhereConditions = append(chWhereConditions, "provider = ?")
+			chArgs = append(chArgs, *req.GameProvider)
+		}
+
+		if req.GameID != nil && *req.GameID != "" {
+			chWhereConditions = append(chWhereConditions, "game_id = ?")
+			chArgs = append(chArgs, *req.GameID)
+		}
+
+		chWhereClause := strings.Join(chWhereConditions, " AND ")
+		chQuery := fmt.Sprintf(`
 			SELECT 
-				gt.id::uuid as id,
-				gt.transaction_id,
+				id,
+				toString(id) as transaction_id,
+				transaction_type,
+				created_at,
 				CASE 
-					WHEN gt.type = 'result' AND gt.amount > 0 THEN 'win'
-					WHEN gt.type = 'wager' THEN 'bet'
-					ELSE gt.type
-				END as transaction_type,
-				gt.created_at as transaction_date,
-				ABS(gt.amount) as amount,
-				COALESCE(ga.currency, 'USD') as currency,
-				gt.status,
-				gt.game_id as game_provider,
-				gt.game_id,
-				NULL::text as game_name,
-				gt.transaction_id as bet_id,
-				gt.round_id,
-				CASE WHEN gt.type = 'wager' THEN ABS(gt.amount) ELSE NULL END as bet_amount,
-				CASE WHEN gt.type = 'result' AND gt.amount > 0 THEN gt.amount ELSE NULL END as win_amount,
-				NULL::decimal as rakeback_earned,
-				NULL::decimal as rakeback_claimed,
-				NULL::decimal as rtp,
+					WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+					WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+					WHEN transaction_type IN ('win', 'groove_win') THEN COALESCE(win_amount, abs(amount))
+					ELSE abs(amount)
+				END as amount,
+				currency,
+				status,
+				provider as game_provider,
+				game_id,
+				game_name,
+				toString(id) as bet_id,
+				round_id,
 				CASE 
-					WHEN gt.type = 'wager' AND gt.type = 'result' AND gt.amount > 0 AND (SELECT amount FROM groove_transactions gt2 WHERE gt2.round_id = gt.round_id AND gt2.type = 'wager' LIMIT 1) > 0
-					THEN gt.amount / (SELECT amount FROM groove_transactions gt2 WHERE gt2.round_id = gt.round_id AND gt2.type = 'wager' LIMIT 1)
+					WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+					WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+					ELSE NULL
+				END as bet_amount,
+				CASE 
+					WHEN transaction_type IN ('groove_bet', 'groove_win') THEN COALESCE(win_amount, 0)
+					WHEN transaction_type IN ('win', 'groove_win') THEN COALESCE(win_amount, abs(amount))
+					ELSE NULL
+				END as win_amount,
+				NULL as rakeback_earned,
+				NULL as rakeback_claimed,
+				NULL as rtp,
+				CASE 
+					WHEN (transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL AND bet_amount > 0) THEN COALESCE(win_amount, 0) / bet_amount
+					WHEN (transaction_type IN ('bet', 'groove_bet') AND abs(amount) > 0) THEN COALESCE(win_amount, 0) / abs(amount)
 					ELSE NULL
 				END as multiplier,
-				NULL::decimal as ggr,
-				NULL::decimal as net,
+				NULL as ggr,
+				NULL as net,
 				'cash' as bet_type,
-				NULL::text as payment_method,
-				NULL::text as tx_hash,
-				NULL::text as network,
-				NULL::text as chain_id,
-				NULL::decimal as fees,
-				NULL::text as device,
-				NULL::text as ip_address,
-				gt.game_session_id as session_id
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			WHERE ga.user_id = $1
-				AND gt.type IN ('wager', 'result')
-				%s
+				NULL as payment_method,
+				NULL as tx_hash,
+				NULL as network,
+				NULL as chain_id,
+				NULL as fees,
+				NULL as device,
+				NULL as ip_address,
+				session_id
+			FROM tucanbit_analytics.transactions
+			WHERE %s
+				AND (
+					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
+					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+				)
+			ORDER BY created_at DESC
+		`, chWhereClause)
 
-			UNION ALL
+		chRows, err := chConn.Query(ctx, chQuery, chArgs...)
+		if err == nil {
+			defer chRows.Close()
+			for chRows.Next() {
+				var tx dto.PlayerTransactionDetail
+				var idStr, transactionIDStr, transactionTypeStr, amountStr, currencyStr, statusStr string
+				var gameProviderStr, gameIDStr, gameNameStr, betIDStr, roundIDStr sql.NullString
+				var betAmountStr, winAmountStr, multiplierStr sql.NullString
+				var sessionIDStr sql.NullString
+				var createdAt time.Time
 
-			-- General bets
+				err := chRows.Scan(
+					&idStr, &transactionIDStr, &transactionTypeStr, &createdAt,
+					&amountStr, &currencyStr, &statusStr,
+					&gameProviderStr, &gameIDStr, &gameNameStr, &betIDStr, &roundIDStr,
+					&betAmountStr, &winAmountStr,
+					&multiplierStr,
+					&sessionIDStr,
+				)
+				if err != nil {
+					r.log.Warn("Failed to scan ClickHouse transaction row", zap.Error(err))
+					continue
+				}
+
+				txID, err := uuid.Parse(idStr)
+				if err != nil {
+					continue
+				}
+				tx.ID = txID
+				tx.TransactionID = transactionIDStr
+				tx.Type = transactionTypeStr
+				tx.DateTime = createdAt
+				tx.Currency = currencyStr
+				tx.Status = statusStr
+
+				amount, err := decimal.NewFromString(amountStr)
+				if err == nil {
+					tx.Amount = amount
+				}
+
+				if gameProviderStr.Valid {
+					tx.GameProvider = &gameProviderStr.String
+				}
+				if gameIDStr.Valid {
+					tx.GameID = &gameIDStr.String
+				}
+				if gameNameStr.Valid {
+					tx.GameName = &gameNameStr.String
+				}
+				if betIDStr.Valid {
+					tx.BetID = &betIDStr.String
+				}
+				if roundIDStr.Valid {
+					tx.RoundID = &roundIDStr.String
+				}
+				if betAmountStr.Valid {
+					betAmt, err := decimal.NewFromString(betAmountStr.String)
+					if err == nil {
+						tx.BetAmount = &betAmt
+					}
+				}
+				if winAmountStr.Valid {
+					winAmt, err := decimal.NewFromString(winAmountStr.String)
+					if err == nil {
+						tx.WinAmount = &winAmt
+					}
+				}
+				if multiplierStr.Valid && multiplierStr.String != "0" {
+					mult, err := decimal.NewFromString(multiplierStr.String)
+					if err == nil && !mult.IsZero() {
+						tx.Multiplier = &mult
+					}
+				}
+				if sessionIDStr.Valid {
+					tx.SessionID = &sessionIDStr.String
+				}
+
+				betType := "cash"
+				tx.BetType = &betType
+
+				allTransactions = append(allTransactions, tx)
+			}
+		} else {
+			r.log.Warn("Failed to query ClickHouse for player transactions", zap.Error(err))
+		}
+	}
+
+	query := fmt.Sprintf(`
+		WITH all_transactions AS (
 			SELECT 
 				b.id,
 				b.client_transaction_id as transaction_id,
@@ -833,45 +989,6 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 
 			UNION ALL
 
-			-- Sport bets
-			SELECT 
-				sb.id::uuid as id,
-				sb.transaction_id,
-				CASE WHEN COALESCE(sb.actual_win, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				sb.created_at as transaction_date,
-				COALESCE(sb.actual_win, sb.bet_amount) as amount,
-				sb.currency,
-				COALESCE(sb.status, 'completed') as status,
-				NULL::text as game_provider,
-				NULL::text as game_id,
-				NULL::text as game_name,
-				sb.transaction_id as bet_id,
-				NULL::text as round_id,
-				sb.bet_amount as bet_amount,
-				COALESCE(sb.actual_win, 0) as win_amount,
-				NULL::decimal as rakeback_earned,
-				NULL::decimal as rakeback_claimed,
-				NULL::decimal as rtp,
-				CASE WHEN sb.bet_amount > 0 THEN COALESCE(sb.actual_win, 0) / sb.bet_amount ELSE NULL END as multiplier,
-				sb.bet_amount - COALESCE(sb.actual_win, 0) as ggr,
-				COALESCE(sb.actual_win, 0) - sb.bet_amount as net,
-				'cash' as bet_type,
-				NULL::text as payment_method,
-				NULL::text as tx_hash,
-				NULL::text as network,
-				NULL::text as chain_id,
-				NULL::decimal as fees,
-				NULL::text as device,
-				NULL::text as ip_address,
-				NULL::text as session_id
-			FROM sport_bets sb
-			WHERE sb.user_id = $1
-				AND (COALESCE(sb.actual_win, 0) > 0 OR sb.bet_amount > 0)
-				%s
-
-			UNION ALL
-
-			-- Withdrawals
 			SELECT 
 				w.id,
 				w.withdrawal_id as transaction_id,
@@ -940,12 +1057,10 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 		%s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
-	`, whereClause, whereClause, whereClause, whereClause, whereClause, orderBy, argIndex, argIndex+1)
+	`, whereClause, whereClause, whereClause, orderBy, argIndex, argIndex+1)
 
-	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
 
-	// Execute query
 	rows, err := r.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
 		r.log.Error("failed to get player transactions", zap.Error(err))
@@ -1011,7 +1126,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			&sessionID,
 		)
 		if err != nil {
-			r.log.Error("failed to scan player transaction row", zap.Error(err))
+			r.log.Warn("Failed to scan PostgreSQL transaction row", zap.Error(err), zap.Int("row_index", len(transactions)))
 			continue
 		}
 
@@ -1117,43 +1232,139 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 		return res, errors.ErrUnableToGet.Wrap(err, "error iterating player transactions rows")
 	}
 
-	// Get total count
+	allTransactions = append(allTransactions, transactions...)
+
+	var total int64
+	if hasClickHouse {
+		userIDStr := req.PlayerID.String()
+		chCountWhereConditions := []string{"user_id = ?"}
+		chCountArgs := []interface{}{userIDStr}
+
+		if dateFrom != nil {
+			chCountWhereConditions = append(chCountWhereConditions, "created_at >= ?")
+			chCountArgs = append(chCountArgs, dateFrom.Format("2006-01-02 15:04:05"))
+		}
+		if dateTo != nil {
+			chCountWhereConditions = append(chCountWhereConditions, "created_at <= ?")
+			chCountArgs = append(chCountArgs, dateTo.Format("2006-01-02 15:04:05"))
+		}
+
+		if req.TransactionType != nil && *req.TransactionType != "" {
+			if *req.TransactionType == "bet" {
+				chCountWhereConditions = append(chCountWhereConditions, "transaction_type IN ('bet', 'groove_bet')")
+			} else if *req.TransactionType == "win" {
+				chCountWhereConditions = append(chCountWhereConditions, "(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))")
+			}
+		} else {
+			chCountWhereConditions = append(chCountWhereConditions, "transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')")
+		}
+
+		if req.GameProvider != nil && *req.GameProvider != "" {
+			chCountWhereConditions = append(chCountWhereConditions, "provider = ?")
+			chCountArgs = append(chCountArgs, *req.GameProvider)
+		}
+
+		if req.GameID != nil && *req.GameID != "" {
+			chCountWhereConditions = append(chCountWhereConditions, "game_id = ?")
+			chCountArgs = append(chCountArgs, *req.GameID)
+		}
+
+		chCountWhereClause := strings.Join(chCountWhereConditions, " AND ")
+		chCountQuery := fmt.Sprintf(`
+			SELECT count()
+			FROM tucanbit_analytics.transactions
+			WHERE %s
+				AND (
+					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
+					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+				)
+		`, chCountWhereClause)
+
+		var chCount uint64
+		err := chConn.QueryRow(ctx, chCountQuery, chCountArgs...).Scan(&chCount)
+		if err == nil {
+			total += int64(chCount)
+		}
+	}
+
 	countQuery := fmt.Sprintf(`
 		WITH all_transactions AS (
-			SELECT gt.created_at as transaction_date, gt.type
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			WHERE ga.user_id = $1 AND gt.type IN ('wager', 'result')
-			%s
-			UNION ALL
 			SELECT COALESCE(b.timestamp, NOW()) as transaction_date, 'bet' as type
 			FROM bets b WHERE b.user_id = $1 %s
-			UNION ALL
-			SELECT sb.created_at as transaction_date, 'bet' as type
-			FROM sport_bets sb WHERE sb.user_id = $1 %s
 			UNION ALL
 			SELECT w.created_at as transaction_date, 'withdrawal' as type
 			FROM withdrawals w WHERE w.user_id = $1 %s
 		)
 		SELECT COUNT(*) as total
 		FROM all_transactions
-	`, whereClause, whereClause, whereClause, whereClause)
+	`, whereClause, whereClause)
 
-	var total int64
-	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
-	if err != nil {
+	var pgCount int64
+	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&pgCount)
+	if err == nil {
+		total += pgCount
+	} else {
 		r.log.Error("failed to get player transactions count", zap.Error(err))
-		total = int64(len(transactions))
+		if total == 0 {
+			total = int64(len(allTransactions))
+		}
 	}
 
-	// Calculate total pages
+	if req.MinAmount != nil || req.MaxAmount != nil {
+		filtered := make([]dto.PlayerTransactionDetail, 0)
+		for _, tx := range allTransactions {
+			if req.MinAmount != nil && tx.Amount.LessThan(decimal.NewFromFloat(*req.MinAmount)) {
+				continue
+			}
+			if req.MaxAmount != nil && tx.Amount.GreaterThan(decimal.NewFromFloat(*req.MaxAmount)) {
+				continue
+			}
+			filtered = append(filtered, tx)
+		}
+		allTransactions = filtered
+	}
+
+	sort.Slice(allTransactions, func(i, j int) bool {
+		if req.SortBy == nil {
+			return allTransactions[i].DateTime.After(allTransactions[j].DateTime)
+		}
+		switch *req.SortBy {
+		case "date":
+			if req.SortOrder != nil && *req.SortOrder == "asc" {
+				return allTransactions[i].DateTime.Before(allTransactions[j].DateTime)
+			}
+			return allTransactions[i].DateTime.After(allTransactions[j].DateTime)
+		case "amount":
+			if req.SortOrder != nil && *req.SortOrder == "asc" {
+				return allTransactions[i].Amount.LessThan(allTransactions[j].Amount)
+			}
+			return allTransactions[i].Amount.GreaterThan(allTransactions[j].Amount)
+		default:
+			return allTransactions[i].DateTime.After(allTransactions[j].DateTime)
+		}
+	})
+
 	totalPages := int(total) / req.PerPage
 	if int(total)%req.PerPage > 0 {
 		totalPages++
 	}
 
+	startIdx := (req.Page - 1) * req.PerPage
+	endIdx := startIdx + req.PerPage
+	if startIdx > len(allTransactions) {
+		startIdx = len(allTransactions)
+	}
+	if endIdx > len(allTransactions) {
+		endIdx = len(allTransactions)
+	}
+
+	var paginatedTransactions []dto.PlayerTransactionDetail
+	if startIdx < len(allTransactions) {
+		paginatedTransactions = allTransactions[startIdx:endIdx]
+	}
+
 	res.Message = "Player transactions retrieved successfully"
-	res.Data = transactions
+	res.Data = paginatedTransactions
 	res.Total = total
 	res.TotalPages = totalPages
 	res.Page = req.Page

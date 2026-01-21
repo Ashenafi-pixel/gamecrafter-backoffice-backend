@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// GetGamePerformance retrieves game-level aggregated performance metrics
 func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformanceReportReq, userBrandIDs []uuid.UUID) (dto.GamePerformanceReportRes, error) {
 	var res dto.GamePerformanceReportRes
 
@@ -34,7 +34,6 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		req.SortOrder = &defaultOrder
 	}
 
-	// Parse date range (required)
 	var dateFrom, dateTo *time.Time
 	if req.DateFrom != nil && *req.DateFrom != "" {
 		parsed, err := time.Parse("2006-01-02", *req.DateFrom)
@@ -50,7 +49,6 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		}
 	}
 
-	// If no date range provided, default to last 30 days
 	if dateFrom == nil && dateTo == nil {
 		now := time.Now()
 		dateTo = &now
@@ -58,12 +56,13 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		dateFrom = &thirtyDaysAgo
 	}
 
-	// Build WHERE conditions
+	if dateFrom == nil || dateTo == nil {
+		return res, errors.ErrInvalidUserInput.New("date_from and date_to are required")
+	}
+
 	whereConditions := []string{}
 	args := []interface{}{}
 	argIndex := 1
-
-	// Brand filter - respect user's brand access
 	if len(userBrandIDs) > 0 {
 		brandPlaceholders := []string{}
 		for _, brandID := range userBrandIDs {
@@ -88,25 +87,13 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		argIndex++
 	}
 
-	// Game Provider filter
-	if req.GameProvider != nil && *req.GameProvider != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("game_provider = $%d", argIndex))
-		args = append(args, *req.GameProvider)
-		argIndex++
-	}
-
-	// Game ID filter
-	if req.GameID != nil && *req.GameID != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("game_id = $%d", argIndex))
-		args = append(args, *req.GameID)
-		argIndex++
-	}
-
-	// Category filter
-	if req.Category != nil && *req.Category != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("category = $%d", argIndex))
-		args = append(args, *req.Category)
-		argIndex++
+	// Test account filter
+	if req.IsTestAccount != nil {
+		if *req.IsTestAccount {
+			whereConditions = append(whereConditions, "u.is_test_account = true")
+		} else {
+			whereConditions = append(whereConditions, "COALESCE(u.is_test_account, false) = false")
+		}
 	}
 
 	whereClause := ""
@@ -114,126 +101,266 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
-	// Build ORDER BY clause
-	orderBy := "ggr DESC"
-	if req.SortBy != nil {
-		switch *req.SortBy {
-		case "ggr":
-			orderBy = "ggr"
-		case "ngr":
-			orderBy = "ngr"
-		case "most_played":
-			orderBy = "total_bets"
-		case "rtp":
-			orderBy = "effective_rtp"
-		case "bet_volume":
-			orderBy = "total_stake"
-		default:
-			orderBy = "ggr"
+	// Query ClickHouse for gaming metrics grouped by game_id
+	chConn, hasClickHouse := r.getClickHouseConn()
+	gamingMetricsMap := make(map[string]struct {
+		TotalWagered      decimal.Decimal
+		TotalWon          decimal.Decimal
+		TotalBets         int64
+		TotalRounds       int64
+		UniquePlayers     int64
+		HighestWin        decimal.Decimal
+		HighestMultiplier decimal.Decimal
+		BigWinsCount      int64
+	})
+
+	if hasClickHouse {
+		startOfDay := time.Date(dateFrom.Year(), dateFrom.Month(), dateFrom.Day(), 0, 0, 0, 0, time.UTC)
+		endOfDay := time.Date(dateTo.Year(), dateTo.Month(), dateTo.Day(), 23, 59, 59, 999999999, time.UTC)
+		startDateStr := startOfDay.Format("2006-01-02 15:04:05")
+		endDateStr := endOfDay.Format("2006-01-02 15:04:05")
+
+		// Build user filter for ClickHouse
+		userFilter := ""
+		chArgs := []interface{}{}
+		if len(whereConditions) > 0 {
+			userIDsQuery := fmt.Sprintf(`
+				SELECT DISTINCT u.id
+				FROM users u
+				%s
+			`, whereClause)
+
+			var userIDs []uuid.UUID
+			rows, err := r.db.GetPool().Query(ctx, userIDsQuery, args...)
+			if err == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var userID uuid.UUID
+					if err := rows.Scan(&userID); err == nil {
+						userIDs = append(userIDs, userID)
+					}
+				}
+			}
+
+			if len(userIDs) > 0 {
+				placeholders := make([]string, len(userIDs))
+				for i := range userIDs {
+					placeholders[i] = "?"
+					chArgs = append(chArgs, userIDs[i].String())
+				}
+				userFilter = " AND user_id IN (" + strings.Join(placeholders, ",") + ")"
+			}
 		}
-		if req.SortOrder != nil {
-			orderBy += " " + strings.ToUpper(*req.SortOrder)
+
+		chQuery := fmt.Sprintf(`
+			SELECT 
+				game_id,
+				toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_wagered,
+				toDecimal64(sumIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8) as total_won,
+				toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as total_bets,
+				toUInt64(uniqExact(session_id)) as total_rounds,
+				toUInt64(uniqExact(user_id)) as unique_players,
+				toDecimal64(maxIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8) as highest_win,
+				toDecimal64(maxIf(
+					CASE 
+						WHEN transaction_type IN ('bet', 'groove_bet') AND amount > 0 THEN COALESCE(win_amount, amount) / amount
+						ELSE 0
+					END,
+					transaction_type IN ('win', 'groove_win')
+				), 8) as highest_multiplier,
+				toUInt64(countIf(
+					(transaction_type IN ('groove_bet', 'groove_win') AND win_amount IS NOT NULL AND win_amount > 1000) OR 
+					(transaction_type IN ('win', 'groove_win') AND COALESCE(win_amount, amount) > 1000)
+				)) as big_wins_count
+			FROM tucanbit_analytics.transactions
+			WHERE game_id IS NOT NULL 
+				AND game_id != '' 
+				AND amount > 0
+				AND transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
+				AND created_at >= '%s' AND created_at <= '%s'
+				%s
+			GROUP BY game_id
+		`, startDateStr, endDateStr, userFilter)
+
+		rows, err := chConn.Query(ctx, chQuery, chArgs...)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var gameIDStr string
+				var totalWageredStr, totalWonStr string
+				var totalBets, totalRounds, uniquePlayers, bigWinsCount uint64
+				var highestWinStr, highestMultiplierStr string
+
+				if err := rows.Scan(&gameIDStr, &totalWageredStr, &totalWonStr, &totalBets, &totalRounds, &uniquePlayers, &highestWinStr, &highestMultiplierStr, &bigWinsCount); err == nil {
+					if gameIDStr == "" {
+						continue
+					}
+					totalWagered, _ := decimal.NewFromString(totalWageredStr)
+					totalWon, _ := decimal.NewFromString(totalWonStr)
+					highestWin, _ := decimal.NewFromString(highestWinStr)
+					highestMultiplier, _ := decimal.NewFromString(highestMultiplierStr)
+
+					gamingMetricsMap[gameIDStr] = struct {
+						TotalWagered      decimal.Decimal
+						TotalWon          decimal.Decimal
+						TotalBets         int64
+						TotalRounds       int64
+						UniquePlayers     int64
+						HighestWin        decimal.Decimal
+						HighestMultiplier decimal.Decimal
+						BigWinsCount      int64
+					}{
+						TotalWagered:      totalWagered,
+						TotalWon:          totalWon,
+						TotalBets:         int64(totalBets),
+						TotalRounds:       int64(totalRounds),
+						UniquePlayers:     int64(uniquePlayers),
+						HighestWin:        highestWin,
+						HighestMultiplier: highestMultiplier,
+						BigWinsCount:      int64(bigWinsCount),
+					}
+				}
+			}
 		} else {
-			orderBy += " DESC"
+			r.log.Warn("Failed to query ClickHouse for gaming metrics", zap.Error(err))
 		}
 	}
 
-	// Add date params
-	dateFromParam := argIndex
-	dateToParam := argIndex + 1
-	if dateFrom != nil {
-		args = append(args, *dateFrom)
-		argIndex++
-	}
-	if dateTo != nil {
-		args = append(args, *dateTo)
-		argIndex++
+	gameIDsFromClickHouse := make([]string, 0, len(gamingMetricsMap))
+	for gameID := range gamingMetricsMap {
+		if gameID != "" {
+			gameIDsFromClickHouse = append(gameIDsFromClickHouse, gameID)
+		}
 	}
 
-	// Main query - aggregates metrics by game from multiple sources
-	query := fmt.Sprintf(`
-		WITH all_game_transactions AS (
-			-- GrooveTech transactions
+	gameDetailsQuery := `
+		SELECT DISTINCT
+			g.game_id,
+			COALESCE(g.name, g.game_id, 'Unknown') as game_name,
+			COALESCE(g.provider, 'Unknown') as provider,
+			g.category,
+			COALESCE(he.house_edge, 0) as house_edge,
+			CASE 
+				WHEN he.house_edge IS NOT NULL THEN 100 - he.house_edge
+				ELSE NULL
+			END as rtp
+		FROM games g
+		LEFT JOIN LATERAL (
+			SELECT house_edge
+			FROM game_house_edges
+			WHERE is_active = true 
+				AND game_id = g.game_id
+				AND (effective_from IS NULL OR effective_from <= NOW())
+				AND (effective_until IS NULL OR effective_until >= NOW())
+			ORDER BY effective_from DESC, updated_at DESC
+			LIMIT 1
+		) he ON true
+		WHERE g.game_id IS NOT NULL
+	`
+
+	gameDetailsArgs := []interface{}{}
+	if len(gameIDsFromClickHouse) > 0 {
+		gamePlaceholders := make([]string, len(gameIDsFromClickHouse))
+		for i, gameID := range gameIDsFromClickHouse {
+			gamePlaceholders[i] = fmt.Sprintf("$%d", i+1)
+			gameDetailsArgs = append(gameDetailsArgs, gameID)
+		}
+		gameDetailsQuery += fmt.Sprintf(" AND g.game_id IN (%s)", strings.Join(gamePlaceholders, ","))
+	} else {
+		gameDetailsQuery += " AND 1=0"
+	}
+
+	// Add filters for game_id, provider, category
+	gameFilters := []string{}
+	gameArgIndex := len(gameDetailsArgs) + 1
+
+	if req.GameID != nil && *req.GameID != "" {
+		gameFilters = append(gameFilters, fmt.Sprintf("g.game_id = $%d", gameArgIndex))
+		gameDetailsArgs = append(gameDetailsArgs, *req.GameID)
+		gameArgIndex++
+	}
+
+	if req.GameProvider != nil && *req.GameProvider != "" {
+		gameFilters = append(gameFilters, fmt.Sprintf("g.provider = $%d", gameArgIndex))
+		gameDetailsArgs = append(gameDetailsArgs, *req.GameProvider)
+		gameArgIndex++
+	}
+
+	if req.Category != nil && *req.Category != "" {
+		gameFilters = append(gameFilters, fmt.Sprintf("g.category = $%d", gameArgIndex))
+		gameDetailsArgs = append(gameDetailsArgs, *req.Category)
+		gameArgIndex++
+	}
+
+	if len(gameFilters) > 0 {
+		gameDetailsQuery += " AND " + strings.Join(gameFilters, " AND ")
+	}
+
+	gameDetailsMap := make(map[string]struct {
+		GameName  string
+		Provider  string
+		Category  *string
+		RTP       *decimal.Decimal
+		HouseEdge decimal.Decimal
+	})
+
+	if len(gameIDsFromClickHouse) > 0 {
+		rows, err := r.db.GetPool().Query(ctx, gameDetailsQuery, gameDetailsArgs...)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var gameID, gameName, provider string
+				var category sql.NullString
+				var houseEdge decimal.Decimal
+				var rtp sql.NullString
+
+				if err := rows.Scan(&gameID, &gameName, &provider, &category, &houseEdge, &rtp); err == nil {
+					var rtpVal *decimal.Decimal
+					if rtp.Valid && rtp.String != "" {
+						if parsed, err := decimal.NewFromString(rtp.String); err == nil {
+							rtpVal = &parsed
+						}
+					}
+
+					var categoryVal *string
+					if category.Valid {
+						categoryVal = &category.String
+					}
+
+					gameDetailsMap[gameID] = struct {
+						GameName  string
+						Provider  string
+						Category  *string
+						RTP       *decimal.Decimal
+						HouseEdge decimal.Decimal
+					}{
+						GameName:  gameName,
+						Provider:  provider,
+						Category:  categoryVal,
+						RTP:       rtpVal,
+						HouseEdge: houseEdge,
+					}
+				}
+			}
+		} else {
+			r.log.Warn("Failed to query PostgreSQL for game details", zap.Error(err))
+		}
+	}
+
+	rakebackQuery := fmt.Sprintf(`
+		WITH user_game_stakes AS (
 			SELECT 
 				gt.game_id,
-				COALESCE(g.name, gt.game_id, 'Unknown') as game_name,
-				COALESCE(g.provider, 'GrooveTech') as provider,
-				NULL::text as category,
 				ga.user_id,
-				gt.amount,
-				gt.type as transaction_type,
-				gt.created_at,
-				gt.round_id,
-				CASE WHEN gt.type = 'result' AND gt.amount > 0 THEN gt.amount ELSE NULL END as win_amount,
-				CASE WHEN gt.type = 'wager' THEN ABS(gt.amount) ELSE NULL END as bet_amount,
-				CASE WHEN gt.type = 'result' AND gt.amount > 0 AND EXISTS (
-					SELECT 1 FROM groove_transactions gt2 
-					WHERE gt2.round_id = gt.round_id 
-					AND gt2.type = 'wager' 
-					AND gt2.amount > 0
-					LIMIT 1
-				) THEN gt.amount / (
-					SELECT ABS(gt3.amount) FROM groove_transactions gt3 
-					WHERE gt3.round_id = gt.round_id 
-					AND gt3.type = 'wager' 
-					LIMIT 1
-				) ELSE NULL END as multiplier
+				SUM(CASE WHEN gt.type = 'wager' THEN ABS(gt.amount) ELSE 0 END) as user_stake_in_game
 			FROM groove_transactions gt
 			JOIN groove_accounts ga ON gt.account_id = ga.account_id
 			JOIN users u ON ga.user_id = u.id
-			LEFT JOIN games g ON gt.game_id = g.game_id
 			WHERE gt.type IN ('wager', 'result')
 				AND gt.created_at >= $%d
 				AND gt.created_at <= $%d
 				%s
-
-			UNION ALL
-
-			-- General bets (crash game)
-			SELECT 
-				'Crash Game'::text as game_id,
-				'Crash Game'::text as game_name,
-				'Crash'::text as provider,
-				NULL::text as category,
-				b.user_id,
-				COALESCE(b.payout, b.amount) as amount,
-				CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				COALESCE(b.timestamp, NOW()) as created_at,
-				b.round_id::text as round_id,
-				COALESCE(b.payout, 0) as win_amount,
-				b.amount as bet_amount,
-				CASE WHEN b.amount > 0 THEN COALESCE(b.payout, 0) / b.amount ELSE NULL END as multiplier
-			FROM bets b
-			JOIN users u ON b.user_id = u.id
-			WHERE (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				AND COALESCE(b.timestamp, NOW()) >= $%d
-				AND COALESCE(b.timestamp, NOW()) <= $%d
-				%s
-		),
-		game_metrics AS (
-			SELECT 
-				game_id,
-				MAX(game_name) as game_name,
-				MAX(provider) as provider,
-				MAX(category) as category,
-				COUNT(DISTINCT CASE WHEN transaction_type IN ('bet', 'wager') THEN round_id ELSE NULL END) as total_rounds,
-				COUNT(CASE WHEN transaction_type IN ('bet', 'wager') THEN 1 ELSE NULL END) as total_bets,
-				COUNT(DISTINCT user_id) as unique_players,
-				COALESCE(SUM(CASE WHEN transaction_type IN ('bet', 'wager') THEN bet_amount ELSE 0 END), 0) as total_stake,
-				COALESCE(SUM(CASE WHEN transaction_type = 'win' THEN win_amount ELSE 0 END), 0) as total_win,
-				MAX(win_amount) as highest_win,
-				MAX(multiplier) as highest_multiplier,
-				COUNT(CASE WHEN win_amount > 1000 OR multiplier > 10 THEN 1 ELSE NULL END) as big_wins_count
-			FROM all_game_transactions
-			GROUP BY game_id
-		),
-		user_game_stakes AS (
-			SELECT 
-				game_id,
-				user_id,
-				SUM(CASE WHEN transaction_type IN ('bet', 'wager') THEN bet_amount ELSE 0 END) as user_stake_in_game
-			FROM all_game_transactions
-			GROUP BY game_id, user_id
+			GROUP BY gt.game_id, ga.user_id
 		),
 		user_total_stakes AS (
 			SELECT 
@@ -269,121 +396,94 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			LEFT JOIN user_rakeback ur ON ugs.user_id = ur.user_id
 			GROUP BY ugs.game_id
 		)
-		SELECT 
-			gm.game_id,
-			gm.game_name,
-			gm.provider,
-			gm.category,
-			gm.total_bets,
-			gm.total_rounds,
-			gm.unique_players,
-			gm.total_stake,
-			gm.total_win,
-			gm.total_stake - gm.total_win as ggr,
-			gm.total_stake - gm.total_win - COALESCE(gr.rakeback_earned, 0) as ngr,
-			CASE 
-				WHEN gm.total_stake > 0 THEN (gm.total_win / gm.total_stake) * 100
-				ELSE 0
-			END as effective_rtp,
-			CASE 
-				WHEN gm.total_bets > 0 THEN gm.total_stake / gm.total_bets
-				ELSE 0
-			END as avg_bet_amount,
-			COALESCE(gr.rakeback_earned, 0) as rakeback_earned,
-			gm.big_wins_count,
-			COALESCE(gm.highest_win, 0) as highest_win,
-			COALESCE(gm.highest_multiplier, 0) as highest_multiplier
-		FROM game_metrics gm
-		LEFT JOIN game_rakeback gr ON gm.game_id = gr.game_id
-		ORDER BY %s
-		LIMIT $%d OFFSET $%d
-	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause, orderBy, argIndex, argIndex+1)
+		SELECT game_id, rakeback_earned
+		FROM game_rakeback
+	`, argIndex, argIndex+1, whereClause, argIndex+2, argIndex+3, whereClause)
 
-	// Add pagination args
-	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
+	rakebackArgs := append(args, *dateFrom, *dateTo, *dateFrom, *dateTo)
+	rakebackMap := make(map[string]decimal.Decimal)
 
-	// Execute query
-	rows, err := r.db.GetPool().Query(ctx, query, args...)
-	if err != nil {
-		r.log.Error("failed to get game performance", zap.Error(err))
-		return res, errors.ErrUnableToGet.Wrap(err, "failed to get game performance")
+	rakebackRows, err := r.db.GetPool().Query(ctx, rakebackQuery, rakebackArgs...)
+	if err == nil {
+		defer rakebackRows.Close()
+		for rakebackRows.Next() {
+			var gameID string
+			var rakeback decimal.Decimal
+			if err := rakebackRows.Scan(&gameID, &rakeback); err == nil {
+				rakebackMap[gameID] = rakeback
+			}
+		}
+	} else {
+		r.log.Warn("Failed to query PostgreSQL for rakeback", zap.Error(err))
 	}
-	defer rows.Close()
 
 	var metrics []dto.GamePerformanceMetric
-	for rows.Next() {
-		var metric dto.GamePerformanceMetric
-		var category sql.NullString
-
-		err := rows.Scan(
-			&metric.GameID,
-			&metric.GameName,
-			&metric.Provider,
-			&category,
-			&metric.TotalBets,
-			&metric.TotalRounds,
-			&metric.UniquePlayers,
-			&metric.TotalStake,
-			&metric.TotalWin,
-			&metric.GGR,
-			&metric.NGR,
-			&metric.EffectiveRTP,
-			&metric.AvgBetAmount,
-			&metric.RakebackEarned,
-			&metric.BigWinsCount,
-			&metric.HighestWin,
-			&metric.HighestMultiplier,
-		)
-		if err != nil {
-			r.log.Error("failed to scan game performance metric row", zap.Error(err))
-			continue
+	for gameID, gamingMetrics := range gamingMetricsMap {
+		gameDetails, hasDetails := gameDetailsMap[gameID]
+		if !hasDetails {
+			gameDetails = struct {
+				GameName  string
+				Provider  string
+				Category  *string
+				RTP       *decimal.Decimal
+				HouseEdge decimal.Decimal
+			}{
+				GameName:  gameID,
+				Provider:  "Unknown",
+				Category:  nil,
+				RTP:       nil,
+				HouseEdge: decimal.Zero,
+			}
 		}
 
-		if category.Valid {
-			metric.Category = &category.String
+		rakeback := rakebackMap[gameID]
+
+		metric := dto.GamePerformanceMetric{
+			GameID:            gameID,
+			GameName:          gameDetails.GameName,
+			Provider:          gameDetails.Provider,
+			Category:          gameDetails.Category,
+			TotalBets:         gamingMetrics.TotalBets,
+			TotalRounds:       gamingMetrics.TotalRounds,
+			UniquePlayers:     gamingMetrics.UniquePlayers,
+			TotalStake:        gamingMetrics.TotalWagered,
+			TotalWin:          gamingMetrics.TotalWon,
+			GGR:               gamingMetrics.TotalWagered.Sub(gamingMetrics.TotalWon),
+			NGR:               decimal.Zero, // Management only wants GGR, not NGR
+			EffectiveRTP:      decimal.Zero,
+			AvgBetAmount:      decimal.Zero,
+			RakebackEarned:    rakeback,
+			BigWinsCount:      gamingMetrics.BigWinsCount,
+			HighestWin:        gamingMetrics.HighestWin,
+			HighestMultiplier: gamingMetrics.HighestMultiplier,
+		}
+
+		if gameDetails.RTP != nil {
+			metric.EffectiveRTP = *gameDetails.RTP
+		} else if gamingMetrics.TotalWagered.GreaterThan(decimal.Zero) {
+			metric.EffectiveRTP = gamingMetrics.TotalWon.Div(gamingMetrics.TotalWagered).Mul(decimal.NewFromInt(100))
+		}
+
+		if gamingMetrics.TotalBets > 0 {
+			metric.AvgBetAmount = gamingMetrics.TotalWagered.Div(decimal.NewFromInt(gamingMetrics.TotalBets))
 		}
 
 		metrics = append(metrics, metric)
 	}
 
-	if err := rows.Err(); err != nil {
-		r.log.Error("error iterating game performance rows", zap.Error(err))
-		return res, errors.ErrUnableToGet.Wrap(err, "error iterating game performance rows")
-	}
+	// Sort metrics
+	r.sortGamePerformanceMetrics(metrics, req.SortBy, req.SortOrder)
 
-	// Get total count
-	countQuery := fmt.Sprintf(`
-		WITH all_game_transactions AS (
-			SELECT DISTINCT
-				COALESCE(gt.game_id, 'Unknown') as game_id
-			FROM groove_transactions gt
-			JOIN groove_accounts ga ON gt.account_id = ga.account_id
-			JOIN users u ON ga.user_id = u.id
-			WHERE gt.type IN ('wager', 'result')
-				AND gt.created_at >= $%d
-				AND gt.created_at <= $%d
-				%s
-
-			UNION
-
-			SELECT DISTINCT
-				'Crash Game'::text as game_id
-			FROM bets b
-			JOIN users u ON b.user_id = u.id
-			WHERE (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				AND COALESCE(b.timestamp, NOW()) >= $%d
-				AND COALESCE(b.timestamp, NOW()) <= $%d
-				%s
-		)
-		SELECT COUNT(DISTINCT game_id) as total
-		FROM all_game_transactions
-	`, dateFromParam, dateToParam, whereClause, dateFromParam, dateToParam, whereClause)
-
-	var total int64
-	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
-	if err != nil {
-		r.log.Error("failed to get game performance count", zap.Error(err))
-		total = int64(len(metrics))
+	// Apply pagination
+	total := int64(len(metrics))
+	startIdx := (req.Page - 1) * req.PerPage
+	endIdx := startIdx + req.PerPage
+	if startIdx > len(metrics) {
+		metrics = []dto.GamePerformanceMetric{}
+	} else if endIdx > len(metrics) {
+		metrics = metrics[startIdx:]
+	} else {
+		metrics = metrics[startIdx:endIdx]
 	}
 
 	// Calculate summary
@@ -422,11 +522,47 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 	return res, nil
 }
 
-// GetGamePlayers retrieves players for a specific game (drill-down)
+func (r *report) sortGamePerformanceMetrics(metrics []dto.GamePerformanceMetric, sortBy *string, sortOrder *string) {
+	if len(metrics) == 0 {
+		return
+	}
+
+	order := "desc"
+	if sortOrder != nil {
+		order = strings.ToLower(*sortOrder)
+	}
+
+	sortField := "ggr"
+	if sortBy != nil {
+		sortField = strings.ToLower(*sortBy)
+	}
+
+	sort.Slice(metrics, func(i, j int) bool {
+		var less bool
+		switch sortField {
+		case "ggr":
+			less = metrics[i].GGR.LessThan(metrics[j].GGR)
+		case "ngr":
+			less = metrics[i].NGR.LessThan(metrics[j].NGR)
+		case "most_played":
+			less = metrics[i].TotalBets < metrics[j].TotalBets
+		case "rtp":
+			less = metrics[i].EffectiveRTP.LessThan(metrics[j].EffectiveRTP)
+		case "bet_volume":
+			less = metrics[i].TotalStake.LessThan(metrics[j].TotalStake)
+		default:
+			less = metrics[i].GGR.LessThan(metrics[j].GGR)
+		}
+		if order == "asc" {
+			return less
+		}
+		return !less
+	})
+}
+
 func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, userBrandIDs []uuid.UUID) (dto.GamePlayersRes, error) {
 	var res dto.GamePlayersRes
 
-	// Set defaults
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -442,7 +578,6 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		req.SortOrder = &defaultOrder
 	}
 
-	// Parse date ranges
 	var dateFrom, dateTo *time.Time
 	if req.DateFrom != nil && *req.DateFrom != "" {
 		parsed, err := time.Parse("2006-01-02", *req.DateFrom)
@@ -458,12 +593,9 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		}
 	}
 
-	// Build WHERE conditions
 	whereConditions := []string{}
 	args := []interface{}{req.GameID}
 	argIndex := 2
-
-	// Brand filter
 	if len(userBrandIDs) > 0 {
 		brandPlaceholders := []string{}
 		for _, brandID := range userBrandIDs {
@@ -474,21 +606,18 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		whereConditions = append(whereConditions, fmt.Sprintf("(u.brand_id IS NULL OR u.brand_id IN (%s))", strings.Join(brandPlaceholders, ",")))
 	}
 
-	// Currency filter
 	if req.Currency != nil && *req.Currency != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("COALESCE(u.default_currency, 'USD') = $%d", argIndex))
 		args = append(args, *req.Currency)
 		argIndex++
 	}
 
-	// Bet type filter
 	if req.BetType != nil && *req.BetType != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("bet_type = $%d", argIndex))
 		args = append(args, *req.BetType)
 		argIndex++
 	}
 
-	// Date range
 	if dateFrom != nil {
 		whereConditions = append(whereConditions, fmt.Sprintf("transaction_date >= $%d", argIndex))
 		args = append(args, *dateFrom)
@@ -505,7 +634,6 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
 	}
 
-	// Build HAVING clause for stake and net result filters
 	havingConditions := []string{}
 	if req.MinStake != nil {
 		havingConditions = append(havingConditions, fmt.Sprintf("total_stake >= $%d", argIndex))
@@ -518,12 +646,12 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		argIndex++
 	}
 	if req.MinNetResult != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("ngr >= $%d", argIndex))
+		havingConditions = append(havingConditions, fmt.Sprintf("ggr >= $%d", argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MinNetResult))
 		argIndex++
 	}
 	if req.MaxNetResult != nil {
-		havingConditions = append(havingConditions, fmt.Sprintf("ngr <= $%d", argIndex))
+		havingConditions = append(havingConditions, fmt.Sprintf("ggr <= $%d", argIndex))
 		args = append(args, decimal.NewFromFloat(*req.MaxNetResult))
 		argIndex++
 	}
@@ -533,7 +661,6 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		havingClause = "HAVING " + strings.Join(havingConditions, " AND ")
 	}
 
-	// Build ORDER BY clause
 	orderBy := "total_stake DESC"
 	if req.SortBy != nil {
 		switch *req.SortBy {
@@ -542,7 +669,7 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		case "total_win":
 			orderBy = "total_win"
 		case "ngr":
-			orderBy = "ngr"
+			orderBy = "ggr"
 		case "rounds":
 			orderBy = "number_of_rounds"
 		case "last_played":
@@ -557,10 +684,8 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		}
 	}
 
-	// Main query
 	query := fmt.Sprintf(`
 		WITH all_game_transactions AS (
-			-- GrooveTech transactions
 			SELECT 
 				ga.user_id,
 				gt.game_id,
@@ -581,7 +706,6 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 
 			UNION ALL
 
-			-- General bets (crash game)
 			SELECT 
 				b.user_id,
 				'Crash Game'::text as game_id,
@@ -626,7 +750,7 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 			u.email,
 			pm.total_stake,
 			pm.total_win,
-			pm.total_stake - pm.total_win - COALESCE(pr.rakeback, 0) as ngr,
+			pm.total_stake - pm.total_win as ggr,
 			COALESCE(pr.rakeback, 0) as rakeback,
 			pm.number_of_rounds,
 			pm.last_played,
@@ -639,10 +763,8 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		LIMIT $%d OFFSET $%d
 	`, whereClause, whereClause, whereClause, havingClause, orderBy, argIndex+1, argIndex+2)
 
-	// Add pagination args
 	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
 
-	// Execute query
 	rows, err := r.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
 		r.log.Error("failed to get game players", zap.Error(err))
@@ -655,18 +777,20 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		var player dto.GamePlayer
 		var email sql.NullString
 
+		var ggr decimal.Decimal
 		err := rows.Scan(
 			&player.PlayerID,
 			&player.Username,
 			&email,
 			&player.TotalStake,
 			&player.TotalWin,
-			&player.NGR,
+			&ggr,
 			&player.Rakeback,
 			&player.NumberOfRounds,
 			&player.LastPlayed,
 			&player.Currency,
 		)
+		player.NGR = decimal.Zero
 		if err != nil {
 			r.log.Error("failed to scan game player row", zap.Error(err))
 			continue
@@ -684,7 +808,6 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		return res, errors.ErrUnableToGet.Wrap(err, "error iterating game players rows")
 	}
 
-	// Get total count
 	countQuery := fmt.Sprintf(`
 		WITH all_game_transactions AS (
 			SELECT DISTINCT ga.user_id
@@ -715,7 +838,6 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 		total = int64(len(players))
 	}
 
-	// Calculate total pages
 	totalPages := int(total) / req.PerPage
 	if int(total)%req.PerPage > 0 {
 		totalPages++
@@ -730,4 +852,3 @@ func (r *report) GetGamePlayers(ctx context.Context, req dto.GamePlayersReq, use
 
 	return res, nil
 }
-

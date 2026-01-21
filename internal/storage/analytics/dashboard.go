@@ -37,6 +37,83 @@ func parseDecimalSafely(s string) decimal.Decimal {
 	return d
 }
 
+func (s *AnalyticsStorageImpl) buildGamingActivityQueryString(dateFrom, dateTo time.Time, userIDs []uuid.UUID) (string, []interface{}) {
+	startOfDay := time.Date(dateFrom.Year(), dateFrom.Month(), dateFrom.Day(), 0, 0, 0, 0, time.UTC)
+	endOfDay := time.Date(dateTo.Year(), dateTo.Month(), dateTo.Day(), 23, 59, 59, 999999999, time.UTC)
+
+	startDateStr := startOfDay.Format("2006-01-02 15:04:05")
+	endDateStr := endOfDay.Format("2006-01-02 15:04:05")
+	args := []interface{}{}
+	userFilter := ""
+	if len(userIDs) > 0 {
+		placeholders := make([]string, len(userIDs))
+		for i := range userIDs {
+			placeholders[i] = "?"
+		}
+		userFilter = " AND user_id IN (" + strings.Join(placeholders, ",") + ")"
+		for _, userID := range userIDs {
+			args = append(args, userID.String())
+		}
+	}
+
+	dateFilter := fmt.Sprintf(" AND created_at >= '%s' AND created_at <= '%s'", startDateStr, endDateStr)
+	query := `
+		SELECT 
+			user_id,
+			amount,
+			transaction_type,
+			created_at,
+			game_id,
+			win_amount,
+			session_id,
+			bet_amount
+		FROM tucanbit_analytics.transactions
+		WHERE transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
+			AND (
+				(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
+				OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+			)` + dateFilter + userFilter + `
+		
+		UNION ALL
+		
+		SELECT 
+			user_id,
+			amount,
+			'cashback_earning' as transaction_type,
+			created_at,
+			NULL as game_id,
+			NULL as win_amount,
+			NULL as session_id,
+			NULL as bet_amount
+		FROM tucanbit_analytics.cashback_analytics
+		WHERE transaction_type = 'cashback_earning'` + dateFilter + userFilter + `
+		
+		UNION ALL
+		
+		SELECT 
+			user_id,
+			amount,
+			'cashback_claim' as transaction_type,
+			created_at,
+			NULL as game_id,
+			NULL as win_amount,
+			NULL as session_id,
+			NULL as bet_amount
+		FROM tucanbit_analytics.cashback_analytics
+		WHERE transaction_type = 'cashback_claim'` + dateFilter + userFilter
+
+	if len(userIDs) > 0 {
+		numSections := 3
+		finalArgs := make([]interface{}, 0, len(args)*numSections)
+		for i := 0; i < numSections; i++ {
+			finalArgs = append(finalArgs, args...)
+		}
+		return query, finalArgs
+	}
+
+	return query, []interface{}{}
+}
+
 func (s *AnalyticsStorageImpl) buildUnionAllQueryString(dateFrom, dateTo time.Time, userIDs []uuid.UUID) (string, []interface{}) {
 	startOfDay := time.Date(dateFrom.Year(), dateFrom.Month(), dateFrom.Day(), 0, 0, 0, 0, time.UTC)
 	endOfDay := time.Date(dateTo.Year(), dateTo.Month(), dateTo.Day(), 23, 59, 59, 999999999, time.UTC)

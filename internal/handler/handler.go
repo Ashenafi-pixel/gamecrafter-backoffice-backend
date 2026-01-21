@@ -73,6 +73,8 @@ type Analytics interface {
 	GetRealTimeStats(c *gin.Context)
 	GetDailyReport(c *gin.Context)
 	GetEnhancedDailyReport(c *gin.Context)
+	GetDailyReportDataTable(c *gin.Context)
+	GetWeeklyReport(c *gin.Context)
 	GetTransactionReport(c *gin.Context)
 	GetTopGames(c *gin.Context)
 	GetTopPlayers(c *gin.Context)

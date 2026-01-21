@@ -1066,6 +1066,136 @@ func (a *analytics) GetEnhancedDailyReport(c *gin.Context) {
 	})
 }
 
+func (a *analytics) GetDailyReportDataTable(c *gin.Context) {
+	dateFromStr := c.Query("date_from")
+	dateToStr := c.Query("date_to")
+	isTestAccountStr := c.Query("is_test_account")
+
+	if dateFromStr == "" {
+		now := time.Now().UTC()
+		dateFromStr = now.Format("2006-01-02")
+	}
+	if dateToStr == "" {
+		now := time.Now().UTC()
+		dateToStr = now.Format("2006-01-02")
+	}
+
+	dateFrom, err := time.Parse("2006-01-02", dateFromStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date_from format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	dateTo, err := time.Parse("2006-01-02", dateToStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid date_to format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	var userIDs []uuid.UUID
+	if isTestAccountStr == "true" && a.pgPool != nil {
+		testUsersQuery := `SELECT id FROM users WHERE is_test_account = true`
+		rows, err := a.pgPool.Query(c.Request.Context(), testUsersQuery)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userID uuid.UUID
+				if err := rows.Scan(&userID); err == nil {
+					userIDs = append(userIDs, userID)
+				}
+			}
+		}
+	}
+
+	dataTable, err := a.analyticsStorage.GetDailyReportDataTable(c.Request.Context(), dateFrom, dateTo, userIDs)
+	if err != nil {
+		a.logger.Error("Failed to get daily report data table",
+			zap.String("date_from", dateFromStr),
+			zap.String("date_to", dateToStr),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve daily report data table",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    dataTable,
+	})
+}
+
+func (a *analytics) GetWeeklyReport(c *gin.Context) {
+	weekStartStr := c.Query("week_start")
+	isTestAccountStr := c.Query("is_test_account")
+
+	if weekStartStr == "" {
+		now := time.Now().UTC()
+		weekday := int(now.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		weekStart := now.AddDate(0, 0, -weekday+1)
+		weekStartStr = weekStart.Format("2006-01-02")
+	}
+
+	weekStart, err := time.Parse("2006-01-02", weekStartStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Invalid week_start format. Use YYYY-MM-DD",
+		})
+		return
+	}
+
+	if !a.checkAnalyticsStorage(c) {
+		return
+	}
+
+	var userIDs []uuid.UUID
+	if isTestAccountStr == "true" && a.pgPool != nil {
+		testUsersQuery := `SELECT id FROM users WHERE is_test_account = true`
+		rows, err := a.pgPool.Query(c.Request.Context(), testUsersQuery)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var userID uuid.UUID
+				if err := rows.Scan(&userID); err == nil {
+					userIDs = append(userIDs, userID)
+				}
+			}
+		}
+	}
+
+	report, err := a.analyticsStorage.GetWeeklyReport(c.Request.Context(), weekStart, userIDs)
+	if err != nil {
+		a.logger.Error("Failed to get weekly report",
+			zap.String("week_start", weekStartStr),
+			zap.Error(err))
+		c.JSON(http.StatusInternalServerError, dto.AnalyticsResponse{
+			Success: false,
+			Error:   "Failed to retrieve weekly report",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.AnalyticsResponse{
+		Success: true,
+		Data:    report,
+	})
+}
+
 // GetTopGames Get top games
 // @Summary Get top games
 // @Description Retrieve top performing games

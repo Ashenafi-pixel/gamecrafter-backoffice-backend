@@ -199,6 +199,7 @@ type EnhancedDailyReport struct {
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
+	GGR               decimal.Decimal `json:"ggr"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
 	ActiveUsers       uint64          `json:"active_users"`
 	ActiveGames       uint64          `json:"active_games"`
@@ -206,7 +207,6 @@ type EnhancedDailyReport struct {
 	UniqueDepositors  uint64          `json:"unique_depositors"`
 	UniqueWithdrawers uint64          `json:"unique_withdrawers"`
 
-	// Additional metrics for comprehensive reporting
 	DepositCount     uint64          `json:"deposit_count"`
 	WithdrawalCount  uint64          `json:"withdrawal_count"`
 	BetCount         uint64          `json:"bet_count"`
@@ -215,7 +215,6 @@ type EnhancedDailyReport struct {
 	CashbackClaimed  decimal.Decimal `json:"cashback_claimed"`
 	AdminCorrections decimal.Decimal `json:"admin_corrections"`
 
-	// Comparison metrics
 	PreviousDayChange DailyReportComparison `json:"previous_day_change"`
 	MTD               DailyReportMTD        `json:"mtd"`
 	SPLM              DailyReportSPLM       `json:"splm"`
@@ -232,6 +231,7 @@ type DailyReportComparison struct {
 	TotalWithdrawalsChange  string `json:"total_withdrawals_change"`
 	TotalBetsChange         string `json:"total_bets_change"`
 	TotalWinsChange         string `json:"total_wins_change"`
+	GGRChange               string `json:"ggr_change"`
 	NetRevenueChange        string `json:"net_revenue_change"`
 	ActiveUsersChange       string `json:"active_users_change"`
 	ActiveGamesChange       string `json:"active_games_change"`
@@ -254,6 +254,7 @@ type DailyReportMTD struct {
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
+	GGR               decimal.Decimal `json:"ggr"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
 	ActiveUsers       uint64          `json:"active_users"`
 	ActiveGames       uint64          `json:"active_games"`
@@ -276,6 +277,7 @@ type DailyReportSPLM struct {
 	TotalWithdrawals  decimal.Decimal `json:"total_withdrawals"`
 	TotalBets         decimal.Decimal `json:"total_bets"`
 	TotalWins         decimal.Decimal `json:"total_wins"`
+	GGR               decimal.Decimal `json:"ggr"`
 	NetRevenue        decimal.Decimal `json:"net_revenue"`
 	ActiveUsers       uint64          `json:"active_users"`
 	ActiveGames       uint64          `json:"active_games"`
@@ -289,6 +291,57 @@ type DailyReportSPLM struct {
 	CashbackEarned    decimal.Decimal `json:"cashback_earned"`
 	CashbackClaimed   decimal.Decimal `json:"cashback_claimed"`
 	AdminCorrections  decimal.Decimal `json:"admin_corrections"`
+}
+
+// DailyReportDataTableRow represents a single row in the daily report data table
+type DailyReportDataTableRow struct {
+	Date              string          `json:"date"`
+	NewUsers          uint64          `json:"new_users"`
+	UniqueDepositors  uint64          `json:"unique_depositors"`
+	UniqueWithdrawers uint64          `json:"unique_withdrawers"`
+	ActiveUsers       uint64          `json:"active_users"`
+	BetCount          uint64          `json:"bet_count"`
+	BetAmount         decimal.Decimal `json:"bet_amount"`
+	WinAmount         decimal.Decimal `json:"win_amount"`
+	GGR               decimal.Decimal `json:"ggr"`
+	CashbackEarned    decimal.Decimal `json:"cashback_earned"`
+	CashbackClaimed   decimal.Decimal `json:"cashback_claimed"`
+	DepositCount      uint64          `json:"deposit_count"`
+	DepositAmount     decimal.Decimal `json:"deposit_amount"`
+	WithdrawalCount   uint64          `json:"withdrawal_count"`
+	WithdrawalAmount  decimal.Decimal `json:"withdrawal_amount"`
+	AdminCorrections  decimal.Decimal `json:"admin_corrections"`
+}
+
+// DailyReportDataTableResponse represents the data table response with rows and totals
+type DailyReportDataTableResponse struct {
+	Rows   []DailyReportDataTableRow `json:"rows"`
+	Totals DailyReportDataTableRow   `json:"totals"`
+}
+
+// WeeklyReport represents weekly analytics report with comparison metrics
+type WeeklyReport struct {
+	WeekStart         time.Time                 `json:"week_start"`
+	WeekEnd           time.Time                 `json:"week_end"`
+	NewUsers          uint64                    `json:"new_users"`
+	UniqueDepositors  uint64                    `json:"unique_depositors"`
+	UniqueWithdrawers uint64                    `json:"unique_withdrawers"`
+	ActiveUsers       uint64                    `json:"active_users"`
+	BetCount          uint64                    `json:"bet_count"`
+	BetAmount         decimal.Decimal           `json:"bet_amount"`
+	WinAmount         decimal.Decimal           `json:"win_amount"`
+	GGR               decimal.Decimal           `json:"ggr"`
+	CashbackEarned    decimal.Decimal           `json:"cashback_earned"`
+	CashbackClaimed   decimal.Decimal           `json:"cashback_claimed"`
+	DepositCount      uint64                    `json:"deposit_count"`
+	DepositAmount     decimal.Decimal           `json:"deposit_amount"`
+	WithdrawalCount   uint64                    `json:"withdrawal_count"`
+	WithdrawalAmount  decimal.Decimal           `json:"withdrawal_amount"`
+	AdminCorrections  decimal.Decimal           `json:"admin_corrections"`
+	DailyBreakdown    []DailyReportDataTableRow `json:"daily_breakdown"`
+	MTD               DailyReportMTD            `json:"mtd"`
+	SPLM              DailyReportSPLM           `json:"splm"`
+	MTDvsSPLMChange   DailyReportComparison     `json:"mtd_vs_splm_change"`
 }
 
 // MonthlyReport represents monthly analytics report
