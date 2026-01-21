@@ -450,7 +450,7 @@ func (s *falconMessageStorageImpl) QueryFalconMessages(ctx context.Context, quer
 func (s *falconMessageStorageImpl) GetFalconMessageSummary(ctx context.Context, query dto.FalconMessageQuery) (*dto.FalconMessageSummary, error) {
 	s.logger.Info("Getting Falcon message summary")
 
-	// Build dynamic query
+	// Build dynamic query (same filters as QueryFalconMessages)
 	whereClauses := []string{}
 	args := []interface{}{}
 	argIndex := 1
@@ -458,6 +458,36 @@ func (s *falconMessageStorageImpl) GetFalconMessageSummary(ctx context.Context, 
 	if query.UserID != nil {
 		whereClauses = append(whereClauses, fmt.Sprintf("user_id = $%d", argIndex))
 		args = append(args, *query.UserID)
+		argIndex++
+	}
+
+	if query.TransactionID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("transaction_id = $%d", argIndex))
+		args = append(args, *query.TransactionID)
+		argIndex++
+	}
+
+	if query.MessageID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("message_id = $%d", argIndex))
+		args = append(args, *query.MessageID)
+		argIndex++
+	}
+
+	if query.Status != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("status = $%d", argIndex))
+		args = append(args, *query.Status)
+		argIndex++
+	}
+
+	if query.MessageType != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("message_type = $%d", argIndex))
+		args = append(args, *query.MessageType)
+		argIndex++
+	}
+
+	if query.ReconciliationStatus != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("reconciliation_status = $%d", argIndex))
+		args = append(args, *query.ReconciliationStatus)
 		argIndex++
 	}
 

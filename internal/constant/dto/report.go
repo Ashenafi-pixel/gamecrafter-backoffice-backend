@@ -532,6 +532,7 @@ type AffiliateReportReq struct {
 type AffiliateReportRow struct {
 	Date              string          `json:"date" db:"date"`
 	ReferralCode      string          `json:"referral_code" db:"referral_code"`
+	AffiliateUsername string          `json:"affiliate_username" db:"affiliate_username"`
 	Registrations     int64           `json:"registrations" db:"registrations"`
 	UniqueDepositors  int64           `json:"unique_depositors" db:"unique_depositors"`
 	ActiveCustomers   int64           `json:"active_customers" db:"active_customers"`
@@ -549,14 +550,54 @@ type AffiliateReportRes struct {
 	Summary AffiliateReportSummary `json:"summary"`
 }
 
+// AffiliateRegistration represents a single registration
+type AffiliateRegistration struct {
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	ReferralCode string `json:"referral_code"`
+	CreatedAt   string `json:"created_at"`
+}
+
 // AffiliateReportSummary represents summary statistics for the report
 type AffiliateReportSummary struct {
-	TotalRegistrations    int64           `json:"total_registrations"`
-	TotalUniqueDepositors int64           `json:"total_unique_depositors"`
-	TotalActiveCustomers  int64           `json:"total_active_customers"`
-	TotalBets             int64           `json:"total_bets"`
-	TotalGGR              decimal.Decimal `json:"total_ggr"`
-	TotalNGR              decimal.Decimal `json:"total_ngr"`
-	TotalDepositsUSD      decimal.Decimal `json:"total_deposits_usd"`
-	TotalWithdrawalsUSD   decimal.Decimal `json:"total_withdrawals_usd"`
+	TotalRegistrations    int64                    `json:"total_registrations"`
+	TotalUniqueDepositors  int64                    `json:"total_unique_depositors"`
+	TotalActiveCustomers   int64                    `json:"total_active_customers"`
+	TotalBets              int64                    `json:"total_bets"`
+	TotalGGR               decimal.Decimal          `json:"total_ggr"`
+	TotalNGR               decimal.Decimal          `json:"total_ngr"`
+	TotalDepositsUSD       decimal.Decimal          `json:"total_deposits_usd"`
+	TotalWithdrawalsUSD    decimal.Decimal          `json:"total_withdrawals_usd"`
+	Registrations          []AffiliateRegistration  `json:"registrations"` // List of all registrations
+}
+
+// AffiliatePlayersReportReq represents the request for Affiliate Players Report (drill-down)
+type AffiliatePlayersReportReq struct {
+	ReferralCode  *string `form:"referral_code" json:"referral_code" binding:"required"` // Required: referral code to drill down
+	DateFrom      *string `form:"date_from" json:"date_from"`                             // YYYY-MM-DD format
+	DateTo        *string `form:"date_to" json:"date_to"`                                 // YYYY-MM-DD format
+	IsTestAccount *bool  `form:"is_test_account" json:"is_test_account"`                // Filter by test account
+}
+
+// AffiliatePlayerReportRow represents player-level metrics for an affiliate
+type AffiliatePlayerReportRow struct {
+	PlayerID         string          `json:"player_id" db:"player_id"`
+	Username         string          `json:"username" db:"username"`
+	Email            string          `json:"email" db:"email"`
+	Registrations    int64           `json:"registrations" db:"registrations"`
+	UniqueDepositors int64           `json:"unique_depositors" db:"unique_depositors"`
+	ActiveCustomers  int64           `json:"active_customers" db:"active_customers"`
+	TotalBets        int64           `json:"total_bets" db:"total_bets"`
+	GGR              decimal.Decimal `json:"ggr" db:"ggr"`
+	NGR              decimal.Decimal `json:"ngr" db:"ngr"`
+	DepositsUSD      decimal.Decimal `json:"deposits_usd" db:"deposits_usd"`
+	WithdrawalsUSD   decimal.Decimal `json:"withdrawals_usd" db:"withdrawals_usd"`
+}
+
+// AffiliatePlayersReportRes represents the response for Affiliate Players Report
+type AffiliatePlayersReportRes struct {
+	Message string                  `json:"message"`
+	Data    []AffiliatePlayerReportRow `json:"data"`
+	Summary AffiliateReportSummary  `json:"summary"`
 }

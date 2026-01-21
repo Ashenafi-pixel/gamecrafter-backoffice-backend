@@ -351,66 +351,111 @@ func (r *report) GetCountryMetrics(ctx context.Context, req dto.CountryReportReq
 	}
 
 	// Calculate summary from ALL data (not just paginated results)
-	// We need to run a separate query to get the total summary
+	// Summary should only respect date range filter, not user-level filters (country, currency, brand)
+	// This ensures NGR summary is consistent regardless of other filters applied
+	summaryWhereClause := ""
+	summaryArgs := []interface{}{}
+	summaryArgIndex := 1
+
+	// Only apply brand filter for security (user's brand access)
+	if len(userBrandIDs) > 0 {
+		brandPlaceholders := []string{}
+		for _, brandID := range userBrandIDs {
+			brandPlaceholders = append(brandPlaceholders, fmt.Sprintf("$%d", summaryArgIndex))
+			summaryArgs = append(summaryArgs, brandID)
+			summaryArgIndex++
+		}
+		summaryWhereClause = fmt.Sprintf("WHERE (u.brand_id IS NULL OR u.brand_id IN (%s))", strings.Join(brandPlaceholders, ","))
+	}
+
+	// Filter out admin users
+	if summaryWhereClause != "" {
+		summaryWhereClause += " AND u.is_admin = false"
+	} else {
+		summaryWhereClause = "WHERE u.is_admin = false"
+	}
+
+	// Add date params to summary args
+	summaryDateFromParam := summaryArgIndex
+	summaryDateToParam := summaryArgIndex + 1
+	if dateFrom != nil {
+		summaryArgs = append(summaryArgs, *dateFrom)
+		summaryArgIndex++
+	}
+	if dateTo != nil {
+		summaryArgs = append(summaryArgs, *dateTo)
+		summaryArgIndex++
+	}
+
+	// Build transaction date filter for summary (same as main query)
+	summaryTransactionDateFilter := ""
+	if dateFrom != nil && dateTo != nil {
+		summaryTransactionDateFilter = fmt.Sprintf("AND t.created_at >= $%d AND t.created_at <= $%d", summaryDateFromParam, summaryDateToParam)
+	} else if dateFrom != nil {
+		summaryTransactionDateFilter = fmt.Sprintf("AND t.created_at >= $%d", summaryDateFromParam)
+	} else if dateTo != nil {
+		summaryTransactionDateFilter = fmt.Sprintf("AND t.created_at <= $%d", summaryDateToParam)
+	}
+
 	summaryQuery := fmt.Sprintf(`
-		WITH country_metrics AS (
-			SELECT 
-				COALESCE(u.country, 'Unknown') as country,
-				COUNT(DISTINCT u.id) as total_registrations,
-				COUNT(DISTINCT CASE 
-					WHEN COALESCE((SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id), u.created_at) >= $%d 
-					AND COALESCE((SELECT MAX(t3.created_at) FROM transactions t3 WHERE t3.user_id = u.id), u.created_at) <= $%d 
-					THEN u.id 
-					ELSE NULL 
-				END) as active_players,
-				COUNT(DISTINCT CASE 
-					WHEN EXISTS (
-						SELECT 1 FROM transactions t 
-						WHERE t.user_id = u.id 
-						AND t.transaction_type = 'deposit'
-					) 
-					THEN u.id 
-					ELSE NULL 
-				END) as total_depositors,
-				COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) as total_deposits,
-				COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) as total_wagered,
-				COALESCE(SUM(CASE WHEN t.transaction_type IN ('win', 'groove_win') THEN t.amount ELSE 0 END), 0) as total_won,
-				COALESCE(SUM(CASE WHEN t.transaction_type = 'rakeback_earned' THEN t.amount ELSE 0 END), 0) as rakeback_earned
-			FROM users u
-			LEFT JOIN transactions t ON u.id = t.user_id %s
-			%s
-			GROUP BY COALESCE(u.country, 'Unknown')
-			%s
-		)
 		SELECT 
-			SUM(total_registrations) as total_registrations,
-			SUM(active_players) as total_active_users,
-			SUM(total_depositors) as total_depositors,
-			SUM(total_deposits) as total_deposits,
-			SUM(total_wagered - total_won - rakeback_earned) as total_ngr
-		FROM country_metrics
-	`, dateFromParam2, dateToParam2, transactionDateFilter, whereClause, havingClause)
+			COUNT(DISTINCT u.id) as total_registrations,
+			COUNT(DISTINCT CASE 
+				WHEN COALESCE((SELECT MAX(t2.created_at) FROM transactions t2 WHERE t2.user_id = u.id), u.created_at) >= $%d 
+				AND COALESCE((SELECT MAX(t3.created_at) FROM transactions t3 WHERE t3.user_id = u.id), u.created_at) <= $%d 
+				THEN u.id 
+				ELSE NULL 
+			END) as total_active_users,
+			COUNT(DISTINCT CASE 
+				WHEN EXISTS (
+					SELECT 1 FROM transactions t 
+					WHERE t.user_id = u.id 
+					AND t.transaction_type = 'deposit'
+				) 
+				THEN u.id 
+				ELSE NULL 
+			END) as total_depositors,
+			COALESCE(SUM(CASE WHEN t.transaction_type = 'deposit' THEN t.amount ELSE 0 END), 0) as total_deposits,
+			COALESCE(SUM(CASE WHEN t.transaction_type IN ('bet', 'groove_bet') THEN ABS(t.amount) ELSE 0 END), 0) as total_wagered,
+			COALESCE(SUM(CASE WHEN t.transaction_type IN ('win', 'groove_win') THEN t.amount ELSE 0 END), 0) as total_won,
+			COALESCE(SUM(CASE WHEN t.transaction_type = 'rakeback_earned' THEN t.amount ELSE 0 END), 0) as rakeback_earned
+		FROM users u
+		LEFT JOIN transactions t ON u.id = t.user_id %s
+		%s
+	`, summaryDateFromParam, summaryDateToParam, summaryTransactionDateFilter, summaryWhereClause)
 
 	var summary dto.CountryReportSummary
 	var totalRegistrations, totalActiveUsers, totalDepositors sql.NullInt64
-	var totalDeposits, totalNGR sql.NullString
+	var totalDeposits, totalWagered, totalWon, rakebackEarned sql.NullString
 
-	err = r.db.GetPool().QueryRow(ctx, summaryQuery, args[:len(args)-2]...).Scan(
+	err = r.db.GetPool().QueryRow(ctx, summaryQuery, summaryArgs...).Scan(
 		&totalRegistrations,
 		&totalActiveUsers,
 		&totalDepositors,
 		&totalDeposits,
-		&totalNGR,
+		&totalWagered,
+		&totalWon,
+		&rakebackEarned,
 	)
+
+	// Calculate NGR: total_wagered - total_won - rakeback_earned
+	var totalNGR sql.NullString
+	if err == nil && totalWagered.Valid && totalWon.Valid && rakebackEarned.Valid {
+		wagered, _ := decimal.NewFromString(totalWagered.String)
+		won, _ := decimal.NewFromString(totalWon.String)
+		rakeback, _ := decimal.NewFromString(rakebackEarned.String)
+		ngr := wagered.Sub(won).Sub(rakeback)
+		totalNGR = sql.NullString{String: ngr.String(), Valid: true}
+	}
 	if err != nil {
 		r.log.Error("failed to get country metrics summary", zap.Error(err))
 		// Fallback to calculating from paginated results
-	for _, metric := range metrics {
-		summary.TotalDeposits = summary.TotalDeposits.Add(metric.TotalDeposits)
-		summary.TotalNGR = summary.TotalNGR.Add(metric.NGR)
-		summary.TotalActiveUsers += metric.ActivePlayers
-		summary.TotalDepositors += metric.TotalDepositors
-		summary.TotalRegistrations += metric.TotalRegistrations
+		for _, metric := range metrics {
+			summary.TotalDeposits = summary.TotalDeposits.Add(metric.TotalDeposits)
+			summary.TotalNGR = summary.TotalNGR.Add(metric.NGR)
+			summary.TotalActiveUsers += metric.ActivePlayers
+			summary.TotalDepositors += metric.TotalDepositors
+			summary.TotalRegistrations += metric.TotalRegistrations
 		}
 	} else {
 		// Use the summary from all data
@@ -742,4 +787,3 @@ func (r *report) GetCountryPlayers(ctx context.Context, req dto.CountryPlayersRe
 
 	return res, nil
 }
-

@@ -310,25 +310,27 @@ func (a *authz) AssignRoleToUser(ctx context.Context, req dto.AssignRoleToUserRe
 		return dto.AssignRoleToUserRes{}, err
 	}
 
-	// If assigning "manager" or "admin role", replace all existing roles (except super)
-	if r.Name == "manager" || r.Name == "admin role" {
-		// Remove all existing roles for this user (except super)
-		err = a.authzStorage.RemoveAllUserRolesExceptSuper(ctx, req.UserID)
-		if err != nil {
-			a.Log.Error("failed to remove existing roles", zap.Error(err), zap.Any("userID", req.UserID))
-			err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
-			return dto.AssignRoleToUserRes{}, err
-		}
-	} else {
-		// For other roles, check if the role is already assigned
-		_, exist, err = a.authzStorage.GetUserRoleUsingUserIDandRole(ctx, req.UserID, req.RoleID)
-		if err != nil {
-			return dto.AssignRoleToUserRes{}, err
-		}
+	// Replace all existing roles (except super) with the new role
+	// This ensures that assigning a role replaces the user's existing roles, not adds to them
+	// Each user can only have one role (plus super if they have it)
+	err = a.authzStorage.RemoveAllUserRolesExceptSuper(ctx, req.UserID)
+	if err != nil {
+		a.Log.Error("failed to remove existing roles", zap.Error(err), zap.Any("userID", req.UserID))
+		err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
+		return dto.AssignRoleToUserRes{}, err
+	}
 
-		if exist {
-			err := fmt.Errorf("role already assigned to the user")
-			err = errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+	// Check if the role is already assigned (shouldn't happen after removal, but extra safety check)
+	_, exist, err = a.authzStorage.GetUserRoleUsingUserIDandRole(ctx, req.UserID, req.RoleID)
+	if err != nil {
+		return dto.AssignRoleToUserRes{}, err
+	}
+	if exist {
+		// Role already exists, remove it first to ensure clean state
+		err = a.authzStorage.RevokeUserRole(ctx, req.UserID, req.RoleID)
+		if err != nil {
+			a.Log.Error("failed to revoke existing role", zap.Error(err), zap.Any("userID", req.UserID), zap.Any("roleID", req.RoleID))
+			err = errors.ErrUnableToUpdate.Wrap(err, "%s", err.Error())
 			return dto.AssignRoleToUserRes{}, err
 		}
 	}

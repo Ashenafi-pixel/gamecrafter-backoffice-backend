@@ -3,6 +3,7 @@ package falcon_liquidity
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,36 +32,51 @@ func NewFalconLiquidityHandler(storage falcon_liquidity.FalconMessageStorage, lo
 //	@Description	Retrieve all Falcon Liquidity messages and data without authentication
 //	@Tags			Falcon Liquidity
 //	@Produce		json
-//	@Param			limit		query		int		false	"Limit number of results (default: 100, max: 1000)"
-//	@Param			offset		query		int		false	"Offset for pagination (default: 0)"
-//	@Param			message_type	query		string	false	"Filter by message type"
-//	@Param			status		query		string	false	"Filter by status"
-//	@Param			transaction_id	query	string	false	"Filter by transaction ID"
-//	@Success		200			{object}	dto.FalconLiquidityDataResponse
-//	@Failure		400			{object}	response.ErrorResponse
-//	@Failure		500			{object}	response.ErrorResponse
+//	@Param			page			query		int		false	"Page number (default: 1)"
+//	@Param			per_page		query		int		false	"Items per page (default: 50, max: 100)"
+//	@Param			message_type	query		string	false	"Filter by message type (casino, sport)"
+//	@Param			status			query		string	false	"Filter by status (pending, sent, failed, acknowledged)"
+//	@Param			transaction_id	query		string	false	"Filter by transaction ID"
+//	@Param			user_id			query		string	false	"Filter by user ID"
+//	@Param			message_id		query		string	false	"Filter by message ID"
+//	@Param			date_from		query		string	false	"Filter by start date (YYYY-MM-DD)"
+//	@Param			date_to			query		string	false	"Filter by end date (YYYY-MM-DD)"
+//	@Param			reconciliation_status	query	string	false	"Filter by reconciliation status"
+//	@Success		200				{object}	dto.FalconLiquidityDataResponse
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		500				{object}	response.ErrorResponse
 //	@Router			/api/admin/falcon-liquidity/data [get]
 func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
-	// Parse query parameters
-	limitStr := c.DefaultQuery("limit", "100")
-	offsetStr := c.DefaultQuery("offset", "0")
+	// Parse pagination parameters (page-based)
+	pageStr := c.DefaultQuery("page", "1")
+	perPageStr := c.DefaultQuery("per_page", "50")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	perPage, err := strconv.Atoi(perPageStr)
+	if err != nil || perPage <= 0 {
+		perPage = 50
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	// Convert page/per_page to limit/offset
+	limit := perPage
+	offset := (page - 1) * perPage
+
+	// Parse filter parameters
 	messageType := c.Query("message_type")
 	status := c.Query("status")
 	transactionID := c.Query("transaction_id")
-
-	// Convert limit and offset to integers
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 {
-		limit = 100
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
-
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
+	userIDStr := c.Query("user_id")
+	messageID := c.Query("message_id")
+	dateFromStr := c.Query("date_from")
+	dateToStr := c.Query("date_to")
+	reconciliationStatus := c.Query("reconciliation_status")
 
 	// Build query
 	query := dto.FalconMessageQuery{
@@ -79,6 +95,33 @@ func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
 	}
 	if transactionID != "" {
 		query.TransactionID = &transactionID
+	}
+	if userIDStr != "" {
+		userID, err := uuid.Parse(userIDStr)
+		if err == nil {
+			query.UserID = &userID
+		}
+	}
+	if messageID != "" {
+		query.MessageID = &messageID
+	}
+	if dateFromStr != "" {
+		dateFrom, err := time.Parse("2006-01-02", dateFromStr)
+		if err == nil {
+			query.StartDate = &dateFrom
+		}
+	}
+	if dateToStr != "" {
+		dateTo, err := time.Parse("2006-01-02", dateToStr)
+		if err == nil {
+			// Add one day to include the entire end date
+			dateTo = dateTo.Add(24 * time.Hour).Add(-1 * time.Second)
+			query.EndDate = &dateTo
+		}
+	}
+	if reconciliationStatus != "" {
+		reconStatus := dto.FalconReconciliationStatus(reconciliationStatus)
+		query.ReconciliationStatus = &reconStatus
 	}
 
 	// Get messages
@@ -105,6 +148,9 @@ func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
 		summary = &dto.FalconMessageSummary{}
 	}
 
+	// Get total count from summary
+	totalCount := summary.TotalMessages
+
 	// Prepare response
 	responseData := dto.FalconLiquidityDataResponse{
 		Messages: messages,
@@ -112,12 +158,15 @@ func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
 		Pagination: dto.FalconLiquidityPagination{
 			Limit:  limit,
 			Offset: offset,
-			Total:  len(messages),
+			Total:  totalCount, // Use total from summary, not len(messages)
 		},
 	}
 
 	h.logger.Info("Successfully retrieved Falcon Liquidity data",
 		zap.Int("message_count", len(messages)),
+		zap.Int("total_count", totalCount),
+		zap.Int("page", page),
+		zap.Int("per_page", perPage),
 		zap.Int("limit", limit),
 		zap.Int("offset", offset))
 

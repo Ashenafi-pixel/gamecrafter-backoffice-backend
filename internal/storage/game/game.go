@@ -54,6 +54,7 @@ type GameQueryParams struct {
 	Search    string
 	Status    string
 	Provider  string
+	GameID    string // Filter by game_id
 	Enabled   *bool
 	SortBy    string
 	SortOrder string
@@ -232,6 +233,12 @@ func (s *GameStorageImpl) GetGames(ctx context.Context, params GameQueryParams) 
 	if params.Provider != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("provider = $%d", argIndex))
 		args = append(args, params.Provider)
+		argIndex++
+	}
+
+	if params.GameID != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("game_id = $%d", argIndex))
+		args = append(args, params.GameID)
 		argIndex++
 	}
 

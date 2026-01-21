@@ -120,10 +120,10 @@ func (r *report) SuspendAccountsByIP(ctx *gin.Context) {
 
 	if len(userIDs) == 0 {
 		response.SendSuccessResponse(ctx, http.StatusOK, dto.SuspendAccountsByIPRes{
-			Message:          "No accounts found for this IP address",
-			IPAddress:        req.IPAddress,
+			Message:           "No accounts found for this IP address",
+			IPAddress:         req.IPAddress,
 			AccountsSuspended: 0,
-			UserIDs:          []string{},
+			UserIDs:           []string{},
 		})
 		return
 	}
@@ -132,7 +132,7 @@ func (r *report) SuspendAccountsByIP(ctx *gin.Context) {
 	suspendedCount := 0
 	failedCount := 0
 	userIDStrings := make([]string, 0, len(userIDs))
-	
+
 	for _, userID := range userIDs {
 		// Block account with COMPLETE type and PERMANENT duration
 		blockReq := dto.AccountBlockReq{
@@ -140,7 +140,7 @@ func (r *report) SuspendAccountsByIP(ctx *gin.Context) {
 			BlockedBy: adminID,
 			Type:      constant.BLOCK_TYPE_COMPLETE, // Block all access
 			Duration:  constant.BLOCK_DURATION_PERMANENT,
-			Reason:    func() string {
+			Reason: func() string {
 				if req.Reason != "" {
 					return req.Reason
 				}
@@ -148,11 +148,11 @@ func (r *report) SuspendAccountsByIP(ctx *gin.Context) {
 			}(),
 			Note: req.Note,
 		}
-		
+
 		_, err := r.userModule.BlockUser(ctx.Request.Context(), blockReq)
 		if err != nil {
-			r.log.Error("Failed to suspend account", 
-				zap.Error(err), 
+			r.log.Error("Failed to suspend account",
+				zap.Error(err),
 				zap.String("user_id", userID.String()),
 				zap.String("ip_address", req.IPAddress))
 			failedCount++
@@ -163,10 +163,10 @@ func (r *report) SuspendAccountsByIP(ctx *gin.Context) {
 	}
 
 	res := dto.SuspendAccountsByIPRes{
-		Message:          fmt.Sprintf("Suspended %d accounts (failed: %d)", suspendedCount, failedCount),
-		IPAddress:        req.IPAddress,
+		Message:           fmt.Sprintf("Suspended %d accounts (failed: %d)", suspendedCount, failedCount),
+		IPAddress:         req.IPAddress,
 		AccountsSuspended: suspendedCount,
-		UserIDs:          userIDStrings,
+		UserIDs:           userIDStrings,
 	}
 
 	response.SendSuccessResponse(ctx, http.StatusOK, res)
@@ -426,10 +426,10 @@ func (r *report) ExportPlayerMetrics(ctx *gin.Context) {
 
 	// Generate CSV
 	var csvBuilder strings.Builder
-	
+
 	// Write CSV header
 	csvBuilder.WriteString("Player ID,Username,Email,Brand ID,Brand Name,Country,Registration Date,Last Activity,Main Balance,Currency,Total Deposits,Total Withdrawals,Net Deposits,Total Wagered,Total Won,Rakeback Earned,Rakeback Claimed,Net Gaming Result,Number of Sessions,Number of Bets,Account Status,Device Type,KYC Status,First Deposit Date,Last Deposit Date\n")
-	
+
 	// Write data rows
 	for _, metric := range reportRes.Data {
 		// Helper function to safely format CSV field
@@ -445,7 +445,7 @@ func (r *report) ExportPlayerMetrics(ctx *gin.Context) {
 			}
 			return str
 		}
-		
+
 		// Format nullable fields
 		email := ""
 		if metric.Email != nil {
@@ -483,7 +483,7 @@ func (r *report) ExportPlayerMetrics(ctx *gin.Context) {
 		if metric.LastDepositDate != nil {
 			lastDepositDate = metric.LastDepositDate.Format("2006-01-02 15:04:05")
 		}
-		
+
 		// Write row
 		csvBuilder.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%d,%s,%s,%s,%s,%s\n",
 			formatCSVField(metric.PlayerID.String()),
@@ -513,12 +513,12 @@ func (r *report) ExportPlayerMetrics(ctx *gin.Context) {
 			formatCSVField(lastDepositDate),
 		))
 	}
-	
+
 	// Set headers for CSV download
 	ctx.Header("Content-Type", "text/csv; charset=utf-8")
 	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=player-metrics-%s.csv", time.Now().Format("2006-01-02")))
 	ctx.Header("Content-Transfer-Encoding", "binary")
-	
+
 	// Write CSV content
 	ctx.Data(http.StatusOK, "text/csv; charset=utf-8", []byte(csvBuilder.String()))
 }
@@ -1078,6 +1078,42 @@ func (r *report) GetAffiliateReport(ctx *gin.Context) {
 	allowedReferralCodes := []string{}
 
 	reportRes, err := r.reportModule.GetAffiliateReport(ctx.Request.Context(), req, allowedReferralCodes)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(ctx, http.StatusOK, reportRes)
+}
+
+// GetAffiliatePlayersReport
+//
+//	@Summary		Get Affiliate Players Report (Drill-down)
+//	@Description	Get player-level metrics for a specific referral code
+//	@Tags			Reports
+//	@Accept			json
+//	@Produce		json
+//	@Param			referral_code	query		string	true	"Referral code to drill down"
+//	@Param			date_from		query		string	false	"Date from (YYYY-MM-DD)"
+//	@Param			date_to			query		string	false	"Date to (YYYY-MM-DD)"
+//	@Param			is_test_account	query		boolean	false	"Filter by test account"
+//	@Success		200				{object}	dto.AffiliatePlayersReportRes
+//	@Failure		400				{object}	errors.Error
+//	@Failure		500				{object}	errors.Error
+//	@Router			/api/admin/report/affiliate/players [get]
+func (r *report) GetAffiliatePlayersReport(ctx *gin.Context) {
+	var req dto.AffiliatePlayersReportReq
+
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = ctx.Error(err)
+		return
+	}
+
+	// TODO: Get allowed referral codes based on admin's RBAC permissions
+	allowedReferralCodes := []string{}
+
+	reportRes, err := r.reportModule.GetAffiliatePlayersReport(ctx.Request.Context(), req, allowedReferralCodes)
 	if err != nil {
 		_ = ctx.Error(err)
 		return

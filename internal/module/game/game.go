@@ -90,6 +90,7 @@ func (s *GameService) GetGames(ctx *gin.Context, params dto.GameQueryParams) (*d
 		Search:    params.Search,
 		Status:    params.Status,
 		Provider:  params.Provider,
+		GameID:    params.GameID,
 		Enabled:   params.Enabled,
 		SortBy:    params.SortBy,
 		SortOrder: params.SortOrder,

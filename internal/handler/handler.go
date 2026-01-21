@@ -314,6 +314,7 @@ type Report interface {
 	GetProviderPerformance(c *gin.Context)
 	ExportProviderPerformance(c *gin.Context)
 	GetAffiliateReport(c *gin.Context)
+	GetAffiliatePlayersReport(c *gin.Context)
 }
 
 type Squads interface {

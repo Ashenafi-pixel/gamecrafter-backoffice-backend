@@ -1522,6 +1522,7 @@ WITH users_data AS (
     AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR u.kyc_status = ANY($3))
     AND ($4::boolean IS NULL OR u.is_test_account = $4)
     AND ($5::uuid[] IS NULL OR array_length($5, 1) IS NULL OR array_length($5, 1) = 0 OR u.brand_id = ANY($5))
+    AND ($10::text IS NULL OR $10 = '' OR u.refered_by_code = $10)
     GROUP BY u.id
 ),
 row_count AS (
@@ -1587,6 +1588,7 @@ type GetAllUsersWithFiltersParams struct {
 	BrandID       []uuid.UUID
 	SortBy        sql.NullString
 	SortOrder     sql.NullString
+	ReferedByCode sql.NullString
 }
 
 type GetAllUsersWithFiltersRow struct {
@@ -1639,6 +1641,7 @@ func (q *Queries) GetAllUsersWithFilters(ctx context.Context, arg GetAllUsersWit
 		arg.SortOrder,
 		arg.Limit,
 		arg.Offset,
+		arg.ReferedByCode,
 	)
 	if err != nil {
 		return nil, err
