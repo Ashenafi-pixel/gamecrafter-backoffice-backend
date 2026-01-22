@@ -145,7 +145,7 @@ func (s *AnalyticsStorageImpl) buildUnionAllQueryString(dateFrom, dateTo time.Ti
 			NULL as session_id,
 			NULL as bet_amount
 		FROM tucanbit_financial.deposits
-		WHERE status = 'completed'` + dateFilter + userFilter + `
+		WHERE toString(status) IN ('completed') AND toString(status) != ''` + dateFilter + userFilter + `
 		
 		UNION ALL
 		
@@ -160,7 +160,7 @@ func (s *AnalyticsStorageImpl) buildUnionAllQueryString(dateFrom, dateTo time.Ti
 			NULL as session_id,
 			NULL as bet_amount
 		FROM tucanbit_financial.withdrawals
-		WHERE status = 'completed'` + dateFilter + userFilter + `
+		WHERE toString(status) IN ('completed') AND toString(status) != ''` + dateFilter + userFilter + `
 		
 		UNION ALL
 		
