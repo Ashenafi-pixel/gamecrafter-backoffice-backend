@@ -2,9 +2,9 @@
 set -e
 
 echo "=== Waiting for services ==="
-./wait-for-it.sh db:5432 --
-./wait-for-it.sh kafka:9092 --
-./wait-for-it.sh tucanbit-clickhouse:9000 --
+./wait-for-it.sh db:5432 -t 60 --
+./wait-for-it.sh kafka:9092 -t 60 --
+./wait-for-it.sh tucanbit-clickhouse:9000 -t 60 --
 sleep 5
 
 # Disable exit on error for migration (it's idempotent, errors are expected)
