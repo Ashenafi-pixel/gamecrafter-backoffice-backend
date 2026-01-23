@@ -1783,7 +1783,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 			toString(ifNull(toUInt64(count()), 0)) as deposit_count,
 			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_depositors
 		FROM tucanbit_financial.deposits
-		WHERE toString(status) = 'completed'
+		WHERE toString(status) = 'verified'
 			AND toDate(created_at) = ?
 	`
 
@@ -1836,7 +1836,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 		chDepositHashesQuery := `
 			SELECT DISTINCT tx_hash
 			FROM tucanbit_financial.deposits
-			WHERE toString(status) = 'completed'
+			WHERE toString(status) = 'verified'
 				AND toDate(created_at) = ?
 				AND tx_hash != ''
 		`
@@ -1894,7 +1894,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 				chDepositorsQuery := `
 					SELECT DISTINCT toString(user_id) as user_id
 					FROM tucanbit_financial.deposits
-					WHERE toString(status) = 'completed'
+					WHERE toString(status) = 'verified'
 						AND toDate(created_at) = ?
 				`
 				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, dateStr)
@@ -1960,7 +1960,7 @@ func (s *AnalyticsStorageImpl) GetDailyReport(ctx context.Context, date time.Tim
 				chDepositorsQuery := `
 					SELECT DISTINCT toString(user_id) as user_id
 					FROM tucanbit_financial.deposits
-					WHERE toString(status) = 'completed'
+					WHERE toString(status) = 'verified'
 						AND toDate(created_at) = ?
 				`
 				chRows, err := s.clickhouse.Query(ctx, chDepositorsQuery, dateStr)
@@ -2513,7 +2513,7 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 			toString(ifNull(toUInt64(count()), 0)) as deposit_count,
 			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_depositors
 		FROM tucanbit_financial.deposits
-		WHERE toString(status) = 'completed'
+		WHERE toString(status) = 'verified'
 			AND toDate(created_at) >= ?
 			AND toDate(created_at) <= ?
 	`
@@ -2564,7 +2564,7 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 		chDepositHashesQuery := `
 			SELECT DISTINCT tx_hash
 			FROM tucanbit_financial.deposits
-			WHERE toString(status) = 'completed'
+			WHERE toString(status) = 'verified'
 				AND toDate(created_at) >= ?
 				AND toDate(created_at) <= ?
 				AND tx_hash != ''
@@ -2623,7 +2623,7 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 				chDepositorsQuery := `
 					SELECT DISTINCT toString(user_id) as user_id
 					FROM tucanbit_financial.deposits
-					WHERE toString(status) = 'completed'
+					WHERE toString(status) = 'verified'
 						AND toDate(created_at) >= ?
 						AND toDate(created_at) <= ?
 				`
@@ -2690,7 +2690,7 @@ func (s *AnalyticsStorageImpl) getMTDData(ctx context.Context, date time.Time) (
 				chDepositorsQuery := `
 					SELECT DISTINCT toString(user_id) as user_id
 					FROM tucanbit_financial.deposits
-					WHERE toString(status) = 'completed'
+					WHERE toString(status) = 'verified'
 						AND toDate(created_at) >= ?
 						AND toDate(created_at) <= ?
 				`
@@ -3094,7 +3094,7 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 			toString(ifNull(toUInt64(count()), 0)) as deposit_count,
 			toString(ifNull(toUInt64(uniqExact(user_id)), 0)) as unique_depositors
 		FROM tucanbit_financial.deposits
-		WHERE toString(status) = 'completed'
+		WHERE toString(status) = 'verified'
 			AND toDate(created_at) >= ?
 			AND toDate(created_at) <= ?
 	`
@@ -3145,7 +3145,7 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 		chDepositHashesQuery := `
 			SELECT DISTINCT tx_hash
 			FROM tucanbit_financial.deposits
-			WHERE toString(status) = 'completed'
+			WHERE toString(status) = 'verified'
 				AND toDate(created_at) >= ?
 				AND toDate(created_at) <= ?
 				AND tx_hash != ''
@@ -3204,7 +3204,7 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 				chDepositorsQuery := `
 					SELECT DISTINCT toString(user_id) as user_id
 					FROM tucanbit_financial.deposits
-					WHERE toString(status) = 'completed'
+					WHERE toString(status) = 'verified'
 						AND toDate(created_at) >= ?
 						AND toDate(created_at) <= ?
 				`
@@ -3271,7 +3271,7 @@ func (s *AnalyticsStorageImpl) getSPLMData(ctx context.Context, date time.Time) 
 				chDepositorsQuery := `
 					SELECT DISTINCT toString(user_id) as user_id
 					FROM tucanbit_financial.deposits
-					WHERE toString(status) = 'completed'
+					WHERE toString(status) = 'verified'
 						AND toDate(created_at) >= ?
 						AND toDate(created_at) <= ?
 				`

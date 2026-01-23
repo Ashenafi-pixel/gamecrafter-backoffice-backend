@@ -120,9 +120,15 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		startDateStr := startOfDay.Format("2006-01-02 15:04:05")
 		endDateStr := endOfDay.Format("2006-01-02 15:04:05")
 
-		// Build user filter for ClickHouse
-		userFilter := ""
-		chArgs := []interface{}{}
+		baseWhereConditions := []string{
+			"game_id IS NOT NULL",
+			"game_id != ''",
+			"amount > 0",
+			"transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')",
+			"((transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL))) OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL)))",
+			fmt.Sprintf("created_at >= '%s' AND created_at <= '%s'", startDateStr, endDateStr),
+		}
+
 		if len(whereConditions) > 0 {
 			userIDsQuery := fmt.Sprintf(`
 				SELECT DISTINCT u.id
@@ -143,49 +149,45 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			}
 
 			if len(userIDs) > 0 {
-				placeholders := make([]string, len(userIDs))
-				for i := range userIDs {
-					placeholders[i] = "?"
-					chArgs = append(chArgs, userIDs[i].String())
+				userIDStrings := make([]string, len(userIDs))
+				for i, userID := range userIDs {
+					userIDStrings[i] = fmt.Sprintf("'%s'", userID.String())
 				}
-				userFilter = " AND user_id IN (" + strings.Join(placeholders, ",") + ")"
+				baseWhereConditions = append(baseWhereConditions, fmt.Sprintf("user_id IN (%s)", strings.Join(userIDStrings, ",")))
 			}
 		}
 
 		chQuery := fmt.Sprintf(`
 			SELECT 
 				game_id,
-				toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8) as total_wagered,
-				toDecimal64(sumIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8) as total_won,
+				toString(toDecimal64(sumIf(amount, transaction_type IN ('bet', 'groove_bet')), 8)) as total_wagered,
+				toString(toDecimal64(sumIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8)) as total_won,
 				toUInt64(countIf(transaction_type IN ('bet', 'groove_bet'))) as total_bets,
 				toUInt64(uniqExact(session_id)) as total_rounds,
 				toUInt64(uniqExact(user_id)) as unique_players,
-				toDecimal64(maxIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8) as highest_win,
-				toDecimal64(maxIf(
+				toString(toDecimal64(maxIf(COALESCE(win_amount, amount), transaction_type IN ('win', 'groove_win')), 8)) as highest_win,
+				toString(toDecimal64(maxIf(
 					CASE 
 						WHEN transaction_type IN ('bet', 'groove_bet') AND amount > 0 THEN COALESCE(win_amount, amount) / amount
 						ELSE 0
 					END,
 					transaction_type IN ('win', 'groove_win')
-				), 8) as highest_multiplier,
+				), 8)) as highest_multiplier,
 				toUInt64(countIf(
 					(transaction_type IN ('groove_bet', 'groove_win') AND win_amount IS NOT NULL AND win_amount > 1000) OR 
 					(transaction_type IN ('win', 'groove_win') AND COALESCE(win_amount, amount) > 1000)
 				)) as big_wins_count
 			FROM tucanbit_analytics.transactions
-			WHERE game_id IS NOT NULL 
-				AND game_id != '' 
-				AND amount > 0
-				AND transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
-				AND created_at >= '%s' AND created_at <= '%s'
-				%s
+			WHERE %s
 			GROUP BY game_id
-		`, startDateStr, endDateStr, userFilter)
+		`, strings.Join(baseWhereConditions, " AND "))
 
-		rows, err := chConn.Query(ctx, chQuery, chArgs...)
+		rows, err := chConn.Query(ctx, chQuery)
 		if err == nil {
 			defer rows.Close()
+			rowCount := 0
 			for rows.Next() {
+				rowCount++
 				var gameIDStr string
 				var totalWageredStr, totalWonStr string
 				var totalBets, totalRounds, uniquePlayers, bigWinsCount uint64
@@ -219,10 +221,13 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 						HighestMultiplier: highestMultiplier,
 						BigWinsCount:      int64(bigWinsCount),
 					}
+				} else {
+					r.log.Warn("Failed to scan ClickHouse row", zap.Error(err), zap.Int("row", rowCount))
 				}
 			}
+			r.log.Debug("ClickHouse query completed", zap.Int("rows_processed", rowCount), zap.Int("games_found", len(gamingMetricsMap)))
 		} else {
-			r.log.Warn("Failed to query ClickHouse for gaming metrics", zap.Error(err))
+			r.log.Warn("Failed to query ClickHouse for gaming metrics", zap.Error(err), zap.String("query", chQuery))
 		}
 	}
 
@@ -238,7 +243,7 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 			g.game_id,
 			COALESCE(g.name, g.game_id, 'Unknown') as game_name,
 			COALESCE(g.provider, 'Unknown') as provider,
-			g.category,
+			NULL as category,
 			COALESCE(he.house_edge, 0) as house_edge,
 			CASE 
 				WHEN he.house_edge IS NOT NULL THEN 100 - he.house_edge
@@ -270,7 +275,6 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		gameDetailsQuery += " AND 1=0"
 	}
 
-	// Add filters for game_id, provider, category
 	gameFilters := []string{}
 	gameArgIndex := len(gameDetailsArgs) + 1
 
@@ -347,6 +351,12 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		}
 	}
 
+	rakebackWhereClause := ""
+	if len(whereConditions) > 0 {
+		rakebackWhereClause = " AND " + strings.Join(whereConditions, " AND ")
+	}
+
+	rakebackArgIndex := len(args) + 1
 	rakebackQuery := fmt.Sprintf(`
 		WITH user_game_stakes AS (
 			SELECT 
@@ -398,7 +408,7 @@ func (r *report) GetGamePerformance(ctx context.Context, req dto.GamePerformance
 		)
 		SELECT game_id, rakeback_earned
 		FROM game_rakeback
-	`, argIndex, argIndex+1, whereClause, argIndex+2, argIndex+3, whereClause)
+	`, rakebackArgIndex, rakebackArgIndex+1, rakebackWhereClause, rakebackArgIndex+2, rakebackArgIndex+3, rakebackWhereClause)
 
 	rakebackArgs := append(args, *dateFrom, *dateTo, *dateFrom, *dateTo)
 	rakebackMap := make(map[string]decimal.Decimal)

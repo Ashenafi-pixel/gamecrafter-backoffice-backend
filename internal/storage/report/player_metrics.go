@@ -489,6 +489,7 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		var firstDepositDate sql.NullTime
 		var lastDepositDate sql.NullTime
 		var deviceType sql.NullString
+		var accountStatus sql.NullString
 
 		err := rows.Scan(
 			&metric.PlayerID,
@@ -511,7 +512,7 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 			&metric.NetGamingResult,
 			&metric.NumberOfSessions,
 			&metric.NumberOfBets,
-			&metric.AccountStatus,
+			&accountStatus,
 			&deviceType,
 			&kycStatus,
 			&firstDepositDate,
@@ -548,6 +549,11 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 		}
 		if deviceType.Valid {
 			metric.DeviceType = &deviceType.String
+		}
+		if accountStatus.Valid {
+			metric.AccountStatus = accountStatus.String
+		} else {
+			metric.AccountStatus = ""
 		}
 
 		if gamingMetrics, exists := gamingMetricsMap[metric.PlayerID]; exists {

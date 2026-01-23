@@ -140,20 +140,21 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 					t.game_name,
 					t.brand_id,
 					max(t.created_at) as created_at,
-					sum(CASE 
+					toDecimal64(sum(CASE 
 						WHEN t.transaction_type IN ('groove_bet', 'groove_win') AND t.bet_amount IS NOT NULL THEN t.bet_amount
 						WHEN t.transaction_type = 'groove_bet' THEN abs(t.amount)
 						ELSE 0
-					END) as stake_amount,
-					sum(CASE 
+					END), 8) as stake_amount,
+					toDecimal64(sum(CASE 
 						WHEN t.transaction_type IN ('groove_bet', 'groove_win') THEN COALESCE(t.win_amount, 0)
 						WHEN t.transaction_type IN ('win', 'groove_win') THEN COALESCE(t.win_amount, abs(t.amount))
 						ELSE 0
-					END) as win_amount,
+					END), 8) as win_amount,
 					toString(any(t.id)) as id
 				FROM tucanbit_analytics.transactions t
 				WHERE %s
 				GROUP BY round_id, t.user_id, t.game_id, t.session_id, t.provider, t.game_name, t.brand_id
+				HAVING win_amount > 0 AND win_amount >= toDecimal64(%.8f, 8)
 			)
 			SELECT 
 				id,
@@ -161,13 +162,13 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 				user_id,
 				game_id,
 				session_id,
-				stake_amount,
-				win_amount,
+				toString(stake_amount) as stake_amount,
+				toString(win_amount) as win_amount,
 				game_provider,
 				game_name,
 				brand_id
 			FROM round_wins
-			WHERE win_amount > 0 AND win_amount >= toDecimal64(%.8f, 8)
+			ORDER BY win_amount DESC
 		`, strings.Join(baseWhereConditions, " AND "), threshold.InexactFloat64())
 
 		chArgs := []interface{}{}
@@ -307,23 +308,23 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 				for userRows.Next() {
 					var userID uuid.UUID
 					var username string
-					var email sql.NullString
-					var brandID uuid.NullUUID
-					var brandName sql.NullString
-					var country sql.NullString
+		var email sql.NullString
+		var brandID uuid.NullUUID
+		var brandName sql.NullString
+		var country sql.NullString
 					var isTest bool
 
 					if err := userRows.Scan(&userID, &username, &email, &brandID, &brandName, &country, &isTest); err == nil {
 						var emailPtr *string
-						if email.Valid {
+		if email.Valid {
 							emailPtr = &email.String
-						}
+		}
 						var brandIDPtr *uuid.UUID
-						if brandID.Valid {
+		if brandID.Valid {
 							brandIDPtr = &brandID.UUID
-						}
+		}
 						var brandNamePtr *string
-						if brandName.Valid {
+		if brandName.Valid {
 							brandNamePtr = &brandName.String
 						}
 						var countryPtr *string
@@ -397,7 +398,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 
 					if err := gameRows.Scan(&gameID, &gameName, &provider); err == nil {
 						var gameNamePtr *string
-						if gameName.Valid {
+		if gameName.Valid {
 							gameNamePtr = &gameName.String
 						}
 						var providerPtr *string
