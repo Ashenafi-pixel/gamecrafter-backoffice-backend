@@ -278,7 +278,7 @@ func (r *report) GetPlayerMetrics(ctx context.Context, req dto.PlayerMetricsRepo
 			WHERE transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
 				AND (
 					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
 				)
 			GROUP BY user_id
 		`
@@ -858,7 +858,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			WHERE %s
 				AND (
 					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
 				)
 			ORDER BY created_at DESC
 		`, chWhereClause)
@@ -1276,7 +1276,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			WHERE %s
 				AND (
 					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
 				)
 		`, chCountWhereClause)
 

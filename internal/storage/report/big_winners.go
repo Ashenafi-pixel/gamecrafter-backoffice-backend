@@ -101,7 +101,7 @@ func (r *report) GetBigWinners(ctx context.Context, req dto.BigWinnersReportReq,
 
 		baseWhereConditions := []string{
 			"t.transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')",
-			"((t.transaction_type IN ('groove_bet', 'groove_win') AND (t.status = 'completed' OR (t.status = 'pending' AND t.bet_amount IS NOT NULL AND t.win_amount IS NOT NULL))) OR (t.transaction_type NOT IN ('groove_bet', 'groove_win') AND (t.status = 'completed' OR t.status IS NULL OR t.status = '')))",
+			"((t.transaction_type IN ('groove_bet', 'groove_win') AND (t.status = 'completed' OR (t.status = 'pending' AND t.bet_amount IS NOT NULL AND t.win_amount IS NOT NULL))) OR (t.transaction_type NOT IN ('groove_bet', 'groove_win') AND (t.status = 'completed' OR t.status IS NULL)))",
 			fmt.Sprintf("t.created_at >= '%s' AND t.created_at <= '%s'", startDateStr, endDateStr),
 		}
 

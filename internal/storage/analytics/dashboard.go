@@ -71,7 +71,7 @@ func (s *AnalyticsStorageImpl) buildGamingActivityQueryString(dateFrom, dateTo t
 		WHERE transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')
 			AND (
 				(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-				OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+				OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
 			)` + dateFilter + userFilter + `
 		
 		UNION ALL
@@ -178,7 +178,7 @@ func (s *AnalyticsStorageImpl) buildUnionAllQueryString(dateFrom, dateTo time.Ti
 		WHERE transaction_type NOT IN ('deposit', 'withdrawal')
 			AND (
 				(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-				OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL OR status = ''))
+				OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
 			)` + dateFilter + userFilter + `
 		
 		UNION ALL
