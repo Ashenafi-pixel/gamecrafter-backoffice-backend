@@ -29,8 +29,8 @@ func NewTestEmailHandler(emailService email.EmailService, log *zap.Logger) *Test
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body dto.SendTestEmailRequest true "Test email request"
-// @Success 200 {object} response.SuccessResponse
+// @Param request body object true "Test email request" example({"email":"test@example.com","first_name":"Test User"})
+// @Success 200 {object} object "Success response with email details"
 // @Failure 400 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /api/admin/test-email [post]

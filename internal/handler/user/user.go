@@ -107,11 +107,37 @@ func (u *user) SetRegistrationService(service interface{}) {
 }
 
 func (u *user) setSecureRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
-	// In development, use secure=false for HTTP localhost
-	secure := c.Request.TLS != nil // Only secure if using HTTPS
+	secure := c.Request.TLS != nil
+
+	domain := ""
+	host := c.Request.Host
+	if secure && host != "" {
+		if strings.Contains(host, "tucanbit.io") {
+			domain = ".tucanbit.io"
+		} else if strings.Contains(host, "localhost") {
+			domain = ""
+		}
+	}
+
+	sameSite := "Lax"
+	if secure {
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			originHost := strings.TrimPrefix(strings.TrimPrefix(origin, "https://"), "http://")
+			originHost = strings.Split(originHost, "/")[0]
+			originHost = strings.Split(originHost, ":")[0]
+			requestHost := strings.Split(host, ":")[0]
+			if originHost != requestHost {
+				sameSite = "None"
+			}
+		}
+	}
+
 	u.log.Info("Setting refresh token cookie",
-		zap.String("domain", c.Request.Host),
+		zap.String("domain", domain),
+		zap.String("host", host),
 		zap.Bool("secure", secure),
+		zap.String("sameSite", sameSite),
 		zap.Int("maxAge", maxAge),
 		zap.String("tokenPreview", func() string {
 			if len(refreshToken) > 20 {
@@ -119,7 +145,19 @@ func (u *user) setSecureRefreshTokenCookie(c *gin.Context, refreshToken string, 
 			}
 			return refreshToken
 		}()))
-	c.SetCookie("refresh_token", refreshToken, maxAge, "/", "", secure, true)
+
+	cookieValue := fmt.Sprintf("refresh_token=%s; Path=/; Max-Age=%d; HttpOnly", refreshToken, maxAge)
+	if domain != "" {
+		cookieValue += fmt.Sprintf("; Domain=%s", domain)
+	}
+	if secure {
+		cookieValue += "; Secure"
+	}
+	if sameSite != "" {
+		cookieValue += fmt.Sprintf("; SameSite=%s", sameSite)
+	}
+
+	c.Header("Set-Cookie", cookieValue)
 }
 
 // Login handles user login requests.

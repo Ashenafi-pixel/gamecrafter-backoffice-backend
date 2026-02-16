@@ -19,14 +19,15 @@ import (
 	"github.com/tucanbit/internal/module/balancelogs"
 	"github.com/tucanbit/internal/module/banner"
 	"github.com/tucanbit/internal/module/bet"
+	"github.com/tucanbit/internal/module/brand"
 	"github.com/tucanbit/internal/module/campaign"
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
-	"github.com/tucanbit/internal/module/brand"
 	"github.com/tucanbit/internal/module/crypto_wallet"
 	"github.com/tucanbit/internal/module/falcon_liquidity"
 	"github.com/tucanbit/internal/module/game"
 	"github.com/tucanbit/internal/module/groove"
+	"github.com/tucanbit/internal/module/provider"
 
 	"github.com/tucanbit/internal/module/department"
 	moduleExchange "github.com/tucanbit/internal/module/exchange"
@@ -36,7 +37,7 @@ import (
 	operationdefinition "github.com/tucanbit/internal/module/operationDefinition"
 	"github.com/tucanbit/internal/module/operationalgroup"
 	"github.com/tucanbit/internal/module/operationalgrouptype"
-	otpModule 	"github.com/tucanbit/internal/module/otp"
+	otpModule "github.com/tucanbit/internal/module/otp"
 	pageModule "github.com/tucanbit/internal/module/page"
 	"github.com/tucanbit/internal/module/performance"
 	"github.com/tucanbit/internal/module/rakeback_override"
@@ -74,6 +75,7 @@ type Module struct {
 	SystemLogs            module.SystemLogs
 	Company               module.Company
 	Brand                 module.Brand
+	Provider              module.Provider
 	CryptoWallet          *crypto_wallet.CasinoWalletService
 	Report                module.Report
 	Squads                module.Squads
@@ -255,6 +257,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		SystemLogs:    logs.Init(log, persistence.Logs),
 		Company:       company.Init(persistence.Company, log),
 		Brand:         brand.Init(persistence.Brand, log),
+		Provider:      provider.Init(persistence.Provider, log),
 		CryptoWallet: crypto_wallet.NewCasinoWalletService(
 			persistence.CryptoWallet,
 			persistence.User,
@@ -310,7 +313,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		HouseEdge:        game.NewHouseEdgeService(persistence.HouseEdge, log),
 		Email:            emailService,
 		RakebackOverride: rakeback_override.Init(persistence.RakebackOverride, log),
-		TwoFactor:        twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
+		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
 			Issuer:           "TucanBIT",
 			Algorithm:        otp.AlgorithmSHA1,
 			Digits:           otp.DigitsSix,

@@ -4,27 +4,27 @@ set -e
 echo "=== Waiting for services ==="
 ./wait-for-it.sh db:5432 -t 60 --
 ./wait-for-it.sh kafka:9092 -t 60 --
-./wait-for-it.sh tucanbit-clickhouse:9000 -t 60 --
+./wait-for-it.sh game-crafter-clickhouse:9000 -t 60 --
 sleep 5
 
 # Disable exit on error for migration (it's idempotent, errors are expected)
 set +e
 
 echo "=== Verifying database connection ==="
-export PGPASSWORD=5kj0YmV5FKKpU9D50B7yH5A
-DB_EXISTS=$(psql -h db -U tucanbit -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'tucanbit'" | xargs)
+export PGPASSWORD="${POSTGRES_PASSWORD:-your_password}"
+DB_EXISTS=$(psql -h db -U game_crafter_user -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'game_crafter'" | xargs)
 
 if [ -z "$DB_EXISTS" ]; then
-    echo "⚠️  Warning: Database tucanbit does not exist"
-    echo "Creating database tucanbit..."
-    psql -h db -U tucanbit -d postgres -c "CREATE DATABASE tucanbit"
+    echo "⚠️  Warning: Database game_crafter does not exist"
+    echo "Creating database game_crafter..."
+    psql -h db -U game_crafter_user -d postgres -c "CREATE DATABASE game_crafter"
     echo "Database created successfully"
 else
-    echo "✅ Database tucanbit exists"
+    echo "✅ Database game_crafter exists"
 fi
 
 echo "=== Running all database migrations with go-migrate ==="
-MIGRATE_DB_URL="postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable"
+MIGRATE_DB_URL="postgres://game_crafter:${POSTGRES_PASSWORD:-your_password}@db:5432/game_crafter?sslmode=disable"
 
 # Check if migrate tool exists and is executable
 if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
@@ -39,7 +39,7 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
     echo "=== Checking migration state ==="
     
     # Check schema_migrations table directly for dirty state (more reliable)
-    DIRTY_CHECK=$(psql -h db -U tucanbit -d tucanbit -tc "SELECT version, dirty FROM schema_migrations LIMIT 1;" 2>/dev/null)
+    DIRTY_CHECK=$(psql -h db -U game_crafter_user -d game_crafter -tc "SELECT version, dirty FROM schema_migrations LIMIT 1;" 2>/dev/null)
     
     if [ -n "$DIRTY_CHECK" ]; then
         # Parse version and dirty flag (format: "version | dirty")
@@ -52,7 +52,7 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
             echo "   Attempting to clean the dirty migration state..."
             
             # Check if critical tables exist (indicating migration completed)
-            CRITICAL_TABLES_EXIST=$(psql -h db -U tucanbit -d tucanbit -tc "
+            CRITICAL_TABLES_EXIST=$(psql -h db -U game_crafter_user -d game_crafter -tc "
                 SELECT COUNT(*) FROM information_schema.tables 
                 WHERE table_schema = 'public' 
                 AND table_name IN ('users', 'player_self_protection_settings', 'schema_migrations')
@@ -68,7 +68,7 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
                 else
                     # Fallback: directly update the database
                     echo "   Attempting direct database update..."
-                    psql -h db -U tucanbit -d tucanbit -c "UPDATE schema_migrations SET dirty = false WHERE version = $MIGRATION_VERSION;" 2>/dev/null
+                    psql -h db -U game_crafter_user -d game_crafter -c "UPDATE schema_migrations SET dirty = false WHERE version = $MIGRATION_VERSION;" 2>/dev/null
                     if [ $? -eq 0 ]; then
                         echo "   ✅ Successfully cleaned dirty state via direct update"
                     else
@@ -87,7 +87,7 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
                         echo "   ✅ Rolled back to version $PREV_VERSION"
                     else
                         # Direct database update as fallback
-                        psql -h db -U tucanbit -d tucanbit -c "UPDATE schema_migrations SET version = $PREV_VERSION, dirty = false;" 2>/dev/null
+                        psql -h db -U game_crafter_user -d game_crafter -c "UPDATE schema_migrations SET version = $PREV_VERSION, dirty = false;" 2>/dev/null
                         if [ $? -eq 0 ]; then
                             echo "   ✅ Rolled back to version $PREV_VERSION via direct update"
                         else
@@ -97,7 +97,7 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
                     fi
                 else
                     echo "   ⚠️  Cannot rollback from version 0. Resetting migration state..."
-                    psql -h db -U tucanbit -d tucanbit -c "DELETE FROM schema_migrations;" 2>/dev/null
+                    psql -h db -U game_crafter_user -d game_crafter -c "DELETE FROM schema_migrations;" 2>/dev/null
                     echo "   ✅ Migration state reset. Migrations will run from beginning."
                 fi
             fi
@@ -164,7 +164,7 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
     
     # Check each critical table
     for table in "${CRITICAL_TABLES[@]}"; do
-        TABLE_EXISTS=$(psql -h db -U tucanbit -d tucanbit -tc "
+        TABLE_EXISTS=$(psql -h db -U game_crafter_user -d game_crafter -tc "
             SELECT COUNT(*) FROM information_schema.tables 
             WHERE table_schema = 'public' AND table_name = '$table'
         " 2>/dev/null | xargs)
@@ -183,13 +183,13 @@ if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
         if [ -f "$SYNC_MIGRATION" ]; then
             echo "   Running sync_database_schema migration to recreate missing tables..."
             # Run the migration file - CREATE TABLE IF NOT EXISTS will only create missing tables
-            if psql -h db -U tucanbit -d tucanbit -f "$SYNC_MIGRATION" 2>/dev/null; then
+            if psql -h db -U game_crafter_user -d game_crafter -f "$SYNC_MIGRATION" 2>/dev/null; then
                 echo "   ✅ Sync migration executed successfully"
                 
                 # Verify tables were created
                 RECREATED=0
                 for table in "${MISSING_TABLES[@]}"; do
-                    TABLE_EXISTS=$(psql -h db -U tucanbit -d tucanbit -tc "
+                    TABLE_EXISTS=$(psql -h db -U game_crafter_user -d game_crafter -tc "
                         SELECT COUNT(*) FROM information_schema.tables 
                         WHERE table_schema = 'public' AND table_name = '$table'
                     " 2>/dev/null | xargs)
@@ -225,7 +225,7 @@ else
     SYNC_MIGRATION="./migrations/20251101000000_sync_database_schema.up.sql"
     if [ -f "$SYNC_MIGRATION" ]; then
         echo "Running schema sync migration manually..."
-        psql -h db -U tucanbit -d tucanbit -f "$SYNC_MIGRATION" || echo "⚠️  Manual migration had errors"
+        psql -h db -U game_crafter_user -d game_crafter -f "$SYNC_MIGRATION" || echo "⚠️  Manual migration had errors"
     fi
 fi
 

@@ -1,4 +1,4 @@
-name: tucanbit
+name: game_crafter
 
 services:
   create-kafka-topic:
@@ -29,7 +29,8 @@ services:
     command: ["./docker-entrypoint.sh"]
     environment:
       # Application Configuration
-      DB_URL: "postgres://tucanbit:5kj0YmV5FKKpU9D50B7yH5A@db:5432/tucanbit?sslmode=disable"
+      DB_URL: "postgres://game_crafter_user:5kj0YmV5FKKpU9D50B7yH5A@db:5432/game_crafter?sslmode=disable"
+      POSTGRES_PASSWORD: "5kj0YmV5FKKpU9D50B7yH5A"
       APP_HOST: "0.0.0.0"
       APP_PORT: "8094"
       JWT_SECRET: "tokensecrethere"
@@ -52,16 +53,16 @@ services:
       REDIS_ADDR: "redis:6379"
       REDIS_PASSWORD: ""
       REDIS_DB: "0"
-      REDIS_KEY_PREFIX: "tucanbit:"
+      REDIS_KEY_PREFIX: "game_crafter:"
       REDIS_TTL: "5m"
       REDIS_ATTEMPTS: "3"
 
       # ClickHouse Configuration
-      CLICKHOUSE_HOST: "tucanbit-clickhouse"
+      CLICKHOUSE_HOST: "game-crafter-clickhouse"
       CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_DATABASE: "tucanbit_analytics"
-      CLICKHOUSE_USERNAME: "tucanbit"
-      CLICKHOUSE_PASSWORD: "tucanbit_clickhouse_password"
+      CLICKHOUSE_DATABASE: "game_crafter_analytics"
+      CLICKHOUSE_USERNAME: "game_crafter"
+      CLICKHOUSE_PASSWORD: "game_crafter_clickhouse_password"
       CLICKHOUSE_TIMEOUT: "30s"
 
       # Pisi Configuration
@@ -71,7 +72,7 @@ services:
       PISI_TIMEOUT: "10s"
       PISI_RETRY_COUNT: "3"
       PISI_RETRY_DELAY: "5s"
-      PISI_SENDER_ID: "tucanbit"
+      PISI_SENDER_ID: "game_crafter"
       CONFIG_NAME: "config"
 
     
@@ -98,16 +99,16 @@ services:
       start_period: 30s
 
   db:
-    image: postgres:13
-    container_name: tucanbit-db
+    image: postgres:16
+    container_name: game_crafter-db
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: "tucanbit"
+      POSTGRES_USER: "game_crafter_user"
       POSTGRES_PASSWORD: "5kj0YmV5FKKpU9D50B7yH5A"
-      POSTGRES_DB: "tucanbit"
+      POSTGRES_DB: "game_crafter"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tucanbit -d tucanbit"]
+      test: ["CMD-SHELL", "pg_isready -U game_crafter_user -d game_crafter"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -176,6 +177,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://172.31.36.46:9093
+      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://172.31.36.46:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -192,6 +194,7 @@ services:
    restart: unless-stopped
    healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list || exit 1"]
+      # test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 30s
       timeout: 20s
       retries: 10
@@ -204,14 +207,14 @@ services:
 
   clickhouse:
    image: clickhouse/clickhouse-server:25.8
-   container_name: tucanbit-clickhouse
+   container_name: game-crafter-clickhouse
    ports:
       - "8123:8123"
       - "9000:9000"
    environment:
-      CLICKHOUSE_DB: tucanbit_analytics
-      CLICKHOUSE_USER: tucanbit
-      CLICKHOUSE_PASSWORD: tucanbit_clickhouse_password
+      CLICKHOUSE_DB: game_crafter_analytics
+      CLICKHOUSE_USER: game_crafter
+      CLICKHOUSE_PASSWORD: game_crafter_clickhouse_password
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
    volumes:
       - clickhouse_data:/var/lib/clickhouse 
