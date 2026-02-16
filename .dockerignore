@@ -1,0 +1,39 @@
+Git
+.git
+.gitignore
+
+
+# Docker
+Dockerfile
+docker-compose.yaml
+.dockerignore
+
+
+# Test files
+*_test.go
+test_*
+
+
+# IDE
+.vscode/
+.idea/
+
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Logs
+*.log
+
+
+# Temporary files
+*.tmp
+*.temp
+
+
+# Build artifacts
+tucanbit
+tucanbit-app
+

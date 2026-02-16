@@ -1,0 +1,357 @@
+-- name: CreateUser :one 
+INSERT INTO users (username,phone_number,password,default_currency,email,source,referal_code,date_of_birth,created_by,is_admin,first_name,last_name,referal_type,refered_by_code,user_type,status,street_address,country,state,city,postal_code,kyc_status,profile,brand_id) 
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25) RETURNING *;
+
+-- name: GetUserByUserName :one 
+SELECT * FROM users where username = $1;
+
+-- name: GetUserByPhone :one 
+SELECT * FROM users where phone_number = $1;
+
+-- name: GetUserByID :one 
+SELECT * FROM users where id = $1;
+
+-- name: UpdateProfilePicuter :one 
+UPDATE users set profile = $1  where id = $2 RETURNING *;
+
+-- name: UpdatePassword :one 
+Update users set password = $1 where id = $2 RETURNING *;
+
+-- name: GetUserByEmail :one 
+SELECT id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, is_email_verified, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, primary_wallet_address, wallet_verification_status FROM users where email = $1;
+
+-- name: GetUserByEmailFull :one 
+SELECT id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, is_email_verified, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, primary_wallet_address, wallet_verification_status FROM users where email = $1;
+
+-- name: CheckEmailExists :one
+SELECT EXISTS(SELECT 1 FROM users WHERE email = $1);
+
+-- name: SaveOTP :exec 
+INSERT INTO users_otp (user_id,otp,created_at)
+VALUES ($1,$2,$3);
+
+-- name: GetOTP :one 
+SELECT * FROM users_otp where user_id = $1;
+
+-- name: DeleteOTP :exec 
+DELETE from users_otp where user_id = $1;
+
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1;
+
+-- name: UpdateUser :one
+UPDATE users SET 
+    username = $2,
+    email = $3,
+    phone_number = $4,
+    first_name = $5,
+    last_name = $6,
+    status = $7,
+    is_admin = $8,
+    user_type = $9,
+    updated_at = $10
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateUserPassword :one
+UPDATE users SET password = $2 WHERE id = $1
+RETURNING *;
+
+-- name: UpdateProfile :one 
+UPDATE users set first_name=$1,last_name = $2,email=$3,date_of_birth=$4,phone_number=$5,username = $6,street_address = $7,city = $8,postal_code = $9,state = $10,country = $11,kyc_status=$12,status=$13,is_email_verified=$14,default_currency=$15,wallet_verification_status=$16,is_test_account=$18 where id = $17
+RETURNING id, username, phone_number, password, created_at, default_currency, profile, email, first_name, last_name, date_of_birth, source, referal_code, street_address, country, state, city, postal_code, kyc_status, created_by, is_admin, status, referal_type, refered_by_code, user_type, is_email_verified, wallet_verification_status, is_test_account, two_factor_enabled, two_factor_setup_at;
+
+-- name: GetUsersByDepartmentNotificationTypes :many 
+SELECT us.* 
+FROM users us
+JOIN departements_users dus ON us.id = dus.user_id
+JOIN departments dp ON dp.id = dus.department_id
+WHERE $1::VARCHAR = ANY(dp.notifications);
+
+-- name: GetAllUsers :many 
+WITH users_data AS (
+    SELECT *
+    FROM  users where default_currency  is not null AND user_type = 'PLAYER' AND is_admin = false
+),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM users_data
+)
+SELECT c.*, r.total_rows
+FROM users_data c
+CROSS JOIN row_count r
+ORDER BY c.created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: GetAllUsersWithFilters :many 
+WITH users_data AS (
+    SELECT u.*, COALESCE(SUM(b.amount_units), 0) as total_balance
+    FROM users u
+    LEFT JOIN balances b ON u.id = b.user_id
+    WHERE u.default_currency IS NOT NULL 
+    AND u.user_type = 'PLAYER'
+    AND u.is_admin = false
+    AND (
+        -- Search across all fields using contains (ILIKE) match
+        ($1::text IS NULL OR $1 = '' OR $1 = '%' OR 
+         (u.username IS NOT NULL AND u.username ILIKE '%' || $1 || '%') OR 
+         (u.email IS NOT NULL AND u.email ILIKE '%' || $1 || '%') OR 
+         (u.phone_number IS NOT NULL AND u.phone_number ILIKE '%' || $1 || '%') OR 
+         (u.id::text ILIKE '%' || $1 || '%'))
+    )
+    AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR array_length($2, 1) = 0 OR u.status = ANY($2))
+    AND ($3::text[] IS NULL OR array_length($3, 1) IS NULL OR array_length($3, 1) = 0 OR u.kyc_status = ANY($3))
+    AND ($4::boolean IS NULL OR u.is_test_account = $4)
+    AND ($5::uuid[] IS NULL OR array_length($5, 1) IS NULL OR array_length($5, 1) = 0 OR u.brand_id = ANY($5))
+    AND ($10::text IS NULL OR $10 = '' OR u.refered_by_code = $10)
+    GROUP BY u.id
+),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM users_data
+)
+SELECT c.*, r.total_rows
+FROM users_data c
+CROSS JOIN row_count r
+ORDER BY 
+  CASE WHEN $6::text = 'username' AND $7::text = 'asc' THEN c.username END ASC NULLS LAST,
+  CASE WHEN $6::text = 'username' AND $7::text = 'desc' THEN c.username END DESC NULLS LAST,
+  CASE WHEN $6::text = 'email' AND $7::text = 'asc' THEN c.email END ASC NULLS LAST,
+  CASE WHEN $6::text = 'email' AND $7::text = 'desc' THEN c.email END DESC NULLS LAST,
+  CASE WHEN $6::text = 'balance' AND $7::text = 'asc' THEN c.total_balance END ASC NULLS LAST,
+  CASE WHEN $6::text = 'balance' AND $7::text = 'desc' THEN c.total_balance END DESC NULLS LAST,
+  CASE WHEN $6::text = 'created_at' AND $7::text = 'asc' THEN c.created_at END ASC NULLS LAST,
+  CASE WHEN $6::text = 'created_at' AND $7::text = 'desc' THEN c.created_at END DESC NULLS LAST,
+  c.created_at DESC
+LIMIT $8 OFFSET $9;
+-- Note: $10 is used for refered_by_code filter in the WHERE clause above
+
+-- name: GetUserPointsByReferals :one 
+SELECT amount_units,user_id from balances where user_id = (select id from users where referal_code = $1 limit 1) and currency = $2;
+
+
+-- name: GetUsersDoseNotHaveReferalCode :many 
+select * from users where referal_code = '';
+
+-- name: AddReferalCode :exec 
+UPDATE users set referal_code = $1 where id = $2;
+
+-- name: GetUserByReferalCode :one 
+SELECT * FROM users where referal_code  = $1;
+
+-- name: GetUserReferalUsersByUserID :many 
+select description,change_amount,timestamp from balance_logs where user_id =$1 and currency = 'P';
+
+-- name: GetUsersInArrayOfUserIDs :many 
+SELECT username, created_at ,id
+FROM users 
+WHERE id = ANY($1::UUID[]);
+
+-- name: GetAddminAssignedPoints :many 
+SELECT 
+    user_id,
+    change_amount,
+    timestamp,
+    description,
+	balance_after_update,
+    transaction_id,
+    COUNT(id) AS total
+FROM 
+    balance_logs
+WHERE 
+    description LIKE 'referal_point_admin_%'
+GROUP BY 
+timestamp,
+    user_id,
+    change_amount, 
+    description,
+	balance_after_update,
+    transaction_id
+    limit $1 offset $2;
+
+-- name: UpdateUserStatus :one 
+UPDATE users SET status = $1 WHERE id = $2 RETURNING *;
+
+-- name: UpdateUserVerificationStatus :one 
+UPDATE users SET is_email_verified = $1 WHERE id = $2 RETURNING *;
+
+-- name: GetAdmins :many  
+WITH UserData AS (
+    SELECT 
+        us.id AS user_id,
+        us.username,
+        us.phone_number,
+        us.profile,
+        us.status,
+        us.email,
+        us.first_name,
+        us.last_name,
+        us.date_of_birth,
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'role_id', r.id,
+                'name', r.name
+            ) ORDER BY us.created_at DESC
+        ) AS roles
+    FROM users us
+    JOIN user_roles ur ON ur.user_id = us.id
+    JOIN roles r ON r.id = ur.role_id
+    GROUP BY us.id, us.username, us.phone_number, us.profile, us.email, us.first_name, us.last_name, us.date_of_birth
+),
+TotalCount AS (
+    SELECT COUNT(*) AS total
+    FROM users us
+    JOIN user_roles ur ON ur.user_id = us.id
+)
+SELECT 
+    u.*,
+    t.total
+FROM UserData u
+CROSS JOIN TotalCount t
+ORDER BY u.user_id DESC
+LIMIT $1
+OFFSET $2;
+
+
+-- name: GetAdminsByStatus :many  
+WITH UserData AS (
+    SELECT 
+        us.id AS user_id,
+        us.username,
+        us.phone_number,
+        us.profile,
+        us.status,
+        us.email,
+        us.first_name,
+        us.last_name,
+        us.date_of_birth,
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'role_id', r.id,
+                'name', r.name
+            ) ORDER BY us.created_at DESC
+        ) AS roles
+    FROM users us
+    JOIN user_roles ur ON ur.user_id = us.id
+    JOIN roles r ON r.id = ur.role_id where us.status = $1
+    GROUP BY us.id, us.username, us.phone_number, us.profile, us.email, us.first_name, us.last_name, us.date_of_birth
+),
+TotalCount AS (
+    SELECT COUNT(*) AS total
+    FROM users us
+    JOIN user_roles ur ON ur.user_id = us.id
+)
+SELECT 
+    u.*,
+    t.total
+FROM UserData u
+CROSS JOIN TotalCount t
+ORDER BY u.user_id DESC
+LIMIT $2
+OFFSET $3;
+
+-- name: GetAdminsByRole :many  
+WITH admin_data AS (
+    select * from user_roles ur join users us on ur.user_id = us.id where role_id = $1
+),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM admin_data
+)
+SELECT c.*, r.total_rows
+FROM admin_data c
+CROSS JOIN row_count r
+ORDER BY c.created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: GetAdminsByRoleAndStatus :many  
+WITH admin_data AS (
+    select * from user_roles ur join users us on ur.user_id = us.id where role_id = $1 and status = $2 ),
+row_count AS (
+    SELECT COUNT(*) AS total_rows
+    FROM admin_data
+)
+SELECT c.*, r.total_rows
+FROM admin_data c
+CROSS JOIN row_count r
+ORDER BY c.created_at DESC
+LIMIT $3 OFFSET $4;
+
+-- name: GetUserEmailOrPhoneNumber :many
+WITH user_data AS (
+    SELECT *,count(*) OVER() AS total_rows
+    FROM users
+    WHERE (phone_number ILIKE '%' || $1 || '%' OR $1 IS NULL)
+      AND (email ILIKE '%' || $2 || '%' OR $2 IS NULL)
+)
+SELECT c.* FROM user_data c
+ORDER BY c.created_at DESC
+LIMIT $3 OFFSET $4;
+
+-- name: GetAdminUsers :many
+WITH admin_users AS (
+    SELECT 
+        us.id AS user_id,
+        us.username,
+        us.phone_number,
+        us.profile,
+        us.status,
+        us.email,
+        us.first_name,
+        us.last_name,
+        us.date_of_birth,
+        us.street_address,
+        us.city,
+        us.postal_code,
+        us.state,
+        us.country,
+        us.kyc_status,
+        us.is_email_verified,
+        us.default_currency,
+        us.wallet_verification_status,
+        us.created_at,
+        us.is_admin,
+        us.user_type,
+        COALESCE(
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'role_id', r.id,
+                    'name', r.name
+                )
+            ) FILTER (WHERE r.id IS NOT NULL),
+            '[]'::json
+        ) AS roles,
+        COUNT(*) OVER() AS total_rows
+    FROM users us
+    LEFT JOIN user_roles ur ON ur.user_id = us.id
+    LEFT JOIN roles r ON r.id = ur.role_id
+    WHERE us.is_admin = true OR us.user_type = 'ADMIN'
+    GROUP BY us.id, us.username, us.phone_number, us.profile, us.status, us.email, us.first_name, us.last_name, us.date_of_birth, us.street_address, us.city, us.postal_code, us.state, us.country, us.kyc_status, us.is_email_verified, us.default_currency, us.wallet_verification_status, us.created_at, us.is_admin, us.user_type
+)
+SELECT 
+    au.user_id,
+    au.username,
+    au.phone_number,
+    au.profile,
+    au.status,
+    au.email,
+    au.first_name,
+    au.last_name,
+    au.date_of_birth,
+    au.street_address,
+    au.city,
+    au.postal_code,
+    au.state,
+    au.country,
+    au.kyc_status,
+    au.is_email_verified,
+    au.default_currency,
+    au.wallet_verification_status,
+    au.created_at,
+    au.is_admin,
+    au.user_type,
+    au.roles,
+    au.total_rows
+FROM admin_users au
+ORDER BY au.created_at DESC
+LIMIT $1 OFFSET $2;

@@ -1,0 +1,135 @@
+package initiator
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/tucanbit/internal/glue/adds"
+	"github.com/tucanbit/internal/glue/admin_activity_logs"
+	"github.com/tucanbit/internal/glue/admin_notification"
+	"github.com/tucanbit/internal/glue/agent"
+	"github.com/tucanbit/internal/glue/airtime"
+	"github.com/tucanbit/internal/glue/alert"
+	"github.com/tucanbit/internal/glue/analytics"
+	"github.com/tucanbit/internal/glue/authz"
+	"github.com/tucanbit/internal/glue/balance"
+	"github.com/tucanbit/internal/glue/balancelogs"
+	"github.com/tucanbit/internal/glue/banner"
+	"github.com/tucanbit/internal/glue/bet"
+	"github.com/tucanbit/internal/glue/campaign"
+	"github.com/tucanbit/internal/glue/cashback"
+	"github.com/tucanbit/internal/glue/chain_config"
+	"github.com/tucanbit/internal/glue/company"
+	"github.com/tucanbit/internal/glue/brand"
+	"github.com/tucanbit/internal/glue/currency_config"
+	"github.com/tucanbit/internal/glue/department"
+	"github.com/tucanbit/internal/glue/email"
+	"github.com/tucanbit/internal/glue/exchange"
+	"github.com/tucanbit/internal/glue/falcon_liquidity"
+	"github.com/tucanbit/internal/glue/game"
+	"github.com/tucanbit/internal/glue/groove"
+	"github.com/tucanbit/internal/glue/health"
+	"github.com/tucanbit/internal/glue/kyc"
+	"github.com/tucanbit/internal/glue/logs"
+	"github.com/tucanbit/internal/glue/lottery"
+	"github.com/tucanbit/internal/glue/notification"
+	"github.com/tucanbit/internal/glue/operationalgroup"
+	"github.com/tucanbit/internal/glue/operationalgrouptype"
+	"github.com/tucanbit/internal/glue/operationsdefinitions"
+	"github.com/tucanbit/internal/glue/otp"
+	"github.com/tucanbit/internal/glue/page"
+	"github.com/tucanbit/internal/glue/performance"
+	"github.com/tucanbit/internal/glue/rakeback_override"
+	"github.com/tucanbit/internal/glue/report"
+	"github.com/tucanbit/internal/glue/risksettings"
+	"github.com/tucanbit/internal/glue/sportsservice"
+	"github.com/tucanbit/internal/glue/squads"
+	"github.com/tucanbit/internal/glue/system_config"
+	"github.com/tucanbit/internal/glue/system_configs"
+	"github.com/tucanbit/internal/glue/twofactor"
+	"github.com/tucanbit/internal/glue/user"
+	"github.com/tucanbit/internal/glue/wallet"
+	"github.com/tucanbit/internal/glue/withdrawal_management"
+	"github.com/tucanbit/internal/glue/withdrawals"
+	"github.com/tucanbit/internal/glue/ws"
+	emailModule "github.com/tucanbit/internal/module/email"
+	falconStorage "github.com/tucanbit/internal/storage/falcon_liquidity"
+	"go.uber.org/zap"
+)
+
+func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.Logger, persistence *Persistence) {
+	user.Init(grp, *log, handler.User, module.User, module.Authz, module.SystemLogs)
+	operationalgroup.Init(grp, *log, handler.OperationalGroup, module.Authz, module.SystemLogs)
+	operationalgrouptype.Init(grp, *log, handler.OperationalGroupType, module.Authz, module.SystemLogs)
+	operationsdefinitions.Init(grp, *log, handler.OperationsDefinitions, module.Authz)
+	balance.Init(grp, *log, handler.Balance, module.User, module.Authz, module.SystemLogs)
+	balancelogs.Init(grp, *log, handler.BalanceLogs, module.Authz, module.SystemLogs)
+	exchange.Init(grp, *log, handler.Exchange)
+	ws.Init(grp, *log, handler.WS)
+	bet.Init(grp, *log, handler.Bet, module.User, module.Authz, module.SystemLogs)
+	department.Init(grp, *log, handler.Departments, module.Authz, module.SystemLogs)
+	performance.Init(grp, *log, handler.Performance, module.Authz, module.SystemLogs)
+	authz.Init(grp, *log, handler.Authz, module.Authz, module.SystemLogs)
+	logs.Init(grp, *log, handler.SystemLogs, module.Authz, module.SystemLogs)
+	company.Init(grp, *log, handler.Company, module.Authz, module.SystemLogs)
+	brand.Init(grp, *log, handler.Brand, module.Authz, module.SystemLogs)
+	report.Init(grp, *log, handler.Report, module.Authz, module.SystemLogs)
+	squads.Init(grp, *log, handler.Squads, module.Authz, module.SystemLogs)
+	notification.Init(grp, *log, handler.Notification)
+	admin_notification.Init(grp, *log, handler.Notification)
+	campaign.InitRoutes(grp, handler.Campaign, log, module.Authz)
+	adds.Init(grp, *log, module.Authz, handler.Adds, module.SystemLogs)
+	banner.Init(grp, *log, module.Authz, handler.Banner, module.SystemLogs)
+	lottery.Init(grp, *log, handler.Lottery, module.Authz, module.SystemLogs)
+	sportsservice.Init(grp, *log, handler.SportsService)
+	risksettings.Init(grp, *log, module.Authz, handler.RiskSettings, module.SystemLogs)
+	agent.Init(grp, *log, handler.Agent, module.Authz, module.SystemLogs)
+	otp.Init(grp, *log, handler.OTP, module.OTP)
+	cashback.Init(grp, *log, handler.Cashback, module.Authz, module.SystemLogs)
+	groove.Init(grp, log, handler.Groove, module.Groove, module.Authz, module.SystemLogs)
+	game.Init(grp, *log, handler.Game, handler.HouseEdge, module.Authz, module.SystemLogs)
+	analytics.Init(grp, log, handler.Analytics)
+	twofactor.Init(grp, log, handler.TwoFactor)
+	rakeback_override.Init(grp, *log, handler.RakebackOverride, module.Authz, module.SystemLogs)
+	page.Init(grp, log, handler.Page, module.Page)
+
+	// Withdrawal system routes
+	system_config.Init(grp, log, handler.SystemConfig)
+	withdrawal_management.Init(grp, log, handler.WithdrawalManagement)
+	withdrawals.Init(grp, log, handler.Withdrawals)
+
+	// Wallet management routes
+	wallet.Init(grp, log)
+
+	// Currency config routes
+	currency_config.Init(grp, log)
+
+	// Chain config routes
+	chain_config.Init(grp, log)
+
+	// System configs routes
+	system_configs.Init(grp, log, persistence.Database.Queries)
+
+	// Admin activity logs routes
+	admin_activity_logs.Init(grp, *log, handler.AdminActivityLogs, module.Authz, module.AdminActivityLogs)
+
+	// Airtime routes
+	airtime.Init(grp, *log, handler.AirtimeProvider, module.Authz, module.SystemLogs)
+
+	// KYC routes
+	kyc.Init(grp, *log, handler.KYC, module.Authz, module.SystemLogs)
+
+	// Alert routes
+	alert.Init(grp.Group("/api/admin"), handler.Alert, handler.AlertEmailGroup)
+
+	// Email test routes
+	email.Init(grp, *log, module.Email.(emailModule.EmailService))
+
+	// Health route
+	health.Init(grp)
+
+	// Initialize Falcon Liquidity routes (no authentication required)
+	falconStorageInstance := falconStorage.NewFalconMessageStorage(log, persistence.Database)
+	falconRoutes := falcon_liquidity.GetFalconLiquidityRoutes(falconStorageInstance, log)
+	for _, route := range falconRoutes {
+		grp.Handle(route.Method, route.Path, route.Handler)
+	}
+}

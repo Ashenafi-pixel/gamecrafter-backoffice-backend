@@ -1,0 +1,2 @@
+ALTER TABLE users
+ADD COLUMN referal_type VARCHAR(255);
