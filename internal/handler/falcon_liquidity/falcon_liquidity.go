@@ -42,7 +42,7 @@ func NewFalconLiquidityHandler(storage falcon_liquidity.FalconMessageStorage, lo
 //	@Param			date_from		query		string	false	"Filter by start date (YYYY-MM-DD)"
 //	@Param			date_to			query		string	false	"Filter by end date (YYYY-MM-DD)"
 //	@Param			reconciliation_status	query	string	false	"Filter by reconciliation status"
-//	@Success		200				{object}	object "Falcon Liquidity data response"
+//	@Success		200				{object}	dto.FalconLiquidityDataResponse
 //	@Failure		400				{object}	response.ErrorResponse
 //	@Failure		500				{object}	response.ErrorResponse
 //	@Router			/api/admin/falcon-liquidity/data [get]
@@ -180,7 +180,7 @@ func (h *FalconLiquidityHandler) GetAllFalconLiquidityData(c *gin.Context) {
 //	@Tags			Falcon Liquidity
 //	@Produce		json
 //	@Param			transaction_id	path		string	true	"Transaction ID"
-//	@Success		200				{object}	object "Falcon Liquidity data response"
+//	@Success		200				{object}	dto.FalconLiquidityDataResponse
 //	@Failure		400				{object}	response.ErrorResponse
 //	@Failure		404				{object}	response.ErrorResponse
 //	@Failure		500				{object}	response.ErrorResponse
@@ -238,7 +238,7 @@ func (h *FalconLiquidityHandler) GetFalconLiquidityByTransactionID(c *gin.Contex
 //	@Param			user_id	path		string	true	"User ID"
 //	@Param			limit	query		int		false	"Limit number of results (default: 100, max: 1000)"
 //	@Param			offset	query		int		false	"Offset for pagination (default: 0)"
-//	@Success		200		{object}	object "Falcon Liquidity data response"
+//	@Success		200		{object}	dto.FalconLiquidityDataResponse
 //	@Failure		400		{object}	response.ErrorResponse
 //	@Failure		404		{object}	response.ErrorResponse
 //	@Failure		500		{object}	response.ErrorResponse

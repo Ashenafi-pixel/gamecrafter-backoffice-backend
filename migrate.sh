@@ -1,6 +1,10 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 # Game Crafter Database Migration Script
+=======
+# TucanBIT Database Migration Script
+>>>>>>> 3ee98c3de341b5d08bc242a8d1bcadcf5afb3210
 # This script helps you sync with team database changes
 
 set -e
