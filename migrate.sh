@@ -1,16 +1,20 @@
 #!/bin/bash
 
+<<<<<<< HEAD
+# Game Crafter Database Migration Script
+=======
 # TucanBIT Database Migration Script
+>>>>>>> 3ee98c3de341b5d08bc242a8d1bcadcf5afb3210
 # This script helps you sync with team database changes
 
 set -e
 
 # Configuration
 DB_HOST="localhost"
-DB_PORT="5433"
-DB_NAME="tucanbit"
-DB_USER="tucanbit"
-DB_PASSWORD="5kj0YmV5FKKpU9D50B7yH5A"
+DB_PORT="5432"
+DB_NAME="game_crafter"
+DB_USER="postgres"
+DB_PASSWORD="root"
 MIGRATIONS_DIR="./migrations"
 
 # Colors for output
@@ -23,7 +27,7 @@ NC='\033[0m' # No Color
 # Database URL
 DATABASE_URL="postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
-echo -e "${BLUE}🔄 TucanBIT Database Migration Tool${NC}"
+echo -e "${BLUE}🔄 Game Crafter Database Migration Tool${NC}"
 echo "=================================="
 
 # Check if migrate tool is installed

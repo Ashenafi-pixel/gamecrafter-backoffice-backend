@@ -283,6 +283,13 @@ type Brand interface {
 	DeleteBrand(ctx context.Context, id uuid.UUID) error
 }
 
+type Provider interface {
+	CreateProvider(ctx context.Context, req dto.CreateProviderRequest) (*dto.GameProvider, error)
+	GetAllProviders(ctx context.Context) ([]dto.GameProvider, error)
+	UpdateProvider(ctx context.Context, req dto.UpdateProviderRequest) (*dto.GameProvider, error)
+	DeleteProvider(ctx context.Context, providerID uuid.UUID) error
+}
+
 type Report interface {
 	DailyReport(ctx context.Context, req dto.DailyReportReq) (dto.DailyReportRes, error)
 	GetDuplicateIPAccounts(ctx context.Context) ([]dto.DuplicateIPAccountsReport, error)

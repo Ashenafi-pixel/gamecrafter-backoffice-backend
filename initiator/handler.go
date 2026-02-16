@@ -38,6 +38,7 @@ import (
 	"github.com/tucanbit/internal/handler/otp"
 	"github.com/tucanbit/internal/handler/page"
 	"github.com/tucanbit/internal/handler/performance"
+	"github.com/tucanbit/internal/handler/provider"
 	"github.com/tucanbit/internal/handler/rakeback_override"
 	"github.com/tucanbit/internal/handler/report"
 	"github.com/tucanbit/internal/handler/risksettings"
@@ -72,6 +73,7 @@ type Handler struct {
 	SystemLogs            handler.SystemLogs
 	Company               handler.Company
 	Brand                 handler.Brand
+	Provider              handler.Provider
 	Report                handler.Report
 	Squads                handler.Squads
 	Notification          handler.Notification
@@ -140,6 +142,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		SystemLogs:            logs.Init(log, module.SystemLogs),
 		Company:               company.Init(module.Company, log),
 		Brand:                 brand.Init(module.Brand, log),
+		Provider:              provider.Init(module.Provider, log),
 		Report:                report.Init(module.Report, module.User, log),
 		Squads:                squads.Init(log, module.Squads),
 		Notification:          notification.Init(log, module.Notification),

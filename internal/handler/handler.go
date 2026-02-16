@@ -293,6 +293,13 @@ type Brand interface {
 	DeleteBrand(c *gin.Context)
 }
 
+type Provider interface {
+	CreateProvider(c *gin.Context)
+	GetAllProviders(c *gin.Context)
+	UpdateProvider(c *gin.Context)
+	DeleteProvider(c *gin.Context)
+}
+
 type Report interface {
 	GetDailyReport(c *gin.Context)
 	GetDuplicateIPAccounts(c *gin.Context)

@@ -1,0 +1,273 @@
+# Game Crafter Configuration - Unified Config File
+# This file combines configurations from all previous config files
+db:
+  url: "postgres://game_crafter_user:5kj0YmV5FKKpU9D50B7yH5A@localhost:5432/game_crafter?sslmode=disable"
+  idle_conn_timeout: "4m"
+
+app:
+  host: "0.0.0.0"
+  port: 8094
+  timeout: "30m"
+  environment: "production"
+  frontend_url: "https://gamecrafter.io"
+
+debug: false
+auth:
+  jwt_secret: "tokensecrethere"
+  otp_jwt_secret: "otpkwtsecretgoinghere"
+  otp_attempt_limit: 4
+
+paymentMs:
+  secret: "<your_payment_ms_secret_here>"
+
+bet:
+  max: 15
+  open_duration: "10s"
+
+aws:
+  bucket:
+    name: "bucketname"
+    accessKey: "accesskeyhere"
+    secretAccessKey: "secretKeyHere"
+    region: "regionHere"
+  logging:
+    enabled: true
+    region: "us-east-1"
+    access_key_id: "your_aws_access_key_id"
+    secret_access_key: "your_aws_secret_access_key"
+    log_group_name: "/game_crafter/application"
+    log_stream_name: "game_crafter-stream"
+    retention_days: 30
+    local_path: "./logs"
+
+google:
+  smtp:
+    password: "bkov izye bawj yioj"
+    from: "support@gamecrafter.io"
+  oauth:
+    client_id: "290465420820-dt8oe9om2hbsbdno7nl0mtfunpr6cg1g.apps.googleusercontent.com"
+    client_secret: "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"
+    redirect_url: "https://api.gamecrafter.io/user/oauth/google/res"
+
+oauth:
+  frontend_oauth_handler_url: "https://gamecrafter.io/oauth"
+
+facebook:
+  oauth:
+    client_id: "837667311758955"
+    client_secret: "9136275f085069e22f2ca55ce033e3c0"
+    redirect_url: "https://api.gamecrafter.io/user/oauth/facebook/res"
+
+sportsservice:
+  api_key: "0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u"
+  api_secret: "0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u"
+
+rise_and_hustle:
+  auth_url: "https://rise-and-hustle-tau.vercel.app/auth"
+
+pisi:
+  base_url: "https://api.pisimobile.com/bulksms/v1/"
+  password: ""
+  vaspid: ""
+  sender_id: ""
+  timeout: "30s"
+  retry_count: 3
+  retry_delay: "1000ms"
+
+kafka:
+  enabled: true
+  # Use localhost for local runs (go run). In Docker, set KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+  bootstrap_servers: "localhost:9092"
+  topic: "bet_transactions"
+  cluster_api_key: ""
+  cluster_api_secret: ""
+  security_protocol: "PLAINTEXT"
+  acks: "all"
+  mechanisms: "PLAIN"
+  group_id: "game_crafter_group"
+  auto_offset_reset: "earliest"
+  enable_auto_commit: true
+  session_timeout_ms: 60000
+
+# ============================================================================
+# Redis Configuration
+# ============================================================================
+# Redis in-memory data store for caching and session management
+# enabled: Enable/disable Redis integration
+# addr: Redis server address (host:port)
+#                    Note: Use "redis:6379" (container name) when running in Docker, "localhost:63790" when running locally
+# password: Redis authentication password
+# db: Redis database number (0-15, default is 0)
+# key_prefix: Prefix added to all Redis keys (e.g., "tucanbit:user:123")
+# ttl: Default time-to-live for cached data
+# attempts: Number of retry attempts for failed operations
+# pool_size: Maximum number of connections in the connection pool
+# min_idle_conns: Minimum number of idle connections to maintain
+redis:
+  enabled: true
+  # Use localhost for local runs. In Docker, set REDIS_ADDR=redis:6379
+  addr: "localhost:63790"
+  password: ""
+  db: 0
+  key_prefix: "game_crafter:"
+  ttl: "2h"
+  attempts: 3
+  pool_size: 10
+  min_idle_conns: 2
+
+clickhouse:
+  host: "game-crafter-clickhouse"
+  port: 8123
+  database: "game_crafter_analytics"
+  username: "game_crafter"
+  password: "game_crafter_clickhouse_password"
+  timeout: "10s"
+
+wms:
+  base_url: "https://wms.gamecrafter.io/api/v1/admin"
+  timeout: "30s"
+  retry_attempts: 3
+  retry_delay: "1s"
+
+logger:
+  level: 0  # 0=Debug, 1=Info, 2=Warn, 3=Error, 4=Fatal
+  console: true
+  max_size_mb: 100
+  max_backups: 5
+  max_age_days: 30
+  compress: true
+  rotation_enabled: true
+  retention_enabled: true
+  local_retention_days: 90
+  aws_retention_days: 30
+
+daily_reports:
+  enabled: true
+  recipients:
+    - "ashenafialemu27@gmail.com"
+    - "johsjones612@gmail.com"
+  schedule:
+    time: "23:59"  # End of day (11:59 PM)
+    timezone: "UTC"
+  email:
+    subject: "Game Crafter Daily Analytics Report - {{.Date}}"
+    template: "daily_report"
+
+smtp:
+  host: "smtp.gmail.com"
+  port: 465
+  username: "support@tucanbit.io"
+  password: "bkov izye bawj yioj"
+  from: "support@tucanbit.io"
+  from_name: "TucanBIT Security"
+  use_tls: true
+  # Email type-specific "from" addresses (aliases of support@gamecrafter.io)
+  # Language-based routing: English (en) and Spanish (es)
+  from_addresses:
+    default: "support@gamecrafter.io"
+    # English addresses
+    notifications: "notifications@gamecrafter.io"
+    notifications_en: "notifications@gamecrafter.io"
+    support: "support@gamecrafter.io"
+    support_en: "support@gamecrafter.io"
+    reports: "reports@gamecrafter.io"
+    # Spanish addresses
+    notifications_es: "notificaciones@gamecrafter.io"
+    support_es: "soporte@gamecrafter.io"
+
+groove:
+  operator_id: "3909"
+  api_domain: "https://gprouter.groovegaming.com"
+  api_key: "our_groove_api_key_here"
+  home_url: "https://gamecrafter.io"
+  exit_url: "https://gamecrafter.io"
+  history_url: "https://gamecrafter.io"
+  license_type: "Curacao"
+  signature_validation: false
+  signature_secret: "test_key"
+
+falcon_liquidity:
+  enabled: true
+  host: "b-72b0d5f8-fd98-47f3-97f9-c4dff10c8040.mq.eu-west-2.on.aws"
+  port: 5671
+  virtual_host: "client_acme"
+  username: "acme"
+  password: "acme-123"
+  exchange_name: "falcon_liquidity"
+  queue_name: "client_acme_queue"
+  routing_key: "client.acme"
+  client_name: "game_crafter"
+  management_port: 15672
+
+airtime:
+  base_url: "http://localhost:8080"
+  password: "airtime_password"
+  timeout: "10s"
+  vaspid: 12345
+
+
+postback:
+  base_url: "https://play.latm.bet/pb/"
+  timeout: "5s"
+
+timezone:
+  default: "UTC"
+  session_timezone: "UTC"
+
+session:
+  game_session_duration_hours: 8
+  max_session_duration_hours: 48
+  timezone_aware: true
+
+scaling:
+  use_event_driven_processing: false
+  enable_dual_write: false
+  dual_write_validation: false
+  redis_dedup_ttl: "24h"
+  balance_cache_ttl: "5m"
+  rate_limit_limit: 100
+  rate_limit_window: "1m"
+  game_round_cache_ttl: "10m"
+  redis_pool_size: 100
+  redis_min_idle_conns: 20
+  redis_conn_max_idle_time: "5m"
+  redis_conn_max_lifetime: "30m"
+  partition_months_ahead: 3
+  partition_creation_interval: "24h"
+  clickhouse_streaming_enabled: false
+  clickhouse_batch_size: 100
+  clickhouse_flush_interval: "5s"
+  clickhouse_max_queue_size: 10000
+  clickhouse_fallback_on_full: true
+  clickhouse_fallback_on_timeout: true
+  clickhouse_retry_on_failure: true
+
+discord:
+  oauth:
+    client_id: "1430343637094502400"
+    client_secret: "Rom2gUjgmBzMWBzZqUF0GrusFSCDaJHH"
+    redirect_url: "https://api.gamecrafter.io/user/oauth/discord/res"
+
+cors:
+  allowed_origins:
+    - "https://console-backoffice.gamecrafter.io"
+    - "https://api.gamecrafter.io"
+    - "https://dev.gamecrafter.io"
+    - "https://staging.gamecrafter.io"
+    - "https://prod.gamecrafter.io"
+    - "https://gamecrafter.io"
+    - "http://localhost:5173"
+
+cookie:
+  domain: ".gamecrafter.io"
+
+crm:
+  base_url: "https://crm-dev.gamecrafter.io"
+  api_key: "3204e26d0a602c8be6933d785d60029a0f03bcb2377337facce0214422181ca2"
+  api_secret: "ce3e196cdd560d9f4c8b883bfe71a94cc7324bdd455d2658b01d15033456e538"
+  timeout: "10s"
+  retries: 3
+  retry_delay: "1s"
+
+vpn_detection:
+  api_key: ""

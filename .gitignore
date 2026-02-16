@@ -2,8 +2,6 @@
 ./trunk
 .idea
 config/config.yaml
-**/config.yaml.backup
-**/*.backup
 migrate.exe
 __debug_bin*
 vendor/
@@ -17,3 +15,10 @@ tucanbit-app
 *.log
 main
 *.tar
+.venv
+venv/
+__pycache__/
+*.pyc
+*.pyo
+scripts/create_first_admin.sql
+LOCAL_SETUP_GUIDE.md

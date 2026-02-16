@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS brand_games CASCADE;
+DROP TABLE IF EXISTS brand_providers CASCADE;
+DROP TABLE IF EXISTS game_providers CASCADE;

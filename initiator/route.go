@@ -14,11 +14,11 @@ import (
 	"github.com/tucanbit/internal/glue/balancelogs"
 	"github.com/tucanbit/internal/glue/banner"
 	"github.com/tucanbit/internal/glue/bet"
+	"github.com/tucanbit/internal/glue/brand"
 	"github.com/tucanbit/internal/glue/campaign"
 	"github.com/tucanbit/internal/glue/cashback"
 	"github.com/tucanbit/internal/glue/chain_config"
 	"github.com/tucanbit/internal/glue/company"
-	"github.com/tucanbit/internal/glue/brand"
 	"github.com/tucanbit/internal/glue/currency_config"
 	"github.com/tucanbit/internal/glue/department"
 	"github.com/tucanbit/internal/glue/email"
@@ -37,6 +37,7 @@ import (
 	"github.com/tucanbit/internal/glue/otp"
 	"github.com/tucanbit/internal/glue/page"
 	"github.com/tucanbit/internal/glue/performance"
+	"github.com/tucanbit/internal/glue/provider"
 	"github.com/tucanbit/internal/glue/rakeback_override"
 	"github.com/tucanbit/internal/glue/report"
 	"github.com/tucanbit/internal/glue/risksettings"
@@ -71,6 +72,7 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 	logs.Init(grp, *log, handler.SystemLogs, module.Authz, module.SystemLogs)
 	company.Init(grp, *log, handler.Company, module.Authz, module.SystemLogs)
 	brand.Init(grp, *log, handler.Brand, module.Authz, module.SystemLogs)
+	provider.Init(grp, *log, handler.Provider, module.Authz, module.SystemLogs)
 	report.Init(grp, *log, handler.Report, module.Authz, module.SystemLogs)
 	squads.Init(grp, *log, handler.Squads, module.Authz, module.SystemLogs)
 	notification.Init(grp, *log, handler.Notification)
