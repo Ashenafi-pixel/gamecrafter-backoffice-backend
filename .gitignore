@@ -15,3 +15,10 @@ tucanbit-app
 *.log
 main
 *.tar
+.venv
+venv/
+__pycache__/
+*.pyc
+*.pyo
+scripts/create_first_admin.sql
+LOCAL_SETUP_GUIDE.md
