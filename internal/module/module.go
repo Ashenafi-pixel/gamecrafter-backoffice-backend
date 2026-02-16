@@ -288,6 +288,7 @@ type Provider interface {
 	GetAllProviders(ctx context.Context) ([]dto.GameProvider, error)
 	UpdateProvider(ctx context.Context, req dto.UpdateProviderRequest) (*dto.GameProvider, error)
 	DeleteProvider(ctx context.Context, providerID uuid.UUID) error
+	GetProviderByID(ctx context.Context, providerID uuid.UUID) (*dto.GameProvider, error)
 }
 
 type Report interface {

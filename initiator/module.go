@@ -309,7 +309,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			ClientName:     viper.GetString("falcon_liquidity.client_name"),
 			ManagementPort: viper.GetInt("falcon_liquidity.management_port"),
 		}, persistence.FalconMessage), log),
-		Game:             game.NewGameService(persistence.Game, log),
+		Game:             game.NewGameService(persistence.Game, log, persistence.Provider),
 		HouseEdge:        game.NewHouseEdgeService(persistence.HouseEdge, log),
 		Email:            emailService,
 		RakebackOverride: rakeback_override.Init(persistence.RakebackOverride, log),

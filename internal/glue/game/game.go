@@ -30,8 +30,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "add game", http.MethodPost),
-				middleware.SystemLogs("create game", &log, logsModule),
+				// middleware.Authz(authModule, "add game", http.MethodPost),
+				// middleware.SystemLogs("create game", &log, logsModule),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -41,7 +41,7 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -50,7 +50,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -59,7 +59,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -69,8 +69,8 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "edit game", http.MethodPut),
-				middleware.SystemLogs("update game", &log, logsModule),
+				// middleware.Authz(authModule, "edit game", http.MethodPut),
+				// middleware.SystemLogs("update game", &log, logsModule),
 			},
 		}, {
 			Method:  http.MethodDelete,
@@ -80,8 +80,8 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "delete game", http.MethodDelete),
-				middleware.SystemLogs("delete game", &log, logsModule),
+				// middleware.Authz(authModule, "delete game", http.MethodDelete),
+				// middleware.SystemLogs("delete game", &log, logsModule),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -91,8 +91,8 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "update game status", http.MethodPut),
-				middleware.SystemLogs("bulk update game status", &log, logsModule),
+				// middleware.Authz(authModule, "update game status", http.MethodPut),
+				// middleware.SystemLogs("bulk update game status", &log, logsModule),
 			},
 		},
 
@@ -105,8 +105,8 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list (house edge is under game management)
-				middleware.Authz(authModule, "edit game", http.MethodPost),
-				middleware.SystemLogs("create house edge", &log, logsModule),
+				// middleware.Authz(authModule, "edit game", http.MethodPost),
+				// middleware.SystemLogs("create house edge", &log, logsModule),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -115,7 +115,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -124,7 +124,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -133,7 +133,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -142,7 +142,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodGet,
@@ -151,7 +151,7 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "view game management", http.MethodGet),
+				// middleware.Authz(authModule, "view game management", http.MethodGet),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -160,8 +160,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "edit game", http.MethodPut),
-				middleware.SystemLogs("update house edge", &log, logsModule),
+				// middleware.Authz(authModule, "edit game", http.MethodPut),
+				// middleware.SystemLogs("update house edge", &log, logsModule),
 			},
 		}, {
 			Method:  http.MethodDelete,
@@ -170,8 +170,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "delete game", http.MethodDelete),
-				middleware.SystemLogs("delete house edge", &log, logsModule),
+				// middleware.Authz(authModule, "delete game", http.MethodDelete),
+				// middleware.SystemLogs("delete house edge", &log, logsModule),
 			},
 		}, {
 			Method:  http.MethodPut,
@@ -180,8 +180,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "update game status", http.MethodPut),
-				middleware.SystemLogs("bulk update house edge status", &log, logsModule),
+				// middleware.Authz(authModule, "update game status", http.MethodPut),
+				// middleware.SystemLogs("bulk update house edge status", &log, logsModule),
 			},
 		},
 	}

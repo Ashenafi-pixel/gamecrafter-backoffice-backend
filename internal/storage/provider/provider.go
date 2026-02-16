@@ -15,19 +15,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type provider struct {
+type Provider struct {
 	db  *persistencedb.PersistenceDB
 	log *zap.Logger
 }
 
 func Init(persistenceDB *persistencedb.PersistenceDB, log *zap.Logger) storage.Provider {
-	return &provider{
+	return &Provider{
 		db:  persistenceDB,
 		log: log,
 	}
 }
 
-func (p *provider) CreateProvider(ctx context.Context, req dto.CreateProviderRequest) (*dto.GameProvider, error) {
+func (p *Provider) CreateProvider(ctx context.Context, req dto.CreateProviderRequest) (*dto.GameProvider, error) {
 	// Set defaults
 	integrationType := req.IntegrationType
 	if integrationType == "" {
@@ -87,7 +87,7 @@ func (p *provider) CreateProvider(ctx context.Context, req dto.CreateProviderReq
 		UpdatedAt:       updatedAt,
 	}, nil
 }
-func (p *provider) GetProvider(ctx context.Context, id uuid.UUID) (*dto.GameProvider, error) {
+func (p *Provider) GetProvider(ctx context.Context, id uuid.UUID) (*dto.GameProvider, error) {
 	query := `SELECT id, name, code, description, api_url, webhook_url, 
 		integration_type, is_active, status, created_at, updated_at
 	FROM game_providers WHERE id = $1`
@@ -115,7 +115,7 @@ func (p *provider) GetProvider(ctx context.Context, id uuid.UUID) (*dto.GameProv
 
 	return &provider, nil
 }
-func (p *provider) GetAllProviders(ctx context.Context) ([]dto.GameProvider, error) {
+func (p *Provider) GetAllProviders(ctx context.Context) ([]dto.GameProvider, error) {
 	query := `SELECT id, name, code, description, api_url, webhook_url, 
 		integration_type, is_active, status, created_at, updated_at
 	FROM game_providers`
@@ -159,7 +159,7 @@ func (p *provider) GetAllProviders(ctx context.Context) ([]dto.GameProvider, err
 
 	return providers, nil
 }
-func (p *provider) UpdateProvider(ctx context.Context, req dto.UpdateProviderRequest) (*dto.GameProvider, error) {
+func (p *Provider) UpdateProvider(ctx context.Context, req dto.UpdateProviderRequest) (*dto.GameProvider, error) {
 	query := `UPDATE game_providers SET
     name = COALESCE($1, name),
     code = COALESCE($2, code),
@@ -226,7 +226,7 @@ RETURNING id, name, code, description, api_url, webhook_url,
 	}, nil
 
 }
-func (p *provider) DeleteProvider(ctx context.Context, providerID uuid.UUID) error {
+func (p *Provider) DeleteProvider(ctx context.Context, providerID uuid.UUID) error {
 	query := `DELETE FROM game_providers WHERE id = $1`
 
 	cmdTag, err := p.db.GetPool().Exec(ctx, query, providerID)
@@ -243,4 +243,35 @@ func (p *provider) DeleteProvider(ctx context.Context, providerID uuid.UUID) err
 	}
 
 	return nil
+}
+func (p *Provider) GetProvidorByID(ctx context.Context, providerID uuid.UUID) (*dto.GameProvider, bool, error) {
+	query := `SELECT id, name, code, description, api_url, webhook_url, 
+		integration_type, is_active, status, created_at, updated_at
+	FROM game_providers WHERE id = $1`
+	fmt.Println("incoming ID")
+	var provider dto.GameProvider
+	err := p.db.GetPool().QueryRow(ctx, query, providerID).Scan(
+		&provider.ID,
+		&provider.Name,
+		&provider.Code,
+		&provider.Description,
+		&provider.APIURL,
+		&provider.WebhookURL,
+		&provider.IntegrationType,
+		&provider.IsActive,
+		&provider.Status,
+		&provider.CreatedAt,
+		&provider.UpdatedAt,
+	)
+
+	if err != nil {
+		// if errors.Is(err, persistencedb.ErrNoRows) {
+		// 	return nil, false, nil // Not found, but not an error
+		// }
+		p.log.Error("unable to get provider by ID", zap.Error(err), zap.String("id", providerID.String()))
+		err = errors.ErrUnableToGet.Wrap(err, "unable to get provider by ID")
+		return nil, false, err
+	}
+
+	return &provider, true, nil
 }

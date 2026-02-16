@@ -73,3 +73,14 @@ func (p *provider) DeleteProvider(ctx context.Context, providerID uuid.UUID) err
 	}
 	return nil
 }
+func (p *provider) GetProviderByID(ctx context.Context, providerID uuid.UUID) (*dto.GameProvider, error) {
+	provider, found, err := p.providerStorage.GetProvidorByID(ctx, providerID)
+	if err != nil {
+		p.log.Error("unable to get provider by ID", zap.Error(err), zap.String("provider_id", providerID.String()))
+		return nil, errors.ErrInternalServerError.New("unable to get provider")
+	}
+	if !found {
+		return nil, errors.ErrNoRecordFound.New("provider not found")
+	}
+	return provider, nil
+}

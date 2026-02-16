@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -9,26 +10,48 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
+	"github.com/tucanbit/internal/storage"
 	"github.com/tucanbit/internal/storage/game"
+
 	"go.uber.org/zap"
 )
 
 type GameService struct {
-	gameStorage game.GameStorage
-	logger      *zap.Logger
+	gameStorage     game.GameStorage
+	logger          *zap.Logger
+	providerStorage storage.Provider
 }
 
-func NewGameService(gameStorage game.GameStorage, logger *zap.Logger) *GameService {
+func NewGameService(gameStorage game.GameStorage, logger *zap.Logger, providerStorage storage.Provider) *GameService {
 	return &GameService{
-		gameStorage: gameStorage,
-		logger:      logger,
+		gameStorage:     gameStorage,
+		logger:          logger,
+		providerStorage: providerStorage,
 	}
 }
 
 func (s *GameService) CreateGame(ctx *gin.Context, req dto.CreateGameRequest) (*dto.GameResponse, error) {
 	s.logger.Info("Creating new game", zap.String("name", req.Name))
+	providorUUID, err := uuid.Parse(req.ProvidorID.String())
+	if err != nil {
+		s.logger.Error("Invalid provider ID", zap.String("providor_id", req.ProvidorID.String()), zap.Error(err))
+		return nil, errors.ErrInvalidUserInput.Wrap(err, "invalid provider ID")
+	}
+	fmt.Println("Provoidor Id", providorUUID)
+	provider, exists, err := s.providerStorage.GetProvidorByID(ctx, providorUUID)
+	if err != nil {
+		s.logger.Error("Failed to get provider by ID", zap.Error(err))
+		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get provider")
+	}
+	if !exists {
+		s.logger.Error("Provider does not exist", zap.String("provider_id", providorUUID.String()))
+		return nil, errors.ErrResourceNotFound.New("provider does not exist")
+	}
+	s.logger.Info("Found provider", zap.String("provider_id", provider.ID.String()))
+	fmt.Printf("Provider details: ID=%s, Name=%s\n", provider.ID.String(), provider.Name)
 
 	// Convert DTO to storage model
+	providorString := provider.ID.String()
 	gameModel := &game.Game{
 		Name:               req.Name,
 		Status:             req.Status,
@@ -38,7 +61,7 @@ func (s *GameService) CreateGame(ctx *gin.Context, req dto.CreateGameRequest) (*
 		GameID:             req.GameID,
 		InternalName:       req.InternalName,
 		IntegrationPartner: req.IntegrationPartner,
-		Provider:           req.Provider,
+		Provider:           &providorString,
 		Timestamp:          time.Now(),
 		CreatedAt:          time.Now(),
 		UpdatedAt:          time.Now(),
