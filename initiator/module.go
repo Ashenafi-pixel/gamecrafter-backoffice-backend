@@ -195,7 +195,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 			persistence.OTP,
 			emailService,
 			twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
-				Issuer:           "TucanBIT",
+				Issuer:           "JIB",
 				Algorithm:        otp.AlgorithmSHA1,
 				Digits:           otp.DigitsSix,
 				Period:           30,
@@ -314,7 +314,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		Email:            emailService,
 		RakebackOverride: rakeback_override.Init(persistence.RakebackOverride, log),
 		TwoFactor: twofactor.NewTwoFactorService(persistence.TwoFactor, persistence.Passkey, log, twofactor.TwoFactorConfig{
-			Issuer:           "TucanBIT",
+			Issuer:           "JIB",
 			Algorithm:        otp.AlgorithmSHA1,
 			Digits:           otp.DigitsSix,
 			Period:           30,

@@ -24,9 +24,11 @@ func initConfig(name, path string, log *zap.Logger) {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	// Explicitly bind JWT_SECRET environment variable to the expected config keys
+	// Explicitly bind environment variables (e.g. for Render, Docker)
 	viper.BindEnv("app.jwt_secret", "JWT_SECRET")
 	viper.BindEnv("auth.jwt_secret", "JWT_SECRET")
+	viper.BindEnv("db.url", "DB_URL")
+	viper.BindEnv("app.port", "PORT") // Render and many hosts set PORT
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal(fmt.Sprintf("unable to start config %v ", err))

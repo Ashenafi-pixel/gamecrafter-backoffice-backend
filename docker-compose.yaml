@@ -1,26 +1,6 @@
 name: game_crafter
 
 services:
-  create-kafka-topic:
-    image: confluentinc/cp-kafka:6.2.0
-    container_name: create-kafka-topic
-    depends_on:
-      kafka:
-        condition: service_healthy
-    command: >
-      sh -c "
-        echo 'Waiting for Kafka to be ready...'
-        sleep 10
-        kafka-topics --bootstrap-server kafka:9092 --list
-        echo 'Creating topic events...'
-        kafka-topics --bootstrap-server kafka:9092 --create --topic events --partitions 1 --replication-factor 1 --if-not-exists
-        echo 'Creating topic bet_transactions for event-driven processing...'
-        kafka-topics --bootstrap-server kafka:9092 --create --topic bet_transactions --partitions 3 --replication-factor 1 --if-not-exists
-        echo 'Topics created successfully'
-      "
-    networks:
-      - app-network
-
   backoffice-app:
     build: .
     container_name: backoffice-app
@@ -28,7 +8,6 @@ services:
       - "8094:8094"
     command: ["./docker-entrypoint.sh"]
     environment:
-      # Application Configuration
       DB_URL: "postgres://game_crafter_user:5kj0YmV5FKKpU9D50B7yH5A@db:5432/game_crafter?sslmode=disable"
       POSTGRES_PASSWORD: "5kj0YmV5FKKpU9D50B7yH5A"
       APP_HOST: "0.0.0.0"
@@ -36,60 +15,13 @@ services:
       JWT_SECRET: "tokensecrethere"
       DB_CONNECT_RETRIES: "10"
       DB_CONNECT_TIMEOUT: "5s"
-
-      # Kafka Configuration
-      KAFKA_TOPIC: "bet_transactions"
-      KAFKA_TOPICS: "events,bet_transactions"
-      KAFKA_BOOTSTRAP_SERVER: "kafka:9092"
-      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
-      KAFKA_CLUSTER_API_KEY: ""
-      KAFKA_CLUSTER_API_SECRET: ""
-      KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
-      KAFKA_MECHANISMS: "PLAIN"
-      KAFKA_ACKS: "all"
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-
-      # Redis Configuration
-      REDIS_ADDR: "redis:6379"
-      REDIS_PASSWORD: ""
-      REDIS_DB: "0"
-      REDIS_KEY_PREFIX: "game_crafter:"
-      REDIS_TTL: "5m"
-      REDIS_ATTEMPTS: "3"
-
-      # ClickHouse Configuration
-      CLICKHOUSE_HOST: "game-crafter-clickhouse"
-      CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_DATABASE: "game_crafter_analytics"
-      CLICKHOUSE_USERNAME: "game_crafter"
-      CLICKHOUSE_PASSWORD: "game_crafter_clickhouse_password"
-      CLICKHOUSE_TIMEOUT: "30s"
-
-      # Pisi Configuration
-      PISI_BASE_URL: "http://pisi-service:8080"
-      PISI_PASSWORD: "pisi_password"
-      PISI_VASPID: "pisi_vaspid"
-      PISI_TIMEOUT: "10s"
-      PISI_RETRY_COUNT: "3"
-      PISI_RETRY_DELAY: "5s"
-      PISI_SENDER_ID: "game_crafter"
       CONFIG_NAME: "config"
-
-    
     volumes:
       - ./internal/constant/query/schemas:/app/internal/constant/query/schemas
     networks:
       - app-network
     depends_on:
-      create-kafka-topic:
-        condition: service_completed_successfully
-      kafka:
-        condition: service_healthy
       db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      clickhouse:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8094/health || exit 1"]
@@ -102,7 +34,7 @@ services:
     image: postgres:16
     container_name: game_crafter-db
     ports:
-      - "5433:5432"
+      - "5434:5432"
     environment:
       POSTGRES_USER: "game_crafter_user"
       POSTGRES_PASSWORD: "5kj0YmV5FKKpU9D50B7yH5A"
@@ -117,125 +49,9 @@ services:
     networks:
       - app-network
 
-  redis:
-   image: redis:6.2
-   container_name: redis
-   ports:
-      - "63790:6379"
-   healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-   volumes:
-      - redis_data:/data
-   networks:
-      - app-network
-   restart: unless-stopped
-
-  zookeeper:
-   image: zookeeper:3.8.1
-   container_name: zookeeper
-   hostname: zookeeper
-   ports:
-      - "22181:2181"
-   environment:
-      ZOO_MY_ID: 1
-      ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181
-      ZOO_4LW_COMMANDS_WHITELIST: "mntr,ruok,conf,cons"
-      ZOO_MAX_CLIENT_CNXNS: 1000
-   volumes:
-      - zk_data:/data
-      - zk_logs:/datalog
-   networks:
-      - app-network
-   healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok || exit 1"]
-      start_period: 30s
-      interval: 10s
-      timeout: 5s
-      retries: 20
-   restart: unless-stopped
-   deploy:
-      resources:
-       limits:
-         memory: 1G
-         cpus: '0.5'
-
-  kafka:
-   image: confluentinc/cp-kafka:6.2.0
-   container_name: kafka
-   hostname: kafka
-   depends_on:
-      zookeeper:
-       condition: service_healthy
-   ports:
-      - "9092:9092"
-      - "9093:9093"
-   environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://172.31.36.46:9093
-      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,EXTERNAL://172.31.36.46:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-      KAFKA_NUM_PARTITIONS: 3
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-   volumes:
-      - kafka_data:/var/lib/kafka/data
-   networks:
-      - app-network
-   restart: unless-stopped
-   healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list || exit 1"]
-      # test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
-      interval: 30s
-      timeout: 20s
-      retries: 10
-      start_period: 60s
-   deploy:
-      resources:
-       limits:
-         memory: 1G
-         cpus: '0.5'
-
-  clickhouse:
-   image: clickhouse/clickhouse-server:25.8
-   container_name: game-crafter-clickhouse
-   ports:
-      - "8123:8123"
-      - "9000:9000"
-   environment:
-      CLICKHOUSE_DB: game_crafter_analytics
-      CLICKHOUSE_USER: game_crafter
-      CLICKHOUSE_PASSWORD: game_crafter_clickhouse_password
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-   volumes:
-      - clickhouse_data:/var/lib/clickhouse 
-   networks:
-      - app-network
-   restart: unless-stopped
-   healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
 volumes:
- db_data:
- zk_data:
- zk_logs:
- redis_data:
- kafka_data:
- clickhouse_data:
+  db_data:
 
 networks:
- app-network:
-   driver: bridge
+  app-network:
+    driver: bridge

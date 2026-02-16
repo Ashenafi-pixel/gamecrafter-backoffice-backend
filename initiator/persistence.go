@@ -101,13 +101,27 @@ type Persistence struct {
 
 func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger, gormDB *gorm.DB, redis *redis.RedisOTP, userWS utils.UserWS, clickhouseClient *clickhouse.ClickHouseClient) *Persistence {
 	var analyticsStorageInstance storage.Analytics
+	var cashbackGrooveAnalytics *analyticsStorage.AnalyticsIntegration
 	if clickhouseClient != nil {
 		analyticsStorageInstance = analyticsStorage.NewAnalyticsStorage(clickhouseClient, log)
 		if analyticsStorageImpl, ok := analyticsStorageInstance.(*analyticsStorage.AnalyticsStorageImpl); ok {
 			analyticsStorageImpl.SetPostgresPool(persistencdb.GetPool())
 		}
+		cashbackGrooveAnalytics = analyticsStorage.NewAnalyticsIntegration(
+			analyticsModule.NewRealtimeSyncService(
+				analyticsModule.NewSyncService(
+					analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
+					groove.NewGrooveStorage(persistencdb, userWS, nil, log),
+					log,
+				),
+				analyticsStorage.NewAnalyticsStorage(clickhouseClient, log),
+				log,
+			),
+			log,
+		)
 	} else {
 		analyticsStorageInstance = nil
+		cashbackGrooveAnalytics = analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewNoopRealtimeSyncService(), log)
 	}
 
 	return &Persistence{
@@ -139,8 +153,8 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		RiskSettings:         risksettings.Init(persistencdb, log),
 		Agent:                agent.Init(persistencdb, log),
 		OTP:                  otp.NewOTP(otp.NewOTPDatabase(redis, log)),
-		Cashback:             cashback.NewCashbackStorage(persistencdb, log, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), groove.NewGrooveStorage(persistencdb, userWS, nil, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log)),
-		Groove:               groove.NewGrooveStorage(persistencdb, userWS, analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewRealtimeSyncService(analyticsModule.NewSyncService(analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), groove.NewGrooveStorage(persistencdb, userWS, nil, log), log), analyticsStorage.NewAnalyticsStorage(clickhouseClient, log), log), log), log),
+		Cashback:             cashback.NewCashbackStorage(persistencdb, log, cashbackGrooveAnalytics),
+		Groove:               groove.NewGrooveStorage(persistencdb, userWS, cashbackGrooveAnalytics, log),
 		GameSession:          groove.NewGameSessionStorage(persistencdb),
 		Game:                 game.NewGameStorage(persistencdb, log),
 		HouseEdge:            game.NewHouseEdgeStorage(persistencdb, log),
