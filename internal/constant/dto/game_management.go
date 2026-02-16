@@ -26,15 +26,16 @@ type GameManagement struct {
 
 // Game creation request
 type CreateGameRequest struct {
-	Name               string  `json:"name" validate:"required,min=1,max=255"`
-	Status             string  `json:"status" validate:"required,oneof=ACTIVE INACTIVE MAINTENANCE"`
-	Photo              *string `json:"photo,omitempty"`
-	Price              *string `json:"price,omitempty"`
-	Enabled            bool    `json:"enabled"`
-	GameID             *string `json:"game_id,omitempty" validate:"omitempty,max=50"`
-	InternalName       *string `json:"internal_name,omitempty" validate:"omitempty,max=255"`
-	IntegrationPartner *string `json:"integration_partner,omitempty" validate:"omitempty,max=100"`
-	Provider           *string `json:"provider,omitempty" validate:"omitempty,max=100"`
+	Name               string    `json:"name" validate:"required,min=1,max=255"`
+	Status             string    `json:"status" validate:"required,oneof=ACTIVE INACTIVE MAINTENANCE"`
+	Photo              *string   `json:"photo,omitempty"`
+	Price              *string   `json:"price,omitempty"`
+	Enabled            bool      `json:"enabled"`
+	GameID             *string   `json:"game_id,omitempty" validate:"omitempty,max=50"`
+	InternalName       *string   `json:"internal_name,omitempty" validate:"omitempty,max=255"`
+	IntegrationPartner *string   `json:"integration_partner,omitempty" validate:"omitempty,max=100"`
+	Provider           *string   `json:"provider,omitempty" validate:"omitempty,max=100"`
+	ProvidorID         uuid.UUID `json:"provider_id" validate:"required"`
 }
 
 // Game update request
