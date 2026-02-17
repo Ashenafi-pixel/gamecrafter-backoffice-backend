@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/tucanbit/internal/constant/dto"
@@ -32,6 +33,13 @@ func NewGameService(gameStorage game.GameStorage, logger *zap.Logger, providerSt
 
 func (s *GameService) CreateGame(ctx *gin.Context, req dto.CreateGameRequest) (*dto.GameResponse, error) {
 	s.logger.Info("Creating new game", zap.String("name", req.Name))
+
+	// Validate request
+	if err := validateCreateGameRequest(req); err != nil {
+		s.logger.Error("Invalid create game request", zap.Error(err))
+		return nil, errors.ErrInvalidUserInput.Wrap(err, "invalid create game request")
+	}
+
 	providorUUID, err := uuid.Parse(req.ProvidorID.String())
 	if err != nil {
 		s.logger.Error("Invalid provider ID", zap.String("providor_id", req.ProvidorID.String()), zap.Error(err))
@@ -70,7 +78,8 @@ func (s *GameService) CreateGame(ctx *gin.Context, req dto.CreateGameRequest) (*
 	createdGame, err := s.gameStorage.CreateGame(ctx, gameModel)
 	if err != nil {
 		s.logger.Error("Failed to create game", zap.Error(err))
-		return nil, errors.ErrInternalServerError.Wrap(err, "failed to create game")
+		// Propagate storage-layer error (e.g., duplicate, DB failure) so it can be mapped to proper HTTP status
+		return nil, err
 	}
 
 	// Convert storage model to response DTO
@@ -107,6 +116,12 @@ func (s *GameService) GetGames(ctx *gin.Context, params dto.GameQueryParams) (*d
 		zap.String("search", params.Search),
 		zap.String("status", params.Status))
 
+	// Validate query params
+	if err := validateGameQueryParams(params); err != nil {
+		s.logger.Error("Invalid game query parameters", zap.Error(err))
+		return nil, errors.ErrInvalidUserInput.Wrap(err, "invalid game query parameters")
+	}
+
 	games, totalCount, err := s.gameStorage.GetGames(ctx, game.GameQueryParams{
 		Page:      params.Page,
 		PerPage:   params.PerPage,
@@ -120,7 +135,7 @@ func (s *GameService) GetGames(ctx *gin.Context, params dto.GameQueryParams) (*d
 	})
 	if err != nil {
 		s.logger.Error("Failed to get games", zap.Error(err))
-		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get games")
+		return nil, err
 	}
 
 	// Convert to response DTOs
@@ -153,11 +168,17 @@ func (s *GameService) UpdateGame(ctx *gin.Context, id uuid.UUID, req dto.UpdateG
 	existingGame, err := s.gameStorage.GetGameByID(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to get game for update", zap.Error(err))
-		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get game")
+		return nil, err
 	}
 
 	if existingGame == nil {
 		return nil, errors.ErrResourceNotFound.New("game not found")
+	}
+
+	// Validate update request
+	if err := validateUpdateGameRequest(req); err != nil {
+		s.logger.Error("Invalid update game request", zap.Error(err))
+		return nil, errors.ErrInvalidUserInput.Wrap(err, "invalid update game request")
 	}
 
 	// Update fields if provided
@@ -194,7 +215,7 @@ func (s *GameService) UpdateGame(ctx *gin.Context, id uuid.UUID, req dto.UpdateG
 	updatedGame, err := s.gameStorage.UpdateGame(ctx, existingGame)
 	if err != nil {
 		s.logger.Error("Failed to update game", zap.Error(err))
-		return nil, errors.ErrInternalServerError.Wrap(err, "failed to update game")
+		return nil, err
 	}
 
 	response := s.convertToGameResponse(updatedGame)
@@ -213,7 +234,7 @@ func (s *GameService) DeleteGame(ctx *gin.Context, id uuid.UUID) error {
 	existingGame, err := s.gameStorage.GetGameByID(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to get game for deletion", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to get game")
+		return err
 	}
 
 	if existingGame == nil {
@@ -223,7 +244,7 @@ func (s *GameService) DeleteGame(ctx *gin.Context, id uuid.UUID) error {
 	err = s.gameStorage.DeleteGame(ctx, id)
 	if err != nil {
 		s.logger.Error("Failed to delete game", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to delete game")
+		return err
 	}
 
 	s.logger.Info("Game deleted successfully",
@@ -238,10 +259,16 @@ func (s *GameService) BulkUpdateGameStatus(ctx *gin.Context, req dto.BulkUpdateG
 		zap.String("status", req.Status),
 		zap.Int("count", len(req.GameIDs)))
 
+	// Validate bulk update request
+	if err := validateBulkUpdateGameStatusRequest(req); err != nil {
+		s.logger.Error("Invalid bulk update game status request", zap.Error(err))
+		return errors.ErrInvalidUserInput.Wrap(err, "invalid bulk update game status request")
+	}
+
 	err := s.gameStorage.BulkUpdateGameStatus(ctx, req.GameIDs, req.Status)
 	if err != nil {
 		s.logger.Error("Failed to bulk update game status", zap.Error(err))
-		return errors.ErrInternalServerError.Wrap(err, "failed to bulk update game status")
+		return err
 	}
 
 	s.logger.Info("Game statuses updated successfully",
@@ -257,7 +284,7 @@ func (s *GameService) GetGameStats(ctx *gin.Context) (*dto.GameManagementStats, 
 	stats, err := s.gameStorage.GetGameStats(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get game statistics", zap.Error(err))
-		return nil, errors.ErrInternalServerError.Wrap(err, "failed to get game statistics")
+		return nil, err
 	}
 
 	response := &dto.GameManagementStats{
@@ -301,4 +328,28 @@ func (s *GameService) convertToGameResponse(game *game.Game) *dto.GameResponse {
 		UpdatedAt:          game.UpdatedAt,
 		RTPPercent:         rtp,
 	}
+}
+
+// validateCreateGameRequest validates the create game request using struct tags
+func validateCreateGameRequest(req dto.CreateGameRequest) error {
+	validate := validator.New()
+	return validate.Struct(req)
+}
+
+// validateUpdateGameRequest validates the update game request using struct tags
+func validateUpdateGameRequest(req dto.UpdateGameRequest) error {
+	validate := validator.New()
+	return validate.Struct(req)
+}
+
+// validateGameQueryParams validates the game query params using struct tags
+func validateGameQueryParams(params dto.GameQueryParams) error {
+	validate := validator.New()
+	return validate.Struct(params)
+}
+
+// validateBulkUpdateGameStatusRequest validates the bulk update game status request using struct tags
+func validateBulkUpdateGameStatusRequest(req dto.BulkUpdateGameStatusRequest) error {
+	validate := validator.New()
+	return validate.Struct(req)
 }

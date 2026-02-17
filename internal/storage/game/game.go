@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/tucanbit/internal/constant/errors"
+	sqlcerr "github.com/tucanbit/internal/constant/errors/sqlcerr"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"go.uber.org/zap"
 )
@@ -152,8 +154,17 @@ func (s *GameStorageImpl) CreateGame(ctx context.Context, game *Game) (*Game, er
 		&createdGame.CreatedAt, &createdGame.UpdatedAt)
 
 	if err != nil {
+		if sqlcerr.IsDuplicate(err) {
+			// Handle unique constraint violations (e.g., duplicate game_id or internal name)
+			s.logger.Warn("duplicate game detected",
+				zap.Error(err),
+				zap.String("name", game.Name),
+			)
+			return nil, errors.ErrDataAlredyExist.New("game with the same identifier already exists")
+		}
+
 		s.logger.Error("Failed to create game", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrUnableTocreate.Wrap(err, "failed to create game")
 	}
 
 	s.logger.Info("Game created successfully", zap.String("id", createdGame.ID.String()))
@@ -175,11 +186,12 @@ func (s *GameStorageImpl) GetGameByID(ctx context.Context, id uuid.UUID) (*Game,
 		&game.CreatedAt, &game.UpdatedAt)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if sqlcerr.Is(err, sqlcerr.ErrNoRows) {
+			// Not found is represented as nil, nil; caller will convert to 404
 			return nil, nil
 		}
 		s.logger.Error("Failed to get game by ID", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrUnableToGet.Wrap(err, "failed to get game by ID")
 	}
 
 	return &game, nil
@@ -200,11 +212,12 @@ func (s *GameStorageImpl) GetGameByGameID(ctx context.Context, gameID string) (*
 		&game.CreatedAt, &game.UpdatedAt)
 
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if sqlcerr.Is(err, sqlcerr.ErrNoRows) {
+			// Not found is represented as nil, nil; caller will convert to 404
 			return nil, nil
 		}
 		s.logger.Error("Failed to get game by game_id", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrUnableToGet.Wrap(err, "failed to get game by game_id")
 	}
 
 	return &game, nil
@@ -259,7 +272,7 @@ func (s *GameStorageImpl) GetGames(ctx context.Context, params GameQueryParams) 
 	err := s.db.GetPool().QueryRow(ctx, countQuery, args...).Scan(&totalCount)
 	if err != nil {
 		s.logger.Error("Failed to count games", zap.Error(err))
-		return nil, 0, err
+		return nil, 0, errors.ErrUnableToGet.Wrap(err, "failed to count games")
 	}
 
 	// Build ORDER BY clause
@@ -286,7 +299,7 @@ func (s *GameStorageImpl) GetGames(ctx context.Context, params GameQueryParams) 
 	rows, err := s.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
 		s.logger.Error("Failed to query games", zap.Error(err))
-		return nil, 0, err
+		return nil, 0, errors.ErrUnableToGet.Wrap(err, "failed to query games")
 	}
 	defer rows.Close()
 
@@ -300,7 +313,7 @@ func (s *GameStorageImpl) GetGames(ctx context.Context, params GameQueryParams) 
 			&game.CreatedAt, &game.UpdatedAt, &game.HouseEdge)
 		if err != nil {
 			s.logger.Error("Failed to scan game", zap.Error(err))
-			return nil, 0, err
+			return nil, 0, errors.ErrReadError.Wrap(err, "failed to scan game")
 		}
 		games = append(games, game)
 	}
@@ -330,8 +343,16 @@ func (s *GameStorageImpl) UpdateGame(ctx context.Context, game *Game) (*Game, er
 		&updatedGame.CreatedAt, &updatedGame.UpdatedAt)
 
 	if err != nil {
+		if sqlcerr.IsDuplicate(err) {
+			s.logger.Warn("duplicate game detected on update",
+				zap.Error(err),
+				zap.String("id", game.ID.String()),
+			)
+			return nil, errors.ErrDataAlredyExist.New("game with the same identifier already exists")
+		}
+
 		s.logger.Error("Failed to update game", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrUnableToUpdate.Wrap(err, "failed to update game")
 	}
 
 	s.logger.Info("Game updated successfully", zap.String("id", updatedGame.ID.String()))
@@ -345,13 +366,13 @@ func (s *GameStorageImpl) DeleteGame(ctx context.Context, id uuid.UUID) error {
 	result, err := s.db.GetPool().Exec(ctx, query, id)
 	if err != nil {
 		s.logger.Error("Failed to delete game", zap.Error(err))
-		return err
+		return errors.ErrUnableToDelete.Wrap(err, "failed to delete game")
 	}
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		s.logger.Warn("No game found to delete", zap.String("id", id.String()))
-		return fmt.Errorf("game not found")
+		return errors.ErrNoRecordFound.New("game not found")
 	}
 
 	s.logger.Info("Game deleted successfully", zap.String("id", id.String()))
@@ -381,7 +402,7 @@ func (s *GameStorageImpl) BulkUpdateGameStatus(ctx context.Context, gameIDs []uu
 	result, err := s.db.GetPool().Exec(ctx, query, args...)
 	if err != nil {
 		s.logger.Error("Failed to bulk update game status", zap.Error(err))
-		return err
+		return errors.ErrUnableToUpdate.Wrap(err, "failed to bulk update game status")
 	}
 
 	rowsAffected := result.RowsAffected()
@@ -412,7 +433,7 @@ func (s *GameStorageImpl) GetGameStats(ctx context.Context) (*GameStats, error) 
 
 	if err != nil {
 		s.logger.Error("Failed to get game statistics", zap.Error(err))
-		return nil, err
+		return nil, errors.ErrUnableToGet.Wrap(err, "failed to get game statistics")
 	}
 
 	s.logger.Info("Game statistics retrieved", zap.Any("stats", stats))

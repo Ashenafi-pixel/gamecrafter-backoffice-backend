@@ -1,7 +1,9 @@
 # Game Crafter Configuration - Unified Config File
 # This file combines configurations from all previous config files
 db:
-  url: "postgres://game_crafter_user:5kj0YmV5FKKpU9D50B7yH5A@localhost:5432/game_crafter?sslmode=disable"
+  # url: "postgres://game_crafter_user:5kj0YmV5FKKpU9D50B7yH5A@localhost:5432/game_crafter?sslmode=disable"
+  # url: "postgresql://postgres:fkPtSCRCpDwAQjlBAyFEtOJidEOWCkod@yamanote.proxy.rlwy.net:12626/game_crafter"
+  url: "postgresql://postgres.yrjnvplaicudrbdogjpz:5kj0YmV5FKKpU9D50B7yH5A@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require"
   idle_conn_timeout: "4m"
 
 app:

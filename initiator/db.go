@@ -27,6 +27,7 @@ func initDB(dbUrl string, log *zap.Logger) (*pgxpool.Pool, *gorm.DB) {
 	}
 
 	config.MaxConnIdleTime = idleConnTimeout
+	config.ConnConfig.PreferSimpleProtocol = true
 	conn, err := pgxpool.ConnectConfig(context.Background(), config)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to connect to database: %v", err))

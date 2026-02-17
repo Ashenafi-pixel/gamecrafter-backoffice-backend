@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
+	sqlcerr "github.com/tucanbit/internal/constant/errors/sqlcerr"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
@@ -67,8 +68,21 @@ func (p *Provider) CreateProvider(ctx context.Context, req dto.CreateProviderReq
 	)
 
 	if err != nil {
-		p.log.Error("unable to create provider", zap.Error(err),
-			zap.String("name", req.Name), zap.String("code", req.Code))
+		if sqlcerr.IsDuplicate(err) {
+			// Handle unique constraint violations (e.g., duplicate provider code)
+			p.log.Warn("duplicate provider detected",
+				zap.Error(err),
+				zap.String("name", req.Name),
+				zap.String("code", req.Code),
+			)
+			return nil, errors.ErrDataAlredyExist.New("provider code already exists")
+		}
+
+		p.log.Error("unable to create provider",
+			zap.Error(err),
+			zap.String("name", req.Name),
+			zap.String("code", req.Code),
+		)
 		err = errors.ErrUnableTocreate.Wrap(err, "unable to create provider")
 		return nil, err
 	}
@@ -108,6 +122,11 @@ func (p *Provider) GetProvider(ctx context.Context, id uuid.UUID) (*dto.GameProv
 	)
 
 	if err != nil {
+		if sqlcerr.Is(err, sqlcerr.ErrNoRows) {
+			p.log.Warn("provider not found", zap.String("id", id.String()))
+			return nil, errors.ErrNoRecordFound.New("provider not found")
+		}
+
 		p.log.Error("unable to get provider", zap.Error(err), zap.String("id", id.String()))
 		err = errors.ErrUnableToGet.Wrap(err, "unable to get provider")
 		return nil, err
@@ -205,6 +224,15 @@ RETURNING id, name, code, description, api_url, webhook_url,
 	)
 
 	if err != nil {
+		if sqlcerr.IsDuplicate(err) {
+			// Handle unique constraint violations (e.g., duplicate provider code on update)
+			p.log.Warn("duplicate provider detected on update",
+				zap.Error(err),
+				zap.String("id", req.ID.String()),
+			)
+			return nil, errors.ErrDataAlredyExist.New("provider code already exists")
+		}
+
 		p.log.Error("unable to update provider", zap.Error(err), zap.String("id", req.ID.String()))
 		err = errors.ErrUnableToUpdate.Wrap(err, "unable to update provider")
 		fmt.Println("Error updating provider:", err) // Debug log
@@ -265,9 +293,12 @@ func (p *Provider) GetProvidorByID(ctx context.Context, providerID uuid.UUID) (*
 	)
 
 	if err != nil {
-		// if errors.Is(err, persistencedb.ErrNoRows) {
-		// 	return nil, false, nil // Not found, but not an error
-		// }
+		if sqlcerr.Is(err, sqlcerr.ErrNoRows) {
+			// Not found is not treated as a hard error here; caller will handle 404
+			p.log.Warn("provider not found by ID", zap.String("id", providerID.String()))
+			return nil, false, nil
+		}
+
 		p.log.Error("unable to get provider by ID", zap.Error(err), zap.String("id", providerID.String()))
 		err = errors.ErrUnableToGet.Wrap(err, "unable to get provider by ID")
 		return nil, false, err

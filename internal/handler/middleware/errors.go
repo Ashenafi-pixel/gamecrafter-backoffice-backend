@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/joomcode/errorx"
@@ -24,14 +23,14 @@ func ErrorHandler() gin.HandlerFunc {
 
 			response := CastErrorResponse(err)
 			if response != nil {
-				er := errorx.Cast(err)
-				// Use the wrapped error message if available, otherwise use the type message
-				if er.Cause() != nil && er.Cause().Error() != "" {
-					response.Message = er.Cause().Error()
-				}
+				// Keep the high-level, sanitized message from CastErrorResponse.
+				// Do NOT override it with low-level database or internal error strings.
+				// Also avoid returning stack traces or raw error details to the client.
 				if debugMode {
-					response.Description = fmt.Sprintf("Error: %v", er)
-					response.StackTrace = fmt.Sprintf("%+v", errorx.EnsureStackTrace(err))
+					// Optionally, we could enrich the description with the typed error message,
+					// but we deliberately avoid including the wrapped cause to prevent leaking DB errors.
+					er := errorx.Cast(err)
+					response.Description = er.Message()
 				}
 				response2.SendErrorResponse(c, response)
 				return

@@ -3,6 +3,8 @@ package brand
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
@@ -23,6 +25,23 @@ func Init(brandStorage storage.Brand, log *zap.Logger) module.Brand {
 		brandStorage: brandStorage,
 	}
 }
+func ExtractDomain(rawURL string) (string, error) {
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		rawURL = "https://" + rawURL
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+
+	host := parsedURL.Hostname()
+	if host == "" {
+		return "", fmt.Errorf("invalid URL: no hostname found")
+	}
+
+	return host, nil
+}
 
 func (b *brand) CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.CreateBrandRes, error) {
 	if err := dto.ValidateCreateBrand(req); err != nil {
@@ -30,6 +49,21 @@ func (b *brand) CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.Cr
 		return dto.CreateBrandRes{}, err
 	}
 
+	//extract domain from webhook URL if domain is not provided but webhook URL is provided
+	if req.Domain == "" && (req.WebhookURL != "" || req.APIURL != "") {
+		var sourceURL string
+		if req.WebhookURL != "" {
+			sourceURL = req.WebhookURL
+		} else {
+			sourceURL = req.APIURL
+		}
+
+		domain, err := ExtractDomain(sourceURL)
+		if err == nil && domain != "" {
+			req.Domain = domain
+		}
+	}
+	fmt.Println("Brand domain data is ", req.Domain)
 	return b.brandStorage.CreateBrand(ctx, req)
 }
 
@@ -127,4 +161,3 @@ func (b *brand) DeleteBrand(ctx context.Context, brandID uuid.UUID) error {
 
 	return nil
 }
-
