@@ -1,0 +1,19 @@
+# Render Blueprint - deploy backoffice backend with Supabase
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: gamecrafter-backoffice-backend
+    runtime: go
+    region: frankfurt
+    plan: free
+
+    buildCommand: go build -o gamecrafter cmd/main.go
+    startCommand: ./gamecrafter
+
+    # Set DB_URL and JWT_SECRET in Render Dashboard (Environment)
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+    # PORT is set automatically by Render; app uses it via app.port binding

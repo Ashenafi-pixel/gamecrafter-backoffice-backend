@@ -21,15 +21,15 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/handler/middleware"
-	"github.com/tucanbit/internal/storage"
 	modulePackage "github.com/tucanbit/internal/module"
 	alertModule "github.com/tucanbit/internal/module/alert"
 	analyticsModule "github.com/tucanbit/internal/module/analytics"
+	cashbackModule "github.com/tucanbit/internal/module/cashback"
 	emailModule "github.com/tucanbit/internal/module/email"
 	gameImportModule "github.com/tucanbit/internal/module/game_import"
+	"github.com/tucanbit/internal/storage"
 	analyticsStorage "github.com/tucanbit/internal/storage/analytics"
 	"github.com/tucanbit/internal/storage/cashback"
-	cashbackModule "github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform"
 	"github.com/tucanbit/platform/clickhouse"
@@ -91,40 +91,39 @@ func Initiate() {
 	platformInstance := platform.InitPlatform(context.Background(), lgr)
 	logger.Info("done initializing platform layer")
 
-	// Initialize ClickHouse client
-	logger.Info("initializing ClickHouse client")
-	clickhouseConfig := clickhouse.ClickHouseConfig{
-		Host:     viper.GetString("clickhouse.host"),
-		Port:     viper.GetInt("clickhouse.port"),
-		Database: viper.GetString("clickhouse.database"),
-		Username: viper.GetString("clickhouse.username"),
-		Password: viper.GetString("clickhouse.password"),
-		Timeout:  viper.GetDuration("clickhouse.timeout"),
-	}
-	logger.Info("ClickHouse config",
-		zap.String("host", clickhouseConfig.Host),
-		zap.Int("port", clickhouseConfig.Port),
-		zap.String("database", clickhouseConfig.Database),
-		zap.String("username", clickhouseConfig.Username))
-
-	clickhouseClient, err := clickhouse.NewClickHouseClient(clickhouseConfig, logger)
-	if err != nil {
-		logger.Error("Failed to initialize ClickHouse client", zap.Error(err))
-		// Continue without ClickHouse for now
-		clickhouseClient = nil
-	} else {
-		logger.Info("ClickHouse client initialized successfully")
-
-		// Test the connection
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := clickhouseClient.HealthCheck(ctx); err != nil {
-			logger.Error("ClickHouse health check failed", zap.Error(err))
-			clickhouseClient = nil
-		} else {
-			logger.Info("ClickHouse health check passed")
+	// Initialize ClickHouse client only when enabled
+	var clickhouseClient *clickhouse.ClickHouseClient
+	if viper.GetBool("clickhouse.enabled") {
+		logger.Info("initializing ClickHouse client")
+		clickhouseConfig := clickhouse.ClickHouseConfig{
+			Host:     viper.GetString("clickhouse.host"),
+			Port:     viper.GetInt("clickhouse.port"),
+			Database: viper.GetString("clickhouse.database"),
+			Username: viper.GetString("clickhouse.username"),
+			Password: viper.GetString("clickhouse.password"),
+			Timeout:  viper.GetDuration("clickhouse.timeout"),
 		}
+		logger.Info("ClickHouse config",
+			zap.String("host", clickhouseConfig.Host),
+			zap.Int("port", clickhouseConfig.Port),
+			zap.String("database", clickhouseConfig.Database),
+			zap.String("username", clickhouseConfig.Username))
+
+		client, err := clickhouse.NewClickHouseClient(clickhouseConfig, logger)
+		if err != nil {
+			logger.Error("Failed to initialize ClickHouse client", zap.Error(err))
+		} else {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := client.HealthCheck(ctx); err != nil {
+				logger.Error("ClickHouse health check failed", zap.Error(err))
+			} else {
+				clickhouseClient = client
+				logger.Info("ClickHouse client initialized successfully")
+			}
+		}
+	} else {
+		logger.Info("ClickHouse is disabled in configuration")
 	}
 
 	// Initialize userWS first
@@ -227,10 +226,10 @@ func Initiate() {
 		realtimeSyncService := analyticsModule.NewRealtimeSyncService(syncService, analyticsStorageInstance, logger)
 		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(realtimeSyncService, logger)
 
-
 		logger.Info("Analytics integration initialized successfully")
 	} else {
-		logger.Warn("ClickHouse client not available, analytics integration disabled")
+		analyticsIntegration = analyticsStorage.NewAnalyticsIntegration(analyticsModule.NewNoopRealtimeSyncService(), logger)
+		logger.Info("ClickHouse disabled, using no-op analytics integration")
 	}
 
 	// Initialize alert service and cronjob
@@ -255,7 +254,7 @@ func Initiate() {
 	persistence.Groove = groove.NewGrooveStorage(&persistenceDB, userBalanceWs, analyticsIntegration, logger)
 
 	module := initModule(persistence, logger, locker, userBalanceWs, platformInstance.Kafka, redisOTP, platformInstance.Pisi, alertService)
-	
+
 	// Seed pages and assign to admin users
 	logger.Info("seeding pages and assigning to admin users")
 	if err := seedPagesAndAssignToAdmins(context.Background(), module.Page, persistence.User, logger); err != nil {
@@ -286,7 +285,6 @@ func Initiate() {
 		rakebackScheduler.Start(context.Background())
 		logger.Info("Rakeback scheduler started successfully - checking every 1 minute")
 	}
-
 
 	// Start alert cronjob service
 	if alertCronjobService != nil {

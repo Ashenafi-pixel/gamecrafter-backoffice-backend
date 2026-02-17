@@ -3,9 +3,7 @@ set -e
 
 echo "=== Waiting for services ==="
 ./wait-for-it.sh db:5432 -t 60 --
-./wait-for-it.sh kafka:9092 -t 60 --
-./wait-for-it.sh game-crafter-clickhouse:9000 -t 60 --
-sleep 5
+sleep 2
 
 # Disable exit on error for migration (it's idempotent, errors are expected)
 set +e
@@ -24,7 +22,7 @@ else
 fi
 
 echo "=== Running all database migrations with go-migrate ==="
-MIGRATE_DB_URL="postgres://game_crafter:${POSTGRES_PASSWORD:-your_password}@db:5432/game_crafter?sslmode=disable"
+MIGRATE_DB_URL="postgres://game_crafter_user:${POSTGRES_PASSWORD:-your_password}@db:5432/game_crafter?sslmode=disable"
 
 # Check if migrate tool exists and is executable
 if [ -f /usr/local/bin/migrate ] && [ -x /usr/local/bin/migrate ]; then
@@ -236,5 +234,5 @@ printenv | grep KAFKA || true
 set -e
 
 echo "=== Starting application ==="
-exec ./tucanbit
+exec ./gamecrafter
 

@@ -27,14 +27,21 @@ func initDB(dbUrl string, log *zap.Logger) (*pgxpool.Pool, *gorm.DB) {
 	}
 
 	config.MaxConnIdleTime = idleConnTimeout
+	// Required for Supabase (and other transaction-mode poolers): avoid "prepared statement does not exist"
+	config.ConnConfig.PreferSimpleProtocol = true
+	log.Info("Database pool configured with PreferSimpleProtocol=true for pooler compatibility")
 	config.ConnConfig.PreferSimpleProtocol = true
 	conn, err := pgxpool.ConnectConfig(context.Background(), config)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
 
-	//add gorm db
-	db, err := gorm.Open(postgres.Open(dbUrl), &gorm.Config{})
+	// GORM: use simple protocol so Supabase/pooler does not hit "prepared statement does not exist"
+	gormDialector := postgres.New(postgres.Config{
+		DSN:                  dbUrl,
+		PreferSimpleProtocol: true,
+	})
+	db, err := gorm.Open(gormDialector, &gorm.Config{})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
