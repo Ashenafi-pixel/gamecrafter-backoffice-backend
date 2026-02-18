@@ -5,6 +5,7 @@ package provider
 import (
 	"context"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
@@ -37,14 +38,6 @@ func (p *provider) CreateProvider(ctx context.Context, req dto.CreateProviderReq
 	}
 	return provider, nil
 }
-
-// internal/constant/dto/provider.go - Add this function
-
-func ValidateCreateProviderRequest(req dto.CreateProviderRequest) error {
-	// Basic validation is handled by struct tags
-	// Add any custom validation here if needed
-	return nil
-}
 func (p *provider) GetAllProviders(ctx context.Context) ([]dto.GameProvider, error) {
 	providers, err := p.providerStorage.GetAllProviders(ctx)
 	if err != nil {
@@ -55,9 +48,9 @@ func (p *provider) GetAllProviders(ctx context.Context) ([]dto.GameProvider, err
 }
 func (p *provider) UpdateProvider(ctx context.Context, req dto.UpdateProviderRequest) (*dto.GameProvider, error) {
 	// Validate request
-	// if err := ValidateUpdateProviderRequest(req); err != nil {
-	// 	return nil, errors.ErrInvalidUserInput.Wrap(err, err.Error())
-	// }
+	if err := ValidateUpdateProviderRequest(req); err != nil {
+		return nil, errors.ErrInvalidUserInput.Wrap(err, err.Error())
+	}
 	provider, err := p.providerStorage.UpdateProvider(ctx, req)
 	if err != nil {
 		p.log.Error("unable to update provider", zap.Error(err), zap.String("provider_id", req.ID.String()))
@@ -83,4 +76,16 @@ func (p *provider) GetProviderByID(ctx context.Context, providerID uuid.UUID) (*
 		return nil, errors.ErrNoRecordFound.New("provider not found")
 	}
 	return provider, nil
+}
+
+// ValidateCreateProviderRequest validates the create provider request using struct tags
+func ValidateCreateProviderRequest(req dto.CreateProviderRequest) error {
+	validate := validator.New()
+	return validate.Struct(req)
+}
+
+// ValidateUpdateProviderRequest validates the update provider request using struct tags
+func ValidateUpdateProviderRequest(req dto.UpdateProviderRequest) error {
+	validate := validator.New()
+	return validate.Struct(req)
 }

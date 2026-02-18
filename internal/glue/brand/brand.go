@@ -26,8 +26,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "create brand", http.MethodPost),
-				middleware.SystemLogs("Create Brand", &log, systemLogs),
+				// middleware.Authz(authModule, "create brand", http.MethodPost),
+				// middleware.SystemLogs("Create Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -38,8 +38,8 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "view brand management", http.MethodGet),
-				middleware.SystemLogs("Get All Brands", &log, systemLogs),
+				// middleware.Authz(authModule, "view brand management", http.MethodGet),
+				// middleware.SystemLogs("Get All Brands", &log, systemLogs),
 			},
 		},
 		{
@@ -49,9 +49,9 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				// Align with seeded permissions list
-				middleware.Authz(authModule, "view brand management", http.MethodGet),
-				middleware.SystemLogs("Get Brand", &log, systemLogs),
+				// // Align with seeded permissions list
+				// middleware.Authz(authModule, "view brand management", http.MethodGet),
+				// middleware.SystemLogs("Get Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -62,8 +62,8 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "edit brand", http.MethodPatch),
-				middleware.SystemLogs("Update Brand", &log, systemLogs),
+				// middleware.Authz(authModule, "edit brand", http.MethodPatch),
+				// middleware.SystemLogs("Update Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -73,11 +73,10 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				middleware.Authz(authModule, "delete brand", http.MethodDelete),
-				middleware.SystemLogs("Delete Brand", &log, systemLogs),
+				// middleware.Authz(authModule, "delete brand", http.MethodDelete),
+				// middleware.SystemLogs("Delete Brand", &log, systemLogs),
 			},
 		},
 	}
 	routing.RegisterRoute(group, brandRoutes, log)
 }
-

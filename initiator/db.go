@@ -30,6 +30,7 @@ func initDB(dbUrl string, log *zap.Logger) (*pgxpool.Pool, *gorm.DB) {
 	// Required for Supabase (and other transaction-mode poolers): avoid "prepared statement does not exist"
 	config.ConnConfig.PreferSimpleProtocol = true
 	log.Info("Database pool configured with PreferSimpleProtocol=true for pooler compatibility")
+	config.ConnConfig.PreferSimpleProtocol = true
 	conn, err := pgxpool.ConnectConfig(context.Background(), config)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to connect to database: %v", err))
