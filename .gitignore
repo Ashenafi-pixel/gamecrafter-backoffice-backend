@@ -22,3 +22,4 @@ __pycache__/
 *.pyo
 scripts/create_first_admin.sql
 LOCAL_SETUP_GUIDE.md
+POSTMAN_COLLECTION.md
