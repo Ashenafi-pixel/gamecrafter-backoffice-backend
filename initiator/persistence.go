@@ -17,6 +17,7 @@ import (
 	"github.com/tucanbit/internal/storage/bet"
 	"github.com/tucanbit/internal/storage/brand"
 	"github.com/tucanbit/internal/storage/campaign"
+	"github.com/tucanbit/internal/storage/player"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/company"
 	"github.com/tucanbit/internal/storage/config"
@@ -67,6 +68,7 @@ type Persistence struct {
 	AirtimeProvider      storage.Airtime
 	Company              storage.Company
 	Brand                storage.Brand
+	Player               storage.Player
 	Provider             storage.Provider
 	CryptoWallet         storage.CryptoWallet
 	Report               storage.Report
@@ -140,6 +142,7 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		AirtimeProvider:      airtime.Init(log, persistencdb),
 		Company:              company.Init(persistencdb, log),
 		Brand:                brand.Init(persistencdb, log),
+		Player:               player.Init(persistencdb, log),
 		Provider:             provider.Init(persistencdb, log),
 		CryptoWallet:         storage.Init(persistencdb, log),
 		Report:               report.Init(persistencdb, analyticsStorageInstance, log),

@@ -101,3 +101,22 @@ type PlayerTransactionHistoryWithSummaryResponse struct {
 	Offset       int                      `json:"offset"`
 	HasMore      bool                     `json:"has_more"`
 }
+
+// type Player struct {
+// 	Email                  string          `json:"email" binding:"required"`
+// 	Username               string          `json:"username" binding:"required"`
+// 	Password               string          `json:"password" binding:"required"`
+// 	Phone                  string          `json:"phone,omitempty"`
+// 	FirstName              string          `json:"first_name,omitempty"`
+// 	LastName               string          `json:"last_name,omitempty"`
+// 	DefaultCurrency        string          `json:"default_currency" binding:"required"`
+// 	Brand                  string          `json:"brand,omitempty"`
+// 	DateOfBirth            time.Time       `json:"date_of_birth" binding:"required"`
+// 	Country                string          `json:"country" binding:"required"`
+// 	State                  string          `json:"state,omitempty"`
+// 	StreetAddress          string          `json:"street_address,omitempty"`
+// 	PostalCode             string          `json:"postal_code,omitempty"`
+// 	TestAccount            bool            `json:"test_account,omitempty"`
+// 	DailyWithdrawalLimit   decimal.Decimal `json:"daily_withdrawal_limit,omitempty"`
+// 	AlltimeWithdrawalLimit decimal.Decimal `json:"alltime_withdrawal_limit,omitempty"`
+// }

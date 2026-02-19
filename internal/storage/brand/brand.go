@@ -7,7 +7,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -43,9 +42,12 @@ func (b *brand) CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.Cr
 	//	    IntegrationType string  `json:"integration_type,omitempty" validate:"omitempty,max=255"`
 	//	    APIURL          string  `json:"api_url,omitempty" validate:"omitempty,max=255"`
 	//	}
-	var ID uuid.UUID
-	query := `INSERT INTO brands (name, code, domain, is_active, description, signature, webhook_url, integration_type, api_url)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	var ID int32
+	// Ensure the sequence exists before inserting
+	_, _ = b.db.GetPool().Exec(ctx, `CREATE SEQUENCE IF NOT EXISTS brand_id_seq START WITH 100000 INCREMENT BY 1 MINVALUE 100000 MAXVALUE 999999`)
+	
+	query := `INSERT INTO brands (id, name, code, domain, is_active, description, signature, webhook_url, integration_type, api_url)
+VALUES (nextval('brand_id_seq'), $1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING  id,name, code, domain, is_active,created_at, updated_at`
 	// brand, err := b.db.Queries.CreateBrand(ctx, db.CreateBrandParams{
 	// 	Name:     req.Name,
@@ -106,13 +108,39 @@ RETURNING  id,name, code, domain, is_active,created_at, updated_at`
 	}, nil
 }
 
-func (b *brand) GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, bool, error) {
-	brandRow, err := b.db.Queries.GetBrandByID(ctx, id)
+func (b *brand) GetBrandByID(ctx context.Context, id int32) (dto.Brand, bool, error) {
+	query := `SELECT id, name, code, domain, is_active, webhook_url, api_url, created_at, updated_at
+		FROM brands
+		WHERE id = $1`
+	
+	var brandRow struct {
+		ID         int32
+		Name       string
+		Code       string
+		Domain     sql.NullString
+		IsActive   bool
+		WebhookURL sql.NullString
+		APIURL     sql.NullString
+		CreatedAt  sql.NullTime
+		UpdatedAt  sql.NullTime
+	}
+	
+	err := b.db.GetPool().QueryRow(ctx, query, id).Scan(
+		&brandRow.ID,
+		&brandRow.Name,
+		&brandRow.Code,
+		&brandRow.Domain,
+		&brandRow.IsActive,
+		&brandRow.WebhookURL,
+		&brandRow.APIURL,
+		&brandRow.CreatedAt,
+		&brandRow.UpdatedAt,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return dto.Brand{}, false, nil
 		}
-		b.log.Error("unable to get brand by ID", zap.Error(err), zap.String("id", id.String()))
+		b.log.Error("unable to get brand by ID", zap.Error(err), zap.Int32("id", id))
 		err = errors.ErrUnableToGet.Wrap(err, "unable to get brand by ID")
 		return dto.Brand{}, false, err
 	}
@@ -130,14 +158,26 @@ func (b *brand) GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, bool
 		updatedAt = brandRow.UpdatedAt.Time
 	}
 
+	var webhookURL *string
+	if brandRow.WebhookURL.Valid {
+		webhookURL = &brandRow.WebhookURL.String
+	}
+
+	var apiURL *string
+	if brandRow.APIURL.Valid {
+		apiURL = &brandRow.APIURL.String
+	}
+
 	return dto.Brand{
-		ID:        brandRow.ID,
-		Name:      brandRow.Name,
-		Code:      brandRow.Code,
-		Domain:    domainPtr,
-		IsActive:  brandRow.IsActive,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
+		ID:         brandRow.ID,
+		Name:       brandRow.Name,
+		Code:       brandRow.Code,
+		Domain:     domainPtr,
+		IsActive:   brandRow.IsActive,
+		WebhookURL: webhookURL,
+		APIURL:     apiURL,
+		CreatedAt:  createdAt,
+		UpdatedAt:  updatedAt,
 	}, true, nil
 }
 
@@ -179,7 +219,7 @@ func (b *brand) GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBra
 	defer rows.Close()
 
 	type brandRow struct {
-		ID         uuid.UUID
+		ID         int32
 		Name       string
 		Code       string
 		Domain     sql.NullString
@@ -250,7 +290,7 @@ func (b *brand) GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBra
 			// If domain is valid (not NULL), return it even if it's an empty string
 			domainPtr = &brand.Domain.String
 		}
-		fmt.Printf("Brand ID: %s, Domain: %v, Domain Valid: %t\n", brand.ID.String(), domainPtr, brand.Domain.Valid)
+		fmt.Printf("Brand ID: %d, Domain: %v, Domain Valid: %t\n", brand.ID, domainPtr, brand.Domain.Valid)
 		// If brand.Domain.Valid is false, domainPtr remains nil (NULL in database)
 
 		var createdAt, updatedAt time.Time
@@ -341,7 +381,7 @@ func (b *brand) UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.Up
 	)
 
 	if err != nil {
-		b.log.Error("unable to update brand", zap.Error(err), zap.String("id", req.ID.String()))
+		b.log.Error("unable to update brand", zap.Error(err), zap.Int32("id", req.ID))
 		err = errors.ErrUnableToUpdate.Wrap(err, "unable to update brand")
 		return dto.UpdateBrandRes{}, err
 	}
@@ -359,14 +399,15 @@ func (b *brand) UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.Up
 	}, nil
 }
 
-func (b *brand) DeleteBrand(ctx context.Context, id uuid.UUID) error {
-	err := b.db.Queries.DeleteBrand(ctx, id)
+func (b *brand) DeleteBrand(ctx context.Context, id int32) error {
+	query := `DELETE FROM brands WHERE id = $1`
+	_, err := b.db.GetPool().Exec(ctx, query, id)
 	if err != nil {
-		b.log.Error("unable to delete brand", zap.Error(err), zap.String("id", id.String()))
+		b.log.Error("unable to delete brand", zap.Error(err), zap.Int32("id", id))
 		err = errors.ErrDBDelError.Wrap(err, "unable to delete brand")
 		return err
 	}
 
-	b.log.Info("brand deleted successfully", zap.String("id", id.String()))
+	b.log.Info("brand deleted successfully", zap.Int32("id", id))
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/module"
@@ -67,8 +66,8 @@ func (b *brand) CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.Cr
 	return b.brandStorage.CreateBrand(ctx, req)
 }
 
-func (b *brand) GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, error) {
-	if id == uuid.Nil {
+func (b *brand) GetBrandByID(ctx context.Context, id int32) (dto.Brand, error) {
+	if id <= 0 {
 		err := errors.ErrInvalidUserInput.New("invalid brand ID")
 		return dto.Brand{}, err
 	}
@@ -79,8 +78,8 @@ func (b *brand) GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, erro
 	}
 
 	if !exists {
-		err := fmt.Errorf("brand not found with ID: %s", id.String())
-		b.log.Warn("brand not found", zap.String("id", id.String()))
+		err := fmt.Errorf("brand not found with ID: %d", id)
+		b.log.Warn("brand not found", zap.Int32("id", id))
 		err = errors.ErrResourceNotFound.Wrap(err, err.Error())
 		return dto.Brand{}, err
 	}
@@ -109,8 +108,8 @@ func (b *brand) UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.Up
 		return dto.UpdateBrandRes{}, err
 	}
 	if !exists {
-		err := fmt.Errorf("brand not found with ID: %s", req.ID.String())
-		b.log.Error(err.Error(), zap.String("brandID", req.ID.String()))
+		err := fmt.Errorf("brand not found with ID: %d", req.ID)
+		b.log.Error(err.Error(), zap.Int32("brandID", req.ID))
 		err = errors.ErrResourceNotFound.Wrap(err, err.Error())
 		return dto.UpdateBrandRes{}, err
 	}
@@ -137,8 +136,8 @@ func (b *brand) UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.Up
 	return b.brandStorage.UpdateBrand(ctx, req)
 }
 
-func (b *brand) DeleteBrand(ctx context.Context, brandID uuid.UUID) error {
-	if brandID == uuid.Nil {
+func (b *brand) DeleteBrand(ctx context.Context, brandID int32) error {
+	if brandID <= 0 {
 		err := errors.ErrInvalidUserInput.New("invalid brand ID")
 		return err
 	}
@@ -149,8 +148,8 @@ func (b *brand) DeleteBrand(ctx context.Context, brandID uuid.UUID) error {
 		return err
 	}
 	if !exists {
-		err := fmt.Errorf("brand not found with ID: %s", brandID.String())
-		b.log.Warn("brand not found for deletion", zap.String("id", brandID.String()))
+		err := fmt.Errorf("brand not found with ID: %d", brandID)
+		b.log.Warn("brand not found for deletion", zap.Int32("id", brandID))
 		err = errors.ErrResourceNotFound.Wrap(err, err.Error())
 		return err
 	}

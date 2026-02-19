@@ -4,11 +4,10 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 )
 
 type Brand struct {
-	ID         uuid.UUID `json:"id"`
+	ID         int32     `json:"id"`
 	Name       string    `json:"name" validate:"required,min=1,max=255"`
 	Code       string    `json:"code" validate:"required,min=1,max=50"`
 	Domain     *string   `json:"domain,omitempty" validate:"omitempty,max=255"`
@@ -32,7 +31,7 @@ type CreateBrandReq struct {
 }
 
 type CreateBrandRes struct {
-	ID        uuid.UUID `json:"id"`
+	ID        int32     `json:"id"`
 	Name      string    `json:"name"`
 	Code      string    `json:"code"`
 	Domain    *string   `json:"domain,omitempty"`
@@ -42,7 +41,7 @@ type CreateBrandRes struct {
 }
 
 type UpdateBrandReq struct {
-	ID         uuid.UUID `json:"id"`
+	ID         int32     `json:"id"`
 	Name       *string   `json:"name,omitempty" validate:"omitempty,min=1,max=255"`
 	Code       *string   `json:"code,omitempty" validate:"omitempty,min=1,max=50"`
 	Domain     *string   `json:"domain,omitempty" validate:"omitempty,max=255"`
@@ -52,7 +51,7 @@ type UpdateBrandReq struct {
 }
 
 type UpdateBrandRes struct {
-	ID         uuid.UUID `json:"id"`
+	ID         int32     `json:"id"`
 	Name       string    `json:"name"`
 	Code       string    `json:"code"`
 	Domain     *string   `json:"domain,omitempty"`

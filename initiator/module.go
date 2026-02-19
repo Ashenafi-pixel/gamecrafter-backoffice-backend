@@ -21,6 +21,7 @@ import (
 	"github.com/tucanbit/internal/module/bet"
 	"github.com/tucanbit/internal/module/brand"
 	"github.com/tucanbit/internal/module/campaign"
+	"github.com/tucanbit/internal/module/player"
 	"github.com/tucanbit/internal/module/cashback"
 	"github.com/tucanbit/internal/module/company"
 	"github.com/tucanbit/internal/module/crypto_wallet"
@@ -75,6 +76,7 @@ type Module struct {
 	SystemLogs            module.SystemLogs
 	Company               module.Company
 	Brand                 module.Brand
+	Player                module.Player
 	Provider              module.Provider
 	CryptoWallet          *crypto_wallet.CasinoWalletService
 	Report                module.Report
@@ -257,6 +259,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		SystemLogs:    logs.Init(log, persistence.Logs),
 		Company:       company.Init(persistence.Company, log),
 		Brand:         brand.Init(persistence.Brand, log),
+		Player:        player.Init(persistence.Player, log),
 		Provider:      provider.Init(persistence.Provider, log),
 		CryptoWallet: crypto_wallet.NewCasinoWalletService(
 			persistence.CryptoWallet,

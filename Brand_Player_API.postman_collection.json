@@ -1,0 +1,342 @@
+{
+	"info": {
+		"_postman_id": "brand-player-api-collection",
+		"name": "Brand & Player Management API",
+		"description": "Complete API collection for Brand and Player management endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Brand Management",
+			"item": [
+				{
+					"name": "Create Brand",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"description": "Replace {{token}} with your auth token"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Premium Gaming\",\n  \"code\": \"PG001\",\n  \"domain\": \"premiumgaming.com\",\n  \"is_active\": true,\n  \"description\": \"Premium gaming brand for high-end players\",\n  \"signature\": \"premium-signature-key\",\n  \"webhook_url\": \"https://premiumgaming.com/webhook\",\n  \"integration_type\": \"API\",\n  \"api_url\": \"https://api.premiumgaming.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/brands",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "brands"]
+						}
+					}
+				},
+				{
+					"name": "Get All Brands",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/brands?page=1&per-page=10&search=&is_active=",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "brands"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (required)"
+								},
+								{
+									"key": "per-page",
+									"value": "10",
+									"description": "Items per page (required, max: 100)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search term (optional)"
+								},
+								{
+									"key": "is_active",
+									"value": "",
+									"description": "Filter by active status (optional: true/false)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Brand by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/brands/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "brands", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "100000",
+									"description": "Brand ID (6-digit numeric)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Brand",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Premium Gaming Updated\",\n  \"is_active\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/brands/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "brands", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "100000",
+									"description": "Brand ID (6-digit numeric)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Brand",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/brands/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "brands", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "100000",
+									"description": "Brand ID (6-digit numeric)"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Player Management",
+			"item": [
+				{
+					"name": "Create Player",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"player@example.com\",\n  \"username\": \"player123\",\n  \"password\": \"SecurePass123!\",\n  \"phone\": \"+1234567890\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"default_currency\": \"USD\",\n  \"brand\": \"Premium Gaming\",\n  \"date_of_birth\": \"1990-01-15T00:00:00Z\",\n  \"country\": \"United States\",\n  \"state\": \"California\",\n  \"street_address\": \"123 Main St\",\n  \"postal_code\": \"90210\",\n  \"test_account\": false,\n  \"enable_withdrawal_limit\": true,\n  \"brand_id\": 100000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/player-management",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "player-management"]
+						}
+					}
+				},
+				{
+					"name": "Get All Players",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/player-management?page=1&per_page=10&search=&brand_id=&country=&test_account=",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "player-management"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (required)"
+								},
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Items per page (optional, max: 100, default: 10)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search term for username or email (optional)"
+								},
+								{
+									"key": "brand_id",
+									"value": "",
+									"description": "Filter by brand ID (optional, 6-digit numeric as string)"
+								},
+								{
+									"key": "country",
+									"value": "",
+									"description": "Filter by country (optional, partial match)"
+								},
+								{
+									"key": "test_account",
+									"value": "",
+									"description": "Filter by test account status (optional: true/false)"
+								},
+								{
+									"key": "sort_by",
+									"value": "",
+									"description": "Sort by field: email, username, created_at, updated_at, date_of_birth, country (optional, default: created_at)"
+								},
+								{
+									"key": "sort_order",
+									"value": "",
+									"description": "Sort order: asc or desc (optional, default: desc)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Player by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/player-management/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "player-management", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "Player ID (integer)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Player",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"updated@example.com\",\n  \"phone\": \"+9876543210\",\n  \"first_name\": \"Jane\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/player-management/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "player-management", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "Player ID (integer)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Player",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/player-management/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "player-management", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "Player ID (integer)"
+								}
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "your_auth_token_here",
+			"type": "string"
+		}
+	]
+}
+
