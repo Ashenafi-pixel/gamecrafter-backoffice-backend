@@ -22,6 +22,7 @@ import (
 	"github.com/tucanbit/internal/handler/bet"
 	"github.com/tucanbit/internal/handler/brand"
 	"github.com/tucanbit/internal/handler/campaign"
+	"github.com/tucanbit/internal/handler/player"
 	"github.com/tucanbit/internal/handler/cashback"
 	"github.com/tucanbit/internal/handler/company"
 	"github.com/tucanbit/internal/handler/department"
@@ -73,6 +74,7 @@ type Handler struct {
 	SystemLogs            handler.SystemLogs
 	Company               handler.Company
 	Brand                 handler.Brand
+	Player                handler.Player
 	Provider              handler.Provider
 	Report                handler.Report
 	Squads                handler.Squads
@@ -142,6 +144,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		SystemLogs:            logs.Init(log, module.SystemLogs),
 		Company:               company.Init(module.Company, log),
 		Brand:                 brand.Init(module.Brand, log),
+		Player:                player.Init(module.Player, log),
 		Provider:              provider.Init(module.Provider, log),
 		Report:                report.Init(module.Report, module.User, log),
 		Squads:                squads.Init(log, module.Squads),

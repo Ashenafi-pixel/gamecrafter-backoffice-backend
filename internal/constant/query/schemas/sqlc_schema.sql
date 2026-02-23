@@ -171,9 +171,12 @@ CREATE TABLE company (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Brand ID sequence (6-digit numeric: 100000-999999)
+CREATE SEQUENCE IF NOT EXISTS brand_id_seq START WITH 100000 INCREMENT BY 1 MINVALUE 100000 MAXVALUE 999999;
+
 -- Brands table
 CREATE TABLE brands (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id INT PRIMARY KEY DEFAULT nextval('brand_id_seq') CHECK (id >= 100000 AND id <= 999999),
     name VARCHAR(255) NOT NULL,
     code VARCHAR(50) NOT NULL,
     domain VARCHAR(255),
@@ -182,6 +185,29 @@ CREATE TABLE brands (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(code),
     UNIQUE(name)
+);
+
+-- Players table
+CREATE TABLE players (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    default_currency VARCHAR(10) NOT NULL,
+    brand VARCHAR(255),
+    date_of_birth DATE NOT NULL,
+    country VARCHAR(100) NOT NULL,
+    state VARCHAR(100),
+    street_address TEXT,
+    postal_code VARCHAR(20),
+    test_account BOOLEAN DEFAULT FALSE,
+    enable_withdrawal_limit BOOLEAN DEFAULT FALSE,
+    brand_id INT REFERENCES brands(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Game providers table

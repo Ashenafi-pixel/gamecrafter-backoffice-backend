@@ -63,3 +63,5 @@ Write-Host ""
 # Run the application
 go run cmd/main.go
 
+
+

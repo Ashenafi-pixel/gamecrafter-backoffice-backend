@@ -277,10 +277,18 @@ type Company interface {
 
 type Brand interface {
 	CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.CreateBrandRes, error)
-	GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, error)
+	GetBrandByID(ctx context.Context, id int32) (dto.Brand, error)
 	GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBrandsRes, error)
 	UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.UpdateBrandRes, error)
-	DeleteBrand(ctx context.Context, id uuid.UUID) error
+	DeleteBrand(ctx context.Context, id int32) error
+}
+
+type Player interface {
+	CreatePlayer(ctx context.Context, req dto.CreatePlayerReq) (dto.CreatePlayerRes, error)
+	GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, error)
+	GetPlayers(ctx context.Context, req dto.GetPlayersReqs) (dto.GetPlayersRess, error)
+	UpdatePlayer(ctx context.Context, req dto.UpdatePlayerReq) (dto.UpdatePlayerRes, error)
+	DeletePlayer(ctx context.Context, playerID int32) error
 }
 
 type Provider interface {

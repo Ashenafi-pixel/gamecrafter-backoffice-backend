@@ -285,6 +285,14 @@ type Company interface {
 	AddIP(c *gin.Context)
 }
 
+type Player interface {
+	CreatePlayer(c *gin.Context)
+	GetPlayerByID(c *gin.Context)
+	GetPlayers(c *gin.Context)
+	UpdatePlayer(c *gin.Context)
+	DeletePlayer(c *gin.Context)
+}
+
 type Brand interface {
 	CreateBrand(c *gin.Context)
 	GetBrandByID(c *gin.Context)

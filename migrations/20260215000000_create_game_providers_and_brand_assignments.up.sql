@@ -39,8 +39,3 @@ CREATE INDEX idx_brand_games_brand_id ON brand_games(brand_id);
 CREATE INDEX idx_brand_games_game_id ON brand_games(game_id);
 
 COMMENT ON TABLE brand_games IS 'Assigns which games are available per brand';
-
--- Grant permissions to application user
-GRANT SELECT, INSERT, UPDATE, DELETE ON game_providers TO game_crafter_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON brand_providers TO game_crafter_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON brand_games TO game_crafter_user;

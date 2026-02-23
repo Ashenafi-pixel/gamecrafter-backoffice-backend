@@ -384,10 +384,10 @@ type Company interface {
 
 type Brand interface {
 	CreateBrand(ctx context.Context, req dto.CreateBrandReq) (dto.CreateBrandRes, error)
-	GetBrandByID(ctx context.Context, id uuid.UUID) (dto.Brand, bool, error)
+	GetBrandByID(ctx context.Context, id int32) (dto.Brand, bool, error)
 	GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBrandsRes, error)
 	UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.UpdateBrandRes, error)
-	DeleteBrand(ctx context.Context, id uuid.UUID) error
+	DeleteBrand(ctx context.Context, id int32) error
 }
 
 // internal/storage/storage.go - Update Provider interface
@@ -551,4 +551,13 @@ type Page interface {
 	AssignPagesToRole(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
 	RemovePagesFromRole(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
 	ReplaceRolePages(ctx context.Context, roleID uuid.UUID, pageIDs []uuid.UUID) error
+}
+type Player interface {
+	CreatePlayer(ctx context.Context, player dto.Player) (dto.Player, error)
+	GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, bool, error)
+	UpdatePlayer(ctx context.Context, player dto.Player) (dto.Player, error)
+	GetPlayersByIDs(ctx context.Context, playerIDs []int32) ([]dto.Player, error)
+	GetAllPlayers(ctx context.Context) ([]dto.Player, error)
+	GetPlayers(ctx context.Context, req dto.GetPlayersReqs) (dto.GetPlayersRess, error)
+	DeletePlayer(ctx context.Context, playerID int32) error
 }

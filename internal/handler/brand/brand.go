@@ -2,9 +2,9 @@ package brand
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/response"
@@ -67,14 +67,14 @@ func (b *brand) CreateBrand(ctx *gin.Context) {
 //	@Router			/api/admin/brands/{id} [get]
 func (b *brand) GetBrandByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
-	id, err := uuid.Parse(idStr)
+	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		err = errors.ErrInvalidUserInput.Wrap(err, "invalid brand ID format")
 		_ = ctx.Error(err)
 		return
 	}
 
-	brand, err := b.brandModule.GetBrandByID(ctx, id)
+	brand, err := b.brandModule.GetBrandByID(ctx, int32(id))
 	if err != nil {
 		_ = ctx.Error(err)
 		return
@@ -131,7 +131,7 @@ func (b *brand) GetBrands(ctx *gin.Context) {
 //	@Router			/api/admin/brands/{id} [patch]
 func (b *brand) UpdateBrand(ctx *gin.Context) {
 	idStr := ctx.Param("id")
-	id, err := uuid.Parse(idStr)
+	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		err = errors.ErrInvalidUserInput.Wrap(err, "invalid brand ID format")
 		_ = ctx.Error(err)
@@ -144,7 +144,7 @@ func (b *brand) UpdateBrand(ctx *gin.Context) {
 		return
 	}
 
-	req.ID = id
+	req.ID = int32(id)
 
 	brand, err := b.brandModule.UpdateBrand(ctx, req)
 	if err != nil {
@@ -168,14 +168,14 @@ func (b *brand) UpdateBrand(ctx *gin.Context) {
 //	@Router			/api/admin/brands/{id} [delete]
 func (b *brand) DeleteBrand(ctx *gin.Context) {
 	idStr := ctx.Param("id")
-	id, err := uuid.Parse(idStr)
+	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
 		err = errors.ErrInvalidUserInput.Wrap(err, "invalid brand ID format")
 		_ = ctx.Error(err)
 		return
 	}
 
-	err = b.brandModule.DeleteBrand(ctx, id)
+	err = b.brandModule.DeleteBrand(ctx, int32(id))
 	if err != nil {
 		_ = ctx.Error(err)
 		return
