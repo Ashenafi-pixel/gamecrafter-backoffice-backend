@@ -77,6 +77,90 @@ func Init(
 				// middleware.SystemLogs("Delete Brand", &log, systemLogs),
 			},
 		},
+		{
+			Method:  http.MethodPatch,
+			Path:    "/api/admin/brands/:id/status",
+			Handler: brand.ChangeBrandStatus,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		// Credentials
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/brands/:id/credentials",
+			Handler: brand.CreateBrandCredential,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/brands/:id/credentials/:credentialId/rotate",
+			Handler: brand.RotateBrandCredential,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/brands/:id/credentials/:credentialId",
+			Handler: brand.GetBrandCredentialByID,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		// Allowed origins
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/brands/:id/allowed-origins",
+			Handler: brand.AddBrandAllowedOrigin,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  http.MethodDelete,
+			Path:    "/api/admin/brands/:id/allowed-origins/:originId",
+			Handler: brand.RemoveBrandAllowedOrigin,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/brands/:id/allowed-origins",
+			Handler: brand.ListBrandAllowedOrigins,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		// Feature flags
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/brands/:id/feature-flags",
+			Handler: brand.GetBrandFeatureFlags,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
+		{
+			Method:  http.MethodPut,
+			Path:    "/api/admin/brands/:id/feature-flags",
+			Handler: brand.UpdateBrandFeatureFlags,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+			},
+		},
 	}
 	routing.RegisterRoute(group, brandRoutes, log)
 }

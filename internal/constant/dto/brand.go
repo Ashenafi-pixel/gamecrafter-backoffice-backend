@@ -86,3 +86,56 @@ func ValidateUpdateBrand(req UpdateBrandReq) error {
 	validate := validator.New()
 	return validate.Struct(req)
 }
+
+// ChangeBrandStatusReq for dedicated status change endpoint
+type ChangeBrandStatusReq struct {
+	IsActive bool `json:"is_active"`
+}
+
+// --- Brand Credentials ---
+type CreateBrandCredentialReq struct {
+	Name     string  `json:"name" validate:"omitempty,max=100"`
+	ClientID *string `json:"client_id,omitempty" validate:"omitempty,max=255"`
+}
+
+type BrandCredentialRes struct {
+	ID           int32     `json:"id"`
+	BrandID      int32     `json:"brand_id"`
+	ClientID     string    `json:"client_id"`
+	ClientSecret string    `json:"client_secret,omitempty"` // only returned once on create/rotate
+	Name         string    `json:"name"`
+	IsActive     bool      `json:"is_active"`
+	LastRotatedAt *time.Time `json:"last_rotated_at,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type RotateBrandCredentialRes struct {
+	ClientSecret string     `json:"client_secret"` // only returned once
+	LastRotatedAt time.Time `json:"last_rotated_at"`
+}
+
+// --- Brand Allowed Origins ---
+type AddBrandAllowedOriginReq struct {
+	Origin string `json:"origin" validate:"required,max=500"`
+}
+
+type BrandAllowedOriginRes struct {
+	ID        int32     `json:"id"`
+	BrandID   int32     `json:"brand_id"`
+	Origin    string    `json:"origin"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ListBrandAllowedOriginsRes struct {
+	Origins []BrandAllowedOriginRes `json:"origins"`
+}
+
+// --- Brand Feature Flags (stored in system_config or key-value) ---
+type BrandFeatureFlagsRes struct {
+	Flags map[string]bool `json:"flags"`
+}
+
+type UpdateBrandFeatureFlagsReq struct {
+	Flags map[string]bool `json:"flags" validate:"required"`
+}

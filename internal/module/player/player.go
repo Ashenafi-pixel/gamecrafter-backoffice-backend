@@ -26,7 +26,8 @@ func Init(playerStorage storage.Player, log *zap.Logger) module.Player {
 
 func (p *player) CreatePlayer(ctx context.Context, req dto.CreatePlayerReq) (dto.CreatePlayerRes, error) {
 	if err := dto.ValidateCreatePlayer(req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		userFriendlyMsg := "Please check your input data. Some required fields are missing or invalid."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		return dto.CreatePlayerRes{}, err
 	}
 
@@ -64,7 +65,8 @@ func (p *player) CreatePlayer(ctx context.Context, req dto.CreatePlayerReq) (dto
 
 func (p *player) GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, error) {
 	if playerID <= 0 {
-		err := errors.ErrInvalidUserInput.New("invalid player ID")
+		userFriendlyMsg := "Please provide a valid player ID. The ID must be a positive number."
+		err := errors.ErrInvalidUserInput.New(userFriendlyMsg)
 		return dto.Player{}, err
 	}
 
@@ -74,9 +76,9 @@ func (p *player) GetPlayerByID(ctx context.Context, playerID int32) (dto.Player,
 	}
 
 	if !exists {
-		err := fmt.Errorf("player not found with ID: %d", playerID)
 		p.log.Warn("player not found", zap.Int32("id", playerID))
-		err = errors.ErrResourceNotFound.Wrap(err, err.Error())
+		userFriendlyMsg := fmt.Sprintf("The requested player with ID %d could not be found. Please check the player ID and try again.", playerID)
+		err := errors.ErrResourceNotFound.New(userFriendlyMsg)
 		return dto.Player{}, err
 	}
 
@@ -104,14 +106,15 @@ func (p *player) UpdatePlayer(ctx context.Context, req dto.UpdatePlayerReq) (dto
 		return dto.UpdatePlayerRes{}, err
 	}
 	if !exists {
-		err := fmt.Errorf("player not found with ID: %d", req.ID)
-		p.log.Error(err.Error(), zap.Int32("playerID", req.ID))
-		err = errors.ErrResourceNotFound.Wrap(err, err.Error())
+		p.log.Error("player not found", zap.Int32("playerID", req.ID))
+		userFriendlyMsg := fmt.Sprintf("The player with ID %d could not be found. Please check the player ID and try again.", req.ID)
+		err := errors.ErrResourceNotFound.New(userFriendlyMsg)
 		return dto.UpdatePlayerRes{}, err
 	}
 
 	if err := dto.ValidateUpdatePlayer(req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		userFriendlyMsg := "Please check your input data. Some fields may be invalid or missing."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		return dto.UpdatePlayerRes{}, err
 	}
 
@@ -193,21 +196,30 @@ func (p *player) UpdatePlayer(ctx context.Context, req dto.UpdatePlayerReq) (dto
 
 func (p *player) DeletePlayer(ctx context.Context, playerID int32) error {
 	if playerID <= 0 {
-		err := errors.ErrInvalidUserInput.New("invalid player ID")
+		userFriendlyMsg := "Please provide a valid player ID. The ID must be a positive number."
+		err := errors.ErrInvalidUserInput.New(userFriendlyMsg)
 		return err
 	}
 
 	// Check if player exists before deleting
-	err := p.playerStorage.DeletePlayer(ctx, playerID)
+	_, exists, err := p.playerStorage.GetPlayerByID(ctx, playerID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		p.log.Warn("player not found for deletion", zap.Int32("id", playerID))
+		userFriendlyMsg := fmt.Sprintf("The player with ID %d could not be found. Please check the player ID and try again.", playerID)
+		err := errors.ErrResourceNotFound.New(userFriendlyMsg)
+		return err
+	}
+
+	// Delete the player
+	err = p.playerStorage.DeletePlayer(ctx, playerID)
 	if err != nil {
 		return err
 	}
 
-	// Note: DeletePlayer is not in the storage interface yet, but we can add it if needed
-	// For now, we'll just return an error indicating it's not implemented
-	err = fmt.Errorf("delete player not implemented")
-	p.log.Warn("delete player not implemented", zap.Int32("id", playerID))
-	return err
+	return nil
 }
 
 // Helper function to parse player ID from string

@@ -184,3 +184,182 @@ func (b *brand) DeleteBrand(ctx *gin.Context) {
 	response.SendSuccessResponse(ctx, http.StatusNoContent, nil)
 }
 
+func parseBrandID(c *gin.Context) (int32, bool) {
+	idStr := c.Param("brandId")
+	if idStr == "" {
+		idStr = c.Param("id")
+	}
+	id, err := strconv.ParseInt(idStr, 10, 32)
+	if err != nil {
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid brand ID format"))
+		return 0, false
+	}
+	return int32(id), true
+}
+
+// ChangeBrandStatus updates only is_active for a brand.
+func (b *brand) ChangeBrandStatus(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.ChangeBrandStatusReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	if err := b.brandModule.ChangeBrandStatus(ctx, brandID, req); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"is_active": req.IsActive})
+}
+
+// CreateBrandCredential creates API credentials for a brand; returns client_secret once.
+func (b *brand) CreateBrandCredential(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.CreateBrandCredentialReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	cred, secret, err := b.brandModule.CreateBrandCredential(ctx, brandID, req)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	cred.ClientSecret = secret
+	response.SendSuccessResponse(ctx, http.StatusCreated, cred)
+}
+
+// RotateBrandCredential rotates the secret; returns new client_secret once.
+func (b *brand) RotateBrandCredential(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	credIDStr := ctx.Param("credentialId")
+	credID, err := strconv.ParseInt(credIDStr, 10, 32)
+	if err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid credential ID format"))
+		return
+	}
+	res, err := b.brandModule.RotateBrandCredential(ctx, brandID, int32(credID))
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, res)
+}
+
+// GetBrandCredentialByID returns a credential (without secret).
+func (b *brand) GetBrandCredentialByID(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	credIDStr := ctx.Param("credentialId")
+	credID, err := strconv.ParseInt(credIDStr, 10, 32)
+	if err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid credential ID format"))
+		return
+	}
+	cred, found, err := b.brandModule.GetBrandCredentialByID(ctx, brandID, int32(credID))
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	if !found {
+		_ = ctx.Error(errors.ErrResourceNotFound.New("credential not found"))
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, cred)
+}
+
+// AddBrandAllowedOrigin adds an allowed origin for the brand.
+func (b *brand) AddBrandAllowedOrigin(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.AddBrandAllowedOriginReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	res, err := b.brandModule.AddBrandAllowedOrigin(ctx, brandID, req)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusCreated, res)
+}
+
+// RemoveBrandAllowedOrigin removes an allowed origin by ID.
+func (b *brand) RemoveBrandAllowedOrigin(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	originIDStr := ctx.Param("originId")
+	originID, err := strconv.ParseInt(originIDStr, 10, 32)
+	if err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid origin ID format"))
+		return
+	}
+	if err := b.brandModule.RemoveBrandAllowedOrigin(ctx, brandID, int32(originID)); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusNoContent, nil)
+}
+
+// ListBrandAllowedOrigins returns all allowed origins for the brand.
+func (b *brand) ListBrandAllowedOrigins(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	res, err := b.brandModule.ListBrandAllowedOrigins(ctx, brandID)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, res)
+}
+
+// GetBrandFeatureFlags returns feature flags for the brand.
+func (b *brand) GetBrandFeatureFlags(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	res, err := b.brandModule.GetBrandFeatureFlags(ctx, brandID)
+	if err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, res)
+}
+
+// UpdateBrandFeatureFlags updates feature flags for the brand.
+func (b *brand) UpdateBrandFeatureFlags(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.UpdateBrandFeatureFlagsReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	if err := b.brandModule.UpdateBrandFeatureFlags(ctx, brandID, req); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"flags": req.Flags})
+}
+

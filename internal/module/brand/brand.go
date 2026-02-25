@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
@@ -159,4 +160,110 @@ func (b *brand) DeleteBrand(ctx context.Context, brandID int32) error {
 	}
 
 	return nil
+}
+
+func (b *brand) ChangeBrandStatus(ctx context.Context, brandID int32, req dto.ChangeBrandStatusReq) error {
+	if brandID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	_, exists, err := b.brandStorage.GetBrandByID(ctx, brandID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("brand not found")
+	}
+	return b.brandStorage.UpdateBrandStatus(ctx, brandID, req.IsActive)
+}
+
+func (b *brand) CreateBrandCredential(ctx context.Context, brandID int32, req dto.CreateBrandCredentialReq) (dto.BrandCredentialRes, string, error) {
+	if brandID <= 0 {
+		return dto.BrandCredentialRes{}, "", errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	_, exists, err := b.brandStorage.GetBrandByID(ctx, brandID)
+	if err != nil {
+		return dto.BrandCredentialRes{}, "", err
+	}
+	if !exists {
+		return dto.BrandCredentialRes{}, "", errors.ErrResourceNotFound.New("brand not found")
+	}
+	return b.brandStorage.CreateBrandCredential(ctx, brandID, req)
+}
+
+func (b *brand) RotateBrandCredential(ctx context.Context, brandID int32, credentialID int32) (dto.RotateBrandCredentialRes, error) {
+	if brandID <= 0 || credentialID <= 0 {
+		return dto.RotateBrandCredentialRes{}, errors.ErrInvalidUserInput.New("invalid brand or credential ID")
+	}
+	newSecret, err := b.brandStorage.RotateBrandCredential(ctx, brandID, credentialID)
+	if err != nil {
+		return dto.RotateBrandCredentialRes{}, err
+	}
+	return dto.RotateBrandCredentialRes{ClientSecret: newSecret, LastRotatedAt: time.Now()}, nil
+}
+
+func (b *brand) GetBrandCredentialByID(ctx context.Context, brandID int32, credentialID int32) (dto.BrandCredentialRes, bool, error) {
+	return b.brandStorage.GetBrandCredentialByID(ctx, brandID, credentialID)
+}
+
+func (b *brand) AddBrandAllowedOrigin(ctx context.Context, brandID int32, req dto.AddBrandAllowedOriginReq) (dto.BrandAllowedOriginRes, error) {
+	if brandID <= 0 {
+		return dto.BrandAllowedOriginRes{}, errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	if req.Origin == "" {
+		return dto.BrandAllowedOriginRes{}, errors.ErrInvalidUserInput.New("origin is required")
+	}
+	_, exists, err := b.brandStorage.GetBrandByID(ctx, brandID)
+	if err != nil {
+		return dto.BrandAllowedOriginRes{}, err
+	}
+	if !exists {
+		return dto.BrandAllowedOriginRes{}, errors.ErrResourceNotFound.New("brand not found")
+	}
+	return b.brandStorage.AddBrandAllowedOrigin(ctx, brandID, req.Origin)
+}
+
+func (b *brand) RemoveBrandAllowedOrigin(ctx context.Context, brandID int32, originID int32) error {
+	if brandID <= 0 || originID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand or origin ID")
+	}
+	return b.brandStorage.RemoveBrandAllowedOrigin(ctx, brandID, originID)
+}
+
+func (b *brand) ListBrandAllowedOrigins(ctx context.Context, brandID int32) (dto.ListBrandAllowedOriginsRes, error) {
+	if brandID <= 0 {
+		return dto.ListBrandAllowedOriginsRes{}, errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	list, err := b.brandStorage.ListBrandAllowedOrigins(ctx, brandID)
+	if err != nil {
+		return dto.ListBrandAllowedOriginsRes{}, err
+	}
+	return dto.ListBrandAllowedOriginsRes{Origins: list}, nil
+}
+
+func (b *brand) GetBrandFeatureFlags(ctx context.Context, brandID int32) (dto.BrandFeatureFlagsRes, error) {
+	if brandID <= 0 {
+		return dto.BrandFeatureFlagsRes{}, errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	flags, err := b.brandStorage.GetBrandFeatureFlags(ctx, brandID)
+	if err != nil {
+		return dto.BrandFeatureFlagsRes{}, err
+	}
+	if flags == nil {
+		flags = make(map[string]bool)
+	}
+	return dto.BrandFeatureFlagsRes{Flags: flags}, nil
+}
+
+func (b *brand) UpdateBrandFeatureFlags(ctx context.Context, brandID int32, req dto.UpdateBrandFeatureFlagsReq) error {
+	if brandID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	_, exists, err := b.brandStorage.GetBrandByID(ctx, brandID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("brand not found")
+	}
+	return b.brandStorage.UpdateBrandFeatureFlags(ctx, brandID, req.Flags)
 }

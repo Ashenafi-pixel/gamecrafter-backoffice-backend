@@ -141,6 +141,13 @@ func (p *player) CreatePlayer(ctx context.Context, playerReq dto.Player) (dto.Pl
 
 	if err != nil {
 		p.log.Error("unable to create player", zap.Error(err), zap.Any("player", playerReq))
+		// Check for duplicate key violations and preserve the error for handler to process
+		errStr := err.Error()
+		if strings.Contains(errStr, "duplicate key value violates unique constraint") {
+			// Let the handler layer provide user-friendly messages
+			err = errors.ErrDataAlredyExist.Wrap(err, errStr)
+			return dto.Player{}, err
+		}
 		err = errors.ErrUnableTocreate.Wrap(err, "unable to create player")
 		return dto.Player{}, err
 	}
@@ -325,6 +332,13 @@ func (p *player) UpdatePlayer(ctx context.Context, playerReq dto.Player) (dto.Pl
 
 	if err != nil {
 		p.log.Error("unable to update player", zap.Error(err), zap.Int32("id", playerReq.ID))
+		// Check for duplicate key violations and preserve the error for handler to process
+		errStr := err.Error()
+		if strings.Contains(errStr, "duplicate key value violates unique constraint") {
+			// Let the handler layer provide user-friendly messages
+			err = errors.ErrDataAlredyExist.Wrap(err, errStr)
+			return dto.Player{}, err
+		}
 		err = errors.ErrUnableToUpdate.Wrap(err, "unable to update player")
 		return dto.Player{}, err
 	}
