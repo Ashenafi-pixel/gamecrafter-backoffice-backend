@@ -281,6 +281,15 @@ type Brand interface {
 	GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBrandsRes, error)
 	UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.UpdateBrandRes, error)
 	DeleteBrand(ctx context.Context, id int32) error
+	ChangeBrandStatus(ctx context.Context, brandID int32, req dto.ChangeBrandStatusReq) error
+	CreateBrandCredential(ctx context.Context, brandID int32, req dto.CreateBrandCredentialReq) (dto.BrandCredentialRes, string, error)
+	RotateBrandCredential(ctx context.Context, brandID int32, credentialID int32) (dto.RotateBrandCredentialRes, error)
+	GetBrandCredentialByID(ctx context.Context, brandID int32, credentialID int32) (dto.BrandCredentialRes, bool, error)
+	AddBrandAllowedOrigin(ctx context.Context, brandID int32, req dto.AddBrandAllowedOriginReq) (dto.BrandAllowedOriginRes, error)
+	RemoveBrandAllowedOrigin(ctx context.Context, brandID int32, originID int32) error
+	ListBrandAllowedOrigins(ctx context.Context, brandID int32) (dto.ListBrandAllowedOriginsRes, error)
+	GetBrandFeatureFlags(ctx context.Context, brandID int32) (dto.BrandFeatureFlagsRes, error)
+	UpdateBrandFeatureFlags(ctx context.Context, brandID int32, req dto.UpdateBrandFeatureFlagsReq) error
 }
 
 type Player interface {

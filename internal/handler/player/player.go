@@ -3,6 +3,7 @@ package player
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tucanbit/internal/constant/dto"
@@ -40,13 +41,36 @@ func (p *player) CreatePlayer(ctx *gin.Context) {
 	var req dto.CreatePlayerReq
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		userFriendlyMsg := "Please check your input data. Some required fields are missing or invalid."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		_ = ctx.Error(err)
 		return
 	}
 
 	player, err := p.playerModule.CreatePlayer(ctx, req)
 	if err != nil {
+		// Handle database constraint violations with user-friendly messages
+		errStr := err.Error()
+		if strings.Contains(errStr, "duplicate key value violates unique constraint") {
+			if strings.Contains(errStr, "players_email_key") || strings.Contains(errStr, "email") {
+				userFriendlyErr := errors.ErrDataAlredyExist.New("An account with this email address already exists. Please use a different email address.")
+				_ = ctx.Error(userFriendlyErr)
+				return
+			}
+			if strings.Contains(errStr, "players_username_key") || strings.Contains(errStr, "username") {
+				userFriendlyErr := errors.ErrDataAlredyExist.New("This username is already taken. Please choose a different username.")
+				_ = ctx.Error(userFriendlyErr)
+				return
+			}
+		}
+
+		// Handle validation errors
+		if strings.Contains(errStr, "validation failed") || strings.Contains(errStr, "invalid user input") {
+			userFriendlyErr := errors.ErrInvalidUserInput.New("Please check your input data and ensure all required fields are provided correctly.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
+
 		_ = ctx.Error(err)
 		return
 	}
@@ -69,13 +93,21 @@ func (p *player) GetPlayerByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, "invalid player ID format")
+		userFriendlyMsg := "Please provide a valid player ID. The ID must be a number."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		_ = ctx.Error(err)
 		return
 	}
 
 	player, err := p.playerModule.GetPlayerByID(ctx, int32(id))
 	if err != nil {
+		errStr := err.Error()
+		// Handle player not found with user-friendly message
+		if strings.Contains(errStr, "resource not found") || strings.Contains(errStr, "player not found") {
+			userFriendlyErr := errors.ErrResourceNotFound.New("The requested player could not be found. Please check the player ID and try again.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
 		_ = ctx.Error(err)
 		return
 	}
@@ -105,10 +137,8 @@ func (p *player) GetPlayers(ctx *gin.Context) {
 	var req dto.GetPlayersReqs
 
 	if err := ctx.ShouldBindQuery(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(
-			err,
-			"invalid query parameters",
-		)
+		userFriendlyMsg := "Please check your search parameters. Some values may be invalid."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		_ = ctx.Error(err)
 		return
 	}
@@ -123,6 +153,13 @@ func (p *player) GetPlayers(ctx *gin.Context) {
 
 	resp, err := p.playerModule.GetPlayers(ctx, req)
 	if err != nil {
+		errStr := err.Error()
+		// Handle database errors with user-friendly messages
+		if strings.Contains(errStr, "unable to get") {
+			userFriendlyErr := errors.ErrUnableToGet.New("Unable to retrieve players at this time. Please try again later.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
 		_ = ctx.Error(err)
 		return
 	}
@@ -145,13 +182,15 @@ func (p *player) UpdatePlayer(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, "invalid player ID format")
+		userFriendlyMsg := "Please provide a valid player ID. The ID must be a number."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		_ = ctx.Error(err)
 		return
 	}
 	var req dto.UpdatePlayerReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		userFriendlyMsg := "Please check your input data. Some fields may be invalid or missing."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		_ = ctx.Error(err)
 		return
 	}
@@ -160,6 +199,32 @@ func (p *player) UpdatePlayer(ctx *gin.Context) {
 
 	player, err := p.playerModule.UpdatePlayer(ctx, req)
 	if err != nil {
+		errStr := err.Error()
+		// Handle player not found
+		if strings.Contains(errStr, "resource not found") || strings.Contains(errStr, "player not found") {
+			userFriendlyErr := errors.ErrResourceNotFound.New("The player you are trying to update could not be found. Please check the player ID and try again.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
+		// Handle duplicate email/username
+		if strings.Contains(errStr, "duplicate key value violates unique constraint") {
+			if strings.Contains(errStr, "players_email_key") || strings.Contains(errStr, "email") {
+				userFriendlyErr := errors.ErrDataAlredyExist.New("An account with this email address already exists. Please use a different email address.")
+				_ = ctx.Error(userFriendlyErr)
+				return
+			}
+			if strings.Contains(errStr, "players_username_key") || strings.Contains(errStr, "username") {
+				userFriendlyErr := errors.ErrDataAlredyExist.New("This username is already taken. Please choose a different username.")
+				_ = ctx.Error(userFriendlyErr)
+				return
+			}
+		}
+		// Handle validation errors
+		if strings.Contains(errStr, "validation failed") || strings.Contains(errStr, "invalid user input") {
+			userFriendlyErr := errors.ErrInvalidUserInput.New("Please check your input data and ensure all fields are valid.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
 		_ = ctx.Error(err)
 		return
 	}
@@ -182,13 +247,27 @@ func (p *player) DeletePlayer(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 32)
 	if err != nil {
-		err = errors.ErrInvalidUserInput.Wrap(err, "invalid player ID format")
+		userFriendlyMsg := "Please provide a valid player ID. The ID must be a number."
+		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
 		_ = ctx.Error(err)
 		return
 	}
 
 	err = p.playerModule.DeletePlayer(ctx, int32(id))
 	if err != nil {
+		errStr := err.Error()
+		// Handle player not found
+		if strings.Contains(errStr, "resource not found") || strings.Contains(errStr, "player not found") {
+			userFriendlyErr := errors.ErrResourceNotFound.New("The player you are trying to delete could not be found. Please check the player ID and try again.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
+		// Handle delete errors
+		if strings.Contains(errStr, "unable to delete") {
+			userFriendlyErr := errors.ErrUnableToDelete.New("Unable to delete the player at this time. Please try again later.")
+			_ = ctx.Error(userFriendlyErr)
+			return
+		}
 		_ = ctx.Error(err)
 		return
 	}

@@ -299,6 +299,15 @@ type Brand interface {
 	GetBrands(c *gin.Context)
 	UpdateBrand(c *gin.Context)
 	DeleteBrand(c *gin.Context)
+	ChangeBrandStatus(c *gin.Context)
+	CreateBrandCredential(c *gin.Context)
+	RotateBrandCredential(c *gin.Context)
+	GetBrandCredentialByID(c *gin.Context)
+	AddBrandAllowedOrigin(c *gin.Context)
+	RemoveBrandAllowedOrigin(c *gin.Context)
+	ListBrandAllowedOrigins(c *gin.Context)
+	GetBrandFeatureFlags(c *gin.Context)
+	UpdateBrandFeatureFlags(c *gin.Context)
 }
 
 type Provider interface {

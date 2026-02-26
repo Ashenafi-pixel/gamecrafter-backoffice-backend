@@ -2,16 +2,20 @@ package brand
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/persistencedb"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type brand struct {
@@ -410,4 +414,199 @@ func (b *brand) DeleteBrand(ctx context.Context, id int32) error {
 
 	b.log.Info("brand deleted successfully", zap.Int32("id", id))
 	return nil
+}
+
+func (b *brand) UpdateBrandStatus(ctx context.Context, brandID int32, isActive bool) error {
+	query := `UPDATE brands SET is_active = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`
+	_, err := b.db.GetPool().Exec(ctx, query, brandID, isActive)
+	if err != nil {
+		b.log.Error("unable to update brand status", zap.Error(err), zap.Int32("id", brandID))
+		return errors.ErrUnableToUpdate.Wrap(err, "unable to update brand status")
+	}
+	return nil
+}
+
+func generateSecureSecret(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes)[:length], nil
+}
+
+func (b *brand) CreateBrandCredential(ctx context.Context, brandID int32, req dto.CreateBrandCredentialReq) (dto.BrandCredentialRes, string, error) {
+	name := "Default"
+	if req.Name != "" {
+		name = req.Name
+	}
+	clientID := fmt.Sprintf("br_%s", uuid.New().String()[:8])
+	if req.ClientID != nil && *req.ClientID != "" {
+		clientID = *req.ClientID
+	}
+	plainSecret, err := generateSecureSecret(32)
+	if err != nil {
+		return dto.BrandCredentialRes{}, "", errors.ErrUnableTocreate.Wrap(err, "unable to generate secret")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(plainSecret), bcrypt.DefaultCost)
+	if err != nil {
+		return dto.BrandCredentialRes{}, "", errors.ErrUnableTocreate.Wrap(err, "unable to hash secret")
+	}
+	query := `INSERT INTO brand_credentials (brand_id, client_id, client_secret_hash, signing_key_encrypted, name, is_active, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+	RETURNING id, brand_id, client_id, name, is_active, last_rotated_at, created_at, updated_at`
+	var id int32
+	var bid int32
+	var isActive bool
+	var lastRotatedAt sql.NullTime
+	var createdAt, updatedAt time.Time
+	err = b.db.GetPool().QueryRow(ctx, query, brandID, clientID, string(hash), plainSecret, name).Scan(
+		&id, &bid, &clientID, &name, &isActive, &lastRotatedAt, &createdAt, &updatedAt)
+	if err != nil {
+		b.log.Error("unable to create brand credential", zap.Error(err), zap.Int32("brandID", brandID))
+		return dto.BrandCredentialRes{}, "", errors.ErrUnableTocreate.Wrap(err, "unable to create brand credential")
+	}
+	var lra *time.Time
+	if lastRotatedAt.Valid {
+		lra = &lastRotatedAt.Time
+	}
+	return dto.BrandCredentialRes{
+		ID: id, BrandID: bid, ClientID: clientID, ClientSecret: plainSecret, Name: name, IsActive: isActive, LastRotatedAt: lra, CreatedAt: createdAt, UpdatedAt: updatedAt,
+	}, plainSecret, nil
+}
+
+func (b *brand) RotateBrandCredential(ctx context.Context, brandID int32, credentialID int32) (newSecret string, err error) {
+	plainSecret, err := generateSecureSecret(32)
+	if err != nil {
+		return "", errors.ErrUnableToUpdate.Wrap(err, "unable to generate secret")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(plainSecret), bcrypt.DefaultCost)
+	if err != nil {
+		return "", errors.ErrUnableToUpdate.Wrap(err, "unable to hash secret")
+	}
+	query := `UPDATE brand_credentials SET client_secret_hash = $3, signing_key_encrypted = $4, last_rotated_at = NOW(), updated_at = NOW()
+	WHERE id = $2 AND brand_id = $1 RETURNING id`
+	var id int32
+	err = b.db.GetPool().QueryRow(ctx, query, brandID, credentialID, string(hash), plainSecret).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", errors.ErrResourceNotFound.New("credential not found")
+		}
+		b.log.Error("unable to rotate brand credential", zap.Error(err))
+		return "", errors.ErrUnableToUpdate.Wrap(err, "unable to rotate brand credential")
+	}
+	return plainSecret, nil
+}
+
+func (b *brand) GetBrandCredentialByID(ctx context.Context, brandID int32, credentialID int32) (dto.BrandCredentialRes, bool, error) {
+	query := `SELECT id, brand_id, client_id, name, is_active, last_rotated_at, created_at, updated_at FROM brand_credentials WHERE id = $1 AND brand_id = $2`
+	var id int32
+	var bid int32
+	var clientID string
+	var name string
+	var isActive bool
+	var lastRotatedAt sql.NullTime
+	var createdAt, updatedAt time.Time
+	err := b.db.GetPool().QueryRow(ctx, query, credentialID, brandID).Scan(
+		&id, &bid, &clientID, &name, &isActive, &lastRotatedAt, &createdAt, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dto.BrandCredentialRes{}, false, nil
+		}
+		return dto.BrandCredentialRes{}, false, err
+	}
+	var lra *time.Time
+	if lastRotatedAt.Valid {
+		lra = &lastRotatedAt.Time
+	}
+	return dto.BrandCredentialRes{ID: id, BrandID: bid, ClientID: clientID, Name: name, IsActive: isActive, LastRotatedAt: lra, CreatedAt: createdAt, UpdatedAt: updatedAt}, true, nil
+}
+
+func (b *brand) GetActiveSigningKeyByBrandID(ctx context.Context, brandID int32) (string, error) {
+	query := `SELECT signing_key_encrypted FROM brand_credentials WHERE brand_id = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1`
+	var key string
+	err := b.db.GetPool().QueryRow(ctx, query, brandID).Scan(&key)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", err
+	}
+	return key, nil
+}
+
+func (b *brand) AddBrandAllowedOrigin(ctx context.Context, brandID int32, origin string) (dto.BrandAllowedOriginRes, error) {
+	query := `INSERT INTO brand_allowed_origins (brand_id, origin) VALUES ($1, $2) RETURNING id, brand_id, origin, created_at`
+	var id int32
+	var createdAt time.Time
+	err := b.db.GetPool().QueryRow(ctx, query, brandID, origin).Scan(&id, &brandID, &origin, &createdAt)
+	if err != nil {
+		b.log.Error("unable to add allowed origin", zap.Error(err), zap.Int32("brandID", brandID))
+		return dto.BrandAllowedOriginRes{}, errors.ErrUnableTocreate.Wrap(err, "unable to add allowed origin")
+	}
+	return dto.BrandAllowedOriginRes{ID: id, BrandID: brandID, Origin: origin, CreatedAt: createdAt}, nil
+}
+
+func (b *brand) RemoveBrandAllowedOrigin(ctx context.Context, brandID int32, originID int32) error {
+	_, err := b.db.GetPool().Exec(ctx, `DELETE FROM brand_allowed_origins WHERE id = $1 AND brand_id = $2`, originID, brandID)
+	if err != nil {
+		return errors.ErrDBDelError.Wrap(err, "unable to remove allowed origin")
+	}
+	return nil
+}
+
+func (b *brand) ListBrandAllowedOrigins(ctx context.Context, brandID int32) ([]dto.BrandAllowedOriginRes, error) {
+	rows, err := b.db.GetPool().Query(ctx, `SELECT id, brand_id, origin, created_at FROM brand_allowed_origins WHERE brand_id = $1 ORDER BY created_at`, brandID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []dto.BrandAllowedOriginRes
+	for rows.Next() {
+		var r dto.BrandAllowedOriginRes
+		if err := rows.Scan(&r.ID, &r.BrandID, &r.Origin, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func (b *brand) GetBrandFeatureFlags(ctx context.Context, brandID int32) (map[string]bool, error) {
+	rows, err := b.db.GetPool().Query(ctx, `SELECT flag_key, enabled FROM brand_feature_flags WHERE brand_id = $1`, brandID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]bool)
+	for rows.Next() {
+		var k string
+		var v bool
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, err
+		}
+		out[k] = v
+	}
+	return out, rows.Err()
+}
+
+func (b *brand) UpdateBrandFeatureFlags(ctx context.Context, brandID int32, flags map[string]bool) error {
+	tx, err := b.db.GetPool().Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	_, err = tx.Exec(ctx, `DELETE FROM brand_feature_flags WHERE brand_id = $1`, brandID)
+	if err != nil {
+		return err
+	}
+	for k, v := range flags {
+		if k == "" {
+			continue
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO brand_feature_flags (brand_id, flag_key, enabled, updated_at) VALUES ($1, $2, $3, NOW())`, brandID, k, v)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }

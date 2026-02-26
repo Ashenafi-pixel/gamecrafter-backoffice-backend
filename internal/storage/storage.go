@@ -388,6 +388,19 @@ type Brand interface {
 	GetBrands(ctx context.Context, req dto.GetBrandsReq) (dto.GetBrandsRes, error)
 	UpdateBrand(ctx context.Context, req dto.UpdateBrandReq) (dto.UpdateBrandRes, error)
 	DeleteBrand(ctx context.Context, id int32) error
+	UpdateBrandStatus(ctx context.Context, brandID int32, isActive bool) error
+	// Credentials
+	CreateBrandCredential(ctx context.Context, brandID int32, req dto.CreateBrandCredentialReq) (dto.BrandCredentialRes, string, error) // res + plain secret (once)
+	RotateBrandCredential(ctx context.Context, brandID int32, credentialID int32) (newSecret string, err error)
+	GetBrandCredentialByID(ctx context.Context, brandID int32, credentialID int32) (dto.BrandCredentialRes, bool, error)
+	GetActiveSigningKeyByBrandID(ctx context.Context, brandID int32) (signingKey string, err error)
+	// Allowed origins
+	AddBrandAllowedOrigin(ctx context.Context, brandID int32, origin string) (dto.BrandAllowedOriginRes, error)
+	RemoveBrandAllowedOrigin(ctx context.Context, brandID int32, originID int32) error
+	ListBrandAllowedOrigins(ctx context.Context, brandID int32) ([]dto.BrandAllowedOriginRes, error)
+	// Feature flags
+	GetBrandFeatureFlags(ctx context.Context, brandID int32) (map[string]bool, error)
+	UpdateBrandFeatureFlags(ctx context.Context, brandID int32, flags map[string]bool) error
 }
 
 // internal/storage/storage.go - Update Provider interface

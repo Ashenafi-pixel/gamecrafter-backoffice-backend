@@ -198,6 +198,82 @@ Authorization: Bearer <token>
 
 ---
 
+### 6. Add Allowed Origin
+**POST** `/api/admin/brands/:id/allowed-origins`
+
+**Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+**Path Parameters:**
+- `id`: Brand ID (e.g. 100000)
+
+**Body (JSON):**
+```json
+{
+  "origin": "https://game.example.com"
+}
+```
+
+**Expected Response (201 Created):**
+```json
+{
+  "id": 1,
+  "brand_id": 100000,
+  "origin": "https://game.example.com",
+  "created_at": "2026-02-22T12:00:00Z"
+}
+```
+
+---
+
+### 7. Get Allowed Origins (List)
+**GET** `/api/admin/brands/:id/allowed-origins`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Path Parameters:**
+- `id`: Brand ID
+
+**Expected Response (200 OK):**
+```json
+{
+  "origins": [
+    {
+      "id": 1,
+      "brand_id": 100000,
+      "origin": "https://game.example.com",
+      "created_at": "2026-02-22T12:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 8. Delete Allowed Origin
+**DELETE** `/api/admin/brands/:id/allowed-origins/:originId`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Path Parameters:**
+- `id`: Brand ID
+- `originId`: Allowed origin row id (from List response)
+
+**Example:** `DELETE /api/admin/brands/100000/allowed-origins/1`
+
+**Expected Response (204 No Content)**
+
+---
+
 ## Player Management Endpoints
 
 ### 1. Create Player
