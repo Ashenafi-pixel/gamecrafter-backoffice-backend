@@ -156,6 +156,29 @@ func (a *authz) BulkUpdatePermissionsRequiresValue(c *gin.Context) {
 	response.SendSuccessResponse(c, http.StatusOK, resp)
 }
 
+// BulkCreatePermissions creates multiple permissions in one request (admin).
+// This is useful for seeding large permission sets like ROLE_SEMANTICS.md via Postman.
+func (a *authz) BulkCreatePermissions(c *gin.Context) {
+	var req []dto.CreatePermissionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+	if len(req) == 0 {
+		err := errors.ErrInvalidUserInput.New("permissions payload must not be empty")
+		_ = c.Error(err)
+		return
+	}
+
+	res, err := a.authzModule.BulkCreatePermissions(c, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusCreated, res)
+}
+
 // CreateRole allow user to create role.
 //
 //	@Summary		CreateRole

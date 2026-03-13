@@ -15,6 +15,7 @@ import (
 	"github.com/tucanbit/internal/glue/banner"
 	"github.com/tucanbit/internal/glue/bet"
 	"github.com/tucanbit/internal/glue/brand"
+	"github.com/tucanbit/internal/glue/brand_catalog"
 	"github.com/tucanbit/internal/glue/campaign"
 	"github.com/tucanbit/internal/glue/player"
 	"github.com/tucanbit/internal/glue/cashback"
@@ -120,6 +121,9 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 
 	// KYC routes
 	kyc.Init(grp, *log, handler.KYC, module.Authz, module.SystemLogs)
+
+	// Brand/operator game catalog routes (operator-facing, HMAC authenticated)
+	brand_catalog.Init(grp, log, persistence.Brand, persistence.Game)
 
 	// Alert routes
 	alert.Init(grp.Group("/api/admin"), handler.Alert, handler.AlertEmailGroup)

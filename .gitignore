@@ -24,3 +24,4 @@ scripts/create_first_admin.sql
 LOCAL_SETUP_GUIDE.md
 POSTMAN_COLLECTION.md
 docs/schemas/
+docs/*.md

@@ -267,3 +267,61 @@ func (b *brand) UpdateBrandFeatureFlags(ctx context.Context, brandID int32, req 
 	}
 	return b.brandStorage.UpdateBrandFeatureFlags(ctx, brandID, req.Flags)
 }
+
+func (b *brand) AssignGamesToBrand(ctx context.Context, brandID int32, gameIDs []string) error {
+	if brandID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	if len(gameIDs) == 0 {
+		return errors.ErrInvalidUserInput.New("game_ids is required")
+	}
+
+	_, exists, err := b.brandStorage.GetBrandByID(ctx, brandID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("brand not found")
+	}
+
+	return b.brandStorage.AssignGamesToBrand(ctx, brandID, gameIDs)
+}
+
+func (b *brand) RevokeGamesFromBrand(ctx context.Context, brandID int32, gameIDs []string) error {
+	if brandID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	if len(gameIDs) == 0 {
+		return errors.ErrInvalidUserInput.New("game_ids is required")
+	}
+	return b.brandStorage.RevokeGamesFromBrand(ctx, brandID, gameIDs)
+}
+
+func (b *brand) AssignProviderToBrand(ctx context.Context, brandID int32, providerID string) error {
+	if brandID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	if providerID == "" {
+		return errors.ErrInvalidUserInput.New("provider_id is required")
+	}
+
+	_, exists, err := b.brandStorage.GetBrandByID(ctx, brandID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("brand not found")
+	}
+
+	return b.brandStorage.AssignProviderToBrand(ctx, brandID, providerID)
+}
+
+func (b *brand) RevokeProviderFromBrand(ctx context.Context, brandID int32, providerID string) error {
+	if brandID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid brand ID")
+	}
+	if providerID == "" {
+		return errors.ErrInvalidUserInput.New("provider_id is required")
+	}
+	return b.brandStorage.RevokeProviderFromBrand(ctx, brandID, providerID)
+}

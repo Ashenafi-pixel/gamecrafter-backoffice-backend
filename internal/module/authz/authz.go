@@ -186,6 +186,39 @@ func (a *authz) BulkUpdatePermissionsRequiresValue(ctx context.Context, req dto.
 	return dto.BulkUpdatePermissionsRequiresValueRes{UpdatedCount: updated}, nil
 }
 
+// BulkCreatePermissions creates multiple permissions in one go.
+// Useful for seeding from tools like Postman based on ROLE_SEMANTICS.md.
+func (a *authz) BulkCreatePermissions(ctx context.Context, reqs []dto.CreatePermissionReq) ([]dto.Permissions, error) {
+	created := make([]dto.Permissions, 0, len(reqs))
+
+	for _, r := range reqs {
+		// Reuse existing validation rules from CreatePermission
+		if r.Name == "" {
+			err := fmt.Errorf("permission name is required")
+			return nil, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+		}
+		if r.Name == "super" {
+			err := fmt.Errorf("cannot create super permission")
+			return nil, errors.ErrInvalidUserInput.Wrap(err, "%s", err.Error())
+		}
+
+		p := dto.Permissions{
+			ID:            uuid.New(),
+			Name:          r.Name,
+			Description:   r.Description,
+			RequiresValue: r.RequiresValue,
+		}
+
+		perm, err := a.authzStorage.CreatePermission(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		created = append(created, perm)
+	}
+
+	return created, nil
+}
+
 func (a *authz) GetRoles(ctx context.Context, req dto.GetRoleReq) ([]dto.Role, error) {
 	var rolesResponse []dto.Role
 	offset := (req.Page - 1) * req.PerPage

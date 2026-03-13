@@ -26,8 +26,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				// middleware.Authz(authModule, "create brand", http.MethodPost),
-				// middleware.SystemLogs("Create Brand", &log, systemLogs),
+				middleware.Authz(authModule, "create brand", http.MethodPost),
+				middleware.SystemLogs("Create Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -37,9 +37,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				// Align with seeded permissions list
-				// middleware.Authz(authModule, "view brand management", http.MethodGet),
-				// middleware.SystemLogs("Get All Brands", &log, systemLogs),
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
+				middleware.SystemLogs("Get All Brands", &log, systemLogs),
 			},
 		},
 		{
@@ -49,9 +48,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				// // Align with seeded permissions list
-				// middleware.Authz(authModule, "view brand management", http.MethodGet),
-				// middleware.SystemLogs("Get Brand", &log, systemLogs),
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
+				middleware.SystemLogs("Get Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -61,9 +59,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				// Align with seeded permissions list
-				// middleware.Authz(authModule, "edit brand", http.MethodPatch),
-				// middleware.SystemLogs("Update Brand", &log, systemLogs),
+				middleware.Authz(authModule, "edit brand", http.MethodPatch),
+				middleware.SystemLogs("Update Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -73,8 +70,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
-				// middleware.Authz(authModule, "delete brand", http.MethodDelete),
-				// middleware.SystemLogs("Delete Brand", &log, systemLogs),
+				middleware.Authz(authModule, "delete brand", http.MethodDelete),
+				middleware.SystemLogs("Delete Brand", &log, systemLogs),
 			},
 		},
 		{
@@ -84,6 +81,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPatch),
+				middleware.SystemLogs("Change Brand Status", &log, systemLogs),
 			},
 		},
 		// Credentials
@@ -94,6 +93,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPost),
+				middleware.SystemLogs("Create Brand Credential", &log, systemLogs),
 			},
 		},
 		{
@@ -103,6 +104,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPost),
+				middleware.SystemLogs("Rotate Brand Credential", &log, systemLogs),
 			},
 		},
 		{
@@ -112,6 +115,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
+				middleware.SystemLogs("Get Brand Credential", &log, systemLogs),
 			},
 		},
 		// Allowed origins
@@ -122,6 +127,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPost),
+				middleware.SystemLogs("Add Brand Allowed Origin", &log, systemLogs),
 			},
 		},
 		{
@@ -131,6 +138,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodDelete),
+				middleware.SystemLogs("Remove Brand Allowed Origin", &log, systemLogs),
 			},
 		},
 		{
@@ -140,6 +149,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
+				middleware.SystemLogs("List Brand Allowed Origins", &log, systemLogs),
 			},
 		},
 		// Feature flags
@@ -150,6 +161,8 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "view brand management", http.MethodGet),
+				middleware.SystemLogs("Get Brand Feature Flags", &log, systemLogs),
 			},
 		},
 		{
@@ -159,6 +172,54 @@ func Init(
 			Middleware: []gin.HandlerFunc{
 				middleware.RateLimiter(),
 				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPut),
+				middleware.SystemLogs("Update Brand Feature Flags", &log, systemLogs),
+			},
+		},
+		// Game assignments
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/brands/:id/games",
+			Handler: brand.AssignGamesToBrand,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPost),
+				middleware.SystemLogs("Assign Games To Brand", &log, systemLogs),
+			},
+		},
+		{
+			Method:  http.MethodDelete,
+			Path:    "/api/admin/brands/:id/games",
+			Handler: brand.RevokeGamesFromBrand,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodDelete),
+				middleware.SystemLogs("Revoke Games From Brand", &log, systemLogs),
+			},
+		},
+		// Provider assignments
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/brands/:id/providers",
+			Handler: brand.AssignProviderToBrand,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodPost),
+				middleware.SystemLogs("Assign Provider To Brand", &log, systemLogs),
+			},
+		},
+		{
+			Method:  http.MethodDelete,
+			Path:    "/api/admin/brands/:id/providers/:providerId",
+			Handler: brand.RevokeProviderFromBrand,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "edit brand", http.MethodDelete),
+				middleware.SystemLogs("Revoke Provider From Brand", &log, systemLogs),
 			},
 		},
 	}
