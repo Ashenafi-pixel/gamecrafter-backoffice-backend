@@ -401,6 +401,12 @@ type Brand interface {
 	// Feature flags
 	GetBrandFeatureFlags(ctx context.Context, brandID int32) (map[string]bool, error)
 	UpdateBrandFeatureFlags(ctx context.Context, brandID int32, flags map[string]bool) error
+	// Game / provider assignments
+	AssignGamesToBrand(ctx context.Context, brandID int32, gameIDs []string) error
+	RevokeGamesFromBrand(ctx context.Context, brandID int32, gameIDs []string) error
+	AssignProviderToBrand(ctx context.Context, brandID int32, providerID string) error
+	RevokeProviderFromBrand(ctx context.Context, brandID int32, providerID string) error
+	GetBrandGameIDs(ctx context.Context, brandID int32) ([]string, error)
 }
 
 // internal/storage/storage.go - Update Provider interface

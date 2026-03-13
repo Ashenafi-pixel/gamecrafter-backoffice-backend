@@ -76,6 +76,17 @@ func Init(
 			},
 		}, {
 			Method:  http.MethodPost,
+			Path:    "/api/admin/permissions/bulk",
+			Handler: authzModule.BulkCreatePermissions,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// Same guard as single permission create.
+				middleware.Authz(authModule, "view permissions", http.MethodPost),
+				middleware.SystemLogs("bulk create permissions", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
 			Path:    "/api/admin/roles",
 			Handler: authzModule.CreateRole,
 			Middleware: []gin.HandlerFunc{

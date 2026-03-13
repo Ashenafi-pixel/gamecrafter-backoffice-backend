@@ -235,6 +235,7 @@ type Authz interface {
 	UpdatePermission(ctx context.Context, permissionID uuid.UUID, req dto.UpdatePermissionReq) (dto.Permissions, error)
 	DeletePermission(ctx context.Context, permissionID uuid.UUID) error
 	BulkUpdatePermissionsRequiresValue(ctx context.Context, req dto.BulkUpdatePermissionsRequiresValueReq) (dto.BulkUpdatePermissionsRequiresValueRes, error)
+	BulkCreatePermissions(ctx context.Context, reqs []dto.CreatePermissionReq) ([]dto.Permissions, error)
 	CreateRole(ctx context.Context, req dto.CreateRoleReq) (dto.Role, error)
 	GetRoles(ctx context.Context, req dto.GetRoleReq) ([]dto.Role, error)
 	UpdatePermissionsOfRole(ctx context.Context, req dto.UpdatePermissionToRoleReq) (dto.UpdatePermissionToRoleRes, error)
@@ -290,6 +291,10 @@ type Brand interface {
 	ListBrandAllowedOrigins(ctx context.Context, brandID int32) (dto.ListBrandAllowedOriginsRes, error)
 	GetBrandFeatureFlags(ctx context.Context, brandID int32) (dto.BrandFeatureFlagsRes, error)
 	UpdateBrandFeatureFlags(ctx context.Context, brandID int32, req dto.UpdateBrandFeatureFlagsReq) error
+	AssignGamesToBrand(ctx context.Context, brandID int32, gameIDs []string) error
+	RevokeGamesFromBrand(ctx context.Context, brandID int32, gameIDs []string) error
+	AssignProviderToBrand(ctx context.Context, brandID int32, providerID string) error
+	RevokeProviderFromBrand(ctx context.Context, brandID int32, providerID string) error
 }
 
 type Player interface {

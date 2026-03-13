@@ -252,6 +252,7 @@ type Authz interface {
 	UpdatePermission(c *gin.Context)
 	DeletePermission(c *gin.Context)
 	BulkUpdatePermissionsRequiresValue(c *gin.Context)
+	BulkCreatePermissions(c *gin.Context)
 	CreateRole(c *gin.Context)
 	GetRoles(c *gin.Context)
 	UpdateRolePermissions(c *gin.Context)
@@ -308,6 +309,10 @@ type Brand interface {
 	ListBrandAllowedOrigins(c *gin.Context)
 	GetBrandFeatureFlags(c *gin.Context)
 	UpdateBrandFeatureFlags(c *gin.Context)
+	AssignGamesToBrand(c *gin.Context)
+	RevokeGamesFromBrand(c *gin.Context)
+	AssignProviderToBrand(c *gin.Context)
+	RevokeProviderFromBrand(c *gin.Context)
 }
 
 type Provider interface {

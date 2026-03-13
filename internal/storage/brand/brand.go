@@ -426,6 +426,127 @@ func (b *brand) UpdateBrandStatus(ctx context.Context, brandID int32, isActive b
 	return nil
 }
 
+// AssignGamesToBrand creates brand_game rows for the given game IDs.
+func (b *brand) AssignGamesToBrand(ctx context.Context, brandID int32, gameIDs []string) error {
+	if len(gameIDs) == 0 {
+		return nil
+	}
+
+	tx, err := b.db.GetPool().Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, gid := range gameIDs {
+		if gid == "" {
+			continue
+		}
+		_, err = tx.Exec(ctx, `
+			INSERT INTO brand_games (brand_id, game_id)
+			VALUES ($1, $2::uuid)
+			ON CONFLICT (brand_id, game_id) DO NOTHING
+		`, brandID, gid)
+		if err != nil {
+			b.log.Error("unable to assign game to brand", zap.Error(err),
+				zap.Int32("brand_id", brandID), zap.String("game_id", gid))
+			return errors.ErrUnableTocreate.Wrap(err, "unable to assign game to brand")
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// RevokeGamesFromBrand removes brand_game rows for the given game IDs.
+func (b *brand) RevokeGamesFromBrand(ctx context.Context, brandID int32, gameIDs []string) error {
+	if len(gameIDs) == 0 {
+		return nil
+	}
+
+	_, err := b.db.GetPool().Exec(ctx, `
+		DELETE FROM brand_games
+		WHERE brand_id = $1 AND game_id = ANY($2::uuid[])
+	`, brandID, gameIDs)
+	if err != nil {
+		b.log.Error("unable to revoke games from brand", zap.Error(err),
+			zap.Int32("brand_id", brandID))
+		return errors.ErrDBDelError.Wrap(err, "unable to revoke games from brand")
+	}
+	return nil
+}
+
+// AssignProviderToBrand creates a brand_providers row.
+func (b *brand) AssignProviderToBrand(ctx context.Context, brandID int32, providerID string) error {
+	_, err := b.db.GetPool().Exec(ctx, `
+		INSERT INTO brand_providers (brand_id, provider_id)
+		VALUES ($1, $2::uuid)
+		ON CONFLICT (brand_id, provider_id) DO NOTHING
+	`, brandID, providerID)
+	if err != nil {
+		b.log.Error("unable to assign provider to brand", zap.Error(err),
+			zap.Int32("brand_id", brandID), zap.String("provider_id", providerID))
+		return errors.ErrUnableTocreate.Wrap(err, "unable to assign provider to brand")
+	}
+	return nil
+}
+
+// RevokeProviderFromBrand removes a brand_providers row.
+func (b *brand) RevokeProviderFromBrand(ctx context.Context, brandID int32, providerID string) error {
+	_, err := b.db.GetPool().Exec(ctx, `
+		DELETE FROM brand_providers
+		WHERE brand_id = $1 AND provider_id = $2::uuid
+	`, brandID, providerID)
+	if err != nil {
+		b.log.Error("unable to revoke provider from brand", zap.Error(err),
+			zap.Int32("brand_id", brandID), zap.String("provider_id", providerID))
+		return errors.ErrDBDelError.Wrap(err, "unable to revoke provider from brand")
+	}
+	return nil
+}
+
+// GetBrandGameIDs returns all game IDs available for a brand, via direct assignments and providers.
+func (b *brand) GetBrandGameIDs(ctx context.Context, brandID int32) ([]string, error) {
+	query := `
+		WITH direct_games AS (
+			SELECT game_id
+			FROM brand_games
+			WHERE brand_id = $1
+		),
+		provider_games AS (
+			SELECT g.id AS game_id
+			FROM brand_providers bp
+			JOIN games g ON g.provider_id = bp.provider_id
+			WHERE bp.brand_id = $1
+		)
+		SELECT DISTINCT game_id::text
+		FROM (
+			SELECT game_id FROM direct_games
+			UNION ALL
+			SELECT game_id FROM provider_games
+		) t;
+	`
+	rows, err := b.db.GetPool().Query(ctx, query, brandID)
+	if err != nil {
+		b.log.Error("unable to get brand game ids", zap.Error(err),
+			zap.Int32("brand_id", brandID))
+		return nil, errors.ErrUnableToGet.Wrap(err, "unable to get brand game ids")
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, errors.ErrUnableToGet.Wrap(err, "unable to scan brand game id")
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.ErrUnableToGet.Wrap(err, "error reading brand game ids")
+	}
+	return ids, nil
+}
+
 func generateSecureSecret(length int) (string, error) {
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {

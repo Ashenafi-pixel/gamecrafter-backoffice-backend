@@ -363,3 +363,75 @@ func (b *brand) UpdateBrandFeatureFlags(ctx *gin.Context) {
 	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"flags": req.Flags})
 }
 
+// AssignGamesToBrand assigns individual games to a brand (operator).
+func (b *brand) AssignGamesToBrand(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.AssignBrandGamesReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	if err := b.brandModule.AssignGamesToBrand(ctx, brandID, req.GameIDs); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"message": "games assigned"})
+}
+
+// RevokeGamesFromBrand revokes individual games from a brand.
+func (b *brand) RevokeGamesFromBrand(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.AssignBrandGamesReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	if err := b.brandModule.RevokeGamesFromBrand(ctx, brandID, req.GameIDs); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"message": "games revoked"})
+}
+
+// AssignProviderToBrand assigns a whole provider to a brand.
+func (b *brand) AssignProviderToBrand(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	var req dto.AssignBrandProviderReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		_ = ctx.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		return
+	}
+	if err := b.brandModule.AssignProviderToBrand(ctx, brandID, req.ProviderID); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"message": "provider assigned"})
+}
+
+// RevokeProviderFromBrand revokes a provider from a brand.
+func (b *brand) RevokeProviderFromBrand(ctx *gin.Context) {
+	brandID, ok := parseBrandID(ctx)
+	if !ok {
+		return
+	}
+	providerID := ctx.Param("providerId")
+	if providerID == "" {
+		_ = ctx.Error(errors.ErrInvalidUserInput.New("provider_id is required"))
+		return
+	}
+	if err := b.brandModule.RevokeProviderFromBrand(ctx, brandID, providerID); err != nil {
+		_ = ctx.Error(err)
+		return
+	}
+	response.SendSuccessResponse(ctx, http.StatusOK, gin.H{"message": "provider revoked"})
+}
+

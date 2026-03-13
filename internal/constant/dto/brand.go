@@ -139,3 +139,13 @@ type BrandFeatureFlagsRes struct {
 type UpdateBrandFeatureFlagsReq struct {
 	Flags map[string]bool `json:"flags" validate:"required"`
 }
+
+// --- Brand Game / Provider Assignment ---
+
+type AssignBrandGamesReq struct {
+	GameIDs []string `json:"game_ids" validate:"required,min=1,dive,required"`
+}
+
+type AssignBrandProviderReq struct {
+	ProviderID string `json:"provider_id" validate:"required"`
+}
