@@ -16,7 +16,6 @@ import (
 	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/storage"
 	grooveStorage "github.com/tucanbit/internal/storage/groove"
-	"github.com/tucanbit/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -26,17 +25,10 @@ type GrooveHandler struct {
 	balanceStorage     storage.Balance
 	db                 *persistencedb.PersistenceDB
 	logger             *zap.Logger
-	signatureValidator *utils.GrooveSignatureValidator
 	transactionHistory *PlayerTransactionHistoryHandler
 }
 
 func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, grooveStorage grooveStorage.GrooveStorage, db *persistencedb.PersistenceDB, logger *zap.Logger) *GrooveHandler {
-	// Initialize signature validator
-	secretKey := viper.GetString("groove.signature_secret")
-	if secretKey == "" {
-		secretKey = "default_secret_key" // Fallback for development
-	}
-
 	// Initialize transaction history handler with proper storage
 	transactionHistoryHandler := NewPlayerTransactionHistoryHandler(grooveStorage, logger)
 
@@ -46,7 +38,6 @@ func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.Us
 		balanceStorage:     balanceStorage,
 		db:                 db,
 		logger:             logger,
-		signatureValidator: utils.NewGrooveSignatureValidator(secretKey),
 		transactionHistory: transactionHistoryHandler,
 	}
 }
@@ -489,6 +480,22 @@ func (h *GrooveHandler) LaunchGame(c *gin.Context) {
 		return
 	}
 
+	// Optional brand/operator ID: can be provided either in JSON body (brand_id)
+	// or via X-Brand-Id header. Header takes precedence if both are set.
+	if brandHeader := c.GetHeader("X-Brand-Id"); brandHeader != "" {
+		if brandInt, err := strconv.ParseInt(brandHeader, 10, 32); err == nil {
+			brandID := int32(brandInt)
+			req.BrandID = &brandID
+		} else {
+			h.logger.Error("Invalid X-Brand-Id header", zap.Error(err), zap.String("value", brandHeader))
+			c.JSON(http.StatusBadRequest, response.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "Invalid X-Brand-Id header",
+			})
+			return
+		}
+	}
+
 	// Extract user ID from JWT token
 	userID, err := h.extractUserIDFromToken(c)
 	if err != nil {
@@ -555,8 +562,24 @@ func (h *GrooveHandler) LaunchGame(c *gin.Context) {
 	// Launch the game
 	launchResponse, err := h.grooveService.LaunchGame(c.Request.Context(), googleUserID, req)
 	if err != nil {
-		h.logger.Error("Failed to launch game", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, launchResponse)
+		h.logger.Error("Failed to launch game", zap.Error(err), zap.String("error_code", launchResponse.ErrorCode))
+
+		// Map error codes to HTTP status while returning a consistent JSON body.
+		status := http.StatusInternalServerError
+		switch launchResponse.ErrorCode {
+		case "UNAUTHORIZED":
+			status = http.StatusUnauthorized
+		case "OPERATOR_DISABLED", "GAME_NOT_ALLOWED":
+			status = http.StatusForbidden
+		case "OPERATOR_NOT_FOUND", "GAME_NOT_FOUND":
+			status = http.StatusNotFound
+		case "INVALID_PARAMETERS":
+			status = http.StatusBadRequest
+		case "SESSION_CREATION_FAILED", "ACCOUNT_CREATION_FAILED", "ACCOUNT_UPDATE_FAILED", "GROOVE_API_ERROR", "URL_UPDATE_FAILED", "OPERATOR_LOOKUP_FAILED", "GAME_LOOKUP_FAILED", "OPERATOR_GAME_LOOKUP_FAILED":
+			status = http.StatusInternalServerError
+		}
+
+		c.JSON(status, launchResponse)
 		return
 	}
 

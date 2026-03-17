@@ -315,6 +315,11 @@ type Brand interface {
 	RevokeProviderFromBrand(c *gin.Context)
 }
 
+type Operator interface {
+	AssignGamesToOperator(c *gin.Context)
+	RevokeGamesFromOperator(c *gin.Context)
+}
+
 type Provider interface {
 	CreateProvider(c *gin.Context)
 	GetAllProviders(c *gin.Context)

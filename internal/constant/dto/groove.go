@@ -62,6 +62,11 @@ type LaunchGameRequest struct {
 	GameID     string `json:"game_id" validate:"required"`
 	DeviceType string `json:"device_type" validate:"required,oneof=desktop mobile"`
 	GameMode   string `json:"game_mode" validate:"required,oneof=demo real"`
+	// Optional brand/operator ID for brand-aware launch constraints.
+	// When set, the launch flow will enforce that:
+	// - The brand is active.
+	// - The requested game is assigned to the brand (directly or via provider).
+	BrandID *int32 `json:"brand_id,omitempty"`
 	// CMA Compliance fields
 	Country              string `json:"country,omitempty"`                // ISO 3166-1 alpha-2 code
 	Currency             string `json:"currency,omitempty"`               // ISO 4217 currency code
@@ -69,6 +74,11 @@ type LaunchGameRequest struct {
 	IsTestAccount        *bool  `json:"is_test_account,omitempty"`        // Test account flag
 	RealityCheckElapsed  int    `json:"reality_check_elapsed,omitempty"`  // Minutes elapsed since session start
 	RealityCheckInterval int    `json:"reality_check_interval,omitempty"` // Minutes between reality checks
+}
+
+// AssignOperatorGamesReq represents the request body for assigning/revoking games to/from an operator.
+type AssignOperatorGamesReq struct {
+	GameIDs []string `json:"game_ids" binding:"required,min=1,dive,uuid4"`
 }
 
 // LaunchGameResponse represents the response for game launch

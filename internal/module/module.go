@@ -297,6 +297,11 @@ type Brand interface {
 	RevokeProviderFromBrand(ctx context.Context, brandID int32, providerID string) error
 }
 
+type Operator interface {
+	AssignGamesToOperator(ctx context.Context, operatorID int32, gameIDs []string) error
+	RevokeGamesFromOperator(ctx context.Context, operatorID int32, gameIDs []string) error
+}
+
 type Player interface {
 	CreatePlayer(ctx context.Context, req dto.CreatePlayerReq) (dto.CreatePlayerRes, error)
 	GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, error)

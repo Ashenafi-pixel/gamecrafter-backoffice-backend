@@ -17,6 +17,7 @@ import (
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/module/falcon_liquidity"
 	"github.com/tucanbit/internal/storage"
+	gameStorage "github.com/tucanbit/internal/storage/game"
 	"github.com/tucanbit/internal/storage/groove"
 	"github.com/tucanbit/platform/utils"
 	"go.uber.org/zap"
@@ -78,17 +79,21 @@ type GrooveServiceImpl struct {
 	gameSessionStorage groove.GameSessionStorage
 	cashbackService    CashbackService
 	userStorage        storage.User
+	brandStorage       storage.Brand
+	gameStorage        gameStorage.GameStorage
 	userWS             utils.UserWS
 	falconService      falcon_liquidity.FalconLiquidityService
 	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, userWS utils.UserWS, falconService falcon_liquidity.FalconLiquidityService, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, brandStorage storage.Brand, gameStorage gameStorage.GameStorage, userWS utils.UserWS, falconService falcon_liquidity.FalconLiquidityService, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
 		storage:            storage,
 		gameSessionStorage: gameSessionStorage,
 		cashbackService:    cashbackService,
 		userStorage:        userStorage,
+		brandStorage:       brandStorage,
+		gameStorage:        gameStorage,
 		userWS:             userWS,
 		falconService:      falconService,
 		logger:             logger,
@@ -1464,6 +1469,84 @@ func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, re
 		zap.String("game_id", req.GameID),
 		zap.String("device_type", req.DeviceType),
 		zap.String("game_mode", req.GameMode))
+
+	// If a brand/operator ID is provided, enforce operator status and game assignment.
+	if req.BrandID != nil {
+		brandID := *req.BrandID
+
+		brand, exists, err := s.brandStorage.GetBrandByID(ctx, brandID)
+		if err != nil {
+			s.logger.Error("Failed to load brand for launch", zap.Error(err), zap.Int32("brand_id", brandID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_LOOKUP_FAILED",
+				Message:   "Failed to load operator information",
+			}, err
+		}
+		if !exists {
+			s.logger.Warn("Brand not found for launch", zap.Int32("brand_id", brandID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_NOT_FOUND",
+				Message:   "Operator not found",
+			}, fmt.Errorf("brand not found")
+		}
+		if !brand.IsActive {
+			s.logger.Warn("Brand is inactive for launch", zap.Int32("brand_id", brandID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_DISABLED",
+				Message:   "Operator is disabled",
+			}, fmt.Errorf("operator disabled")
+		}
+
+		// Map external game_id (req.GameID) to internal games.id via GetGameByGameID.
+		gameModel, err := s.gameStorage.GetGameByGameID(ctx, req.GameID)
+		if err != nil {
+			s.logger.Error("Failed to load game for operator check", zap.Error(err), zap.String("game_id", req.GameID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "GAME_LOOKUP_FAILED",
+				Message:   "Failed to load game information",
+			}, err
+		}
+		if gameModel == nil {
+			s.logger.Warn("Game not found for launch", zap.String("game_id", req.GameID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "GAME_NOT_FOUND",
+				Message:   "Game not found",
+			}, fmt.Errorf("game not found")
+		}
+
+		// Check that this internal game ID is assignable to the brand.
+		brandGameIDs, err := s.brandStorage.GetBrandGameIDs(ctx, brandID)
+		if err != nil {
+			s.logger.Error("Failed to get brand game ids for launch", zap.Error(err), zap.Int32("brand_id", brandID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_GAME_LOOKUP_FAILED",
+				Message:   "Failed to check operator game assignments",
+			}, err
+		}
+
+		allowed := false
+		gameUUID := gameModel.ID.String()
+		for _, gid := range brandGameIDs {
+			if gid == gameUUID {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			s.logger.Warn("Game not allowed for brand", zap.Int32("brand_id", brandID), zap.String("game_id", req.GameID), zap.String("internal_game_id", gameUUID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "GAME_NOT_ALLOWED",
+				Message:   "Game is not allowed for this operator",
+			}, fmt.Errorf("game not allowed for operator")
+		}
+	}
 
 	// Create game session in our database
 	session, err := s.gameSessionStorage.CreateGameSession(ctx, userID, req.GameID, req.DeviceType, req.GameMode)

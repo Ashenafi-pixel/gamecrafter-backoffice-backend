@@ -28,6 +28,7 @@ import (
 	"github.com/tucanbit/internal/module/falcon_liquidity"
 	"github.com/tucanbit/internal/module/game"
 	"github.com/tucanbit/internal/module/groove"
+	operatorModule "github.com/tucanbit/internal/module/operator"
 	"github.com/tucanbit/internal/module/provider"
 
 	"github.com/tucanbit/internal/module/department"
@@ -102,6 +103,7 @@ type Module struct {
 	UserBalanceWS         utils.UserWS
 	AdminActivityLogs     module.AdminActivityLogs
 	Page                  module.Page
+	Operator              module.Operator
 }
 
 func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]*sync.Mutex, userBalanceWs utils.UserWS, kafka platform.Kafka, redis *redis.RedisOTP, pisiClient pisi.PisiClient, alertService alertModule.AlertService) *Module {
@@ -175,7 +177,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		log.Fatal("Failed to initialize email service", zap.Error(err))
 	}
 
-	return &Module{
+	m := &Module{
 		User: userModule.Init(persistence.User,
 			persistence.Logs,
 			log, viper.GetString("aws.bucket.name"),
@@ -299,7 +301,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		OTP:                   otpModule.NewOTPService(persistence.OTP, otpModule.NewUserStorageAdapter(persistence.User), emailService, log),
 		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride),
 		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), kafka, log),
-		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), persistence.User, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
+		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), persistence.User, persistence.Brand, persistence.Game, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
 			Enabled:        viper.GetBool("falcon_liquidity.enabled"),
 			Host:           viper.GetString("falcon_liquidity.host"),
 			Port:           viper.GetInt("falcon_liquidity.port"),
@@ -340,4 +342,9 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		AdminActivityLogs: admin_activity_logs.NewAdminActivityLogsModule(persistence.AdminActivityLogs, log),
 		Page:              pageModule.Init(persistence.Page, log),
 	}
+
+	// Initialize Operator module using persistence.Operator storage.
+	m.Operator = operatorModule.NewOperatorModule(persistence.Operator)
+
+	return m
 }
