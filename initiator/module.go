@@ -299,7 +299,7 @@ func initModule(persistence *Persistence, log *zap.Logger, locker map[uuid.UUID]
 		OTP:                   otpModule.NewOTPService(persistence.OTP, otpModule.NewUserStorageAdapter(persistence.User), emailService, log),
 		Cashback:              cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride),
 		CashbackKafkaConsumer: cashback.NewCashbackKafkaConsumer(cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), kafka, log),
-		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), persistence.User, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
+		Groove: groove.NewGrooveService(persistence.Groove, persistence.GameSession, cashback.NewCashbackService(persistence.Cashback, persistence.Groove, userBalanceWs, log, persistence.RakebackOverride), persistence.User, persistence.Brand, persistence.Game, userBalanceWs, falcon_liquidity.NewFalconLiquidityService(log, &dto.FalconLiquidityConfig{
 			Enabled:        viper.GetBool("falcon_liquidity.enabled"),
 			Host:           viper.GetString("falcon_liquidity.host"),
 			Port:           viper.GetInt("falcon_liquidity.port"),

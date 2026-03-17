@@ -16,7 +16,6 @@ import (
 	"github.com/tucanbit/internal/module/groove"
 	"github.com/tucanbit/internal/storage"
 	grooveStorage "github.com/tucanbit/internal/storage/groove"
-	"github.com/tucanbit/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -26,17 +25,10 @@ type GrooveHandler struct {
 	balanceStorage     storage.Balance
 	db                 *persistencedb.PersistenceDB
 	logger             *zap.Logger
-	signatureValidator *utils.GrooveSignatureValidator
 	transactionHistory *PlayerTransactionHistoryHandler
 }
 
 func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.User, balanceStorage storage.Balance, grooveStorage grooveStorage.GrooveStorage, db *persistencedb.PersistenceDB, logger *zap.Logger) *GrooveHandler {
-	// Initialize signature validator
-	secretKey := viper.GetString("groove.signature_secret")
-	if secretKey == "" {
-		secretKey = "default_secret_key" // Fallback for development
-	}
-
 	// Initialize transaction history handler with proper storage
 	transactionHistoryHandler := NewPlayerTransactionHistoryHandler(grooveStorage, logger)
 
@@ -46,7 +38,6 @@ func NewGrooveHandler(grooveService groove.GrooveService, userStorage storage.Us
 		balanceStorage:     balanceStorage,
 		db:                 db,
 		logger:             logger,
-		signatureValidator: utils.NewGrooveSignatureValidator(secretKey),
 		transactionHistory: transactionHistoryHandler,
 	}
 }
@@ -487,6 +478,22 @@ func (h *GrooveHandler) LaunchGame(c *gin.Context) {
 			Message: "Invalid request body",
 		})
 		return
+	}
+
+	// Optional brand/operator ID: can be provided either in JSON body (brand_id)
+	// or via X-Brand-Id header. Header takes precedence if both are set.
+	if brandHeader := c.GetHeader("X-Brand-Id"); brandHeader != "" {
+		if brandInt, err := strconv.ParseInt(brandHeader, 10, 32); err == nil {
+			brandID := int32(brandInt)
+			req.BrandID = &brandID
+		} else {
+			h.logger.Error("Invalid X-Brand-Id header", zap.Error(err), zap.String("value", brandHeader))
+			c.JSON(http.StatusBadRequest, response.ErrorResponse{
+				Code:    http.StatusBadRequest,
+				Message: "Invalid X-Brand-Id header",
+			})
+			return
+		}
 	}
 
 	// Extract user ID from JWT token
