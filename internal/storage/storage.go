@@ -411,6 +411,18 @@ type Brand interface {
 
 // Operator defines storage operations related to operators and their game assignments.
 type Operator interface {
+	// Core CRUD and status
+	CreateOperator(ctx context.Context, req dto.CreateOperatorReq) (dto.Operator, error)
+	GetOperatorByID(ctx context.Context, operatorID int32) (dto.Operator, bool, error)
+	GetOperators(ctx context.Context, req dto.GetOperatorsReq) (dto.GetOperatorsRes, error)
+	UpdateOperator(ctx context.Context, req dto.UpdateOperatorReq) (dto.Operator, error)
+	DeleteOperator(ctx context.Context, operatorID int32) error
+	UpdateOperatorStatus(ctx context.Context, operatorID int32, isActive bool) error
+	// Credentials
+	CreateOperatorCredential(ctx context.Context, operatorID int32) (dto.OperatorCredentialRes, error)
+	RotateOperatorCredential(ctx context.Context, operatorID int32, credentialID int32) (dto.RotateOperatorCredentialRes, error)
+	GetActiveSigningKeyByOperatorID(ctx context.Context, operatorID int32) (string, error)
+	// Game / provider assignments
 	AssignGamesToOperator(ctx context.Context, operatorID int32, gameIDs []string) error
 	RevokeGamesFromOperator(ctx context.Context, operatorID int32, gameIDs []string) error
 }

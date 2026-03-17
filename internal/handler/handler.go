@@ -316,6 +316,14 @@ type Brand interface {
 }
 
 type Operator interface {
+	CreateOperator(c *gin.Context)
+	GetOperatorByID(c *gin.Context)
+	GetOperators(c *gin.Context)
+	UpdateOperator(c *gin.Context)
+	DeleteOperator(c *gin.Context)
+	ChangeOperatorStatus(c *gin.Context)
+	CreateOperatorCredential(c *gin.Context)
+	RotateOperatorCredential(c *gin.Context)
 	AssignGamesToOperator(c *gin.Context)
 	RevokeGamesFromOperator(c *gin.Context)
 }
