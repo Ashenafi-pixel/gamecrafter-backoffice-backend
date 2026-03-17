@@ -562,8 +562,24 @@ func (h *GrooveHandler) LaunchGame(c *gin.Context) {
 	// Launch the game
 	launchResponse, err := h.grooveService.LaunchGame(c.Request.Context(), googleUserID, req)
 	if err != nil {
-		h.logger.Error("Failed to launch game", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, launchResponse)
+		h.logger.Error("Failed to launch game", zap.Error(err), zap.String("error_code", launchResponse.ErrorCode))
+
+		// Map error codes to HTTP status while returning a consistent JSON body.
+		status := http.StatusInternalServerError
+		switch launchResponse.ErrorCode {
+		case "UNAUTHORIZED":
+			status = http.StatusUnauthorized
+		case "OPERATOR_DISABLED", "GAME_NOT_ALLOWED":
+			status = http.StatusForbidden
+		case "OPERATOR_NOT_FOUND", "GAME_NOT_FOUND":
+			status = http.StatusNotFound
+		case "INVALID_PARAMETERS":
+			status = http.StatusBadRequest
+		case "SESSION_CREATION_FAILED", "ACCOUNT_CREATION_FAILED", "ACCOUNT_UPDATE_FAILED", "GROOVE_API_ERROR", "URL_UPDATE_FAILED", "OPERATOR_LOOKUP_FAILED", "GAME_LOOKUP_FAILED", "OPERATOR_GAME_LOOKUP_FAILED":
+			status = http.StatusInternalServerError
+		}
+
+		c.JSON(status, launchResponse)
 		return
 	}
 

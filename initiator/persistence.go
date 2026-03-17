@@ -17,7 +17,6 @@ import (
 	"github.com/tucanbit/internal/storage/bet"
 	"github.com/tucanbit/internal/storage/brand"
 	"github.com/tucanbit/internal/storage/campaign"
-	"github.com/tucanbit/internal/storage/player"
 	"github.com/tucanbit/internal/storage/cashback"
 	"github.com/tucanbit/internal/storage/company"
 	"github.com/tucanbit/internal/storage/config"
@@ -32,10 +31,12 @@ import (
 	"github.com/tucanbit/internal/storage/notification"
 	"github.com/tucanbit/internal/storage/operationalgroup"
 	"github.com/tucanbit/internal/storage/operationalgrouptype"
+	"github.com/tucanbit/internal/storage/operator"
 	"github.com/tucanbit/internal/storage/otp"
 	"github.com/tucanbit/internal/storage/page"
 	"github.com/tucanbit/internal/storage/passkey"
 	"github.com/tucanbit/internal/storage/performance"
+	"github.com/tucanbit/internal/storage/player"
 	"github.com/tucanbit/internal/storage/provider"
 	"github.com/tucanbit/internal/storage/rakeback_override"
 	"github.com/tucanbit/internal/storage/report"
@@ -98,6 +99,7 @@ type Persistence struct {
 	SystemConfig         *system_config.SystemConfig
 	RakebackOverride     rakeback_override.RakebackOverrideStorage
 	Page                 page.PageStorage
+	Operator             storage.Operator
 	Database             *persistencedb.PersistenceDB
 }
 
@@ -171,7 +173,8 @@ func initPersistence(persistencdb *persistencedb.PersistenceDB, log *zap.Logger,
 		KYC:                  kyc.NewKYCStorage(persistencdb, log),
 		SystemConfig:         system_config.NewSystemConfig(persistencdb, log),
 		RakebackOverride:     rakeback_override.NewRakebackOverrideStorage(persistencdb, log),
-		Page:                 page.Init(persistencdb, log),
-		Database:             persistencdb,
+		Page:     page.Init(persistencdb, log),
+		Operator: operator.NewOperatorStorage(persistencdb, log),
+		Database: persistencdb,
 	}
 }

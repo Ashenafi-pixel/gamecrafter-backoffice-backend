@@ -76,6 +76,11 @@ type LaunchGameRequest struct {
 	RealityCheckInterval int    `json:"reality_check_interval,omitempty"` // Minutes between reality checks
 }
 
+// AssignOperatorGamesReq represents the request body for assigning/revoking games to/from an operator.
+type AssignOperatorGamesReq struct {
+	GameIDs []string `json:"game_ids" binding:"required,min=1,dive,uuid4"`
+}
+
 // LaunchGameResponse represents the response for game launch
 type LaunchGameResponse struct {
 	Success   bool   `json:"success"`

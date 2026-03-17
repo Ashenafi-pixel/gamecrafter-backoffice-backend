@@ -53,6 +53,7 @@ import (
 	"github.com/tucanbit/internal/glue/withdrawal_management"
 	"github.com/tucanbit/internal/glue/withdrawals"
 	"github.com/tucanbit/internal/glue/ws"
+	operatorGlue "github.com/tucanbit/internal/glue/operator"
 	emailModule "github.com/tucanbit/internal/module/email"
 	falconStorage "github.com/tucanbit/internal/storage/falcon_liquidity"
 	"go.uber.org/zap"
@@ -124,6 +125,9 @@ func initRoute(grp *gin.RouterGroup, handler *Handler, module *Module, log *zap.
 
 	// Brand/operator game catalog routes (operator-facing, HMAC authenticated)
 	brand_catalog.Init(grp, log, persistence.Brand, persistence.Game)
+
+	// Operator game assignment routes (admin-facing).
+	operatorGlue.Init(grp, *log, handler.Operator, module.Authz, module.SystemLogs)
 
 	// Alert routes
 	alert.Init(grp.Group("/api/admin"), handler.Alert, handler.AlertEmailGroup)

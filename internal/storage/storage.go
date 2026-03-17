@@ -409,6 +409,12 @@ type Brand interface {
 	GetBrandGameIDs(ctx context.Context, brandID int32) ([]string, error)
 }
 
+// Operator defines storage operations related to operators and their game assignments.
+type Operator interface {
+	AssignGamesToOperator(ctx context.Context, operatorID int32, gameIDs []string) error
+	RevokeGamesFromOperator(ctx context.Context, operatorID int32, gameIDs []string) error
+}
+
 // internal/storage/storage.go - Update Provider interface
 
 type Provider interface {

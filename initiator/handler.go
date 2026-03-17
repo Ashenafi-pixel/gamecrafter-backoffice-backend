@@ -36,6 +36,7 @@ import (
 	"github.com/tucanbit/internal/handler/operationalgroup"
 	"github.com/tucanbit/internal/handler/operationalgrouptype"
 	"github.com/tucanbit/internal/handler/operationsdefinitions"
+	"github.com/tucanbit/internal/handler/operator"
 	"github.com/tucanbit/internal/handler/otp"
 	"github.com/tucanbit/internal/handler/page"
 	"github.com/tucanbit/internal/handler/performance"
@@ -104,6 +105,7 @@ type Handler struct {
 	AirtimeProvider       handler.AirtimeProvider
 	KYC                   handler.KYC
 	Page                  page.PageHandler
+	Operator              handler.Operator
 }
 
 func initHandler(module *Module, persistence *Persistence, log *zap.Logger, userWS utils.UserWS) *Handler {
@@ -188,6 +190,7 @@ func initHandler(module *Module, persistence *Persistence, log *zap.Logger, user
 		AirtimeProvider:      airtime.Init(log, persistence.AirtimeProvider),
 		KYC:                  kyc.NewKYCHandler(persistence.KYC, persistence.AdminActivityLogs, log),
 		Page:                 page.Init(module.Page, log),
+		Operator:             operator.NewOperatorHandler(module.Operator),
 	}
 }
 
