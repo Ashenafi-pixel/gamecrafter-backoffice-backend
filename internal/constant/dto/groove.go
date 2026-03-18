@@ -67,6 +67,11 @@ type LaunchGameRequest struct {
 	// - The brand is active.
 	// - The requested game is assigned to the brand (directly or via provider).
 	BrandID *int32 `json:"brand_id,omitempty"`
+	// Optional operator ID for operator-aware launch constraints.
+	// When set, the launch flow will enforce that:
+	// - The operator is active.
+	// - The requested game is assigned to the operator (directly or via provider).
+	OperatorID *int32 `json:"operator_id,omitempty"`
 	// CMA Compliance fields
 	Country              string `json:"country,omitempty"`                // ISO 3166-1 alpha-2 code
 	Currency             string `json:"currency,omitempty"`               // ISO 4217 currency code

@@ -298,8 +298,32 @@ type Brand interface {
 }
 
 type Operator interface {
+	// Core CRUD and status
+	CreateOperator(ctx context.Context, req dto.CreateOperatorReq) (dto.Operator, error)
+	GetOperatorByID(ctx context.Context, operatorID int32) (dto.Operator, error)
+	GetOperators(ctx context.Context, req dto.GetOperatorsReq) (dto.GetOperatorsRes, error)
+	UpdateOperator(ctx context.Context, req dto.UpdateOperatorReq) (dto.Operator, error)
+	DeleteOperator(ctx context.Context, operatorID int32) error
+	ChangeOperatorStatus(ctx context.Context, operatorID int32, req dto.ChangeOperatorStatusReq) error
+	// Credentials
+	CreateOperatorCredential(ctx context.Context, operatorID int32) (dto.OperatorCredentialRes, error)
+	RotateOperatorCredential(ctx context.Context, operatorID int32, credentialID int32) (dto.RotateOperatorCredentialRes, error)
+	GetActiveSigningKeyByOperatorID(ctx context.Context, operatorID int32) (string, error)
+	// Game assignments
+	AssignAllGamesToOperator(ctx context.Context, operatorID int32) error
 	AssignGamesToOperator(ctx context.Context, operatorID int32, gameIDs []string) error
 	RevokeGamesFromOperator(ctx context.Context, operatorID int32, gameIDs []string) error
+	AssignProviderToOperator(ctx context.Context, operatorID int32, providerID string) error
+	RevokeProviderFromOperator(ctx context.Context, operatorID int32, providerID string) error
+	GetOperatorGameIDs(ctx context.Context, operatorID int32) ([]string, error)
+	GetOperatorGames(ctx context.Context, operatorID int32) ([]dto.GameResponse, error)
+	// Allowed origins
+	AddOperatorAllowedOrigin(ctx context.Context, operatorID int32, req dto.AddOperatorAllowedOriginReq) (dto.OperatorAllowedOriginRes, error)
+	RemoveOperatorAllowedOrigin(ctx context.Context, operatorID int32, originID int32) error
+	ListOperatorAllowedOrigins(ctx context.Context, operatorID int32) (dto.ListOperatorAllowedOriginsRes, error)
+	// Feature flags
+	GetOperatorFeatureFlags(ctx context.Context, operatorID int32) (dto.OperatorFeatureFlagsRes, error)
+	UpdateOperatorFeatureFlags(ctx context.Context, operatorID int32, req dto.UpdateOperatorFeatureFlagsReq) error
 }
 
 type Player interface {

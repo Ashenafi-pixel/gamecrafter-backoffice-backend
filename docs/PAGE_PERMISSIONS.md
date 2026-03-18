@@ -120,6 +120,11 @@ Some permissions require a value/limit to be set when assigned to a role:
 - **edit brand** - Permission to edit brand settings
 - **delete brand** - Permission to delete brands
 
+## Operator Management
+
+- **view operator management** - Access to view operator management
+- **edit operator** - Permission to create/update/delete operators and manage assignments/credentials
+
 ## Falcon Liquidity
 
 - **view falcon liquidity** - Access to view Falcon Liquidity

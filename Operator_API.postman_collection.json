@@ -1,0 +1,499 @@
+{
+  "info": {
+    "_postman_id": "operator-api-collection",
+    "name": "Operator Management & Catalog API",
+    "description": "API collection for Operator management (admin) and Operator-facing catalog (signed/unsafe), plus Groove LaunchGame operator constraints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "operator_id",
+      "value": "100001",
+      "type": "string"
+    },
+    {
+      "key": "operator_signing_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "credential_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "origin_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "provider_id",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    },
+    {
+      "key": "game_id_1",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin - Operator CRUD & Status",
+      "item": [
+        {
+          "name": "Create Operator",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operator_id\": 100001,\n  \"name\": \"Acme Operator\",\n  \"code\": \"ACME\",\n  \"domain\": \"acme.example\",\n  \"logo_url\": \"https://cdn.example/acme.png\",\n  \"is_active\": true,\n  \"allowed_embed_domains\": [\"https://embed.acme.example\"],\n  \"embed_referer_required\": true,\n  \"transaction_url\": \"https://api.acme.example/transactions\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators"]
+            }
+          }
+        },
+        {
+          "name": "Get Operators",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators?page=1&per_page=10&search=&is_active=",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" },
+                { "key": "search", "value": "" },
+                { "key": "is_active", "value": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Operator by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Operator",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Operator Updated\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Change Operator Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"is_active\": true\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Delete Operator",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Operator Credentials",
+      "item": [
+        {
+          "name": "Create Operator Credential (api_key + signing_key once)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j && j.signing_key) {",
+                  "    pm.collectionVariables.set('operator_signing_key', j.signing_key);",
+                  "  }",
+                  "  if (j && j.id) {",
+                  "    pm.collectionVariables.set('credential_id', String(j.id));",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/credentials",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "credentials"]
+            }
+          }
+        },
+        {
+          "name": "Rotate Operator Credential (signing_key once)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j && j.signing_key) {",
+                  "    pm.collectionVariables.set('operator_signing_key', j.signing_key);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/credentials/{{credential_id}}/rotate",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "admin",
+                "operators",
+                "{{operator_id}}",
+                "credentials",
+                "{{credential_id}}",
+                "rotate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Operator Game Assignments",
+      "item": [
+        {
+          "name": "Get Operator Games (effective assigned game_ids)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/games",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "games"]
+            }
+          }
+        },
+        {
+          "name": "Assign Games to Operator",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"game_ids\": [\"{{game_id_1}}\"]\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/games",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "games"]
+            }
+          }
+        },
+        {
+          "name": "Assign ALL Games to Operator",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/games/all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "games", "all"]
+            }
+          }
+        },
+        {
+          "name": "Revoke Games from Operator",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"game_ids\": [\"{{game_id_1}}\"]\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/games",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "games"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Operator Provider Assignments",
+      "item": [
+        {
+          "name": "Assign Provider to Operator",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"provider_id\": \"{{provider_id}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/providers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "providers"]
+            }
+          }
+        },
+        {
+          "name": "Revoke Provider from Operator",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/providers/{{provider_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "providers", "{{provider_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Operator Allowed Origins",
+      "item": [
+        {
+          "name": "Add Operator Allowed Origin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j && j.id) {",
+                  "    pm.collectionVariables.set('origin_id', String(j.id));",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"origin\": \"https://example.com\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/allowed-origins",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "allowed-origins"]
+            }
+          }
+        },
+        {
+          "name": "List Operator Allowed Origins",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/allowed-origins",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "allowed-origins"]
+            }
+          }
+        },
+        {
+          "name": "Remove Operator Allowed Origin",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/allowed-origins/{{origin_id}}",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "admin",
+                "operators",
+                "{{operator_id}}",
+                "allowed-origins",
+                "{{origin_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Operator Feature Flags",
+      "item": [
+        {
+          "name": "Get Operator Feature Flags",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/feature-flags",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "feature-flags"]
+            }
+          }
+        },
+        {
+          "name": "Update Operator Feature Flags",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flags\": {\n    \"feature_a\": true,\n    \"feature_b\": false\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/operators/{{operator_id}}/feature-flags",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "operators", "{{operator_id}}", "feature-flags"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Operator-facing - Game Catalog",
+      "item": [
+        {
+          "name": "Get Operator Catalog (UNSAFE - DEV/QA)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Operator-Id", "value": "{{operator_id}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/operator/games/catalog/unsafe",
+              "host": ["{{base_url}}"],
+              "path": ["api", "operator", "games", "catalog", "unsafe"]
+            }
+          }
+        },
+        {
+          "name": "Get Operator Catalog (SIGNED HMAC)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// HMAC payload for GET is raw query string. This request has no query => payload is empty string.",
+                  "const key = pm.collectionVariables.get('operator_signing_key') || '';",
+                  "if (!key) {",
+                  "  console.warn('operator_signing_key is empty. Run Create/Rotate Operator Credential and store signing_key first.');",
+                  "}",
+                  "const payload = pm.request.url.getQueryString() || '';",
+                  "const sig = CryptoJS.HmacSHA256(payload, key).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Operator-Id', value: pm.collectionVariables.get('operator_id') });",
+                  "pm.request.headers.upsert({ key: 'X-Operator-Signature', value: sig });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Operator-Id", "value": "{{operator_id}}" },
+              { "key": "X-Operator-Signature", "value": "" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/operator/games/catalog",
+              "host": ["{{base_url}}"],
+              "path": ["api", "operator", "games", "catalog"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groove - Launch Game (Operator Constraint)",
+      "item": [
+        {
+          "name": "Launch Game with operator_id (enforces operator assignments)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"game_id\": \"SOME_EXTERNAL_GAME_ID\",\n  \"device_type\": \"desktop\",\n  \"game_mode\": \"demo\",\n  \"operator_id\": {{operator_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/groove/launch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "groove", "launch"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+

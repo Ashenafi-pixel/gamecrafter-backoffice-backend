@@ -411,8 +411,32 @@ type Brand interface {
 
 // Operator defines storage operations related to operators and their game assignments.
 type Operator interface {
+	// Core CRUD and status
+	CreateOperator(ctx context.Context, req dto.CreateOperatorReq) (dto.Operator, error)
+	GetOperatorByID(ctx context.Context, operatorID int32) (dto.Operator, bool, error)
+	GetOperators(ctx context.Context, req dto.GetOperatorsReq) (dto.GetOperatorsRes, error)
+	UpdateOperator(ctx context.Context, req dto.UpdateOperatorReq) (dto.Operator, error)
+	DeleteOperator(ctx context.Context, operatorID int32) error
+	UpdateOperatorStatus(ctx context.Context, operatorID int32, isActive bool) error
+	// Credentials
+	CreateOperatorCredential(ctx context.Context, operatorID int32) (dto.OperatorCredentialRes, error)
+	RotateOperatorCredential(ctx context.Context, operatorID int32, credentialID int32) (dto.RotateOperatorCredentialRes, error)
+	GetActiveSigningKeyByOperatorID(ctx context.Context, operatorID int32) (string, error)
+	// Game / provider assignments
+	AssignAllGamesToOperator(ctx context.Context, operatorID int32) error
 	AssignGamesToOperator(ctx context.Context, operatorID int32, gameIDs []string) error
 	RevokeGamesFromOperator(ctx context.Context, operatorID int32, gameIDs []string) error
+	AssignProviderToOperator(ctx context.Context, operatorID int32, providerID string) error
+	RevokeProviderFromOperator(ctx context.Context, operatorID int32, providerID string) error
+	GetOperatorGameIDs(ctx context.Context, operatorID int32) ([]string, error)
+	GetOperatorGames(ctx context.Context, operatorID int32) ([]dto.GameResponse, error)
+	// Allowed origins
+	AddOperatorAllowedOrigin(ctx context.Context, operatorID int32, origin string) (dto.OperatorAllowedOriginRes, error)
+	RemoveOperatorAllowedOrigin(ctx context.Context, operatorID int32, originID int32) error
+	ListOperatorAllowedOrigins(ctx context.Context, operatorID int32) ([]dto.OperatorAllowedOriginRes, error)
+	// Feature flags
+	GetOperatorFeatureFlags(ctx context.Context, operatorID int32) (map[string]bool, error)
+	UpdateOperatorFeatureFlags(ctx context.Context, operatorID int32, flags map[string]bool) error
 }
 
 // internal/storage/storage.go - Update Provider interface
