@@ -324,8 +324,17 @@ type Operator interface {
 	ChangeOperatorStatus(c *gin.Context)
 	CreateOperatorCredential(c *gin.Context)
 	RotateOperatorCredential(c *gin.Context)
+	AssignAllGamesToOperator(c *gin.Context)
 	AssignGamesToOperator(c *gin.Context)
 	RevokeGamesFromOperator(c *gin.Context)
+	AssignProviderToOperator(c *gin.Context)
+	RevokeProviderFromOperator(c *gin.Context)
+	AddOperatorAllowedOrigin(c *gin.Context)
+	RemoveOperatorAllowedOrigin(c *gin.Context)
+	ListOperatorAllowedOrigins(c *gin.Context)
+	GetOperatorFeatureFlags(c *gin.Context)
+	UpdateOperatorFeatureFlags(c *gin.Context)
+	GetOperatorGames(c *gin.Context)
 }
 
 type Provider interface {

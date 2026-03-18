@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/persistencedb"
@@ -378,6 +380,299 @@ func (s *operatorStorage) RevokeGamesFromOperator(ctx context.Context, operatorI
 		return errors.ErrDBDelError.Wrap(err, "unable to revoke games from operator")
 	}
 
+	return nil
+}
+
+// AssignAllGamesToOperator assigns all existing games to the operator.
+func (s *operatorStorage) AssignAllGamesToOperator(ctx context.Context, operatorID int32) error {
+	// Insert all game IDs from games table into operator_games, ignoring duplicates.
+	query := `
+		INSERT INTO operator_games (operator_id, game_id, created_at)
+		SELECT $1, g.id, NOW()
+		FROM games g
+		ON CONFLICT (operator_id, game_id) DO NOTHING
+	`
+	if _, err := s.db.GetPool().Exec(ctx, query, operatorID); err != nil {
+		s.log.Error("unable to assign all games to operator", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return errors.ErrUnableTocreate.Wrap(err, "unable to assign all games to operator")
+	}
+	return nil
+}
+
+// AssignProviderToOperator creates an operator_providers row.
+func (s *operatorStorage) AssignProviderToOperator(ctx context.Context, operatorID int32, providerID string) error {
+	_, err := s.db.GetPool().Exec(ctx, `
+		INSERT INTO operator_providers (operator_id, provider_id)
+		VALUES ($1, $2::uuid)
+		ON CONFLICT (operator_id, provider_id) DO NOTHING
+	`, operatorID, providerID)
+	if err != nil {
+		s.log.Error("unable to assign provider to operator", zap.Error(err),
+			zap.Int32("operator_id", operatorID), zap.String("provider_id", providerID))
+		return errors.ErrUnableTocreate.Wrap(err, "unable to assign provider to operator")
+	}
+	return nil
+}
+
+// RevokeProviderFromOperator removes an operator_providers row.
+func (s *operatorStorage) RevokeProviderFromOperator(ctx context.Context, operatorID int32, providerID string) error {
+	_, err := s.db.GetPool().Exec(ctx, `
+		DELETE FROM operator_providers
+		WHERE operator_id = $1 AND provider_id = $2::uuid
+	`, operatorID, providerID)
+	if err != nil {
+		s.log.Error("unable to revoke provider from operator", zap.Error(err),
+			zap.Int32("operator_id", operatorID), zap.String("provider_id", providerID))
+		return errors.ErrDBDelError.Wrap(err, "unable to revoke provider from operator")
+	}
+	return nil
+}
+
+// GetOperatorGameIDs returns game IDs directly assigned to an operator via operator_games.
+func (s *operatorStorage) GetOperatorGameIDs(ctx context.Context, operatorID int32) ([]string, error) {
+	query := `
+		SELECT game_id::text
+		FROM operator_games
+		WHERE operator_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := s.db.GetPool().Query(ctx, query, operatorID)
+	if err != nil {
+		s.log.Error("unable to get operator game ids", zap.Error(err),
+			zap.Int32("operator_id", operatorID))
+		return nil, errors.ErrUnableToGet.Wrap(err, "unable to get operator game ids")
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, errors.ErrUnableToGet.Wrap(err, "unable to scan operator game id")
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.ErrUnableToGet.Wrap(err, "error reading operator game ids")
+	}
+	return ids, nil
+}
+
+// GetOperatorGames returns full game info for games directly assigned to an operator.
+func (s *operatorStorage) GetOperatorGames(ctx context.Context, operatorID int32) ([]dto.GameResponse, error) {
+	query := `
+		SELECT
+			g.id,
+			g.name,
+			g.status,
+			g.timestamp,
+			g.photo,
+			g.price,
+			g.enabled,
+			g.game_id,
+			g.internal_name,
+			g.integration_partner,
+			g.provider,
+			g.created_at,
+			g.updated_at
+		FROM operator_games og
+		JOIN games g ON g.id = og.game_id
+		WHERE og.operator_id = $1
+		ORDER BY og.created_at DESC
+	`
+
+	rows, err := s.db.GetPool().Query(ctx, query, operatorID)
+	if err != nil {
+		s.log.Error("unable to get operator games", zap.Error(err),
+			zap.Int32("operator_id", operatorID))
+		return nil, errors.ErrUnableToGet.Wrap(err, "unable to get operator games")
+	}
+	defer rows.Close()
+
+	var games []dto.GameResponse
+	for rows.Next() {
+		var g dto.GameResponse
+		// dto.GameResponse fields
+		var (
+			id                 uuid.UUID
+			name               string
+			status             string
+			timestamp          time.Time
+			photo              *string
+			price              *string
+			enabled            bool
+			gameID             *string
+			internalName       *string
+			integrationPartner *string
+			provider           *string
+			createdAt          time.Time
+			updatedAt          time.Time
+		)
+
+		if err := rows.Scan(
+			&id,
+			&name,
+			&status,
+			&timestamp,
+			&photo,
+			&price,
+			&enabled,
+			&gameID,
+			&internalName,
+			&integrationPartner,
+			&provider,
+			&createdAt,
+			&updatedAt,
+		); err != nil {
+			return nil, errors.ErrUnableToGet.Wrap(err, "unable to scan operator game")
+		}
+
+		g = dto.GameResponse{
+			ID:                 id,
+			Name:               name,
+			Status:             status,
+			Timestamp:          timestamp,
+			Photo:              photo,
+			Price:              price,
+			Enabled:            enabled,
+			GameID:             gameID,
+			InternalName:       internalName,
+			IntegrationPartner: integrationPartner,
+			Provider:           provider,
+			CreatedAt:          createdAt,
+			UpdatedAt:          updatedAt,
+		}
+		games = append(games, g)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.ErrUnableToGet.Wrap(err, "error reading operator games")
+	}
+	if games == nil {
+		games = []dto.GameResponse{}
+	}
+	return games, nil
+}
+
+// AddOperatorAllowedOrigin adds an allowed origin for operator embeds.
+func (s *operatorStorage) AddOperatorAllowedOrigin(ctx context.Context, operatorID int32, origin string) (dto.OperatorAllowedOriginRes, error) {
+	query := `
+		INSERT INTO operator_allowed_origins (operator_id, origin, created_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (operator_id, origin) DO UPDATE SET origin = EXCLUDED.origin
+		RETURNING id, operator_id, origin, created_at
+	`
+
+	var res dto.OperatorAllowedOriginRes
+	if err := s.db.GetPool().QueryRow(ctx, query, operatorID, origin).Scan(
+		&res.ID,
+		&res.OperatorID,
+		&res.Origin,
+		&res.CreatedAt,
+	); err != nil {
+		s.log.Error("unable to add operator allowed origin", zap.Error(err),
+			zap.Int32("operator_id", operatorID),
+			zap.String("origin", origin),
+		)
+		return dto.OperatorAllowedOriginRes{}, errors.ErrUnableTocreate.Wrap(err, "unable to add operator allowed origin")
+	}
+
+	return res, nil
+}
+
+// RemoveOperatorAllowedOrigin removes an allowed origin by ID.
+func (s *operatorStorage) RemoveOperatorAllowedOrigin(ctx context.Context, operatorID int32, originID int32) error {
+	commandTag, err := s.db.GetPool().Exec(ctx, `
+		DELETE FROM operator_allowed_origins
+		WHERE operator_id = $1 AND id = $2
+	`, operatorID, originID)
+	if err != nil {
+		s.log.Error("unable to remove operator allowed origin", zap.Error(err),
+			zap.Int32("operator_id", operatorID),
+			zap.Int32("origin_id", originID),
+		)
+		return errors.ErrDBDelError.Wrap(err, "unable to remove operator allowed origin")
+	}
+	if commandTag.RowsAffected() == 0 {
+		return errors.ErrResourceNotFound.New("operator allowed origin not found")
+	}
+	return nil
+}
+
+// ListOperatorAllowedOrigins lists allowed origins for an operator.
+func (s *operatorStorage) ListOperatorAllowedOrigins(ctx context.Context, operatorID int32) ([]dto.OperatorAllowedOriginRes, error) {
+	rows, err := s.db.GetPool().Query(ctx, `
+		SELECT id, operator_id, origin, created_at
+		FROM operator_allowed_origins
+		WHERE operator_id = $1
+		ORDER BY created_at DESC
+	`, operatorID)
+	if err != nil {
+		s.log.Error("unable to list operator allowed origins", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return nil, errors.ErrReadError.Wrap(err, "unable to list operator allowed origins")
+	}
+	defer rows.Close()
+
+	var origins []dto.OperatorAllowedOriginRes
+	for rows.Next() {
+		var origin dto.OperatorAllowedOriginRes
+		if err := rows.Scan(&origin.ID, &origin.OperatorID, &origin.Origin, &origin.CreatedAt); err != nil {
+			s.log.Error("unable to scan operator allowed origin", zap.Error(err))
+			return nil, errors.ErrReadError.Wrap(err, "unable to scan operator allowed origin")
+		}
+		origins = append(origins, origin)
+	}
+	return origins, nil
+}
+
+// GetOperatorFeatureFlags returns operator feature flags (jsonb) as a map.
+func (s *operatorStorage) GetOperatorFeatureFlags(ctx context.Context, operatorID int32) (map[string]bool, error) {
+	var flagsJSON []byte
+	query := `
+		SELECT COALESCE(flags, '{}'::jsonb)
+		FROM operator_feature_flags
+		WHERE operator_id = $1
+	`
+
+	err := s.db.GetPool().QueryRow(ctx, query, operatorID).Scan(&flagsJSON)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return map[string]bool{}, nil
+		}
+		s.log.Error("unable to get operator feature flags", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return nil, errors.ErrReadError.Wrap(err, "unable to get operator feature flags")
+	}
+
+	var flags map[string]bool
+	if len(flagsJSON) == 0 {
+		return map[string]bool{}, nil
+	}
+	if err := json.Unmarshal(flagsJSON, &flags); err != nil {
+		s.log.Error("unable to unmarshal operator feature flags", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return nil, errors.ErrReadError.Wrap(err, "unable to decode operator feature flags")
+	}
+	if flags == nil {
+		flags = map[string]bool{}
+	}
+	return flags, nil
+}
+
+// UpdateOperatorFeatureFlags upserts operator feature flags (jsonb).
+func (s *operatorStorage) UpdateOperatorFeatureFlags(ctx context.Context, operatorID int32, flags map[string]bool) error {
+	flagsBytes, err := json.Marshal(flags)
+	if err != nil {
+		return errors.ErrUnableToUpdate.Wrap(err, "unable to encode operator feature flags")
+	}
+
+	_, err = s.db.GetPool().Exec(ctx, `
+		INSERT INTO operator_feature_flags (operator_id, flags, created_at, updated_at)
+		VALUES ($1, $2::jsonb, NOW(), NOW())
+		ON CONFLICT (operator_id)
+		DO UPDATE SET flags = EXCLUDED.flags, updated_at = NOW()
+	`, operatorID, string(flagsBytes))
+	if err != nil {
+		s.log.Error("unable to update operator feature flags", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return errors.ErrUnableToUpdate.Wrap(err, "unable to update operator feature flags")
+	}
 	return nil
 }
 

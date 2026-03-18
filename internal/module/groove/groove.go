@@ -80,19 +80,21 @@ type GrooveServiceImpl struct {
 	cashbackService    CashbackService
 	userStorage        storage.User
 	brandStorage       storage.Brand
+	operatorStorage    storage.Operator
 	gameStorage        gameStorage.GameStorage
 	userWS             utils.UserWS
 	falconService      falcon_liquidity.FalconLiquidityService
 	logger             *zap.Logger
 }
 
-func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, brandStorage storage.Brand, gameStorage gameStorage.GameStorage, userWS utils.UserWS, falconService falcon_liquidity.FalconLiquidityService, logger *zap.Logger) GrooveService {
+func NewGrooveService(storage groove.GrooveStorage, gameSessionStorage groove.GameSessionStorage, cashbackService CashbackService, userStorage storage.User, brandStorage storage.Brand, operatorStorage storage.Operator, gameStorage gameStorage.GameStorage, userWS utils.UserWS, falconService falcon_liquidity.FalconLiquidityService, logger *zap.Logger) GrooveService {
 	return &GrooveServiceImpl{
 		storage:            storage,
 		gameSessionStorage: gameSessionStorage,
 		cashbackService:    cashbackService,
 		userStorage:        userStorage,
 		brandStorage:       brandStorage,
+		operatorStorage:    operatorStorage,
 		gameStorage:        gameStorage,
 		userWS:             userWS,
 		falconService:      falconService,
@@ -1540,6 +1542,82 @@ func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, re
 		}
 		if !allowed {
 			s.logger.Warn("Game not allowed for brand", zap.Int32("brand_id", brandID), zap.String("game_id", req.GameID), zap.String("internal_game_id", gameUUID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "GAME_NOT_ALLOWED",
+				Message:   "Game is not allowed for this operator",
+			}, fmt.Errorf("game not allowed for operator")
+		}
+	}
+
+	// If an operator ID is provided, enforce operator status and game assignment.
+	if req.OperatorID != nil {
+		operatorID := *req.OperatorID
+
+		operator, exists, err := s.operatorStorage.GetOperatorByID(ctx, operatorID)
+		if err != nil {
+			s.logger.Error("Failed to load operator for launch", zap.Error(err), zap.Int32("operator_id", operatorID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_LOOKUP_FAILED",
+				Message:   "Failed to load operator information",
+			}, err
+		}
+		if !exists {
+			s.logger.Warn("Operator not found for launch", zap.Int32("operator_id", operatorID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_NOT_FOUND",
+				Message:   "Operator not found",
+			}, fmt.Errorf("operator not found")
+		}
+		if !operator.IsActive {
+			s.logger.Warn("Operator is inactive for launch", zap.Int32("operator_id", operatorID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_DISABLED",
+				Message:   "Operator is disabled",
+			}, fmt.Errorf("operator disabled")
+		}
+
+		gameModel, err := s.gameStorage.GetGameByGameID(ctx, req.GameID)
+		if err != nil {
+			s.logger.Error("Failed to load game for operator check", zap.Error(err), zap.String("game_id", req.GameID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "GAME_LOOKUP_FAILED",
+				Message:   "Failed to load game information",
+			}, err
+		}
+		if gameModel == nil {
+			s.logger.Warn("Game not found for launch", zap.String("game_id", req.GameID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "GAME_NOT_FOUND",
+				Message:   "Game not found",
+			}, fmt.Errorf("game not found")
+		}
+
+		operatorGameIDs, err := s.operatorStorage.GetOperatorGameIDs(ctx, operatorID)
+		if err != nil {
+			s.logger.Error("Failed to get operator game ids for launch", zap.Error(err), zap.Int32("operator_id", operatorID))
+			return &dto.LaunchGameResponse{
+				Success:   false,
+				ErrorCode: "OPERATOR_GAME_LOOKUP_FAILED",
+				Message:   "Failed to check operator game assignments",
+			}, err
+		}
+
+		allowed := false
+		gameUUID := gameModel.ID.String()
+		for _, gid := range operatorGameIDs {
+			if gid == gameUUID {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			s.logger.Warn("Game not allowed for operator", zap.Int32("operator_id", operatorID), zap.String("game_id", req.GameID), zap.String("internal_game_id", gameUUID))
 			return &dto.LaunchGameResponse{
 				Success:   false,
 				ErrorCode: "GAME_NOT_ALLOWED",

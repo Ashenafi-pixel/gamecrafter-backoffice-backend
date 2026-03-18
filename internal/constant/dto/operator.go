@@ -76,3 +76,36 @@ type RotateOperatorCredentialRes struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// Operator allowed origins DTOs
+
+type AddOperatorAllowedOriginReq struct {
+	Origin string `json:"origin" validate:"required,min=1,max=255"`
+}
+
+type OperatorAllowedOriginRes struct {
+	ID         int32     `json:"id"`
+	OperatorID int32     `json:"operator_id"`
+	Origin     string    `json:"origin"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type ListOperatorAllowedOriginsRes struct {
+	Origins []OperatorAllowedOriginRes `json:"origins"`
+}
+
+// Operator feature flags DTOs
+
+type OperatorFeatureFlagsRes struct {
+	Flags map[string]bool `json:"flags"`
+}
+
+type UpdateOperatorFeatureFlagsReq struct {
+	Flags map[string]bool `json:"flags"`
+}
+
+// --- Operator Game / Provider Assignment ---
+
+type AssignOperatorProviderReq struct {
+	ProviderID string `json:"provider_id" validate:"required"`
+}
+

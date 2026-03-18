@@ -2,6 +2,7 @@ package operator
 
 import (
 	"context"
+	"strings"
 
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
@@ -111,6 +112,21 @@ func (m *operatorModule) GetActiveSigningKeyByOperatorID(ctx context.Context, op
 	return m.storage.GetActiveSigningKeyByOperatorID(ctx, operatorID)
 }
 
+func (m *operatorModule) AssignAllGamesToOperator(ctx context.Context, operatorID int32) error {
+	if operatorID < 100000 || operatorID > 999999 {
+		return errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	// Ensure operator exists
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("operator not found")
+	}
+	return m.storage.AssignAllGamesToOperator(ctx, operatorID)
+}
+
 func (m *operatorModule) AssignGamesToOperator(ctx context.Context, operatorID int32, gameIDs []string) error {
 	if operatorID <= 0 {
 		return errors.ErrInvalidUserInput.New("invalid operator ID")
@@ -131,6 +147,165 @@ func (m *operatorModule) RevokeGamesFromOperator(ctx context.Context, operatorID
 	}
 
 	return m.storage.RevokeGamesFromOperator(ctx, operatorID, gameIDs)
+}
+
+func (m *operatorModule) AssignProviderToOperator(ctx context.Context, operatorID int32, providerID string) error {
+	if operatorID < 100000 || operatorID > 999999 {
+		return errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	if providerID == "" {
+		return errors.ErrInvalidUserInput.New("provider_id is required")
+	}
+
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("operator not found")
+	}
+
+	return m.storage.AssignProviderToOperator(ctx, operatorID, providerID)
+}
+
+func (m *operatorModule) RevokeProviderFromOperator(ctx context.Context, operatorID int32, providerID string) error {
+	if operatorID < 100000 || operatorID > 999999 {
+		return errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	if providerID == "" {
+		return errors.ErrInvalidUserInput.New("provider_id is required")
+	}
+
+	return m.storage.RevokeProviderFromOperator(ctx, operatorID, providerID)
+}
+
+func (m *operatorModule) GetOperatorGameIDs(ctx context.Context, operatorID int32) ([]string, error) {
+	if operatorID < 100000 || operatorID > 999999 {
+		return nil, errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.ErrResourceNotFound.New("operator not found")
+	}
+
+	return m.storage.GetOperatorGameIDs(ctx, operatorID)
+}
+
+func (m *operatorModule) GetOperatorGames(ctx context.Context, operatorID int32) ([]dto.GameResponse, error) {
+	if operatorID < 100000 || operatorID > 999999 {
+		return nil, errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.ErrResourceNotFound.New("operator not found")
+	}
+
+	return m.storage.GetOperatorGames(ctx, operatorID)
+}
+
+func (m *operatorModule) AddOperatorAllowedOrigin(ctx context.Context, operatorID int32, req dto.AddOperatorAllowedOriginReq) (dto.OperatorAllowedOriginRes, error) {
+	if operatorID < 100000 || operatorID > 999999 {
+		return dto.OperatorAllowedOriginRes{}, errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	origin := strings.TrimSpace(req.Origin)
+	if origin == "" {
+		return dto.OperatorAllowedOriginRes{}, errors.ErrInvalidUserInput.New("origin is required")
+	}
+	if len(origin) > 255 {
+		return dto.OperatorAllowedOriginRes{}, errors.ErrInvalidUserInput.New("origin is too long")
+	}
+	// Ensure operator exists
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return dto.OperatorAllowedOriginRes{}, err
+	}
+	if !exists {
+		return dto.OperatorAllowedOriginRes{}, errors.ErrResourceNotFound.New("operator not found")
+	}
+	return m.storage.AddOperatorAllowedOrigin(ctx, operatorID, origin)
+}
+
+func (m *operatorModule) RemoveOperatorAllowedOrigin(ctx context.Context, operatorID int32, originID int32) error {
+	if operatorID < 100000 || operatorID > 999999 || originID <= 0 {
+		return errors.ErrInvalidUserInput.New("invalid operator or origin ID")
+	}
+	// Ensure operator exists
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("operator not found")
+	}
+	return m.storage.RemoveOperatorAllowedOrigin(ctx, operatorID, originID)
+}
+
+func (m *operatorModule) ListOperatorAllowedOrigins(ctx context.Context, operatorID int32) (dto.ListOperatorAllowedOriginsRes, error) {
+	if operatorID < 100000 || operatorID > 999999 {
+		return dto.ListOperatorAllowedOriginsRes{}, errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	// Ensure operator exists
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return dto.ListOperatorAllowedOriginsRes{}, err
+	}
+	if !exists {
+		return dto.ListOperatorAllowedOriginsRes{}, errors.ErrResourceNotFound.New("operator not found")
+	}
+	origins, err := m.storage.ListOperatorAllowedOrigins(ctx, operatorID)
+	if err != nil {
+		return dto.ListOperatorAllowedOriginsRes{}, err
+	}
+	return dto.ListOperatorAllowedOriginsRes{Origins: origins}, nil
+}
+
+func (m *operatorModule) GetOperatorFeatureFlags(ctx context.Context, operatorID int32) (dto.OperatorFeatureFlagsRes, error) {
+	if operatorID < 100000 || operatorID > 999999 {
+		return dto.OperatorFeatureFlagsRes{}, errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	// Ensure operator exists
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return dto.OperatorFeatureFlagsRes{}, err
+	}
+	if !exists {
+		return dto.OperatorFeatureFlagsRes{}, errors.ErrResourceNotFound.New("operator not found")
+	}
+
+	flags, err := m.storage.GetOperatorFeatureFlags(ctx, operatorID)
+	if err != nil {
+		return dto.OperatorFeatureFlagsRes{}, err
+	}
+	if flags == nil {
+		flags = map[string]bool{}
+	}
+	return dto.OperatorFeatureFlagsRes{Flags: flags}, nil
+}
+
+func (m *operatorModule) UpdateOperatorFeatureFlags(ctx context.Context, operatorID int32, req dto.UpdateOperatorFeatureFlagsReq) error {
+	if operatorID < 100000 || operatorID > 999999 {
+		return errors.ErrInvalidUserInput.New("invalid operator ID")
+	}
+	if req.Flags == nil {
+		return errors.ErrInvalidUserInput.New("flags is required")
+	}
+	// Ensure operator exists
+	_, exists, err := m.storage.GetOperatorByID(ctx, operatorID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.ErrResourceNotFound.New("operator not found")
+	}
+	return m.storage.UpdateOperatorFeatureFlags(ctx, operatorID, req.Flags)
 }
 
 var _ module.Operator = (*operatorModule)(nil)

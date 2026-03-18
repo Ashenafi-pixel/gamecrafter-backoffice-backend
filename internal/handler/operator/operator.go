@@ -59,11 +59,28 @@ func (h *OperatorHandler) RotateOperatorCredential(c *gin.Context) {
 	response.SendSuccessResponse(c, http.StatusOK, res)
 }
 
+// AssignAllGamesToOperator assigns all games in the system to this operator.
+func (h *OperatorHandler) AssignAllGamesToOperator(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	if err := h.operatorModule.AssignAllGamesToOperator(c.Request.Context(), operatorID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, gin.H{
+		"message": "all games assigned to operator",
+	})
+}
+
 // CreateOperator creates a new operator.
 func (h *OperatorHandler) CreateOperator(c *gin.Context) {
 	var req dto.CreateOperatorReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
 		return
 	}
 
@@ -118,7 +135,7 @@ func (h *OperatorHandler) UpdateOperator(c *gin.Context) {
 
 	var req dto.UpdateOperatorReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
 		return
 	}
 	req.OperatorID = operatorID
@@ -156,7 +173,7 @@ func (h *OperatorHandler) ChangeOperatorStatus(c *gin.Context) {
 
 	var req dto.ChangeOperatorStatusReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
 		return
 	}
 
@@ -177,7 +194,7 @@ func (h *OperatorHandler) AssignGamesToOperator(c *gin.Context) {
 
 	var req dto.AssignOperatorGamesReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
 		return
 	}
 
@@ -201,7 +218,7 @@ func (h *OperatorHandler) RevokeGamesFromOperator(c *gin.Context) {
 
 	var req dto.AssignOperatorGamesReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, err.Error()))
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
 		return
 	}
 
@@ -213,6 +230,170 @@ func (h *OperatorHandler) RevokeGamesFromOperator(c *gin.Context) {
 	response.SendSuccessResponse(c, http.StatusOK, gin.H{
 		"message":  "games revoked from operator",
 		"game_ids": req.GameIDs,
+	})
+}
+
+// AssignProviderToOperator assigns a whole provider to an operator.
+func (h *OperatorHandler) AssignProviderToOperator(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.AssignOperatorProviderReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
+		return
+	}
+
+	if err := h.operatorModule.AssignProviderToOperator(c.Request.Context(), operatorID, req.ProviderID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, gin.H{"message": "provider assigned"})
+}
+
+// RevokeProviderFromOperator revokes a provider from an operator.
+func (h *OperatorHandler) RevokeProviderFromOperator(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	providerID := c.Param("providerId")
+	if providerID == "" {
+		_ = c.Error(errors.ErrInvalidUserInput.New("provider_id is required"))
+		return
+	}
+
+	if err := h.operatorModule.RevokeProviderFromOperator(c.Request.Context(), operatorID, providerID); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusNoContent, nil)
+}
+
+// AddOperatorAllowedOrigin adds an allowed embed origin for an operator.
+func (h *OperatorHandler) AddOperatorAllowedOrigin(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.AddOperatorAllowedOriginReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
+		return
+	}
+
+	res, err := h.operatorModule.AddOperatorAllowedOrigin(c.Request.Context(), operatorID, req)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusCreated, res)
+}
+
+// RemoveOperatorAllowedOrigin removes an allowed origin for an operator by origin ID.
+func (h *OperatorHandler) RemoveOperatorAllowedOrigin(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	originIDStr := c.Param("originId")
+	originID, err := strconv.ParseInt(originIDStr, 10, 32)
+	if err != nil || originID <= 0 {
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid origin ID format"))
+		return
+	}
+
+	if err := h.operatorModule.RemoveOperatorAllowedOrigin(c.Request.Context(), operatorID, int32(originID)); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusNoContent, nil)
+}
+
+// ListOperatorAllowedOrigins lists allowed origins for an operator.
+func (h *OperatorHandler) ListOperatorAllowedOrigins(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	res, err := h.operatorModule.ListOperatorAllowedOrigins(c.Request.Context(), operatorID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, res)
+}
+
+// GetOperatorFeatureFlags returns feature flags for an operator.
+func (h *OperatorHandler) GetOperatorFeatureFlags(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	res, err := h.operatorModule.GetOperatorFeatureFlags(c.Request.Context(), operatorID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, res)
+}
+
+// UpdateOperatorFeatureFlags updates feature flags for an operator.
+func (h *OperatorHandler) UpdateOperatorFeatureFlags(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.UpdateOperatorFeatureFlagsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(errors.ErrInvalidUserInput.Wrap(err, "invalid request body"))
+		return
+	}
+
+	if err := h.operatorModule.UpdateOperatorFeatureFlags(c.Request.Context(), operatorID, req); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	flags, err := h.operatorModule.GetOperatorFeatureFlags(c.Request.Context(), operatorID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, flags)
+}
+
+// GetOperatorGames lists effective game IDs assigned to an operator (direct + via providers).
+func (h *OperatorHandler) GetOperatorGames(c *gin.Context) {
+	operatorID, ok := parseOperatorID(c)
+	if !ok {
+		return
+	}
+
+	games, err := h.operatorModule.GetOperatorGames(c.Request.Context(), operatorID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	response.SendSuccessResponse(c, http.StatusOK, gin.H{
+		"operator_id": operatorID,
+		"games":       games,
 	})
 }
 
