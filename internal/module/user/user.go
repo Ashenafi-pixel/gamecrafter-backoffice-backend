@@ -774,6 +774,17 @@ func (u *User) Login(ctx context.Context, loginRequest dto.UserLoginReq, loginLo
 	loginLogs.UserID = usr.ID
 	loginLogs.Success = true
 	loginLogs.AttemptTime = time.Now()
+
+	// Check if player account is suspended
+	// (admin suspension is checked below in the adminLogin branch)
+	if !adminLogin && usr.Status == "SUSPENDED" {
+		err = fmt.Errorf("user account is suspended and cannot login")
+		u.log.Warn("Suspended user attempted login", zap.String("user_id", usr.ID.String()), zap.String("username", usr.Username))
+		loginLogs.Success = false
+		u.logsStorage.CreateLoginAttempts(ctx, loginLogs)
+		return dto.UserLoginRes{}, "", errors.ErrInvalidUserInput.Wrap(err, err.Error())
+	}
+
 	if adminLogin {
 		if !usr.IsAdmin {
 			err = fmt.Errorf("unauthorized")

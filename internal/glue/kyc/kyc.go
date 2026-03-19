@@ -19,7 +19,7 @@ func Init(
 	systemLogs module.SystemLogs,
 ) {
 	kycRoutes := []routing.Route{
-		// Create KYC document (for testing - Postman only)
+		// Create KYC document (for testing - Postman only, JSON body with file_url)
 		{
 			Method:  http.MethodPost,
 			Path:    "/api/admin/kyc/document/create",
@@ -29,6 +29,18 @@ func Init(
 				middleware.Auth(),
 				middleware.Authz(authModule, "create kyc documents", http.MethodPost),
 				middleware.SystemLogs("Create KYC Document", &log, systemLogs),
+			},
+		},
+		// Upload KYC document (multipart: stores file on disk, path in DB)
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/kyc/documents/upload",
+			Handler: kyc.UploadKYCDocument,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "create kyc documents", http.MethodPost),
+				middleware.SystemLogs("Upload KYC Document", &log, systemLogs),
 			},
 		},
 		// Get user's KYC documents
@@ -42,6 +54,66 @@ func Init(
 				// Align with seeded permissions list
 				middleware.Authz(authModule, "view kyc management", http.MethodGet),
 				middleware.SystemLogs("Get KYC Documents", &log, systemLogs),
+			},
+		},
+		// Get operator KYC documents (operator entity)
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/operators/:operator_id/kyc/documents",
+			Handler: kyc.GetOperatorKYCDocuments,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
+				middleware.SystemLogs("Get Operator KYC Documents", &log, systemLogs),
+			},
+		},
+		// Upload operator KYC document (multipart)
+		{
+			Method:  http.MethodPost,
+			Path:    "/api/admin/operators/:operator_id/kyc/documents/upload",
+			Handler: kyc.UploadOperatorKYCDocument,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "create kyc documents", http.MethodPost),
+				middleware.SystemLogs("Upload Operator KYC Document", &log, systemLogs),
+			},
+		},
+		// Update operator KYC document status
+		{
+			Method:  http.MethodPut,
+			Path:    "/api/admin/operators/:operator_id/kyc/document/status",
+			Handler: kyc.UpdateOperatorDocumentStatus,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "approve kyc", http.MethodPut),
+				middleware.SystemLogs("Update Operator KYC Document Status", &log, systemLogs),
+			},
+		},
+		// Get operator KYC submissions
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/operators/:operator_id/kyc/submissions",
+			Handler: kyc.GetOperatorKYCSubmissions,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
+				middleware.SystemLogs("Get Operator KYC Submissions", &log, systemLogs),
+			},
+		},
+		// Download operator KYC document file
+		{
+			Method:  http.MethodGet,
+			Path:    "/api/admin/operators/:operator_id/kyc/documents/:document_id/download",
+			Handler: kyc.DownloadOperatorKYCDocument,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				middleware.Authz(authModule, "view kyc management", http.MethodGet),
+				middleware.SystemLogs("Download Operator KYC Document", &log, systemLogs),
 			},
 		},
 		// Update document status

@@ -508,7 +508,13 @@ type AdminActivityLogs interface {
 
 type KYC interface {
 	CreateKYCDocument(c *gin.Context) // POST /api/admin/kyc/document/create
+	UploadKYCDocument(c *gin.Context) // POST /api/admin/kyc/documents/upload (multipart)
 	GetKYCDocuments(c *gin.Context)   // GET /api/admin/kyc/documents/:user_id
+	GetOperatorKYCDocuments(c *gin.Context) // GET /api/admin/operators/:operator_id/kyc/documents
+	UploadOperatorKYCDocument(c *gin.Context) // POST /api/admin/operators/:operator_id/kyc/documents/upload
+	UpdateOperatorDocumentStatus(c *gin.Context) // PUT /api/admin/operators/:operator_id/kyc/document/status
+	GetOperatorKYCSubmissions(c *gin.Context) // GET /api/admin/operators/:operator_id/kyc/submissions
+	DownloadOperatorKYCDocument(c *gin.Context) // GET /api/admin/operators/:operator_id/kyc/documents/:document_id/download
 	UpdateDocumentStatus(c *gin.Context)
 	UpdateUserKYCStatus(c *gin.Context)
 	GetUserKYCStatus(c *gin.Context) // GET /api/admin/kyc/user/:user_id/status

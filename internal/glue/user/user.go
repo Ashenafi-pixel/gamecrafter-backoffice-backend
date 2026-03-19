@@ -29,6 +29,7 @@ type UserHandler interface {
 	HandleFacebookOauthRes(c *gin.Context)
 	BlockAccount(c *gin.Context)
 	GetBlockedAccount(c *gin.Context)
+	UnblockAccount(c *gin.Context)
 	AddIpFilter(c *gin.Context)
 	GetIpFilter(c *gin.Context)
 	AdminUpdateProfile(c *gin.Context)
@@ -238,6 +239,17 @@ func Init(
 				// Align with seeded permissions list
 				middleware.Authz(authModule, "block player", http.MethodPost),
 				middleware.SystemLogs("block user account", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodPost,
+			Path:    "/api/admin/users/unblock",
+			Handler: user.UnblockAccount,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "block player", http.MethodPost),
+				middleware.SystemLogs("unblock user account", &log, systemLog),
 			},
 		}, {
 			Method:  http.MethodPost,

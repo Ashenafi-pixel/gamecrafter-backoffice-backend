@@ -29,6 +29,7 @@ type User interface {
 	HandleFacebookOauthRes(ctx context.Context, code string, loginattempt dto.LoginAttempt) (dto.UserRegisterResponse, error)
 	BlockUser(ctx context.Context, blockAcc dto.AccountBlockReq) (dto.AccountBlockRes, error)
 	GetBlockedAccount(ctx context.Context, blockAccountReq dto.GetBlockedAccountLogReq) ([]dto.GetBlockedAccountLogRep, error)
+	UnblockUser(ctx context.Context, req dto.UnblockAccountReq, adminID uuid.UUID) (dto.UnblockAccountRes, error)
 	AddIpFilter(ctx context.Context, ipFilter dto.IpFilterReq) (dto.IPFilterRes, error)
 	GetIPFilters(ctx context.Context, getIPFilterReq dto.GetIPFilterReq) (dto.GetIPFilterRes, error)
 	EnforceIPFilerRule(ctx context.Context, ip string) (bool, error)

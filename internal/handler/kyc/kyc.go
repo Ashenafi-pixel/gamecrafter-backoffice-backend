@@ -1,12 +1,17 @@
 package kyc
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/spf13/viper"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/storage/admin_activity_logs"
 	"github.com/tucanbit/internal/storage/kyc"
@@ -126,6 +131,118 @@ func (h *KYCHandler) CreateKYCDocument(ctx *gin.Context) {
 	})
 }
 
+// UploadKYCDocument handles file upload for KYC documents:
+// - saves the file to a configured folder on disk
+// - stores only the file path (URL) and name in kyc_documents.
+func (h *KYCHandler) UploadKYCDocument(ctx *gin.Context) {
+	userIDStr := ctx.PostForm("user_id")
+	documentType := ctx.PostForm("document_type")
+
+	if userIDStr == "" || documentType == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "user_id and document_type are required",
+		})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		h.log.Error("Invalid user_id", zap.Error(err), zap.String("user_id", userIDStr))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid user_id",
+		})
+		return
+	}
+
+	// Retrieve uploaded file
+	file, header, err := ctx.Request.FormFile("file")
+	if err != nil {
+		h.log.Error("Failed to read uploaded file", zap.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "file is required",
+		})
+		return
+	}
+	defer file.Close()
+
+	// Determine base upload directory (configurable)
+	baseDir := viper.GetString("kyc.upload_dir")
+	if baseDir == "" {
+		baseDir = "./uploads/kyc"
+	}
+
+	// Build user-specific folder and destination path
+	userDir := filepath.Join(baseDir, userID.String())
+	if err := os.MkdirAll(userDir, 0o755); err != nil {
+		h.log.Error("Failed to create KYC upload directory", zap.Error(err), zap.String("dir", userDir))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to prepare upload directory",
+		})
+		return
+	}
+
+	filename := header.Filename
+	if filename == "" {
+		filename = documentType + "_" + time.Now().Format("20060102150405")
+	}
+	destPath := filepath.Join(userDir, time.Now().Format("20060102150405_")+filename)
+
+	// Save file to disk
+	if err := ctx.SaveUploadedFile(header, destPath); err != nil {
+		h.log.Error("Failed to save uploaded file", zap.Error(err), zap.String("path", destPath))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to save uploaded file",
+		})
+		return
+	}
+
+	fileURL := destPath
+	now := time.Now()
+	doc := &dto.KYCDocument{
+		ID:           uuid.New(),
+		UserID:       userID,
+		DocumentType: documentType,
+		FileUrl:      fileURL,
+		FileName:     filename,
+		UploadDate:   now,
+		Status:       dto.DocumentStatusPending,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	createdDoc, err := h.kycStorage.CreateDocument(ctx.Request.Context(), doc)
+	if err != nil {
+		h.log.Error("Failed to create KYC document", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to create KYC document",
+		})
+		return
+	}
+
+	// Log admin activity (if admin in context)
+	if adminUserID, exists := ctx.Get("user_id"); exists {
+		h.logAdminActivity(ctx, "upload", "kyc_document", "Uploaded KYC document", map[string]interface{}{
+			"user_id":       userID,
+			"document_id":   createdDoc.ID,
+			"document_type": documentType,
+			"file_url":      fileURL,
+			"created_by":    adminUserID,
+		})
+	}
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    createdDoc,
+		"message": "KYC document uploaded successfully",
+	})
+}
+
 // GetKYCDocuments retrieves all KYC documents for a user
 func (h *KYCHandler) GetKYCDocuments(ctx *gin.Context) {
 	userIDStr := ctx.Param("user_id")
@@ -155,6 +272,219 @@ func (h *KYCHandler) GetKYCDocuments(ctx *gin.Context) {
 		"total":   len(documents),
 		"message": "KYC documents retrieved successfully",
 	})
+}
+
+// GetOperatorKYCDocuments retrieves KYC documents for all users under an operator.
+func (h *KYCHandler) GetOperatorKYCDocuments(ctx *gin.Context) {
+	operatorIDStr := ctx.Param("operator_id")
+	operatorID64, err := strconv.ParseInt(operatorIDStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid operator ID",
+		})
+		return
+	}
+
+	limit := 20
+	offset := 0
+	if v := ctx.Query("limit"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if v := ctx.Query("offset"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	documents, total, err := h.kycStorage.GetDocumentsByOperatorID(ctx.Request.Context(), int32(operatorID64), limit, offset)
+	if err != nil {
+		h.log.Error("Failed to get operator KYC documents", zap.Error(err), zap.Int32("operator_id", int32(operatorID64)))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to get operator KYC documents",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    documents,
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
+		"message": "Operator KYC documents retrieved successfully",
+	})
+}
+
+// UploadOperatorKYCDocument uploads a document for an operator (entity-level KYC).
+func (h *KYCHandler) UploadOperatorKYCDocument(ctx *gin.Context) {
+	operatorIDStr := ctx.Param("operator_id")
+	operatorID64, err := strconv.ParseInt(operatorIDStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid operator ID"})
+		return
+	}
+
+	documentType := ctx.PostForm("document_type")
+	if documentType == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "document_type is required"})
+		return
+	}
+
+	_, header, err := ctx.Request.FormFile("file")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "file is required"})
+		return
+	}
+
+	baseDir := viper.GetString("kyc.operator_upload_dir")
+	if baseDir == "" {
+		baseDir = "./uploads/operator_kyc"
+	}
+	operatorDir := filepath.Join(baseDir, operatorIDStr)
+	if err := os.MkdirAll(operatorDir, 0o755); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to prepare upload directory"})
+		return
+	}
+	filename := header.Filename
+	if filename == "" {
+		filename = documentType + "_" + time.Now().Format("20060102150405")
+	}
+	destPath := filepath.Join(operatorDir, time.Now().Format("20060102150405_")+filename)
+	if err := ctx.SaveUploadedFile(header, destPath); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to save uploaded file"})
+		return
+	}
+
+	now := time.Now()
+	doc := &dto.OperatorKYCDocument{
+		ID:           uuid.New(),
+		OperatorID:   int32(operatorID64),
+		DocumentType: documentType,
+		FileURL:      destPath,
+		FileName:     filename,
+		UploadDate:   now,
+		Status:       dto.DocumentStatusPending,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	createdDoc, err := h.kycStorage.CreateOperatorDocument(ctx.Request.Context(), doc)
+	if err != nil {
+		h.log.Error("Failed to create operator KYC document", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create operator KYC document"})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    createdDoc,
+		"message": "Operator KYC document uploaded successfully",
+	})
+}
+
+func (h *KYCHandler) UpdateOperatorDocumentStatus(ctx *gin.Context) {
+	var req struct {
+		DocumentID      uuid.UUID `json:"document_id" binding:"required"`
+		Status          string    `json:"status" binding:"required"`
+		RejectionReason *string   `json:"rejection_reason,omitempty"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request body"})
+		return
+	}
+	adminUserID, exists := ctx.Get("user_id")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+	adminUUID, ok := adminUserID.(uuid.UUID)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid admin user ID"})
+		return
+	}
+	if err := h.kycStorage.UpdateOperatorDocumentStatus(ctx.Request.Context(), req.DocumentID, req.Status, req.RejectionReason, adminUUID); err != nil {
+		h.log.Error("Failed to update operator KYC document status", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to update operator KYC document status", "error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"success": true, "message": "Operator document status updated successfully"})
+}
+
+func (h *KYCHandler) GetOperatorKYCSubmissions(ctx *gin.Context) {
+	operatorIDStr := ctx.Param("operator_id")
+	operatorID64, err := strconv.ParseInt(operatorIDStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid operator ID"})
+		return
+	}
+	limit := 20
+	offset := 0
+	if v := ctx.Query("limit"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if v := ctx.Query("offset"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+	items, total, err := h.kycStorage.GetOperatorSubmissions(ctx.Request.Context(), int32(operatorID64), limit, offset)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to get operator KYC submissions", "error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    items,
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
+		"message": "Operator KYC submissions retrieved successfully",
+	})
+}
+
+// DownloadOperatorKYCDocument streams an operator KYC document file to the admin UI.
+func (h *KYCHandler) DownloadOperatorKYCDocument(ctx *gin.Context) {
+	operatorIDStr := ctx.Param("operator_id")
+	documentIDStr := ctx.Param("document_id")
+
+	documentID, err := uuid.Parse(documentIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid document_id"})
+		return
+	}
+
+	doc, err := h.kycStorage.GetOperatorDocumentByID(ctx.Request.Context(), documentID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			ctx.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Document not found"})
+			return
+		}
+		h.log.Error("Failed to fetch operator KYC document", zap.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch document"})
+		return
+	}
+
+	// Optional safety: ensure operator_id in path matches record
+	if operatorIDStr != "" && operatorIDStr != strconv.Itoa(int(doc.OperatorID)) {
+		ctx.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Operator mismatch for this document"})
+		return
+	}
+
+	// FileURL currently stores full relative path (e.g. ./uploads/operator_kyc/100001/..pdf)
+	if doc.FileURL == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"success": false, "message": "File path not set for this document"})
+		return
+	}
+
+	// Let Gin handle content-type; attachment download
+	ctx.FileAttachment(doc.FileURL, doc.FileName)
 }
 
 // UpdateDocumentStatus updates the status of a KYC document

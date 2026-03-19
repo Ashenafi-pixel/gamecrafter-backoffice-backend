@@ -38,6 +38,7 @@ type UserHandler interface {
 	HandleFacebookOauthRes(c *gin.Context)
 	BlockAccount(c *gin.Context)
 	GetBlockedAccount(c *gin.Context)
+	UnblockAccount(c *gin.Context)
 	AddIpFilter(c *gin.Context)
 	GetIpFilter(c *gin.Context)
 	AdminUpdateProfile(c *gin.Context)
@@ -708,6 +709,45 @@ func (u *user) GetBlockedAccount(c *gin.Context) {
 	response.SendSuccessResponse(c, http.StatusOK, res)
 }
 
+// UnblockAccount admin unblock (unsuspend) account.
+//
+//	@Summary		UnblockAccount
+//	@Description	Allows admins to unblock (unsuspend) a user by unlocking active account blocks.
+//	@Tags			Admin
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string					true	"Bearer <token> "
+//	@Param			req				body		dto.UnblockAccountReq	true	"unblock account request"
+//	@Success		200				{object}	dto.UnblockAccountRes
+//	@Failure		400				{object}	response.ErrorResponse
+//	@Failure		401				{object}	response.ErrorResponse
+//	@Router			/api/admin/users/unblock [POST]
+func (u *user) UnblockAccount(c *gin.Context) {
+	var req dto.UnblockAccountReq
+	if err := c.ShouldBind(&req); err != nil {
+		u.log.Warn(err.Error())
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
+	adminIDStr := c.GetString("user-id")
+	adminID, err := uuid.Parse(adminIDStr)
+	if err != nil {
+		u.log.Warn(err.Error(), zap.Any("userID", adminIDStr))
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
+	res, err := u.userModule.UnblockUser(c, req, adminID)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	response.SendSuccessResponse(c, http.StatusOK, res)
+}
+
 // AddIpFilter  admin add ip filter.
 //
 //	@Summary		AddIpFilter
@@ -1328,6 +1368,28 @@ func (u *user) CreateAdminUser(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+
+	// Set safe defaults for fields that have DB defaults / enums if not provided
+	if req.KycStatus == "" {
+		req.KycStatus = "PENDING"
+	}
+	if req.Status == "" {
+		req.Status = "ACTIVE"
+	}
+	if req.UserType == "" {
+		req.UserType = "ADMIN"
+	}
+	if req.WalletVerificationStatus == "" {
+		req.WalletVerificationStatus = "none"
+	}
+
+	// Validate against struct tags (required fields, enums, lengths)
+	if err := dto.ValidateCreateAdminUser(req); err != nil {
+		err = customErrors.ErrInvalidUserInput.Wrap(err, err.Error())
+		_ = c.Error(err)
+		return
+	}
+
 	resp, err := u.userModule.CreateAdminUser(c, req)
 	if err != nil {
 		_ = c.Error(err)

@@ -1472,6 +1472,33 @@ func (s *GrooveServiceImpl) LaunchGame(ctx context.Context, userID uuid.UUID, re
 		zap.String("device_type", req.DeviceType),
 		zap.String("game_mode", req.GameMode))
 
+	// Enforce suspended users cannot launch games
+	user, exists, err := s.userStorage.GetUserByID(ctx, userID)
+	if err != nil {
+		s.logger.Error("Failed to load user for launch", zap.Error(err), zap.String("user_id", userID.String()))
+		return &dto.LaunchGameResponse{
+			Success:   false,
+			ErrorCode: "USER_LOOKUP_FAILED",
+			Message:   "Failed to load user information",
+		}, err
+	}
+	if !exists {
+		s.logger.Warn("User not found for launch", zap.String("user_id", userID.String()))
+		return &dto.LaunchGameResponse{
+			Success:   false,
+			ErrorCode: "USER_NOT_FOUND",
+			Message:   "User not found",
+		}, fmt.Errorf("user not found")
+	}
+	if strings.EqualFold(user.Status, "SUSPENDED") {
+		s.logger.Warn("Suspended user attempted game launch", zap.String("user_id", userID.String()))
+		return &dto.LaunchGameResponse{
+			Success:   false,
+			ErrorCode: "USER_SUSPENDED",
+			Message:   "User account is suspended",
+		}, fmt.Errorf("user suspended")
+	}
+
 	// If a brand/operator ID is provided, enforce operator status and game assignment.
 	if req.BrandID != nil {
 		brandID := *req.BrandID

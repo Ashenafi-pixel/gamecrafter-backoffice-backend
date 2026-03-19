@@ -430,21 +430,27 @@ type CreateAdminUserReq struct {
 	LastName                 string           `json:"last_name" validate:"required,min=2,max=50"`
 	Phone                    string           `json:"phone,omitempty"`
 	DateOfBirth              string           `json:"date_of_birth,omitempty"`
-	StreetAddress            string           `json:"street_address,omitempty"`
-	City                     string           `json:"city,omitempty"`
-	PostalCode               string           `json:"postal_code,omitempty"`
-	State                    string           `json:"state,omitempty"`
-	Country                  string           `json:"country,omitempty"`
-	KycStatus                string           `json:"kyc_status,omitempty"`
+	StreetAddress            string           `json:"street_address" validate:"required"`
+	City                     string           `json:"city" validate:"required"`
+	PostalCode               string           `json:"postal_code" validate:"required"`
+	State                    string           `json:"state" validate:"required"`
+	Country                  string           `json:"country" validate:"required"`
+	KycStatus                string           `json:"kyc_status" validate:"required,oneof=NO_KYC ID_VERIFIED ID_SOF_VERIFIED KYC_FAILED PENDING ACTIVE INACTIVE"`
 	IsEmailVerified          bool             `json:"is_email_verified,omitempty"`
-	DefaultCurrency          string           `json:"default_currency,omitempty"`
-	WalletVerificationStatus string           `json:"wallet_verification_status,omitempty"`
-	Status                   string           `json:"status,omitempty"`
+	DefaultCurrency          string           `json:"default_currency" validate:"required"`
+	WalletVerificationStatus string           `json:"wallet_verification_status" validate:"required,oneof=none pending verified failed"`
+	Status                   string           `json:"status" validate:"required,oneof=ACTIVE INACTIVE SUSPENDED"`
 	IsAdmin                  bool             `json:"is_admin,omitempty"`
-	UserType                 string           `json:"user_type,omitempty"`
+	UserType                 string           `json:"user_type" validate:"required,oneof=ADMIN"`
 	WithdrawalLimit          *decimal.Decimal `json:"withdrawal_limit,omitempty"`
 	WithdrawalLimitEnabled   bool             `json:"withdrawal_limit_enabled,omitempty"`
 	BrandID                  *uuid.UUID       `json:"brand_id,omitempty"`
+}
+
+// ValidateCreateAdminUser validates CreateAdminUserReq according to struct tags.
+func ValidateCreateAdminUser(req CreateAdminUserReq) error {
+	validate := validator.New()
+	return validate.Struct(req)
 }
 
 type UpdateAdminUserReq struct {
