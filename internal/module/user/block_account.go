@@ -209,6 +209,72 @@ func (u *User) GetBlockedAccount(ctx context.Context, blockAccountReq dto.GetBlo
 	return res, nil
 }
 
+// UnblockUser unlocks active account blocks for a user (optionally filtered by block type)
+// and sets users.status back to ACTIVE when no active blocks remain.
+func (u *User) UnblockUser(ctx context.Context, req dto.UnblockAccountReq, adminID uuid.UUID) (dto.UnblockAccountRes, error) {
+	if req.UserID == uuid.Nil {
+		err := fmt.Errorf("invalid user id")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		return dto.UnblockAccountRes{}, err
+	}
+
+	// Validate admin exists
+	_, exist, err := u.userStorage.GetUserByID(ctx, adminID)
+	if err != nil {
+		return dto.UnblockAccountRes{}, err
+	}
+	if !exist {
+		err := fmt.Errorf("admin user not found")
+		err = errors.ErrInvalidUserInput.Wrap(err, err.Error())
+		return dto.UnblockAccountRes{}, err
+	}
+
+	blocks, exist, err := u.userStorage.GetBlockedAccountByUserID(ctx, req.UserID)
+	if err != nil {
+		return dto.UnblockAccountRes{}, err
+	}
+	if !exist || len(blocks) == 0 {
+		// Ensure status is ACTIVE if no blocks exist
+		_, _ = u.userStorage.UpdateUserStatus(ctx, req.UserID, "ACTIVE")
+		return dto.UnblockAccountRes{
+			Message:       constant.SUCCESS,
+			UserID:        req.UserID,
+			UnlockedCount: 0,
+		}, nil
+	}
+
+	unlocked := 0
+	for _, b := range blocks {
+		if req.Type != nil && *req.Type != "" && b.Type != *req.Type {
+			continue
+		}
+		_, err := u.userStorage.AaccountUnlock(ctx, b.ID)
+		if err != nil {
+			return dto.UnblockAccountRes{}, err
+		}
+		unlocked++
+	}
+
+	// If there are no remaining active blocks, set status ACTIVE
+	remaining, _, err := u.userStorage.GetBlockedAccountByUserID(ctx, req.UserID)
+	if err != nil {
+		return dto.UnblockAccountRes{}, err
+	}
+	if len(remaining) == 0 {
+		_, err = u.userStorage.UpdateUserStatus(ctx, req.UserID, "ACTIVE")
+		if err != nil {
+			u.log.Error("Failed to update user status to ACTIVE", zap.Error(err), zap.String("userID", req.UserID.String()))
+			// Don't fail unblock if status update fails
+		}
+	}
+
+	return dto.UnblockAccountRes{
+		Message:       constant.SUCCESS,
+		UserID:        req.UserID,
+		UnlockedCount: unlocked,
+	}, nil
+}
+
 func (u *User) NotifyUsers(ctx context.Context, notification dto.NotifyDepartmentsReq) {
 	blockedNotificationTemplate := constant.GetBlockedUserString(notification)
 	for _, usr := range notification.UsersToNotify {

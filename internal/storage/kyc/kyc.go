@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -19,6 +20,11 @@ type KYCStorage interface {
 	CreateDocument(ctx context.Context, doc *dto.KYCDocument) (*dto.KYCDocument, error)
 	GetDocumentByID(ctx context.Context, id uuid.UUID) (*dto.KYCDocument, error)
 	GetDocumentsByUserID(ctx context.Context, userID uuid.UUID) ([]dto.KYCDocument, error)
+	GetDocumentsByOperatorID(ctx context.Context, operatorID int32, limit, offset int) ([]dto.OperatorKYCDocument, int64, error)
+	CreateOperatorDocument(ctx context.Context, doc *dto.OperatorKYCDocument) (*dto.OperatorKYCDocument, error)
+	UpdateOperatorDocumentStatus(ctx context.Context, documentID uuid.UUID, status string, rejectionReason *string, reviewedBy uuid.UUID) error
+	GetOperatorSubmissions(ctx context.Context, operatorID int32, limit, offset int) ([]dto.OperatorKYCSubmission, int64, error)
+	GetOperatorDocumentByID(ctx context.Context, documentID uuid.UUID) (*dto.OperatorKYCDocument, error)
 	UpdateDocumentStatus(ctx context.Context, documentID uuid.UUID, status string, rejectionReason *string, reviewedBy uuid.UUID) error
 
 	// Submission operations
@@ -173,6 +179,162 @@ func (s *kycImpl) GetDocumentsByUserID(ctx context.Context, userID uuid.UUID) ([
 	}
 
 	return documents, nil
+}
+
+// GetDocumentsByOperatorID retrieves KYC documents for users under a specific operator.
+func (s *kycImpl) GetDocumentsByOperatorID(ctx context.Context, operatorID int32, limit, offset int) ([]dto.OperatorKYCDocument, int64, error) {
+	countQuery := `
+		SELECT COUNT(*)
+		FROM operator_kyc_documents
+		WHERE operator_id = $1
+	`
+	var total int64
+	if err := s.db.GetPool().QueryRow(ctx, countQuery, operatorID).Scan(&total); err != nil {
+		s.log.Error("Failed to count KYC documents by operator", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, operator_id, document_type, file_url, file_name, upload_date, status, rejection_reason, reviewed_by, review_date, created_at, updated_at
+		FROM operator_kyc_documents
+		WHERE operator_id = $1
+		ORDER BY upload_date DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := s.db.GetPool().Query(ctx, query, operatorID, limit, offset)
+	if err != nil {
+		s.log.Error("Failed to get KYC documents by operator", zap.Error(err), zap.Int32("operator_id", operatorID))
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var documents []dto.OperatorKYCDocument
+	for rows.Next() {
+		var doc dto.OperatorKYCDocument
+		if err := rows.Scan(
+			&doc.ID, &doc.OperatorID, &doc.DocumentType, &doc.FileURL, &doc.FileName,
+			&doc.UploadDate, &doc.Status, &doc.RejectionReason, &doc.ReviewedBy,
+			&doc.ReviewDate, &doc.CreatedAt, &doc.UpdatedAt,
+		); err != nil {
+			s.log.Error("Failed to scan operator KYC document", zap.Error(err))
+			return nil, 0, err
+		}
+		documents = append(documents, doc)
+	}
+
+	return documents, total, nil
+}
+
+func (s *kycImpl) CreateOperatorDocument(ctx context.Context, doc *dto.OperatorKYCDocument) (*dto.OperatorKYCDocument, error) {
+	query := `
+		INSERT INTO operator_kyc_documents
+			(id, operator_id, document_type, file_url, file_name, upload_date, status, created_at, updated_at)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, operator_id, document_type, file_url, file_name, upload_date, status, rejection_reason, reviewed_by, review_date, created_at, updated_at
+	`
+
+	var created dto.OperatorKYCDocument
+	err := s.db.GetPool().QueryRow(ctx, query,
+		doc.ID, doc.OperatorID, doc.DocumentType, doc.FileURL, doc.FileName, doc.UploadDate, doc.Status, doc.CreatedAt, doc.UpdatedAt,
+	).Scan(
+		&created.ID, &created.OperatorID, &created.DocumentType, &created.FileURL, &created.FileName,
+		&created.UploadDate, &created.Status, &created.RejectionReason, &created.ReviewedBy,
+		&created.ReviewDate, &created.CreatedAt, &created.UpdatedAt,
+	)
+	if err != nil {
+		s.log.Error("Failed to create operator KYC document", zap.Error(err))
+		return nil, err
+	}
+
+	// Ensure a pending submission exists for this operator
+	checkQuery := `SELECT COUNT(*) FROM operator_kyc_submissions WHERE operator_id = $1 AND status = 'PENDING'`
+	var count int
+	if err := s.db.GetPool().QueryRow(ctx, checkQuery, doc.OperatorID).Scan(&count); err == nil && count == 0 {
+		_, err = s.db.GetPool().Exec(ctx, `
+			INSERT INTO operator_kyc_submissions
+				(operator_id, submission_type, status, submitted_at, auto_triggered, created_at, updated_at)
+			VALUES
+				($1, 'INITIAL', 'PENDING', NOW(), false, NOW(), NOW())
+		`, doc.OperatorID)
+		if err != nil {
+			s.log.Warn("Failed to auto-create operator KYC submission", zap.Error(err), zap.Int32("operator_id", doc.OperatorID))
+		}
+	}
+
+	return &created, nil
+}
+
+func (s *kycImpl) UpdateOperatorDocumentStatus(ctx context.Context, documentID uuid.UUID, status string, rejectionReason *string, reviewedBy uuid.UUID) error {
+	result, err := s.db.GetPool().Exec(ctx, `
+		UPDATE operator_kyc_documents
+		SET status = $1, rejection_reason = $2, reviewed_by = $3, review_date = NOW(), updated_at = NOW()
+		WHERE id = $4
+	`, status, rejectionReason, reviewedBy, documentID)
+	if err != nil {
+		s.log.Error("Failed to update operator KYC document status", zap.Error(err), zap.String("document_id", documentID.String()))
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (s *kycImpl) GetOperatorSubmissions(ctx context.Context, operatorID int32, limit, offset int) ([]dto.OperatorKYCSubmission, int64, error) {
+	var total int64
+	if err := s.db.GetPool().QueryRow(ctx, `
+		SELECT COUNT(*) FROM operator_kyc_submissions WHERE operator_id = $1
+	`, operatorID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := s.db.GetPool().Query(ctx, `
+		SELECT id, operator_id, submission_type, status, submitted_at, reviewed_by, reviewed_at, admin_notes, auto_triggered, trigger_reason, created_at, updated_at
+		FROM operator_kyc_submissions
+		WHERE operator_id = $1
+		ORDER BY submitted_at DESC
+		LIMIT $2 OFFSET $3
+	`, operatorID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var items []dto.OperatorKYCSubmission
+	for rows.Next() {
+		var it dto.OperatorKYCSubmission
+		if err := rows.Scan(
+			&it.ID, &it.OperatorID, &it.SubmissionType, &it.Status, &it.SubmittedAt,
+			&it.ReviewedBy, &it.ReviewedAt, &it.AdminNotes, &it.AutoTriggered, &it.TriggerReason,
+			&it.CreatedAt, &it.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, it)
+	}
+	return items, total, nil
+}
+
+func (s *kycImpl) GetOperatorDocumentByID(ctx context.Context, documentID uuid.UUID) (*dto.OperatorKYCDocument, error) {
+	row := s.db.GetPool().QueryRow(ctx, `
+		SELECT id, operator_id, document_type, file_url, file_name, upload_date, status, rejection_reason, reviewed_by, review_date, created_at, updated_at
+		FROM operator_kyc_documents
+		WHERE id = $1
+	`, documentID)
+
+	var doc dto.OperatorKYCDocument
+	if err := row.Scan(
+		&doc.ID, &doc.OperatorID, &doc.DocumentType, &doc.FileURL, &doc.FileName,
+		&doc.UploadDate, &doc.Status, &doc.RejectionReason, &doc.ReviewedBy,
+		&doc.ReviewDate, &doc.CreatedAt, &doc.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		}
+		return nil, err
+	}
+	return &doc, nil
 }
 
 // UpdateDocumentStatus updates the status of a document

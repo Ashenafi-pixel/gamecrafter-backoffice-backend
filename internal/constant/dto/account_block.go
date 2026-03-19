@@ -50,6 +50,20 @@ type GetBlockedAccountLogRep struct {
 	Total_pages    int             `json:"total_pages"`
 }
 
+// UnblockAccountReq unblocks (unsuspends) a user by unlocking active account blocks.
+// If Type is provided, only blocks of that type are unlocked.
+type UnblockAccountReq struct {
+	UserID uuid.UUID `json:"user_id" validate:"required"`
+	Type   *string   `json:"type,omitempty"`
+	Note   *string   `json:"note,omitempty"`
+}
+
+type UnblockAccountRes struct {
+	Message       string    `json:"message"`
+	UserID        uuid.UUID `json:"user_id"`
+	UnlockedCount int       `json:"unlocked_count"`
+}
+
 type IPFilter struct {
 	ID          uuid.UUID `json:"id"`
 	StartIP     string    `json:"start_ip"`
