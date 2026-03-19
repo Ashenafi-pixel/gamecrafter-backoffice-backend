@@ -398,9 +398,14 @@ func (h *OperatorHandler) GetOperatorGames(c *gin.Context) {
 }
 
 func parseOperatorID(c *gin.Context) (int32, bool) {
-	idStr := c.Param("id")
+	// Route params historically used `:id`, but some newer routes use `:operator_id`.
+	// Accept both to avoid handler/route mismatches.
+	idStr := c.Param("operator_id")
 	if idStr == "" {
-		_ = c.Error(errors.ErrInvalidUserInput.New("operator id is required"))
+		idStr = c.Param("id")
+	}
+	if idStr == "" {
+		_ = c.Error(errors.ErrInvalidUserInput.New("operator_id is required"))
 		return 0, false
 	}
 
