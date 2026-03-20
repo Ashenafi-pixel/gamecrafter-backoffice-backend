@@ -330,10 +330,10 @@ type Operator interface {
 
 type Player interface {
 	CreatePlayer(ctx context.Context, req dto.CreatePlayerReq) (dto.CreatePlayerRes, error)
-	GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, error)
+	GetPlayerByID(ctx context.Context, playerID uuid.UUID) (dto.Player, error)
 	GetPlayers(ctx context.Context, req dto.GetPlayersReqs) (dto.GetPlayersRess, error)
 	UpdatePlayer(ctx context.Context, req dto.UpdatePlayerReq) (dto.UpdatePlayerRes, error)
-	DeletePlayer(ctx context.Context, playerID int32) error
+	DeletePlayer(ctx context.Context, playerID uuid.UUID) error
 }
 
 type Provider interface {

@@ -22,6 +22,7 @@ Some permissions require a value/limit to be set when assigned to a role:
 - **view daily report** - Access to view daily reports
 - **view big winners report** - Access to view big winners report
 - **view player metrics report** - Access to view player metrics report
+- **view player transactions** - Access to view a player's transaction timeline
 - **view country report** - Access to view country report
 - **view game performance report** - Access to view game performance report
 - **view provider performance report** - Access to view provider performance report

@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 // Player represents a player entity
 type Player struct {
-	ID                    int32     `json:"id"`
+	ID                    uuid.UUID `json:"id"`
 	Email                 string    `json:"email"`
 	Username              string    `json:"username"`
 	Password              string    `json:"password,omitempty" swaggerignore:"true"`
@@ -27,7 +28,7 @@ type Player struct {
 	PostalCode            *string   `json:"postal_code,omitempty"`
 	TestAccount           bool      `json:"test_account"`
 	EnableWithdrawalLimit bool      `json:"enable_withdrawal_limit"`
-	BrandID               *int32    `json:"brand_id,omitempty"`
+	BrandID               *uuid.UUID `json:"brand_id,omitempty"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
@@ -111,12 +112,12 @@ type CreatePlayerReq struct {
 	PostalCode            *string     `json:"postal_code,omitempty" validate:"omitempty,max=20"`
 	TestAccount           bool        `json:"test_account,omitempty"`
 	EnableWithdrawalLimit bool        `json:"enable_withdrawal_limit,omitempty"`
-	BrandID               *int32      `json:"brand_id,omitempty"`
+	BrandID               *uuid.UUID `json:"brand_id,omitempty"`
 }
 
 // CreatePlayerRes represents the response after creating a player
 type CreatePlayerRes struct {
-	ID        int32     `json:"id"`
+	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`
@@ -124,7 +125,7 @@ type CreatePlayerRes struct {
 
 // UpdatePlayerReq represents the request to update a player
 type UpdatePlayerReq struct {
-	ID                    int32      `json:"id" validate:"required"`
+	ID                    uuid.UUID  `json:"id" validate:"required"`
 	Email                 *string    `json:"email,omitempty" validate:"omitempty,email"`
 	Username              *string    `json:"username,omitempty" validate:"omitempty,min=3,max=255"`
 	Phone                 *string    `json:"phone,omitempty" validate:"omitempty,max=20"`
@@ -139,7 +140,7 @@ type UpdatePlayerReq struct {
 	PostalCode            *string    `json:"postal_code,omitempty" validate:"omitempty,max=20"`
 	TestAccount           *bool      `json:"test_account,omitempty"`
 	EnableWithdrawalLimit *bool      `json:"enable_withdrawal_limit,omitempty"`
-	BrandID               *int32     `json:"brand_id,omitempty"`
+	BrandID               *uuid.UUID `json:"brand_id,omitempty"`
 }
 
 // UpdatePlayerRes represents the response after updating a player
@@ -149,7 +150,7 @@ type UpdatePlayerRes struct {
 
 // GetPlayerReq represents the request to get a player by ID
 type GetPlayerReq struct {
-	ID int32 `uri:"id" binding:"required"`
+	ID uuid.UUID `uri:"id" binding:"required"`
 }
 
 // GetPlayerRes represents the response with player details

@@ -2,10 +2,10 @@ package player
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/constant/model/response"
@@ -91,7 +91,7 @@ func (p *player) CreatePlayer(ctx *gin.Context) {
 //	@Router			/api/admin/player-management/{id} [get]
 func (p *player) GetPlayerByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 32)
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		userFriendlyMsg := "Please provide a valid player ID. The ID must be a number."
 		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
@@ -99,7 +99,7 @@ func (p *player) GetPlayerByID(ctx *gin.Context) {
 		return
 	}
 
-	player, err := p.playerModule.GetPlayerByID(ctx, int32(id))
+	player, err := p.playerModule.GetPlayerByID(ctx, id)
 	if err != nil {
 		errStr := err.Error()
 		// Handle player not found with user-friendly message
@@ -154,13 +154,9 @@ func (p *player) GetPlayers(ctx *gin.Context) {
 	resp, err := p.playerModule.GetPlayers(ctx, req)
 	if err != nil {
 		errStr := err.Error()
-		// Handle database errors with user-friendly messages
-		if strings.Contains(errStr, "unable to get") {
-			userFriendlyErr := errors.ErrUnableToGet.New("Unable to retrieve players at this time. Please try again later.")
-			_ = ctx.Error(userFriendlyErr)
-			return
-		}
-		_ = ctx.Error(err)
+		// For debugging/faster fixes: surface the real error text.
+		// After this is stable, we can restore the friendly message.
+		_ = ctx.Error(errors.ErrUnableToGet.New(errStr))
 		return
 	}
 	response.SendSuccessResponse(ctx, http.StatusOK, resp)
@@ -180,7 +176,7 @@ func (p *player) GetPlayers(ctx *gin.Context) {
 //	@Router			/api/admin/player-management/{id} [patch]
 func (p *player) UpdatePlayer(ctx *gin.Context) {
 	idStr := ctx.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 32)
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		userFriendlyMsg := "Please provide a valid player ID. The ID must be a number."
 		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
@@ -195,7 +191,7 @@ func (p *player) UpdatePlayer(ctx *gin.Context) {
 		return
 	}
 
-	req.ID = int32(id)
+	req.ID = id
 
 	player, err := p.playerModule.UpdatePlayer(ctx, req)
 	if err != nil {
@@ -245,7 +241,7 @@ func (p *player) UpdatePlayer(ctx *gin.Context) {
 //	@Router			/api/admin/player-management/{id} [delete]
 func (p *player) DeletePlayer(ctx *gin.Context) {
 	idStr := ctx.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 32)
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		userFriendlyMsg := "Please provide a valid player ID. The ID must be a number."
 		err = errors.ErrInvalidUserInput.Wrap(err, userFriendlyMsg)
@@ -253,7 +249,7 @@ func (p *player) DeletePlayer(ctx *gin.Context) {
 		return
 	}
 
-	err = p.playerModule.DeletePlayer(ctx, int32(id))
+	err = p.playerModule.DeletePlayer(ctx, id)
 	if err != nil {
 		errStr := err.Error()
 		// Handle player not found
