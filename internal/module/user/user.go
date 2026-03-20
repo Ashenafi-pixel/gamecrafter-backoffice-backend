@@ -2160,6 +2160,13 @@ func (u *User) GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPl
 	}, nil
 }
 
+// GetAllPlayersNoPagination returns all PLAYER users without requiring pagination parameters.
+// Internally it iterates over the existing paginated storage endpoint with perPage=100
+// and merges the results.
+func (u *User) GetAllPlayersNoPagination(ctx context.Context, search dto.AdminUsersAllSearch) (dto.GetPlayersRes, error) {
+	return u.userStorage.GetAllPlayersNoPagination(ctx, search)
+}
+
 func (u *User) GetUserPoints(ctx context.Context, useID uuid.UUID) (dto.GetPointsResp, error) {
 	userBalance, exist, err := u.userStorage.GetUserPoints(ctx, useID)
 	if err != nil {

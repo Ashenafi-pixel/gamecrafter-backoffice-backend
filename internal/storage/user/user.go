@@ -1100,6 +1100,230 @@ func (u *user) GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetP
 	return result, nil
 }
 
+// GetAllPlayersNoPagination returns all PLAYER users without using sqlc list queries.
+// This avoids Postgres polymorphic-type issues for empty filter arrays.
+func (u *user) GetAllPlayersNoPagination(ctx context.Context, search dto.AdminUsersAllSearch) (dto.GetPlayersRes, error) {
+	type baseUserRow struct {
+		ID                       uuid.UUID
+		Username                 sql.NullString
+		PhoneNumber              sql.NullString
+		Email                    sql.NullString
+		DefaultCurrency          sql.NullString
+		Profile                  sql.NullString
+		FirstName                sql.NullString
+		LastName                 sql.NullString
+		DateOfBirth              sql.NullString
+		Source                   sql.NullString
+		IsEmailVerified          sql.NullBool
+		ReferalCode              sql.NullString
+		ReferedByCode            sql.NullString
+		ReferalType              sql.NullString
+		StreetAddress            sql.NullString
+		Country                  sql.NullString
+		State                    sql.NullString
+		City                     sql.NullString
+		PostalCode               sql.NullString
+		KycStatus                sql.NullString
+		CreatedBy                uuid.NullUUID
+		IsAdmin                  sql.NullBool
+		Status                   sql.NullString
+		UserType                 sql.NullString
+		WalletVerificationStatus sql.NullString
+		IsTestAccount            sql.NullBool
+		CreatedAt                time.Time
+	}
+
+	// Note: explicit column list + explicit filtering avoids sqlc polymorphic-type errors.
+	baseSelect := `
+SELECT
+	u.id,
+	u.username,
+	u.phone_number,
+	u.email,
+	u.default_currency,
+	u.profile,
+	u.first_name,
+	u.last_name,
+	u.date_of_birth,
+	u.source,
+	u.is_email_verified,
+	u.referal_code,
+	u.refered_by_code,
+	u.referal_type,
+	u.street_address,
+	u.country,
+	u.state,
+	u.city,
+	u.postal_code,
+	u.kyc_status,
+	u.created_by,
+	u.is_admin,
+	u.status,
+	u.user_type,
+	u.wallet_verification_status,
+	u.is_test_account,
+	u.created_at
+FROM users u
+`
+
+	whereParts := []string{
+		"u.default_currency IS NOT NULL",
+		"u.user_type = 'PLAYER'",
+		"u.is_admin = false",
+	}
+	args := make([]interface{}, 0, 3)
+	paramIdx := 1
+
+	if u := strings.TrimSpace(search.Username); u != "" {
+		whereParts = append(whereParts, fmt.Sprintf("u.username ILIKE '%%' || $%d || '%%'", paramIdx))
+		args = append(args, u)
+		paramIdx++
+	}
+	if e := strings.TrimSpace(search.Email); e != "" {
+		whereParts = append(whereParts, fmt.Sprintf("u.email ILIKE '%%' || $%d || '%%'", paramIdx))
+		args = append(args, e)
+		paramIdx++
+	}
+	if n := strings.TrimSpace(search.Name); n != "" {
+		// Name matches first_name, last_name, and "first last".
+		whereParts = append(whereParts, fmt.Sprintf(`(
+			u.first_name ILIKE '%%' || $%d || '%%'
+			OR u.last_name ILIKE '%%' || $%d || '%%'
+			OR (u.first_name || ' ' || u.last_name) ILIKE '%%' || $%d || '%%'
+		)`, paramIdx, paramIdx, paramIdx))
+		args = append(args, n)
+		paramIdx++
+	}
+
+	q := baseSelect + "WHERE " + strings.Join(whereParts, " AND ") + " ORDER BY u.created_at DESC;"
+	rows, err := u.db.GetPool().Query(ctx, q, args...)
+	if err != nil {
+		return dto.GetPlayersRes{}, errors.ErrUnableToGet.Wrap(err, "unable to get all players")
+	}
+	defer rows.Close()
+
+	resultUsers := make([]dto.User, 0)
+	for rows.Next() {
+		var r baseUserRow
+		if scanErr := rows.Scan(
+			&r.ID,
+			&r.Username,
+			&r.PhoneNumber,
+			&r.Email,
+			&r.DefaultCurrency,
+			&r.Profile,
+			&r.FirstName,
+			&r.LastName,
+			&r.DateOfBirth,
+			&r.Source,
+			&r.IsEmailVerified,
+			&r.ReferalCode,
+			&r.ReferedByCode,
+			&r.ReferalType,
+			&r.StreetAddress,
+			&r.Country,
+			&r.State,
+			&r.City,
+			&r.PostalCode,
+			&r.KycStatus,
+			&r.CreatedBy,
+			&r.IsAdmin,
+			&r.Status,
+			&r.UserType,
+			&r.WalletVerificationStatus,
+			&r.IsTestAccount,
+			&r.CreatedAt,
+		); scanErr != nil {
+			return dto.GetPlayersRes{}, errors.ErrUnableToGet.Wrap(scanErr, "unable to scan user row")
+		}
+
+		user := dto.User{
+			ID:                  r.ID,
+			Username:           r.Username.String,
+			PhoneNumber:        r.PhoneNumber.String,
+			FirstName:          r.FirstName.String,
+			LastName:           r.LastName.String,
+			Email:              r.Email.String,
+			DefaultCurrency:    r.DefaultCurrency.String,
+			ProfilePicture:     r.Profile.String,
+			DateOfBirth:       r.DateOfBirth.String,
+			Source:             r.Source.String,
+			IsEmailVerified:    r.IsEmailVerified.Bool,
+			ReferralCode:      r.ReferalCode.String,
+			ReferedByCode:     r.ReferedByCode.String,
+			ReferalType:       dto.Type(r.ReferalType.String),
+			Type:              dto.Type(r.UserType.String),
+			Status:            r.Status.String,
+			StreetAddress:     r.StreetAddress.String,
+			Country:           r.Country.String,
+			State:             r.State.String,
+			City:              r.City.String,
+			PostalCode:        r.PostalCode.String,
+			KYCStatus:         r.KycStatus.String,
+			IsAdmin:           r.IsAdmin.Bool,
+			WalletVerificationStatus: r.WalletVerificationStatus.String,
+			IsTestAccount:     r.IsTestAccount.Bool,
+		}
+
+		// Balance accounts (same conversion used in GetAllUsers)
+		balance, balErr := u.db.Queries.GetUserBalancesByUserID(ctx, r.ID)
+		if balErr != nil {
+			// Continue with empty accounts.
+			balance = []db.Balance{}
+		}
+
+		accounts := make([]dto.Balance, 0, len(balance))
+		for _, bal := range balance {
+			accounts = append(accounts, convertUserDBBalanceToDTO(bal))
+		}
+		user.Accounts = accounts
+
+		// Level defaults + enrichment
+		overrideEnabled := false
+		user.LevelManualOverride = &overrideEnabled
+		user.VipLevel = "Bronze"
+		user.CurrentLevel = 1
+		user.EffectiveLevel = 1
+
+		levelInfo, levelErr := u.GetUserLevelDetails(ctx, r.ID)
+		if levelErr == nil && levelInfo != nil {
+			if levelInfo.EffectiveTierName != "" {
+				user.VipLevel = levelInfo.EffectiveTierName
+			} else if levelInfo.CurrentTierName != "" {
+				user.VipLevel = levelInfo.CurrentTierName
+			}
+
+			user.CurrentLevel = levelInfo.CurrentLevel
+			user.EffectiveLevel = levelInfo.EffectiveLevel
+			user.ManualOverrideLevel = levelInfo.ManualOverrideLevel
+			if levelInfo.ManualOverrideSetBy != nil {
+				user.ManualOverrideSetBy = levelInfo.ManualOverrideSetBy
+			}
+			if levelInfo.ManualOverrideSetAt != nil {
+				user.ManualOverrideSetAt = levelInfo.ManualOverrideSetAt
+			}
+
+			overrideEnabled = levelInfo.IsManualOverride
+		}
+
+		// created_at is used by some UIs
+		user.CreatedAt = &r.CreatedAt
+
+		resultUsers = append(resultUsers, user)
+	}
+
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return dto.GetPlayersRes{}, errors.ErrUnableToGet.Wrap(rowsErr, "unable to iterate users")
+	}
+
+	return dto.GetPlayersRes{
+		TotalCount: int64(len(resultUsers)),
+		Message:    constant.SUCCESS,
+		TotalPages: 1,
+		Users:      resultUsers,
+	}, nil
+}
+
 func (u *user) GetUserPoints(ctx context.Context, userID uuid.UUID) (decimal.Decimal, bool, error) {
 	blc, err := u.db.Queries.GetUserBalanaceByUserIDAndCurrency(ctx, db.GetUserBalanaceByUserIDAndCurrencyParams{
 		UserID:       userID,

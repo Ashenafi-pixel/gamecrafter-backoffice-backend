@@ -378,6 +378,14 @@ type GetPlayersRes struct {
 	Users      []User `json:"users"`
 }
 
+// AdminUsersAllSearch is used by the "no pagination" players endpoint.
+// All fields are optional and match case-insensitively.
+type AdminUsersAllSearch struct {
+	Username string `json:"username" form:"username"`
+	Email    string `json:"email" form:"email"`
+	Name     string `json:"name" form:"name"` // matches first_name, last_name, and "first last"
+}
+
 type RefferedUsers struct {
 	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`

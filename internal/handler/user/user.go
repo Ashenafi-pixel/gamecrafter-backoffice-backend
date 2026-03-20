@@ -45,6 +45,7 @@ type UserHandler interface {
 	AdminResetUsersPassword(c *gin.Context)
 	AdminAutoResetUsersPassword(c *gin.Context)
 	GetUsers(c *gin.Context)
+	GetAllUsersNoPagination(c *gin.Context)
 	RemoveIPFilter(c *gin.Context)
 	GetMyReferalCodes(c *gin.Context)
 	GetMyRefferedUsersAndPoints(c *gin.Context)
@@ -992,6 +993,24 @@ func (u *user) GetUsers(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
+	response.SendSuccessResponse(c, http.StatusOK, resp)
+}
+
+// GetAllUsersNoPagination allows admins to fetch all PLAYER users without pagination.
+// It loops through existing paginated GetPlayers under the hood.
+func (u *user) GetAllUsersNoPagination(c *gin.Context) {
+	search := dto.AdminUsersAllSearch{
+		Username: strings.TrimSpace(c.Query("username")),
+		Email:    strings.TrimSpace(c.Query("email")),
+		Name:     strings.TrimSpace(c.Query("name")),
+	}
+
+	resp, err := u.userModule.GetAllPlayersNoPagination(c.Request.Context(), search)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
 	response.SendSuccessResponse(c, http.StatusOK, resp)
 }
 

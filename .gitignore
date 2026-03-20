@@ -25,3 +25,4 @@ LOCAL_SETUP_GUIDE.md
 POSTMAN_COLLECTION.md
 docs/schemas/
 docs/*.md
+Manual_Funding_API.postman_collection.json

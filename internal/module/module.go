@@ -37,6 +37,7 @@ type User interface {
 	AdminResetPassword(ctx context.Context, req dto.AdminResetPasswordReq) (dto.AdminResetPasswordRes, error)
 	AdminAutoResetPassword(ctx context.Context, req dto.AdminAutoResetPasswordReq) (dto.AdminAutoResetPasswordRes, error)
 	GetPlayers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error)
+	GetAllPlayersNoPagination(ctx context.Context, search dto.AdminUsersAllSearch) (dto.GetPlayersRes, error)
 	RemoveIPFilter(ctx context.Context, req dto.RemoveIPBlockReq) (dto.RemoveIPBlockRes, error)
 	GetMyReferralCode(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserReferalUsersByUserID(ctx context.Context, userID uuid.UUID) (dto.MyRefferedUsers, error)
