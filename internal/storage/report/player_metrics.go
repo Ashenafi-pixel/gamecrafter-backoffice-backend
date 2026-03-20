@@ -721,6 +721,20 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 		argIndex++
 	}
 
+	// Status filter
+	if req.Status != nil && *req.Status != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("status = $%d", argIndex))
+		args = append(args, *req.Status)
+		argIndex++
+	}
+
+	// Currency filter
+	if req.Currency != nil && *req.Currency != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("currency = $%d", argIndex))
+		args = append(args, *req.Currency)
+		argIndex++
+	}
+
 	// Game provider filter
 	if req.GameProvider != nil && *req.GameProvider != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("game_provider = $%d", argIndex))
@@ -791,14 +805,32 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			chArgs = append(chArgs, dateTo.Format("2006-01-02 15:04:05"))
 		}
 
+		if req.Status != nil && *req.Status != "" {
+			chWhereConditions = append(chWhereConditions, "status = ?")
+			chArgs = append(chArgs, *req.Status)
+		}
+
+		if req.Currency != nil && *req.Currency != "" {
+			chWhereConditions = append(chWhereConditions, "currency = ?")
+			chArgs = append(chArgs, *req.Currency)
+		}
+
 		if req.TransactionType != nil && *req.TransactionType != "" {
-			if *req.TransactionType == "bet" {
+			switch *req.TransactionType {
+			case "bet":
 				chWhereConditions = append(chWhereConditions, "transaction_type IN ('bet', 'groove_bet')")
-			} else if *req.TransactionType == "win" {
+			case "win":
+				// Some providers report wins inside groove_bet rows when win_amount exists.
 				chWhereConditions = append(chWhereConditions, "(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))")
+			case "deposit", "withdrawal", "bonus", "adjustment":
+				chWhereConditions = append(chWhereConditions, "transaction_type = ?")
+				chArgs = append(chArgs, *req.TransactionType)
+			default:
+				// Unknown type: don't filter by transaction_type.
 			}
 		} else {
-			chWhereConditions = append(chWhereConditions, "transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')")
+			// Default: show the full timeline types required by Back Office.
+			chWhereConditions = append(chWhereConditions, "transaction_type IN ('deposit', 'withdrawal', 'bonus', 'adjustment', 'bet', 'groove_bet', 'win', 'groove_win')")
 		}
 
 		if req.GameProvider != nil && *req.GameProvider != "" {
@@ -834,6 +866,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 				CASE 
 					WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
 					WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+					WHEN bet_amount IS NOT NULL THEN bet_amount
 					ELSE NULL
 				END as bet_amount,
 				CASE 
@@ -849,8 +882,66 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 					WHEN (transaction_type IN ('bet', 'groove_bet') AND abs(amount) > 0) THEN COALESCE(win_amount, 0) / abs(amount)
 					ELSE NULL
 				END as multiplier,
-				NULL as ggr,
-				NULL as net,
+				CASE
+					WHEN transaction_type IN ('bet', 'groove_bet') THEN COALESCE(
+						CASE 
+							WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+							WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+							WHEN bet_amount IS NOT NULL THEN bet_amount
+							ELSE NULL
+						END,
+						0
+					)
+					WHEN transaction_type IN ('win', 'groove_win') THEN COALESCE(
+						CASE 
+							WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+							WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+							WHEN transaction_type IN ('win', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+							WHEN bet_amount IS NOT NULL THEN bet_amount
+							ELSE 0
+						END,
+						0
+					)
+					- COALESCE(
+						CASE 
+							WHEN transaction_type IN ('groove_bet', 'groove_win') THEN COALESCE(win_amount, 0)
+							WHEN transaction_type IN ('win', 'groove_win') THEN COALESCE(win_amount, abs(amount))
+							ELSE 0
+						END,
+						0
+					)
+					ELSE NULL
+				END as ggr,
+				CASE
+					WHEN transaction_type IN ('bet', 'groove_bet') THEN -COALESCE(
+						CASE 
+							WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+							WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+							WHEN bet_amount IS NOT NULL THEN bet_amount
+							ELSE NULL
+						END,
+						0
+					)
+					WHEN transaction_type IN ('win', 'groove_win') THEN COALESCE(
+						CASE 
+							WHEN transaction_type IN ('groove_bet', 'groove_win') THEN COALESCE(win_amount, 0)
+							WHEN transaction_type IN ('win', 'groove_win') THEN COALESCE(win_amount, abs(amount))
+							ELSE 0
+						END,
+						0
+					)
+					- COALESCE(
+						CASE 
+							WHEN transaction_type IN ('groove_bet', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+							WHEN transaction_type IN ('bet', 'groove_bet') THEN abs(amount)
+							WHEN transaction_type IN ('win', 'groove_win') AND bet_amount IS NOT NULL THEN bet_amount
+							WHEN bet_amount IS NOT NULL THEN bet_amount
+							ELSE 0
+						END,
+						0
+					)
+					ELSE NULL
+				END as net,
 				'cash' as bet_type,
 				NULL as payment_method,
 				NULL as tx_hash,
@@ -864,7 +955,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			WHERE %s
 				AND (
 					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
+					OR transaction_type NOT IN ('groove_bet', 'groove_win')
 				)
 			ORDER BY created_at DESC
 		`, chWhereClause)
@@ -876,8 +967,11 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 				var tx dto.PlayerTransactionDetail
 				var idStr, transactionIDStr, transactionTypeStr, amountStr, currencyStr, statusStr string
 				var gameProviderStr, gameIDStr, gameNameStr, betIDStr, roundIDStr sql.NullString
-				var betAmountStr, winAmountStr, multiplierStr sql.NullString
-				var sessionIDStr sql.NullString
+				var betAmountStr, winAmountStr, rakebackEarnedStr, rakebackClaimedStr sql.NullString
+				var rtpStr, multiplierStr, ggrStr, netStr sql.NullString
+				var betTypeStr string
+				var paymentMethodStr, txHashStr, networkStr, chainIDStr sql.NullString
+				var feesStr, deviceStr, ipAddressStr, sessionIDStr sql.NullString
 				var createdAt time.Time
 
 				err := chRows.Scan(
@@ -885,7 +979,13 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 					&amountStr, &currencyStr, &statusStr,
 					&gameProviderStr, &gameIDStr, &gameNameStr, &betIDStr, &roundIDStr,
 					&betAmountStr, &winAmountStr,
+					&rakebackEarnedStr, &rakebackClaimedStr, &rtpStr,
 					&multiplierStr,
+					&ggrStr, &netStr,
+					&betTypeStr,
+					&paymentMethodStr, &txHashStr,
+					&networkStr, &chainIDStr,
+					&feesStr, &deviceStr, &ipAddressStr,
 					&sessionIDStr,
 				)
 				if err != nil {
@@ -942,12 +1042,50 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 						tx.Multiplier = &mult
 					}
 				}
+				if ggrStr.Valid && ggrStr.String != "" {
+					ggrVal, err := decimal.NewFromString(ggrStr.String)
+					if err == nil && !ggrVal.IsZero() {
+						tx.GGR = &ggrVal
+					}
+				}
+				if netStr.Valid && netStr.String != "" {
+					netVal, err := decimal.NewFromString(netStr.String)
+					if err == nil && !netVal.IsZero() {
+						tx.Net = &netVal
+					}
+				}
 				if sessionIDStr.Valid {
 					tx.SessionID = &sessionIDStr.String
 				}
 
-				betType := "cash"
-				tx.BetType = &betType
+				if betTypeStr != "" {
+					tx.BetType = &betTypeStr
+				}
+
+				if paymentMethodStr.Valid {
+					tx.PaymentMethod = &paymentMethodStr.String
+				}
+				if txHashStr.Valid {
+					tx.TXHash = &txHashStr.String
+				}
+				if networkStr.Valid {
+					tx.Network = &networkStr.String
+				}
+				if chainIDStr.Valid {
+					tx.ChainID = &chainIDStr.String
+				}
+				if feesStr.Valid && feesStr.String != "" {
+					feesVal, err := decimal.NewFromString(feesStr.String)
+					if err == nil && !feesVal.IsZero() {
+						tx.Fees = &feesVal
+					}
+				}
+				if deviceStr.Valid {
+					tx.Device = &deviceStr.String
+				}
+				if ipAddressStr.Valid {
+					tx.IPAddress = &ipAddressStr.String
+				}
 
 				allTransactions = append(allTransactions, tx)
 			}
@@ -956,125 +1094,129 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 		}
 	}
 
-	query := fmt.Sprintf(`
-		WITH all_transactions AS (
-			SELECT 
-				b.id,
-				b.client_transaction_id as transaction_id,
-				CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
-				COALESCE(b.timestamp, NOW()) as transaction_date,
-				COALESCE(b.payout, b.amount) as amount,
-				b.currency,
-				COALESCE(b.status, 'completed') as status,
-				NULL::text as game_provider,
-				NULL::text as game_id,
-				NULL::text as game_name,
-				b.id::text as bet_id,
-				b.round_id::text as round_id,
-				b.amount as bet_amount,
-				COALESCE(b.payout, 0) as win_amount,
-				NULL::decimal as rakeback_earned,
-				NULL::decimal as rakeback_claimed,
-				NULL::decimal as rtp,
-				CASE WHEN b.amount > 0 THEN COALESCE(b.payout, 0) / b.amount ELSE NULL END as multiplier,
-				b.amount - COALESCE(b.payout, 0) as ggr,
-				COALESCE(b.payout, 0) - b.amount as net,
-				'cash' as bet_type,
-				NULL::text as payment_method,
-				NULL::text as tx_hash,
-				NULL::text as network,
-				NULL::text as chain_id,
-				NULL::decimal as fees,
-				NULL::text as device,
-				NULL::text as ip_address,
-				NULL::text as session_id
-			FROM bets b
-			WHERE b.user_id = $1
-				AND (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
-				%s
+	transactions := []dto.PlayerTransactionDetail{}
+	if !hasClickHouse {
 
-			UNION ALL
+		// Postgres fallback timeline (no ClickHouse):
+		// - game activity: `bets` (mapped to "bet" vs "win" via payout)
+		// - withdrawals: `withdrawals`
+		//
+		// Important: Postgres schema does not include bonus/deposit/game metadata in this fallback,
+		// so those filters will return empty results.
+		query := fmt.Sprintf(`
+			WITH all_transactions AS (
+				SELECT
+					b.id,
+					b.client_transaction_id as transaction_id,
+					CASE WHEN COALESCE(b.payout, 0) > 0 THEN 'win' ELSE 'bet' END as transaction_type,
+					COALESCE(b.timestamp, NOW()) as transaction_date,
+					COALESCE(b.payout, b.amount) as amount,
+					b.currency,
+					COALESCE(b.status, 'completed') as status,
+					NULL::text as game_provider,
+					NULL::text as game_id,
+					NULL::text as game_name,
+					b.id::text as bet_id,
+					b.round_id::text as round_id,
+					b.amount as bet_amount,
+					COALESCE(b.payout, 0) as win_amount,
+					NULL::decimal as rakeback_earned,
+					NULL::decimal as rakeback_claimed,
+					NULL::decimal as rtp,
+					CASE WHEN b.amount > 0 THEN COALESCE(b.payout, 0) / b.amount ELSE NULL END as multiplier,
+					b.amount - COALESCE(b.payout, 0) as ggr,
+					COALESCE(b.payout, 0) - b.amount as net,
+					'cash' as bet_type,
+					NULL::text as payment_method,
+					NULL::text as tx_hash,
+					NULL::text as network,
+					NULL::text as chain_id,
+					NULL::decimal as fees,
+					NULL::text as device,
+					NULL::text as ip_address,
+					NULL::text as session_id
+				FROM bets b
+				WHERE b.user_id = $1
+					AND (COALESCE(b.payout, 0) > 0 OR b.amount > 0)
 
-			SELECT 
-				w.id,
-				w.withdrawal_id as transaction_id,
-				'withdrawal' as transaction_type,
-				w.created_at as transaction_date,
-				(w.usd_amount_cents::decimal / 100) as amount,
-				w.currency_code as currency,
-				w.status::text,
-				NULL::text as game_provider,
-				NULL::text as game_id,
-				NULL::text as game_name,
-				NULL::text as bet_id,
-				NULL::text as round_id,
-				NULL::decimal as bet_amount,
-				NULL::decimal as win_amount,
-				NULL::decimal as rakeback_earned,
-				NULL::decimal as rakeback_claimed,
-				NULL::decimal as rtp,
-				NULL::decimal as multiplier,
-				NULL::decimal as ggr,
-				NULL::decimal as net,
-				NULL::text as bet_type,
-				w.protocol as payment_method,
-				w.tx_hash,
-				NULL::text as network,
-				w.chain_id,
-				(w.fee_cents::decimal / 100) as fees,
-				NULL::text as device,
-				NULL::text as ip_address,
-				NULL::text as session_id
-			FROM withdrawals w
-			WHERE w.user_id = $1
-				%s
-		)
-		SELECT 
-			id,
-			transaction_id,
-			transaction_type,
-			transaction_date,
-			amount,
-			currency,
-			status,
-			game_provider,
-			game_id,
-			game_name,
-			bet_id,
-			round_id,
-			bet_amount,
-			win_amount,
-			rakeback_earned,
-			rakeback_claimed,
-			rtp,
-			multiplier,
-			ggr,
-			net,
-			bet_type,
-			payment_method,
-			tx_hash,
-			network,
-			chain_id,
-			fees,
-			device,
-			ip_address,
-			session_id
-		FROM all_transactions
-		%s
-		ORDER BY %s
-		LIMIT $%d OFFSET $%d
-	`, whereClause, whereClause, whereClause, orderBy, argIndex, argIndex+1)
+				UNION ALL
 
-	args = append(args, req.PerPage, (req.Page-1)*req.PerPage)
+				SELECT
+					w.id,
+					w.withdrawal_id as transaction_id,
+					'withdrawal' as transaction_type,
+					w.created_at as transaction_date,
+					(w.usd_amount_cents::decimal / 100) as amount,
+					w.currency_code as currency,
+					w.status::text as status,
+					NULL::text as game_provider,
+					NULL::text as game_id,
+					NULL::text as game_name,
+					NULL::text as bet_id,
+					NULL::text as round_id,
+					NULL::decimal as bet_amount,
+					NULL::decimal as win_amount,
+					NULL::decimal as rakeback_earned,
+					NULL::decimal as rakeback_claimed,
+					NULL::decimal as rtp,
+					NULL::decimal as multiplier,
+					NULL::decimal as ggr,
+					NULL::decimal as net,
+					NULL::text as bet_type,
+					w.protocol as payment_method,
+					w.tx_hash as tx_hash,
+					NULL::text as network,
+					w.chain_id as chain_id,
+					(w.fee_cents::decimal / 100) as fees,
+					NULL::text as device,
+					NULL::text as ip_address,
+					NULL::text as session_id
+				FROM withdrawals w
+				WHERE w.user_id = $1
+			)
+			SELECT
+				id,
+				transaction_id,
+				transaction_type,
+				transaction_date,
+				amount,
+				currency,
+				status,
+				game_provider,
+				game_id,
+				game_name,
+				bet_id,
+				round_id,
+				bet_amount,
+				win_amount,
+				rakeback_earned,
+				rakeback_claimed,
+				rtp,
+				multiplier,
+				ggr,
+				net,
+				bet_type,
+				payment_method,
+				tx_hash,
+				network,
+				chain_id,
+				fees,
+				device,
+				ip_address,
+				session_id
+			FROM all_transactions
+			WHERE 1=1 %s
+			ORDER BY %s
+		`, whereClause, orderBy)
 
-	rows, err := r.db.GetPool().Query(ctx, query, args...)
+		rows, err := r.db.GetPool().Query(ctx, query, args...)
 	if err != nil {
 		r.log.Error("failed to get player transactions", zap.Error(err))
 		return res, errors.ErrUnableToGet.Wrap(err, "failed to get player transactions")
 	}
 	defer rows.Close()
 
-	var transactions []dto.PlayerTransactionDetail
+	transactions = []dto.PlayerTransactionDetail{}
 	for rows.Next() {
 		var tx dto.PlayerTransactionDetail
 		var gameProvider sql.NullString
@@ -1238,6 +1380,8 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 		return res, errors.ErrUnableToGet.Wrap(err, "error iterating player transactions rows")
 	}
 
+	}
+
 	allTransactions = append(allTransactions, transactions...)
 
 	var total int64
@@ -1255,14 +1399,30 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			chCountArgs = append(chCountArgs, dateTo.Format("2006-01-02 15:04:05"))
 		}
 
+		if req.Status != nil && *req.Status != "" {
+			chCountWhereConditions = append(chCountWhereConditions, "status = ?")
+			chCountArgs = append(chCountArgs, *req.Status)
+		}
+
+		if req.Currency != nil && *req.Currency != "" {
+			chCountWhereConditions = append(chCountWhereConditions, "currency = ?")
+			chCountArgs = append(chCountArgs, *req.Currency)
+		}
+
 		if req.TransactionType != nil && *req.TransactionType != "" {
-			if *req.TransactionType == "bet" {
+			switch *req.TransactionType {
+			case "bet":
 				chCountWhereConditions = append(chCountWhereConditions, "transaction_type IN ('bet', 'groove_bet')")
-			} else if *req.TransactionType == "win" {
+			case "win":
 				chCountWhereConditions = append(chCountWhereConditions, "(transaction_type IN ('win', 'groove_win') OR (transaction_type = 'groove_bet' AND win_amount IS NOT NULL AND win_amount > 0))")
+			case "deposit", "withdrawal", "bonus", "adjustment":
+				chCountWhereConditions = append(chCountWhereConditions, "transaction_type = ?")
+				chCountArgs = append(chCountArgs, *req.TransactionType)
+			default:
+				// Unknown type: don't filter by transaction_type.
 			}
 		} else {
-			chCountWhereConditions = append(chCountWhereConditions, "transaction_type IN ('bet', 'groove_bet', 'win', 'groove_win')")
+			chCountWhereConditions = append(chCountWhereConditions, "transaction_type IN ('deposit', 'withdrawal', 'bonus', 'adjustment', 'bet', 'groove_bet', 'win', 'groove_win')")
 		}
 
 		if req.GameProvider != nil && *req.GameProvider != "" {
@@ -1282,38 +1442,25 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			WHERE %s
 				AND (
 					(transaction_type IN ('groove_bet', 'groove_win') AND (status = 'completed' OR (status = 'pending' AND bet_amount IS NOT NULL AND win_amount IS NOT NULL)))
-					OR (transaction_type NOT IN ('groove_bet', 'groove_win') AND (status = 'completed' OR status IS NULL))
+					OR transaction_type NOT IN ('groove_bet', 'groove_win')
 				)
 		`, chCountWhereClause)
 
 		var chCount uint64
 		err := chConn.QueryRow(ctx, chCountQuery, chCountArgs...).Scan(&chCount)
 		if err == nil {
-			total += int64(chCount)
+			total = int64(chCount)
 		}
 	}
+	if !hasClickHouse {
+		// Postgres fallback: we fetch the records (without SQL LIMIT/OFFSET) and paginate in-memory,
+		// so total should be derived from the already-filtered result set.
+		total = int64(len(allTransactions))
+	}
 
-	countQuery := fmt.Sprintf(`
-		WITH all_transactions AS (
-			SELECT COALESCE(b.timestamp, NOW()) as transaction_date, 'bet' as type
-			FROM bets b WHERE b.user_id = $1 %s
-			UNION ALL
-			SELECT w.created_at as transaction_date, 'withdrawal' as type
-			FROM withdrawals w WHERE w.user_id = $1 %s
-		)
-		SELECT COUNT(*) as total
-		FROM all_transactions
-	`, whereClause, whereClause)
-
-	var pgCount int64
-	err = r.db.GetPool().QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&pgCount)
-	if err == nil {
-		total += pgCount
-	} else {
-		r.log.Error("failed to get player transactions count", zap.Error(err))
-		if total == 0 {
-			total = int64(len(allTransactions))
-		}
+	if total == 0 {
+		// Fallback when count queries fail or when filters exclude everything.
+		total = int64(len(allTransactions))
 	}
 
 	if req.MinAmount != nil || req.MaxAmount != nil {
@@ -1328,6 +1475,7 @@ func (r *report) GetPlayerTransactions(ctx context.Context, req dto.PlayerTransa
 			filtered = append(filtered, tx)
 		}
 		allTransactions = filtered
+		total = int64(len(allTransactions))
 	}
 
 	sort.Slice(allTransactions, func(i, j int) bool {

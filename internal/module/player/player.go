@@ -3,13 +3,14 @@ package player
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/tucanbit/internal/constant/dto"
 	"github.com/tucanbit/internal/constant/errors"
 	"github.com/tucanbit/internal/module"
 	"github.com/tucanbit/internal/storage"
 	"go.uber.org/zap"
+
+	"github.com/google/uuid"
 )
 
 type player struct {
@@ -63,11 +64,9 @@ func (p *player) CreatePlayer(ctx context.Context, req dto.CreatePlayerReq) (dto
 	}, nil
 }
 
-func (p *player) GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, error) {
-	if playerID <= 0 {
-		userFriendlyMsg := "Please provide a valid player ID. The ID must be a positive number."
-		err := errors.ErrInvalidUserInput.New(userFriendlyMsg)
-		return dto.Player{}, err
+func (p *player) GetPlayerByID(ctx context.Context, playerID uuid.UUID) (dto.Player, error) {
+	if playerID == uuid.Nil {
+		return dto.Player{}, errors.ErrInvalidUserInput.New("Please provide a valid player ID.")
 	}
 
 	player, exists, err := p.playerStorage.GetPlayerByID(ctx, playerID)
@@ -76,8 +75,8 @@ func (p *player) GetPlayerByID(ctx context.Context, playerID int32) (dto.Player,
 	}
 
 	if !exists {
-		p.log.Warn("player not found", zap.Int32("id", playerID))
-		userFriendlyMsg := fmt.Sprintf("The requested player with ID %d could not be found. Please check the player ID and try again.", playerID)
+		p.log.Warn("player not found", zap.String("id", playerID.String()))
+		userFriendlyMsg := fmt.Sprintf("The requested player with ID %s could not be found. Please check the player ID and try again.", playerID.String())
 		err := errors.ErrResourceNotFound.New(userFriendlyMsg)
 		return dto.Player{}, err
 	}
@@ -106,8 +105,8 @@ func (p *player) UpdatePlayer(ctx context.Context, req dto.UpdatePlayerReq) (dto
 		return dto.UpdatePlayerRes{}, err
 	}
 	if !exists {
-		p.log.Error("player not found", zap.Int32("playerID", req.ID))
-		userFriendlyMsg := fmt.Sprintf("The player with ID %d could not be found. Please check the player ID and try again.", req.ID)
+		p.log.Error("player not found", zap.String("playerID", req.ID.String()))
+		userFriendlyMsg := fmt.Sprintf("The player with ID %s could not be found. Please check the player ID and try again.", req.ID.String())
 		err := errors.ErrResourceNotFound.New(userFriendlyMsg)
 		return dto.UpdatePlayerRes{}, err
 	}
@@ -194,11 +193,9 @@ func (p *player) UpdatePlayer(ctx context.Context, req dto.UpdatePlayerReq) (dto
 	}, nil
 }
 
-func (p *player) DeletePlayer(ctx context.Context, playerID int32) error {
-	if playerID <= 0 {
-		userFriendlyMsg := "Please provide a valid player ID. The ID must be a positive number."
-		err := errors.ErrInvalidUserInput.New(userFriendlyMsg)
-		return err
+func (p *player) DeletePlayer(ctx context.Context, playerID uuid.UUID) error {
+	if playerID == uuid.Nil {
+		return errors.ErrInvalidUserInput.New("Please provide a valid player ID.")
 	}
 
 	// Check if player exists before deleting
@@ -207,8 +204,8 @@ func (p *player) DeletePlayer(ctx context.Context, playerID int32) error {
 		return err
 	}
 	if !exists {
-		p.log.Warn("player not found for deletion", zap.Int32("id", playerID))
-		userFriendlyMsg := fmt.Sprintf("The player with ID %d could not be found. Please check the player ID and try again.", playerID)
+		p.log.Warn("player not found for deletion", zap.String("id", playerID.String()))
+		userFriendlyMsg := fmt.Sprintf("The player with ID %s could not be found. Please check the player ID and try again.", playerID.String())
 		err := errors.ErrResourceNotFound.New(userFriendlyMsg)
 		return err
 	}
@@ -222,11 +219,4 @@ func (p *player) DeletePlayer(ctx context.Context, playerID int32) error {
 	return nil
 }
 
-// Helper function to parse player ID from string
-func ParsePlayerID(idStr string) (int32, error) {
-	id, err := strconv.ParseInt(idStr, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("invalid player ID format: %s", idStr)
-	}
-	return int32(id), nil
-}
+

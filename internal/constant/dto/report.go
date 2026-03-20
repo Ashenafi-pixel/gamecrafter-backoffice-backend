@@ -223,6 +223,8 @@ type PlayerTransactionsReq struct {
 	DateFrom        *string   `form:"date_from" json:"date_from"`
 	DateTo          *string   `form:"date_to" json:"date_to"`
 	TransactionType *string   `form:"transaction_type" json:"transaction_type"` // "deposit", "withdrawal", "bet", "win", "bonus", "adjustment"
+	Status          *string   `form:"status" json:"status"`                     // e.g. deposit pending/success/failed, withdrawal requested/approved/rejected/paid, bonus lifecycle statuses
+	Currency        *string   `form:"currency" json:"currency"`                 // e.g. USD, BTC, etc.
 	GameProvider    *string   `form:"game_provider" json:"game_provider"`
 	GameID          *string   `form:"game_id" json:"game_id"`
 	MinAmount       *float64  `form:"min_amount" json:"min_amount"`

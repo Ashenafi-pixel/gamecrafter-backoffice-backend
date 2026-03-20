@@ -604,10 +604,10 @@ type Page interface {
 }
 type Player interface {
 	CreatePlayer(ctx context.Context, player dto.Player) (dto.Player, error)
-	GetPlayerByID(ctx context.Context, playerID int32) (dto.Player, bool, error)
+	GetPlayerByID(ctx context.Context, playerID uuid.UUID) (dto.Player, bool, error)
 	UpdatePlayer(ctx context.Context, player dto.Player) (dto.Player, error)
-	GetPlayersByIDs(ctx context.Context, playerIDs []int32) ([]dto.Player, error)
+	GetPlayersByIDs(ctx context.Context, playerIDs []uuid.UUID) ([]dto.Player, error)
 	GetAllPlayers(ctx context.Context) ([]dto.Player, error)
 	GetPlayers(ctx context.Context, req dto.GetPlayersReqs) (dto.GetPlayersRess, error)
-	DeletePlayer(ctx context.Context, playerID int32) error
+	DeletePlayer(ctx context.Context, playerID uuid.UUID) error
 }

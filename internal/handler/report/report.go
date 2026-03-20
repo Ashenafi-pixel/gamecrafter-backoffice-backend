@@ -348,6 +348,8 @@ func (r *report) GetPlayerMetrics(ctx *gin.Context) {
 //	@Param			per_page			query		int		false	"Items per page" default(50)
 //	@Param			date_from			query		string	false	"Start date"
 //	@Param			date_to				query		string	false	"End date"
+//	@Param			status				query		string	false	"Transaction status"
+//	@Param			currency			query		string	false	"Currency filter"
 //	@Param			transaction_type	query		string	false	"Transaction type: deposit, withdrawal, bet, win, bonus, adjustment"
 //	@Param			game_provider		query		string	false	"Game provider filter"
 //	@Param			game_id				query		string	false	"Game ID filter"
@@ -568,9 +570,165 @@ func (r *report) ExportPlayerTransactions(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Header("Content-Type", "application/json")
-	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=player-transactions-%s-%s.json", playerIDStr, time.Now().Format("2006-01-02")))
-	response.SendSuccessResponse(ctx, http.StatusOK, transactionsRes)
+	// Generate CSV
+	var csvBuilder strings.Builder
+	// Keep columns stable for BO consumers.
+	// If you need additional fields, add them here and keep ordering consistent.
+	csvBuilder.WriteString(strings.Join([]string{
+		"transaction_id",
+		"type",
+		"date_time",
+		"amount",
+		"currency",
+		"status",
+		"game_provider",
+		"game_id",
+		"game_name",
+		"bet_id",
+		"round_id",
+		"bet_amount",
+		"win_amount",
+		"multiplier",
+		"ggr",
+		"net",
+		"bet_type",
+		"payment_method",
+		"tx_hash",
+		"network",
+		"chain_id",
+		"fees",
+		"device",
+		"ip_address",
+		"session_id",
+	}, ",") + "\n")
+
+	formatCSVField := func(value interface{}) string {
+		if value == nil {
+			return ""
+		}
+		str := fmt.Sprintf("%v", value)
+		if strings.Contains(str, ",") || strings.Contains(str, "\n") || strings.Contains(str, `"`) {
+			str = strings.ReplaceAll(str, `"`, `""`)
+			return `"` + str + `"`
+		}
+		return str
+	}
+
+	for _, tx := range transactionsRes.Data {
+		// Null/optional fields
+		gameProvider := ""
+		if tx.GameProvider != nil {
+			gameProvider = *tx.GameProvider
+		}
+		gameID := ""
+		if tx.GameID != nil {
+			gameID = *tx.GameID
+		}
+		gameName := ""
+		if tx.GameName != nil {
+			gameName = *tx.GameName
+		}
+		betID := ""
+		if tx.BetID != nil {
+			betID = *tx.BetID
+		}
+		roundID := ""
+		if tx.RoundID != nil {
+			roundID = *tx.RoundID
+		}
+
+		betAmount := ""
+		if tx.BetAmount != nil {
+			betAmount = tx.BetAmount.String()
+		}
+		winAmount := ""
+		if tx.WinAmount != nil {
+			winAmount = tx.WinAmount.String()
+		}
+		multiplier := ""
+		if tx.Multiplier != nil {
+			multiplier = tx.Multiplier.String()
+		}
+		ggr := ""
+		if tx.GGR != nil {
+			ggr = tx.GGR.String()
+		}
+		net := ""
+		if tx.Net != nil {
+			net = tx.Net.String()
+		}
+		betType := ""
+		if tx.BetType != nil {
+			betType = *tx.BetType
+		}
+		paymentMethod := ""
+		if tx.PaymentMethod != nil {
+			paymentMethod = *tx.PaymentMethod
+		}
+		txHash := ""
+		if tx.TXHash != nil {
+			txHash = *tx.TXHash
+		}
+		network := ""
+		if tx.Network != nil {
+			network = *tx.Network
+		}
+		chainID := ""
+		if tx.ChainID != nil {
+			chainID = *tx.ChainID
+		}
+		fees := ""
+		if tx.Fees != nil {
+			fees = tx.Fees.String()
+		}
+		device := ""
+		if tx.Device != nil {
+			device = *tx.Device
+		}
+		ipAddress := ""
+		if tx.IPAddress != nil {
+			ipAddress = *tx.IPAddress
+		}
+		sessionID := ""
+		if tx.SessionID != nil {
+			sessionID = *tx.SessionID
+		}
+
+		dateTimeStr := tx.DateTime.Format("2006-01-02 15:04:05")
+
+		csvBuilder.WriteString(strings.Join([]string{
+			formatCSVField(tx.TransactionID),
+			formatCSVField(tx.Type),
+			formatCSVField(dateTimeStr),
+			formatCSVField(tx.Amount.String()),
+			formatCSVField(tx.Currency),
+			formatCSVField(tx.Status),
+			formatCSVField(gameProvider),
+			formatCSVField(gameID),
+			formatCSVField(gameName),
+			formatCSVField(betID),
+			formatCSVField(roundID),
+			formatCSVField(betAmount),
+			formatCSVField(winAmount),
+			formatCSVField(multiplier),
+			formatCSVField(ggr),
+			formatCSVField(net),
+			formatCSVField(betType),
+			formatCSVField(paymentMethod),
+			formatCSVField(txHash),
+			formatCSVField(network),
+			formatCSVField(chainID),
+			formatCSVField(fees),
+			formatCSVField(device),
+			formatCSVField(ipAddress),
+			formatCSVField(sessionID),
+		}, ",") + "\n")
+	}
+
+	ctx.Header("Content-Type", "text/csv; charset=utf-8")
+	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=player-transactions-%s-%s.csv", playerIDStr, time.Now().Format("2006-01-02")))
+	ctx.Header("Content-Transfer-Encoding", "binary")
+	ctx.Data(http.StatusOK, "text/csv; charset=utf-8", []byte(csvBuilder.String()))
 }
 
 // GetCountryMetrics Get Country Report.

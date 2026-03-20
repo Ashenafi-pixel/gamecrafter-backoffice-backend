@@ -99,7 +99,7 @@ func Init(
 				middleware.RateLimiter(),
 				middleware.Auth(),
 				// Align with seeded permissions list
-				middleware.Authz(authModule, "view player metrics report", http.MethodGet),
+				middleware.Authz(authModule, "view player transactions", http.MethodGet),
 				middleware.SystemLogs("Get Player Transactions", &log, systemLogs),
 			},
 		},
