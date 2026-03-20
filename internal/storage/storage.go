@@ -48,6 +48,7 @@ type User interface {
 	GetIpFilterByTypeWithLimitAndOffset(ctx context.Context, ipFilter dto.GetIPFilterReq) (dto.GetIPFilterRes, bool, error)
 	GetAllIpFilterWithLimitAndOffset(ctx context.Context, ipFilter dto.GetIPFilterReq) (dto.GetIPFilterRes, bool, error)
 	GetAllUsers(ctx context.Context, req dto.GetPlayersReq) (dto.GetPlayersRes, error)
+	GetAllPlayersNoPagination(ctx context.Context, search dto.AdminUsersAllSearch) (dto.GetPlayersRes, error)
 	RemoveIPFilters(ctx context.Context, id uuid.UUID) (dto.RemoveIPBlockRes, error)
 	GetIPFilterByID(ctx context.Context, id uuid.UUID) (dto.IPFilter, bool, error)
 	CreateReferalCodeMultiplier(ctx context.Context, req dto.ReferalMultiplierReq) (dto.ReferalData, error)

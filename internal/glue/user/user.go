@@ -36,6 +36,7 @@ type UserHandler interface {
 	AdminResetUsersPassword(c *gin.Context)
 	AdminAutoResetUsersPassword(c *gin.Context)
 	GetUsers(c *gin.Context)
+	GetAllUsersNoPagination(c *gin.Context)
 	RemoveIPFilter(c *gin.Context)
 	GetMyReferalCodes(c *gin.Context)
 	GetMyRefferedUsersAndPoints(c *gin.Context)
@@ -315,6 +316,17 @@ func Init(
 				// Align with seeded permissions list
 				middleware.Authz(authModule, "view players", http.MethodPost),
 				middleware.SystemLogs("get users", &log, systemLog),
+			},
+		}, {
+			Method:  http.MethodGet,
+			Path:    "/api/admin/users/all",
+			Handler: user.GetAllUsersNoPagination,
+			Middleware: []gin.HandlerFunc{
+				middleware.RateLimiter(),
+				middleware.Auth(),
+				// Align with seeded permissions list
+				middleware.Authz(authModule, "view players", http.MethodGet),
+				middleware.SystemLogs("get all users", &log, systemLog),
 			},
 		}, {
 			Method:  http.MethodPost,

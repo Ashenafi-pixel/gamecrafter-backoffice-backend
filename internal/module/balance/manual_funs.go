@@ -117,7 +117,7 @@ func (b *balance) AddManualFunds(ctx context.Context, fund dto.ManualFundReq) (d
 		Amount:        fund.Amount,
 		Reason:        fund.Reason,
 		Currency:      constant.DEFAULT_CURRENCY, // Use default currency for server database
-		Note:          fund.Reason,
+		Note:          fund.Note,
 	})
 	if err != nil {
 		// reverse transaction by subtracting the amount we added
